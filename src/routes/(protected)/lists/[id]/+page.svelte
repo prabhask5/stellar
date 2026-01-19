@@ -69,9 +69,13 @@
     if (!editingGoal || !list) return;
 
     try {
+      const typeChanged = editingGoal.type !== data.type;
       const updated = await updateGoal(editingGoal.id, {
         name: data.name,
-        target_value: data.targetValue
+        type: data.type,
+        target_value: data.targetValue,
+        // Reset progress when changing type
+        ...(typeChanged && { current_value: 0, completed: false })
       });
       list.goals = list.goals.map((g) => (g.id === updated.id ? updated : g));
       editingGoal = null;

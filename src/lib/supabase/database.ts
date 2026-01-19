@@ -120,7 +120,7 @@ export async function createGoal(
 
 export async function updateGoal(
   id: string,
-  updates: Partial<Pick<Goal, 'name' | 'completed' | 'current_value' | 'target_value'>>
+  updates: Partial<Pick<Goal, 'name' | 'type' | 'completed' | 'current_value' | 'target_value'>>
 ): Promise<Goal> {
   const { data, error } = await supabase
     .from('goals')
