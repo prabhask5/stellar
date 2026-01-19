@@ -1,18 +1,27 @@
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
+  import { signOut } from '$lib/supabase/auth';
+  import type { Session } from '@supabase/supabase-js';
 
   interface Props {
     children?: import('svelte').Snippet;
+    data: { session: Session | null };
   }
 
-  let { children }: Props = $props();
+  let { children, data }: Props = $props();
 
   const navItems = [
     { href: '/lists', label: 'Goal Lists', icon: '☐' },
     { href: '/calendar', label: 'Calendar', icon: '📅' },
     { href: '/routines', label: 'Routines', icon: '🔄' }
   ];
+
+  async function handleSignOut() {
+    await signOut();
+    goto('/login');
+  }
 </script>
 
 <div class="app">
@@ -20,18 +29,28 @@
     <div class="nav-brand">
       <a href="/">Goal Planner</a>
     </div>
-    <div class="nav-links">
-      {#each navItems as item}
-        <a
-          href={item.href}
-          class="nav-link"
-          class:active={$page.url.pathname.startsWith(item.href)}
-        >
-          <span class="nav-icon">{item.icon}</span>
-          <span class="nav-label">{item.label}</span>
-        </a>
-      {/each}
-    </div>
+    {#if data.session}
+      <div class="nav-links">
+        {#each navItems as item}
+          <a
+            href={item.href}
+            class="nav-link"
+            class:active={$page.url.pathname.startsWith(item.href)}
+          >
+            <span class="nav-icon">{item.icon}</span>
+            <span class="nav-label">{item.label}</span>
+          </a>
+        {/each}
+      </div>
+      <div class="nav-auth">
+        <span class="user-email">{data.session.user.email}</span>
+        <button class="btn btn-secondary btn-sm" onclick={handleSignOut}>Logout</button>
+      </div>
+    {:else}
+      <div class="nav-auth">
+        <a href="/login" class="btn btn-primary btn-sm">Login</a>
+      </div>
+    {/if}
   </nav>
 
   <main class="main">
@@ -97,6 +116,21 @@
     padding: 1rem;
   }
 
+  .nav-auth {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .user-email {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   @media (max-width: 640px) {
     .nav {
       flex-direction: column;
@@ -114,6 +148,15 @@
 
     .nav-link {
       padding: 0.5rem 0.75rem;
+    }
+
+    .nav-auth {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .user-email {
+      display: none;
     }
   }
 </style>

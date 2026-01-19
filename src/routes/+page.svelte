@@ -1,9 +1,15 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
+  import { getSession } from '$lib/supabase/auth';
 
-  onMount(() => {
-    goto('/lists');
+  onMount(async () => {
+    const session = await getSession();
+    if (session) {
+      goto('/lists');
+    } else {
+      goto('/login');
+    }
   });
 </script>
 

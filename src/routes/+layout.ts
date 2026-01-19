@@ -1,4 +1,6 @@
 import { browser } from '$app/environment';
+import { getSession } from '$lib/supabase/auth';
+import type { LayoutLoad } from './$types';
 
 export const ssr = true;
 export const prerender = false;
@@ -11,3 +13,11 @@ if (browser) {
     });
   }
 }
+
+export const load: LayoutLoad = async () => {
+  if (browser) {
+    const session = await getSession();
+    return { session };
+  }
+  return { session: null };
+};
