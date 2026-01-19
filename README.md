@@ -37,7 +37,7 @@ Create a `.env` file in the project root:
 
 ```bash
 PUBLIC_SUPABASE_URL=your-project-url
-PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
 ```
 
 ### 4. Install Dependencies
