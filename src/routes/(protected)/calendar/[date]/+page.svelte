@@ -99,6 +99,16 @@
     }
   }
 
+  async function handleSetValue(goal: GoalWithProgress, value: number) {
+    if (!canEdit || goal.type !== 'incremental') return;
+
+    try {
+      await dailyProgressStore.setValue(goal.id, dateStr, goal.target_value ?? 1, value);
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to update progress';
+    }
+  }
+
   async function handleReorderGoal(goalId: string, newOrder: number) {
     try {
       await dailyRoutinesStore.reorder(goalId, newOrder);
@@ -176,6 +186,7 @@
               onToggleComplete={canEdit ? () => handleToggleComplete(goal) : undefined}
               onIncrement={canEdit ? () => handleIncrement(goal, 1) : undefined}
               onDecrement={canEdit ? () => handleIncrement(goal, -1) : undefined}
+              onSetValue={canEdit ? (value) => handleSetValue(goal, value) : undefined}
             />
           </div>
         </div>

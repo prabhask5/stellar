@@ -70,13 +70,27 @@
 
     try {
       const typeChanged = editingGoal.type !== data.type;
-      await goalListStore.updateGoal(editingGoal.id, {
+
+      // Calculate updates
+      const updates: Partial<Goal> = {
         name: data.name,
         type: data.type,
-        target_value: data.targetValue,
+        target_value: data.targetValue
+      };
+
+      if (typeChanged) {
         // Reset progress when changing type
-        ...(typeChanged && { current_value: 0, completed: false })
-      });
+        updates.current_value = 0;
+        updates.completed = false;
+      } else if (data.type === 'incremental' && data.targetValue !== null) {
+        // Cap current_value if new target is lower
+        if (editingGoal.current_value > data.targetValue) {
+          updates.current_value = data.targetValue;
+          updates.completed = true;
+        }
+      }
+
+      await goalListStore.updateGoal(editingGoal.id, updates);
       editingGoal = null;
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to update goal';
@@ -104,6 +118,18 @@
         const completed = goal.target_value ? newValue >= goal.target_value : false;
         await goalListStore.updateGoal(goal.id, { current_value: newValue, completed });
       }
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to update goal';
+    }
+  }
+
+  async function handleSetValue(goal: Goal, value: number) {
+    if (!list || goal.type !== 'incremental') return;
+
+    try {
+      const clamped = Math.max(0, Math.min(value, goal.target_value ?? Infinity));
+      const completed = goal.target_value ? clamped >= goal.target_value : false;
+      await goalListStore.updateGoal(goal.id, { current_value: clamped, completed });
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to update goal';
     }
@@ -209,6 +235,7 @@
                 onToggleComplete={() => handleToggleComplete(goal)}
                 onIncrement={() => handleIncrement(goal, 1)}
                 onDecrement={() => handleIncrement(goal, -1)}
+                onSetValue={(value) => handleSetValue(goal, value)}
                 onEdit={() => (editingGoal = goal)}
                 onDelete={() => handleDeleteGoal(goal)}
               />

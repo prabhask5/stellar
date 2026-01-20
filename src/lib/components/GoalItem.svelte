@@ -7,18 +7,26 @@
     onToggleComplete?: () => void;
     onIncrement?: () => void;
     onDecrement?: () => void;
+    onSetValue?: (value: number) => void;
     onEdit?: () => void;
     onDelete?: () => void;
   }
 
-  let { goal, onToggleComplete, onIncrement, onDecrement, onEdit, onDelete }: Props = $props();
+  let { goal, onToggleComplete, onIncrement, onDecrement, onSetValue, onEdit, onDelete }: Props = $props();
+
+  let editing = $state(false);
+  let inputValue = $state('');
 
   // Handle both Goal and DailyRoutineGoal with progress
   const isRegularGoal = $derived('goal_list_id' in goal);
-  const currentValue = $derived(
+  const rawCurrentValue = $derived(
     isRegularGoal
       ? (goal as Goal).current_value
       : ((goal as DailyRoutineGoal & { progress?: DailyGoalProgress }).progress?.current_value ?? 0)
+  );
+  // Cap current value to target to handle case where target was reduced
+  const currentValue = $derived(
+    goal.target_value !== null ? Math.min(rawCurrentValue, goal.target_value) : rawCurrentValue
   );
   const completed = $derived(
     isRegularGoal
@@ -30,6 +38,30 @@
     calculateGoalProgress(goal.type, completed, currentValue, goal.target_value)
   );
   const progressColor = $derived(getProgressColor(progress));
+
+  function startEditing() {
+    if (!onSetValue) return;
+    inputValue = String(currentValue);
+    editing = true;
+  }
+
+  function handleInputKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      commitValue();
+    } else if (e.key === 'Escape') {
+      editing = false;
+    }
+  }
+
+  function commitValue() {
+    editing = false;
+    const parsed = parseInt(inputValue, 10);
+    if (!isNaN(parsed) && parsed !== currentValue && onSetValue) {
+      // Clamp to valid range
+      const clamped = Math.max(0, Math.min(parsed, goal.target_value ?? Infinity));
+      onSetValue(clamped);
+    }
+  }
 </script>
 
 <div class="goal-item" style="border-left-color: {progressColor}">
@@ -49,9 +81,28 @@
     {:else}
       <div class="increment-controls">
         <button class="increment-btn" onclick={onDecrement} aria-label="Decrement">−</button>
-        <span class="current-value" style="color: {progressColor}">
-          {currentValue}/{goal.target_value}
-        </span>
+        {#if editing}
+          <input
+            type="number"
+            class="value-input"
+            bind:value={inputValue}
+            onkeydown={handleInputKeydown}
+            onblur={commitValue}
+            min="0"
+            max={goal.target_value ?? undefined}
+            autofocus
+          />
+        {:else}
+          <button
+            class="current-value"
+            style="color: {progressColor}"
+            onclick={startEditing}
+            disabled={!onSetValue}
+            aria-label="Click to edit value"
+          >
+            {currentValue}/{goal.target_value}
+          </button>
+        {/if}
         <button class="increment-btn" onclick={onIncrement} aria-label="Increment">+</button>
       </div>
     {/if}
@@ -152,6 +203,42 @@
     font-size: 0.875rem;
     min-width: 3.5rem;
     text-align: center;
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .current-value:hover:not(:disabled) {
+    background-color: var(--color-bg-tertiary);
+  }
+
+  .current-value:disabled {
+    cursor: default;
+  }
+
+  .value-input {
+    width: 3.5rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.25rem;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-bg-primary);
+    color: var(--color-text);
+  }
+
+  .value-input::-webkit-inner-spin-button,
+  .value-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .value-input[type=number] {
+    -moz-appearance: textfield;
   }
 
   .goal-name {

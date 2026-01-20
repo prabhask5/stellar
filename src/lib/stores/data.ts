@@ -361,6 +361,25 @@ function createDailyProgressStore() {
         return { ...s, progress: newProgress };
       });
     },
+    setValue: async (routineId: string, date: string, targetValue: number, value: number) => {
+      let state: DailyProgressState | null = null;
+      update(s => { state = s; return s; });
+
+      if (!state) return;
+
+      // Clamp value to valid range
+      const clamped = Math.max(0, Math.min(value, targetValue));
+      const completed = clamped >= targetValue;
+
+      const updated = await repo.upsertDailyProgress(routineId, date, clamped, completed);
+
+      update(s => {
+        if (!s) return s;
+        const newProgress = new Map(s.progress);
+        newProgress.set(routineId, updated);
+        return { ...s, progress: newProgress };
+      });
+    },
     clear: () => {
       currentDate = null;
       set(null);
