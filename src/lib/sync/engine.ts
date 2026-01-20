@@ -19,6 +19,7 @@ import { calculateGoalProgress } from '$lib/utils/colors';
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let syncInterval: ReturnType<typeof setInterval> | null = null;
 let isSyncing = false; // Lock to prevent concurrent syncs
+let hasHydrated = false; // Track if initial hydration has been attempted
 const SYNC_DEBOUNCE_MS = 2000; // 2 seconds debounce after writes
 const SYNC_INTERVAL_MS = 60000; // 1 minute periodic sync
 
@@ -67,8 +68,8 @@ function calculateListProgress(goals: Goal[]): { totalGoals: number; completedGo
 export async function getGoalLists(): Promise<GoalListWithProgress[]> {
   let lists = await db.goalLists.orderBy('created_at').reverse().toArray();
 
-  // If local is empty and online, try to hydrate from remote
-  if (lists.length === 0 && typeof navigator !== 'undefined' && navigator.onLine) {
+  // If local is empty and online and we haven't tried hydrating yet, try to hydrate from remote
+  if (lists.length === 0 && !hasHydrated && typeof navigator !== 'undefined' && navigator.onLine) {
     await hydrateFromRemote();
     lists = await db.goalLists.orderBy('created_at').reverse().toArray();
   }
@@ -129,8 +130,8 @@ export async function getGoalList(id: string): Promise<(GoalList & { goals: Goal
 export async function getDailyRoutineGoals(): Promise<DailyRoutineGoal[]> {
   let routines = await db.dailyRoutineGoals.orderBy('created_at').reverse().toArray();
 
-  // If local is empty and online, try to hydrate from remote
-  if (routines.length === 0 && typeof navigator !== 'undefined' && navigator.onLine) {
+  // If local is empty and online and we haven't tried hydrating yet, try to hydrate from remote
+  if (routines.length === 0 && !hasHydrated && typeof navigator !== 'undefined' && navigator.onLine) {
     await hydrateFromRemote();
     routines = await db.dailyRoutineGoals.orderBy('created_at').reverse().toArray();
   }
@@ -168,8 +169,8 @@ export async function getDailyRoutineGoal(id: string): Promise<DailyRoutineGoal 
 export async function getActiveRoutinesForDate(date: string): Promise<DailyRoutineGoal[]> {
   let allRoutines = await db.dailyRoutineGoals.toArray();
 
-  // If local is empty and online, try to hydrate from remote
-  if (allRoutines.length === 0 && typeof navigator !== 'undefined' && navigator.onLine) {
+  // If local is empty and online and we haven't tried hydrating yet, try to hydrate from remote
+  if (allRoutines.length === 0 && !hasHydrated && typeof navigator !== 'undefined' && navigator.onLine) {
     await hydrateFromRemote();
     allRoutines = await db.dailyRoutineGoals.toArray();
   }
@@ -459,6 +460,9 @@ export async function hydrateFromRemote(): Promise<void> {
   // Prevent concurrent syncs/hydrations
   if (isSyncing) return;
 
+  // Mark that we've attempted hydration (even if local has data)
+  hasHydrated = true;
+
   // Check if local DB is empty
   const localListCount = await db.goalLists.count();
   const localRoutineCount = await db.dailyRoutineGoals.count();
@@ -567,6 +571,7 @@ export function stopSyncEngine(): void {
     syncInterval = null;
   }
   isSyncing = false;
+  hasHydrated = false;
 }
 
 // Clear local cache (for logout)
@@ -578,10 +583,11 @@ export async function clearLocalCache(): Promise<void> {
     await db.dailyGoalProgress.clear();
     await db.syncQueue.clear();
   });
-  // Reset sync cursor
+  // Reset sync cursor and hydration flag
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('lastSyncCursor');
   }
+  hasHydrated = false;
 }
 
 // Manual sync trigger (for UI button)
