@@ -339,17 +339,108 @@
     transform: scale(1.05);
   }
 
-  @media (max-width: 400px) {
-    .name-row {
-      grid-template-columns: 1fr;
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MOBILE RESPONSIVE STYLES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  @media (max-width: 640px) {
+    .login-container {
+      padding: 1.5rem;
+      min-height: 80vh;
+      align-items: flex-start;
+      padding-top: 3rem;
+    }
+
+    .login-container::before {
+      width: 300px;
+      height: 300px;
+      opacity: 0.4;
+    }
+
+    .login-container::after {
+      width: 200px;
+      height: 200px;
+      opacity: 0.3;
     }
 
     .login-card {
       padding: 2rem;
+      max-width: none;
+      width: 100%;
     }
 
     h1 {
       font-size: 1.875rem;
+      margin-bottom: 2rem;
+    }
+
+    form {
+      gap: 1.25rem;
+    }
+
+    .name-row {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+
+    label {
+      font-size: 0.6875rem;
+    }
+
+    .message {
+      padding: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .submit-btn {
+      padding: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    .toggle-mode {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      font-size: 0.85rem;
+    }
+  }
+
+  /* iPhone 14/15/16 Pro Max specific (430px) */
+  @media (min-width: 430px) and (max-width: 640px) {
+    .login-container {
+      padding-top: 4rem;
+    }
+
+    .login-card {
+      padding: 2.5rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+    }
+  }
+
+  /* Very small devices (iPhone SE) */
+  @media (max-width: 375px) {
+    .login-container {
+      padding: 1rem;
+      padding-top: 2rem;
+    }
+
+    .login-card {
+      padding: 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.625rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      gap: 0.5rem;
+    }
+
+    .submit-btn {
+      padding: 0.875rem;
     }
   }
 </style>

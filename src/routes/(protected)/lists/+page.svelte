@@ -358,4 +358,97 @@
     padding-top: 1.25rem;
     border-top: 1px solid rgba(108, 92, 231, 0.15);
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MOBILE RESPONSIVE STYLES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  @media (max-width: 640px) {
+    .page-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .page-header h1 {
+      font-size: 1.75rem;
+      text-align: center;
+    }
+
+    .page-header .btn {
+      width: 100%;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .lists-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .list-card {
+      padding: 1.25rem;
+      border-radius: var(--radius-xl);
+    }
+
+    .list-card:hover {
+      transform: none;
+    }
+
+    .list-card:active {
+      transform: scale(0.98);
+      transition: transform 0.1s;
+    }
+
+    .list-name {
+      font-size: 1.125rem;
+    }
+
+    .delete-btn {
+      width: 44px;
+      height: 44px;
+      opacity: 0.5;
+    }
+
+    .loading {
+      padding: 3rem;
+    }
+
+    .error-banner {
+      flex-direction: column;
+      gap: 1rem;
+      text-align: center;
+    }
+
+    .error-banner button {
+      width: 100%;
+    }
+  }
+
+  /* iPhone 14/15/16 Pro Max specific (430px) */
+  @media (min-width: 430px) and (max-width: 640px) {
+    .page-header h1 {
+      font-size: 2rem;
+    }
+
+    .list-card {
+      padding: 1.5rem;
+    }
+  }
+
+  /* Very small devices (iPhone SE) */
+  @media (max-width: 375px) {
+    .page-header h1 {
+      font-size: 1.5rem;
+    }
+
+    .list-card {
+      padding: 1rem;
+    }
+
+    .list-name {
+      font-size: 1rem;
+    }
+  }
 </style>

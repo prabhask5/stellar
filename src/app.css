@@ -946,3 +946,272 @@ button {
 .star-trail:hover::after {
   left: 100%;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════════
+   MOBILE & IPHONE OPTIMIZATIONS
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+/* iOS Safe Areas - Critical for iPhone X+ devices with notch/Dynamic Island */
+@supports (padding: env(safe-area-inset-top)) {
+  html {
+    /* Enable safe area insets */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: 0; /* Reset, let specific elements handle this */
+  }
+}
+
+/* Prevent iOS rubber-band scrolling on body */
+html {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+}
+
+/* Better touch targets for mobile - minimum 44px per Apple HIG */
+@media (max-width: 768px) {
+  button,
+  a,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Exception for inline elements */
+  a:not(.btn):not(.nav-link):not(.tab-item) {
+    min-height: auto;
+    min-width: auto;
+  }
+}
+
+/* Prevent text size adjustment on orientation change */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Smooth momentum scrolling for iOS */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent callout on long-press for iOS */
+a, button, img {
+  -webkit-touch-callout: none;
+}
+
+/* Disable tap highlight on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Better focus states for touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .btn:focus,
+  .nav-link:focus,
+  input:focus,
+  button:focus {
+    outline: none;
+  }
+}
+
+/* iPhone SE (375px) specific adjustments */
+@media (max-width: 375px) {
+  :root {
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
+  }
+
+  .container {
+    padding: 1rem;
+  }
+
+  .btn {
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .btn-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* iPhone 14/15/16 (390px - 430px) */
+@media (min-width: 390px) and (max-width: 430px) {
+  .container {
+    padding: 1.25rem;
+  }
+}
+
+/* iPhone 14/15/16 Pro Max and Plus models (430px+) */
+@media (min-width: 430px) and (max-width: 640px) {
+  .container {
+    padding: 1.5rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+}
+
+/* Landscape mode on phones */
+@media (max-height: 500px) and (orientation: landscape) {
+  .container {
+    padding: 0.75rem 1.5rem;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  /* Reduce vertical spacing in landscape */
+  .card {
+    padding: 1rem;
+  }
+}
+
+/* Dark mode optimizations for OLED screens */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-void: #000000;
+    --color-bg: #000000;
+    --color-bg-secondary: #0a0a0a;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --color-text: #ffffff;
+    --color-text-secondary: #e0e0e0;
+    --color-border: rgba(255, 255, 255, 0.4);
+  }
+
+  .btn-primary {
+    border: 2px solid white;
+  }
+}
+
+/* Reduced motion - respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  body::before,
+  body::after {
+    animation: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE CONTAINER VARIANTS
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.container-narrow {
+  max-width: 600px;
+}
+
+.container-wide {
+  max-width: 1400px;
+}
+
+.container-full {
+  max-width: none;
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE GRID UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.grid-responsive {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .grid-responsive {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-responsive {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════
+   MOBILE-SPECIFIC COMPONENT ADJUSTMENTS
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  /* Larger form elements on mobile for better touch */
+  input, textarea, select {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    padding: 1rem;
+  }
+
+  /* Stacking form buttons on mobile */
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 0.75rem;
+  }
+
+  .form-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Full-width cards on mobile */
+  .card {
+    border-radius: var(--radius-xl);
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════
+   PRINT STYLES
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  body::before,
+  body::after,
+  .nav-desktop,
+  .nav-mobile {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+
+  .card {
+    border: 1px solid #ccc;
+    box-shadow: none;
+  }
+}

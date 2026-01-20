@@ -656,4 +656,134 @@
     color: var(--color-red);
     box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MOBILE RESPONSIVE STYLES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  @media (max-width: 640px) {
+    .page-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .page-header h1 {
+      font-size: 1.75rem;
+      text-align: center;
+    }
+
+    .page-header .btn {
+      width: 100%;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .legend {
+      margin-top: 1.25rem;
+    }
+
+    .legend-items {
+      gap: 1rem;
+      padding: 0.75rem 1.25rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .legend-item {
+      font-size: 0.75rem;
+    }
+
+    .legend-color {
+      width: 14px;
+      height: 14px;
+    }
+
+    .routines-section {
+      margin-top: 2.5rem;
+      padding-top: 2rem;
+    }
+
+    .routines-section h2 {
+      font-size: 1.375rem;
+      text-align: center;
+    }
+
+    .routine-card {
+      padding: 1rem 1.25rem;
+      gap: 0.75rem;
+    }
+
+    .routine-card:hover {
+      transform: none;
+    }
+
+    .routine-card:active {
+      transform: scale(0.98);
+    }
+
+    .routine-info h4 {
+      font-size: 1rem;
+    }
+
+    .routine-meta {
+      gap: 0.5rem;
+    }
+
+    .date-range {
+      font-size: 0.6875rem;
+    }
+
+    .action-btn {
+      width: 44px;
+      height: 44px;
+      opacity: 0.5;
+    }
+
+    .routine-with-handle .drag-handle {
+      min-width: 36px;
+    }
+
+    .empty-routines {
+      padding: 2.5rem 1.5rem;
+    }
+
+    .error-banner {
+      flex-direction: column;
+      gap: 1rem;
+      text-align: center;
+    }
+
+    .loading {
+      padding: 3rem;
+    }
+  }
+
+  /* iPhone 14/15/16 Pro Max specific */
+  @media (min-width: 430px) and (max-width: 640px) {
+    .page-header h1 {
+      font-size: 2rem;
+    }
+
+    .routine-card {
+      padding: 1.25rem 1.5rem;
+    }
+  }
+
+  /* Very small devices (iPhone SE) */
+  @media (max-width: 375px) {
+    .page-header h1 {
+      font-size: 1.5rem;
+    }
+
+    .routine-info h4 {
+      font-size: 0.9375rem;
+    }
+
+    .badge {
+      font-size: 0.625rem;
+      padding: 0.2rem 0.5rem;
+    }
+  }
 </style>

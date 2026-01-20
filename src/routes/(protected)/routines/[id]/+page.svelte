@@ -281,4 +281,102 @@
     font-size: 1.125rem;
     line-height: 1.6;
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MOBILE RESPONSIVE STYLES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  @media (max-width: 640px) {
+    .page-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .header-left {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
+    }
+
+    .back-btn {
+      width: 100%;
+      justify-content: center;
+      padding: 0.875rem;
+    }
+
+    .back-btn:hover {
+      transform: none;
+    }
+
+    .back-btn:active {
+      transform: scale(0.98);
+    }
+
+    .page-header h1 {
+      font-size: 1.5rem;
+      text-align: center;
+    }
+
+    .page-header .btn {
+      width: 100%;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .form-card {
+      padding: 1.5rem;
+      border-radius: var(--radius-xl);
+      max-width: none;
+    }
+
+    .error-banner {
+      flex-direction: column;
+      gap: 1rem;
+      text-align: center;
+    }
+
+    .error-banner button {
+      width: 100%;
+    }
+
+    .loading {
+      padding: 3rem;
+    }
+
+    .error-state {
+      padding: 3rem 1.5rem;
+    }
+
+    .error-state p {
+      font-size: 1rem;
+    }
+  }
+
+  /* iPhone 14/15/16 Pro Max specific (430px) */
+  @media (min-width: 430px) and (max-width: 640px) {
+    .page-header h1 {
+      font-size: 1.75rem;
+    }
+
+    .form-card {
+      padding: 2rem;
+    }
+  }
+
+  /* Very small devices (iPhone SE) */
+  @media (max-width: 375px) {
+    .page-header h1 {
+      font-size: 1.25rem;
+    }
+
+    .form-card {
+      padding: 1.25rem;
+    }
+
+    .error-state p {
+      font-size: 0.9375rem;
+    }
+  }
 </style>

@@ -413,4 +413,124 @@
     color: var(--color-text-muted);
     min-width: 32px;
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MOBILE RESPONSIVE STYLES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  @media (max-width: 640px) {
+    .page-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .header-left {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
+    }
+
+    .back-btn {
+      width: 100%;
+      justify-content: center;
+      padding: 0.875rem;
+    }
+
+    .back-btn:hover {
+      transform: none;
+    }
+
+    .back-btn:active {
+      transform: scale(0.98);
+    }
+
+    .header-info {
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .page-header h1 {
+      font-size: 1.5rem;
+      text-align: center;
+    }
+
+    .page-header .btn {
+      width: 100%;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .badge {
+      font-size: 0.625rem;
+      padding: 0.3rem 0.75rem;
+    }
+
+    .progress-section {
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      border-radius: var(--radius-xl);
+    }
+
+    .info-banner {
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .info-banner p {
+      font-size: 0.875rem;
+      text-align: center;
+    }
+
+    .error-banner {
+      flex-direction: column;
+      gap: 1rem;
+      text-align: center;
+    }
+
+    .error-banner button {
+      width: 100%;
+    }
+
+    .loading {
+      padding: 3rem;
+    }
+
+    .goal-with-handle .drag-handle {
+      min-width: 44px;
+      font-size: 1rem;
+    }
+  }
+
+  /* iPhone 14/15/16 Pro Max specific (430px) */
+  @media (min-width: 430px) and (max-width: 640px) {
+    .page-header h1 {
+      font-size: 1.75rem;
+    }
+
+    .progress-section {
+      padding: 1.5rem;
+    }
+  }
+
+  /* Very small devices (iPhone SE) */
+  @media (max-width: 375px) {
+    .page-header h1 {
+      font-size: 1.25rem;
+    }
+
+    .badge {
+      font-size: 0.5625rem;
+      padding: 0.25rem 0.5rem;
+    }
+
+    .progress-section {
+      padding: 1rem;
+    }
+
+    .info-banner p {
+      font-size: 0.8125rem;
+    }
+  }
 </style>
