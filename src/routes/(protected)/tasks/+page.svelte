@@ -152,35 +152,24 @@
   }
 
   // Modal swapping for category creation
+  // Simple approach: open new modal BEFORE closing old one, so backdrops overlap
   function handleRequestCreateCategory(formState: { name: string; dueDate: string; categoryId: string | null }) {
     savedTaskFormState = formState;
-    // Show transition backdrop FIRST, wait for it to fade in
-    modalTransitioning = true;
-    setTimeout(() => {
-      // Close task form (hidden behind backdrop)
+    // Open category modal first (its backdrop appears)
+    showCategoryCreate = true;
+    // Then close task form (backdrop fades out behind the new one)
+    requestAnimationFrame(() => {
       showTaskForm = false;
-      // Open category modal immediately
-      setTimeout(() => {
-        showCategoryCreate = true;
-        // Start fading out backdrop as modal fades in (cross-fade)
-        modalTransitioning = false;
-      }, 50);
-    }, 150); // Wait for backdrop to fully appear
+    });
   }
 
   function handleCategoryCreateClose() {
-    // Show transition backdrop FIRST, wait for it to fade in
-    modalTransitioning = true;
-    setTimeout(() => {
-      // Close category modal (hidden behind backdrop)
+    // Open task form first (its backdrop appears)
+    showTaskForm = true;
+    // Then close category modal (backdrop fades out behind the new one)
+    requestAnimationFrame(() => {
       showCategoryCreate = false;
-      // Open task form immediately
-      setTimeout(() => {
-        showTaskForm = true;
-        // Start fading out backdrop as modal fades in (cross-fade)
-        modalTransitioning = false;
-      }, 50);
-    }, 150); // Wait for backdrop to fully appear
+    });
   }
 
   async function handleCategoryCreateSubmit(name: string, color: string) {
@@ -379,18 +368,19 @@
   .transition-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(5, 5, 15, 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgba(5, 5, 15, 0.98);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     z-index: 1001;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.15s ease-out;
+    transition: opacity 0.2s ease-out;
   }
 
   .transition-backdrop.visible {
     opacity: 1;
     pointer-events: auto;
+    transition: none; /* Appear instantly */
   }
   .section {
     margin-bottom: 3rem;

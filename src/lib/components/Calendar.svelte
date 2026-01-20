@@ -25,12 +25,38 @@
   const days = $derived(getDaysInMonth(currentDate));
   const firstDayOffset = $derived(getFirstDayOfMonthWeekday(currentDate));
 
+  // Always show 6 rows (42 cells) for consistent height
+  const totalCells = 42;
+  const trailingEmptyCells = $derived(totalCells - firstDayOffset - days.length);
+
+  // Transition state for cinematic month changes
+  let transitionDirection = $state<'left' | 'right' | null>(null);
+  let isTransitioning = $state(false);
+
   function goToPreviousMonth() {
-    onMonthChange(subMonths(currentDate, 1));
+    if (isTransitioning) return;
+    transitionDirection = 'right';
+    isTransitioning = true;
+    setTimeout(() => {
+      onMonthChange(subMonths(currentDate, 1));
+      setTimeout(() => {
+        isTransitioning = false;
+        transitionDirection = null;
+      }, 50);
+    }, 300);
   }
 
   function goToNextMonth() {
-    onMonthChange(addMonths(currentDate, 1));
+    if (isTransitioning) return;
+    transitionDirection = 'left';
+    isTransitioning = true;
+    setTimeout(() => {
+      onMonthChange(addMonths(currentDate, 1));
+      setTimeout(() => {
+        isTransitioning = false;
+        transitionDirection = null;
+      }, 50);
+    }, 300);
   }
 
   function getDayProgress(date: Date): DayProgress | undefined {
@@ -40,12 +66,24 @@
 
 <div class="calendar">
   <div class="calendar-header">
-    <button class="nav-btn" onclick={goToPreviousMonth} aria-label="Previous month">
-      ←
+    <button class="nav-btn" onclick={goToPreviousMonth} aria-label="Previous month" disabled={isTransitioning}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
     </button>
-    <h2 class="month-title">{formatMonthYear(currentDate)}</h2>
-    <button class="nav-btn" onclick={goToNextMonth} aria-label="Next month">
-      →
+    <div class="month-title-wrapper">
+      <h2
+        class="month-title"
+        class:slide-out-left={transitionDirection === 'left' && isTransitioning}
+        class:slide-out-right={transitionDirection === 'right' && isTransitioning}
+      >
+        {formatMonthYear(currentDate)}
+      </h2>
+    </div>
+    <button class="nav-btn" onclick={goToNextMonth} aria-label="Next month" disabled={isTransitioning}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
     </button>
   </div>
 
@@ -55,7 +93,12 @@
     {/each}
   </div>
 
-  <div class="calendar-grid">
+  <div
+    class="calendar-grid"
+    class:transitioning={isTransitioning}
+    class:slide-left={transitionDirection === 'left'}
+    class:slide-right={transitionDirection === 'right'}
+  >
     {#each Array(firstDayOffset) as _, i}
       <div class="day-cell empty" aria-hidden="true"></div>
     {/each}
@@ -84,6 +127,10 @@
         {/if}
       </button>
     {/each}
+
+    {#each Array(trailingEmptyCells) as _, i}
+      <div class="day-cell empty trailing" aria-hidden="true"></div>
+    {/each}
   </div>
 </div>
 
@@ -103,6 +150,7 @@
       0 16px 48px rgba(0, 0, 0, 0.5),
       0 0 100px rgba(108, 92, 231, 0.1);
     position: relative;
+    perspective: 1000px;
   }
 
   /* Top glow line */
@@ -180,6 +228,28 @@
     transform: scale(0.95);
   }
 
+  .nav-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .nav-btn:disabled:hover {
+    background: rgba(30, 30, 55, 0.6);
+    border-color: rgba(108, 92, 231, 0.2);
+    transform: none;
+    box-shadow: none;
+    color: var(--color-text-muted);
+  }
+
+  .month-title-wrapper {
+    overflow: hidden;
+    position: relative;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+  }
+
   .month-title {
     font-size: 1.75rem;
     font-weight: 800;
@@ -193,6 +263,41 @@
     background-clip: text;
     letter-spacing: -0.03em;
     animation: textShimmer 8s linear infinite;
+    transition: all 0.3s var(--ease-out);
+  }
+
+  .month-title.slide-out-left {
+    animation: slideOutLeft 0.3s var(--ease-out) forwards;
+  }
+
+  .month-title.slide-out-right {
+    animation: slideOutRight 0.3s var(--ease-out) forwards;
+  }
+
+  @keyframes slideOutLeft {
+    0% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      filter: blur(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(-60px) scale(0.9);
+      filter: blur(4px);
+    }
+  }
+
+  @keyframes slideOutRight {
+    0% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      filter: blur(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(60px) scale(0.9);
+      filter: blur(4px);
+    }
   }
 
   @keyframes textShimmer {
@@ -228,6 +333,49 @@
     padding: 6px;
     position: relative;
     z-index: 1;
+    transition: all 0.3s var(--ease-out);
+  }
+
+  .calendar-grid.transitioning {
+    pointer-events: none;
+  }
+
+  .calendar-grid.transitioning.slide-left {
+    animation: gridSlideLeft 0.3s var(--ease-out) forwards;
+  }
+
+  .calendar-grid.transitioning.slide-right {
+    animation: gridSlideRight 0.3s var(--ease-out) forwards;
+  }
+
+  @keyframes gridSlideLeft {
+    0% {
+      opacity: 1;
+      transform: translateX(0) scale(1) rotateY(0);
+    }
+    50% {
+      opacity: 0.3;
+      transform: translateX(-30px) scale(0.95) rotateY(-5deg);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(-60px) scale(0.9) rotateY(-10deg);
+    }
+  }
+
+  @keyframes gridSlideRight {
+    0% {
+      opacity: 1;
+      transform: translateX(0) scale(1) rotateY(0);
+    }
+    50% {
+      opacity: 0.3;
+      transform: translateX(30px) scale(0.95) rotateY(5deg);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(60px) scale(0.9) rotateY(10deg);
+    }
   }
 
   .day-cell {

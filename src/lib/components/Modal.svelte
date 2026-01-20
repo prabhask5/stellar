@@ -29,7 +29,8 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
     class="modal-backdrop"
-    transition:fade={{ duration: 150 }}
+    in:fade={{ duration: 0 }}
+    out:fade={{ duration: 150 }}
     onclick={handleBackdropClick}
     onkeydown={(e) => e.key === 'Escape' && onClose()}
     role="dialog"
