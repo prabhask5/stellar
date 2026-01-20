@@ -25,10 +25,6 @@
   const days = $derived(getDaysInMonth(currentDate));
   const firstDayOffset = $derived(getFirstDayOfMonthWeekday(currentDate));
 
-  // Always show 6 rows (42 cells) for consistent height
-  const totalCells = 42;
-  const trailingEmptyCells = $derived(totalCells - firstDayOffset - days.length);
-
   // Transition state for cinematic month changes
   let transitionDirection = $state<'left' | 'right' | null>(null);
   let isTransitioning = $state(false);
@@ -126,10 +122,6 @@
           <span class="day-progress">{percentage}%</span>
         {/if}
       </button>
-    {/each}
-
-    {#each Array(trailingEmptyCells) as _, i}
-      <div class="day-cell empty trailing" aria-hidden="true"></div>
     {/each}
   </div>
 </div>
