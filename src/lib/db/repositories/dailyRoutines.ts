@@ -13,14 +13,19 @@ export async function createDailyRoutineGoal(
 ): Promise<DailyRoutineGoal> {
   const timestamp = now();
 
-  // Get the current max order (outside transaction for read)
+  // Get the current min order to prepend new items at the top
+  // This is backwards-compatible: existing items (order 0,1,2...) stay in place,
+  // new items get -1,-2,-3... and appear first when sorted ascending
   const existingRoutines = await db.dailyRoutineGoals
     .where('user_id')
     .equals(userId)
     .toArray();
 
-  const maxOrder = existingRoutines.reduce((max, r) => Math.max(max, r.order ?? -1), -1);
-  const nextOrder = maxOrder + 1;
+  const activeRoutines = existingRoutines.filter(r => !r.deleted);
+  const minOrder = activeRoutines.length > 0
+    ? Math.min(...activeRoutines.map(r => r.order ?? 0))
+    : 0;
+  const nextOrder = minOrder - 1;
 
   const newRoutine: DailyRoutineGoal = {
     id: generateId(),

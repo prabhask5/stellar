@@ -106,7 +106,8 @@ function createGoalListStore() {
     },
     addGoal: async (goalListId: string, name: string, type: 'completion' | 'incremental', targetValue: number | null) => {
       const newGoal = await repo.createGoal(goalListId, name, type, targetValue);
-      update(list => list ? { ...list, goals: [...list.goals, newGoal] } : null);
+      // Prepend to top (new items have lower order values)
+      update(list => list ? { ...list, goals: [newGoal, ...list.goals] } : null);
       return newGoal;
     },
     updateGoal: async (goalId: string, updates: Partial<Pick<Goal, 'name' | 'type' | 'completed' | 'current_value' | 'target_value'>>) => {
@@ -659,7 +660,8 @@ function createDailyTasksStore() {
     },
     create: async (name: string, userId: string) => {
       const newTask = await repo.createDailyTask(name, userId);
-      update(tasks => [...tasks, newTask]);
+      // Prepend to top (new items have lower order values)
+      update(tasks => [newTask, ...tasks]);
       return newTask;
     },
     update: async (id: string, updates: Partial<Pick<DailyTask, 'name' | 'completed'>>) => {

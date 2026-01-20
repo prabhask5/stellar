@@ -6,16 +6,21 @@ import { scheduleSyncPush } from '$lib/sync/engine';
 export async function createDailyTask(name: string, userId: string): Promise<DailyTask> {
   const timestamp = now();
 
-  // Get the highest order to insert at the bottom (outside transaction for read)
+  // Get the lowest order to prepend new items at the top
+  // This is backwards-compatible: existing items (order 0,1,2...) stay in place,
+  // new items get -1,-2,-3... and appear first when sorted ascending
   const existing = await db.dailyTasks.where('user_id').equals(userId).toArray();
   const activeItems = existing.filter(t => !t.deleted);
-  const maxOrder = activeItems.length > 0 ? Math.max(...activeItems.map(t => t.order)) + 1 : 0;
+  const minOrder = activeItems.length > 0
+    ? Math.min(...activeItems.map(t => t.order))
+    : 0;
+  const nextOrder = minOrder - 1;
 
   const newTask: DailyTask = {
     id: generateId(),
     user_id: userId,
     name,
-    order: maxOrder,
+    order: nextOrder,
     completed: false,
     created_at: timestamp,
     updated_at: timestamp
@@ -26,7 +31,7 @@ export async function createDailyTask(name: string, userId: string): Promise<Dai
     await db.dailyTasks.add(newTask);
     await queueSyncDirect('daily_tasks', 'create', newTask.id, {
       name,
-      order: maxOrder,
+      order: nextOrder,
       completed: false,
       user_id: userId,
       created_at: timestamp,

@@ -11,14 +11,19 @@ export async function createGoal(
 ): Promise<Goal> {
   const timestamp = now();
 
-  // Get the current max order (outside transaction for read)
+  // Get the current min order to prepend new items at the top
+  // This is backwards-compatible: existing items (order 0,1,2...) stay in place,
+  // new items get -1,-2,-3... and appear first when sorted ascending
   const existingGoals = await db.goals
     .where('goal_list_id')
     .equals(goalListId)
     .toArray();
 
-  const maxOrder = existingGoals.reduce((max, g) => Math.max(max, g.order), -1);
-  const nextOrder = maxOrder + 1;
+  const activeGoals = existingGoals.filter(g => !g.deleted);
+  const minOrder = activeGoals.length > 0
+    ? Math.min(...activeGoals.map(g => g.order))
+    : 0;
+  const nextOrder = minOrder - 1;
 
   const newGoal: Goal = {
     id: generateId(),
