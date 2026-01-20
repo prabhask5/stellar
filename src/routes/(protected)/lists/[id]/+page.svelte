@@ -166,7 +166,7 @@
 </script>
 
 <svelte:head>
-  <title>{list?.name ?? 'Loading...'} - Goal Planner</title>
+  <title>{list?.name ?? 'Loading...'} - Stellar</title>
 </svelte:head>
 
 <div class="container">

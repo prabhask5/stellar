@@ -1,6 +1,6 @@
 // Version is updated automatically on each build by vite.config.ts
 const APP_VERSION = 'mkm1qnoj';
-const CACHE_NAME = `goal-planner-${APP_VERSION}`;
+const CACHE_NAME = `stellar-${APP_VERSION}`;
 
 // Assets to cache on install (app shell)
 const PRECACHE_ASSETS = [
@@ -35,7 +35,7 @@ self.addEventListener('activate', (event) => {
       const cacheNames = await caches.keys();
       await Promise.all(
         cacheNames
-          .filter((name) => name.startsWith('goal-planner-') && name !== CACHE_NAME)
+          .filter((name) => (name.startsWith('stellar-') || name.startsWith('goal-planner-')) && name !== CACHE_NAME)
           .map((name) => {
             console.log(`[SW] Deleting old cache: ${name}`);
             return caches.delete(name);

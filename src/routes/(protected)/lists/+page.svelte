@@ -72,7 +72,7 @@
 </script>
 
 <svelte:head>
-  <title>Goal Lists - Goal Planner</title>
+  <title>Goal Lists - Stellar</title>
 </svelte:head>
 
 <div class="container">

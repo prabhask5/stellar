@@ -1,7 +1,7 @@
 {
-  "name": "Goal Planner",
-  "short_name": "Goals",
-  "description": "Track your goals and daily routines",
+  "name": "Stellar",
+  "short_name": "Stellar",
+  "description": "Track your goals and daily routines with Stellar",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f0f1a",

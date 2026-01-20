@@ -1,4 +1,4 @@
-# Goal Planner
+# Stellar
 
 A personal goal tracking application with support for one-time goal lists and daily routine goals with date ranges.
 

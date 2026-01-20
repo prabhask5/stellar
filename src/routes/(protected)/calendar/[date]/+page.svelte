@@ -121,7 +121,7 @@
 </script>
 
 <svelte:head>
-  <title>{displayDate} - Goal Planner</title>
+  <title>{displayDate} - Stellar</title>
 </svelte:head>
 
 <div class="container">

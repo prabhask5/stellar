@@ -153,7 +153,7 @@
 </script>
 
 <svelte:head>
-  <title>Calendar - Goal Planner</title>
+  <title>Calendar - Stellar</title>
 </svelte:head>
 
 <div class="container">

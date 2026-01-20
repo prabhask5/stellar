@@ -75,7 +75,7 @@
 </script>
 
 <svelte:head>
-  <title>Edit Routine - Goal Planner</title>
+  <title>Edit Routine - Stellar</title>
 </svelte:head>
 
 <div class="container">
