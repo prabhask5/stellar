@@ -187,9 +187,9 @@
         <button type="submit" class="btn btn-primary submit-btn" disabled={loading}>
           {#if loading}
             <span class="loading-spinner"></span>
-            Loading...
+            {mode === 'login' ? 'Signing in...' : 'Creating account...'}
           {:else}
-            {mode === 'login' ? 'Log In' : 'Sign in'}
+            {mode === 'login' ? 'Log In' : 'Sign Up'}
           {/if}
         </button>
       </form>

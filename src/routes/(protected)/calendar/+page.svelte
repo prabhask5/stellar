@@ -172,7 +172,25 @@
   {/if}
 
   {#if loading}
-    <div class="loading">Loading...</div>
+    <!-- Calendar Skeleton -->
+    <div class="calendar-skeleton">
+      <div class="skeleton-header">
+        <div class="skeleton-nav-btn"></div>
+        <div class="skeleton-month-title"></div>
+        <div class="skeleton-nav-btn"></div>
+      </div>
+      <div class="skeleton-weekdays">
+        {#each Array(7) as _}
+          <div class="skeleton-weekday"></div>
+        {/each}
+      </div>
+      <div class="skeleton-grid">
+        {#each Array(35) as _, i}
+          <div class="skeleton-day" style="--delay: {(i % 7) * 0.05}s"></div>
+        {/each}
+      </div>
+      <div class="skeleton-shimmer"></div>
+    </div>
   {:else}
     <Calendar
       {currentDate}
@@ -204,7 +222,26 @@
     <h2>Manage Routines</h2>
 
     {#if routinesLoading}
-      <div class="loading">Loading routines...</div>
+      <!-- Routines Skeleton -->
+      <div class="routines-skeleton">
+        {#each Array(3) as _, i}
+          <div class="routine-skeleton-card" style="--delay: {i * 0.1}s">
+            <div class="routine-skeleton-handle"></div>
+            <div class="routine-skeleton-content">
+              <div class="routine-skeleton-title"></div>
+              <div class="routine-skeleton-meta">
+                <div class="routine-skeleton-badge"></div>
+                <div class="routine-skeleton-date"></div>
+              </div>
+            </div>
+            <div class="routine-skeleton-actions">
+              <div class="routine-skeleton-btn"></div>
+              <div class="routine-skeleton-btn"></div>
+            </div>
+            <div class="skeleton-shimmer"></div>
+          </div>
+        {/each}
+      </div>
     {:else if routines.length === 0}
       <div class="empty-routines">
         <p>No routines yet. Create your first daily routine to start tracking.</p>
@@ -364,12 +401,188 @@
     transform: scale(1.05);
   }
 
-  .loading {
-    text-align: center;
-    padding: 5rem;
-    color: var(--color-text-muted);
-    font-size: 1.25rem;
-    font-weight: 500;
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     SKELETON LOADING STYLES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .calendar-skeleton {
+    background: linear-gradient(165deg,
+      rgba(15, 15, 30, 0.95) 0%,
+      rgba(10, 10, 22, 0.98) 50%,
+      rgba(15, 15, 30, 0.95) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .skeleton-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid rgba(108, 92, 231, 0.15);
+  }
+
+  .skeleton-nav-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-xl);
+    background: rgba(108, 92, 231, 0.1);
+  }
+
+  .skeleton-month-title {
+    width: 180px;
+    height: 1.75rem;
+    border-radius: var(--radius-md);
+    background: linear-gradient(90deg,
+      rgba(108, 92, 231, 0.15) 0%,
+      rgba(108, 92, 231, 0.25) 50%,
+      rgba(108, 92, 231, 0.15) 100%);
+  }
+
+  .skeleton-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid rgba(108, 92, 231, 0.1);
+    padding: 1rem;
+    gap: 0.5rem;
+  }
+
+  .skeleton-weekday {
+    height: 0.75rem;
+    border-radius: var(--radius-sm);
+    background: rgba(108, 92, 231, 0.1);
+  }
+
+  .skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+    padding: 6px;
+  }
+
+  .skeleton-day {
+    aspect-ratio: 1;
+    min-height: 70px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(145deg,
+      rgba(20, 20, 40, 0.95) 0%,
+      rgba(15, 15, 32, 0.9) 100%);
+    animation: skeletonPulse 2s ease-in-out infinite;
+    animation-delay: var(--delay);
+  }
+
+  /* Routines Skeleton */
+  .routines-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .routine-skeleton-card {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    position: relative;
+    overflow: hidden;
+    animation: skeletonPulse 2s ease-in-out infinite;
+    animation-delay: var(--delay);
+  }
+
+  .routine-skeleton-handle {
+    width: 32px;
+    min-height: 80px;
+    background: linear-gradient(135deg,
+      rgba(37, 37, 61, 0.9) 0%,
+      rgba(26, 26, 46, 0.95) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-right: none;
+    border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+  }
+
+  .routine-skeleton-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(165deg,
+      rgba(15, 15, 30, 0.95) 0%,
+      rgba(20, 20, 40, 0.9) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-left: 4px solid rgba(108, 92, 231, 0.3);
+    border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+  }
+
+  .routine-skeleton-title {
+    width: 60%;
+    height: 1.125rem;
+    background: linear-gradient(90deg,
+      rgba(108, 92, 231, 0.15) 0%,
+      rgba(108, 92, 231, 0.25) 50%,
+      rgba(108, 92, 231, 0.15) 100%);
+    border-radius: var(--radius-md);
+  }
+
+  .routine-skeleton-meta {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .routine-skeleton-badge {
+    width: 80px;
+    height: 1.5rem;
+    background: rgba(108, 92, 231, 0.1);
+    border-radius: var(--radius-lg);
+  }
+
+  .routine-skeleton-date {
+    width: 140px;
+    height: 0.875rem;
+    background: rgba(108, 92, 231, 0.08);
+    border-radius: var(--radius-sm);
+    align-self: center;
+  }
+
+  .routine-skeleton-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding-right: 1rem;
+  }
+
+  .routine-skeleton-btn {
+    width: 36px;
+    height: 36px;
+    background: rgba(108, 92, 231, 0.1);
+    border-radius: var(--radius-lg);
+  }
+
+  .skeleton-shimmer {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(108, 92, 231, 0.08) 20%,
+      rgba(255, 255, 255, 0.05) 40%,
+      rgba(108, 92, 231, 0.08) 60%,
+      transparent 100%
+    );
+    animation: shimmer 2.5s ease-in-out infinite;
+  }
+
+  @keyframes skeletonPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 200%; }
   }
 
   .legend {

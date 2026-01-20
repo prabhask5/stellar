@@ -166,7 +166,7 @@
 </script>
 
 <svelte:head>
-  <title>{list?.name ?? 'Loading...'} - Stellar</title>
+  <title>{list?.name ?? 'Goal List'} - Stellar</title>
 </svelte:head>
 
 <div class="container">
@@ -188,9 +188,13 @@
           </button>
         </form>
       {:else}
-        <h1 onclick={() => (editingListName = true)} title="Click to edit">
-          {list?.name ?? 'Loading...'}
-        </h1>
+        {#if loading}
+          <div class="title-skeleton"></div>
+        {:else}
+          <h1 onclick={() => (editingListName = true)} title="Click to edit">
+            {list?.name ?? 'List'}
+          </h1>
+        {/if}
       {/if}
     </div>
     <button class="btn btn-primary" onclick={() => (showAddModal = true)}>
@@ -206,7 +210,35 @@
   {/if}
 
   {#if loading}
-    <div class="loading">Loading...</div>
+    <!-- List Detail Skeleton -->
+    <div class="skeleton-progress-section">
+      <div class="skeleton-progress-bar"></div>
+      <div class="skeleton-shimmer"></div>
+    </div>
+    <div class="goals-skeleton">
+      {#each Array(4) as _, i}
+        <div class="goal-skeleton-card" style="--delay: {i * 0.1}s">
+          <div class="goal-skeleton-handle"></div>
+          <div class="goal-skeleton-content">
+            <div class="goal-skeleton-header">
+              <div class="goal-skeleton-checkbox"></div>
+              <div class="goal-skeleton-info">
+                <div class="goal-skeleton-title"></div>
+                <div class="goal-skeleton-subtitle"></div>
+              </div>
+            </div>
+            <div class="goal-skeleton-progress-container">
+              <div class="goal-skeleton-progress"></div>
+            </div>
+            <div class="goal-skeleton-actions">
+              <div class="goal-skeleton-btn"></div>
+              <div class="goal-skeleton-btn"></div>
+            </div>
+          </div>
+          <div class="skeleton-shimmer"></div>
+        </div>
+      {/each}
+    </div>
   {:else if list}
     <div class="progress-section">
       <ProgressBar percentage={totalProgress()} />
@@ -386,12 +418,170 @@
     transform: scale(1.05);
   }
 
-  .loading {
-    text-align: center;
-    padding: 5rem;
-    color: var(--color-text-muted);
-    font-size: 1.25rem;
-    font-weight: 500;
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     SKELETON LOADING STYLES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .skeleton-progress-section {
+    background: linear-gradient(165deg,
+      rgba(15, 15, 30, 0.95) 0%,
+      rgba(20, 20, 40, 0.9) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-radius: var(--radius-2xl);
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 2.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .skeleton-progress-bar {
+    height: 8px;
+    background: rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-full);
+  }
+
+  .goals-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .goal-skeleton-card {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: relative;
+    overflow: hidden;
+    animation: skeletonPulse 2s ease-in-out infinite;
+    animation-delay: var(--delay);
+  }
+
+  .goal-skeleton-handle {
+    width: 32px;
+    min-height: 100px;
+    background: linear-gradient(135deg,
+      rgba(37, 37, 61, 0.9) 0%,
+      rgba(26, 26, 46, 0.95) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-right: none;
+    border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+  }
+
+  .goal-skeleton-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(165deg,
+      rgba(15, 15, 30, 0.95) 0%,
+      rgba(20, 20, 40, 0.9) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-left: none;
+    border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+    position: relative;
+  }
+
+  .goal-skeleton-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .goal-skeleton-checkbox {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md);
+    background: rgba(108, 92, 231, 0.15);
+    flex-shrink: 0;
+  }
+
+  .goal-skeleton-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .goal-skeleton-title {
+    width: 60%;
+    height: 1.125rem;
+    background: linear-gradient(90deg,
+      rgba(108, 92, 231, 0.15) 0%,
+      rgba(108, 92, 231, 0.25) 50%,
+      rgba(108, 92, 231, 0.15) 100%);
+    border-radius: var(--radius-md);
+  }
+
+  .goal-skeleton-subtitle {
+    width: 40%;
+    height: 0.875rem;
+    background: rgba(108, 92, 231, 0.08);
+    border-radius: var(--radius-sm);
+  }
+
+  .goal-skeleton-progress-container {
+    padding-left: 2.75rem;
+  }
+
+  .goal-skeleton-progress {
+    height: 6px;
+    width: 80%;
+    background: rgba(108, 92, 231, 0.1);
+    border-radius: var(--radius-full);
+  }
+
+  .goal-skeleton-actions {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .goal-skeleton-btn {
+    width: 36px;
+    height: 36px;
+    background: rgba(108, 92, 231, 0.08);
+    border-radius: var(--radius-lg);
+  }
+
+  .skeleton-shimmer {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(108, 92, 231, 0.08) 20%,
+      rgba(255, 255, 255, 0.05) 40%,
+      rgba(108, 92, 231, 0.08) 60%,
+      transparent 100%
+    );
+    animation: shimmer 2.5s ease-in-out infinite;
+  }
+
+  @keyframes skeletonPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 200%; }
+  }
+
+  .title-skeleton {
+    width: 200px;
+    height: 2rem;
+    background: linear-gradient(90deg,
+      rgba(108, 92, 231, 0.15) 0%,
+      rgba(108, 92, 231, 0.25) 50%,
+      rgba(108, 92, 231, 0.15) 100%);
+    border-radius: var(--radius-lg);
+    animation: skeletonPulse 2s ease-in-out infinite;
   }
 
   .progress-section {

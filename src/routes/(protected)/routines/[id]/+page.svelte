@@ -99,7 +99,39 @@
   {/if}
 
   {#if loading}
-    <div class="loading">Loading...</div>
+    <!-- Form Skeleton -->
+    <div class="form-skeleton">
+      <div class="form-skeleton-group">
+        <div class="form-skeleton-label"></div>
+        <div class="form-skeleton-input"></div>
+      </div>
+      <div class="form-skeleton-group">
+        <div class="form-skeleton-label"></div>
+        <div class="form-skeleton-radio-group">
+          <div class="form-skeleton-radio"></div>
+          <div class="form-skeleton-radio"></div>
+        </div>
+      </div>
+      <div class="form-skeleton-group">
+        <div class="form-skeleton-label"></div>
+        <div class="form-skeleton-input"></div>
+      </div>
+      <div class="form-skeleton-row">
+        <div class="form-skeleton-group">
+          <div class="form-skeleton-label"></div>
+          <div class="form-skeleton-input"></div>
+        </div>
+        <div class="form-skeleton-group">
+          <div class="form-skeleton-label"></div>
+          <div class="form-skeleton-input"></div>
+        </div>
+      </div>
+      <div class="form-skeleton-actions">
+        <div class="form-skeleton-btn secondary"></div>
+        <div class="form-skeleton-btn primary"></div>
+      </div>
+      <div class="skeleton-shimmer"></div>
+    </div>
   {:else if routine}
     <div class="form-card">
       <RoutineForm
@@ -204,12 +236,128 @@
     transform: scale(1.05);
   }
 
-  .loading {
-    text-align: center;
-    padding: 5rem;
-    color: var(--color-text-muted);
-    font-size: 1.25rem;
-    font-weight: 500;
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     SKELETON LOADING STYLES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .form-skeleton {
+    background: linear-gradient(165deg,
+      rgba(15, 15, 30, 0.95) 0%,
+      rgba(20, 20, 40, 0.9) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-radius: var(--radius-2xl);
+    padding: 2.5rem;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    position: relative;
+    overflow: hidden;
+    animation: skeletonPulse 2s ease-in-out infinite;
+  }
+
+  .form-skeleton::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 15%;
+    right: 15%;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent,
+      rgba(108, 92, 231, 0.4),
+      rgba(255, 255, 255, 0.2),
+      rgba(108, 92, 231, 0.4),
+      transparent);
+  }
+
+  .form-skeleton-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .form-skeleton-label {
+    width: 100px;
+    height: 0.75rem;
+    background: rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-sm);
+  }
+
+  .form-skeleton-input {
+    height: 48px;
+    background: rgba(108, 92, 231, 0.1);
+    border-radius: var(--radius-lg);
+  }
+
+  .form-skeleton-radio-group {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .form-skeleton-radio {
+    flex: 1;
+    height: 56px;
+    background: rgba(108, 92, 231, 0.08);
+    border-radius: var(--radius-xl);
+    border: 1px solid rgba(108, 92, 231, 0.15);
+  }
+
+  .form-skeleton-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .form-skeleton-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(108, 92, 231, 0.15);
+  }
+
+  .form-skeleton-btn {
+    height: 44px;
+    border-radius: var(--radius-lg);
+  }
+
+  .form-skeleton-btn.secondary {
+    width: 100px;
+    background: rgba(108, 92, 231, 0.1);
+  }
+
+  .form-skeleton-btn.primary {
+    width: 140px;
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.3) 0%, rgba(108, 92, 231, 0.2) 100%);
+  }
+
+  .skeleton-shimmer {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(108, 92, 231, 0.08) 20%,
+      rgba(255, 255, 255, 0.05) 40%,
+      rgba(108, 92, 231, 0.08) 60%,
+      transparent 100%
+    );
+    animation: shimmer 2.5s ease-in-out infinite;
+  }
+
+  @keyframes skeletonPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 200%; }
   }
 
   .form-card {
