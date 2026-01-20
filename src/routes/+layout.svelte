@@ -1,25 +1,101 @@
 <script lang="ts">
   import '../app.css';
+  import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { signOut, getUserProfile } from '$lib/supabase/auth';
+  import { signOut, getUserProfile, getSession } from '$lib/supabase/auth';
   import { stopSyncEngine, clearLocalCache } from '$lib/sync/engine';
   import { syncStatusStore } from '$lib/stores/sync';
+  import { authState, userDisplayInfo } from '$lib/stores/authState';
+  import { clearOfflineSession } from '$lib/auth/offlineSession';
+  import { clearOfflineCredentials } from '$lib/auth/offlineCredentials';
+  import { setReconnectHandler } from '$lib/auth/reconnectHandler';
+  import type { LayoutData } from './+layout';
   import SyncStatus from '$lib/components/SyncStatus.svelte';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
   import PullToRefresh from '$lib/components/PullToRefresh.svelte';
-  import type { Session } from '@supabase/supabase-js';
 
   interface Props {
     children?: import('svelte').Snippet;
-    data: { session: Session | null };
+    data: LayoutData;
   }
 
   let { children, data }: Props = $props();
 
-  // Get user's first name from profile
-  const profile = $derived(getUserProfile(data.session?.user ?? null));
-  const greeting = $derived(profile.firstName ? profile.firstName : 'there');
+  // Toast state for auth kicked notification
+  let showAuthKickedToast = $state(false);
+  let authKickedMessage = $state('');
+
+  // Initialize auth state from layout data
+  $effect(() => {
+    if (data.authMode === 'supabase' && data.session) {
+      authState.setSupabaseAuth(data.session);
+    } else if (data.authMode === 'offline' && data.offlineProfile) {
+      authState.setOfflineAuth(data.offlineProfile);
+    } else {
+      authState.setNoAuth();
+    }
+  });
+
+  // Handle reconnection - check if we need to re-validate auth
+  async function handleReconnectAuthCheck(): Promise<void> {
+    const currentState = $authState;
+
+    // Only relevant if we were in offline mode
+    if (currentState.mode !== 'offline') return;
+
+    console.log('[Auth] Reconnected - validating Supabase session');
+
+    try {
+      // Try to get/refresh Supabase session
+      const session = await getSession();
+
+      if (session) {
+        // Successfully restored - clear offline session and switch to Supabase
+        await clearOfflineSession();
+        authState.setSupabaseAuth(session);
+        console.log('[Auth] Restored Supabase session after reconnect');
+      } else {
+        // Can't restore Supabase session - user needs to re-login
+        console.log('[Auth] Could not restore Supabase session - redirecting to login');
+        await clearOfflineSession();
+        authState.setNoAuth('Your session expired while offline. Please sign in again.');
+        showAuthKickedToast = true;
+        authKickedMessage = 'Your session expired while offline. Please sign in again.';
+        setTimeout(() => {
+          showAuthKickedToast = false;
+          goto('/login');
+        }, 3000);
+      }
+    } catch (e) {
+      console.error('[Auth] Error checking session on reconnect:', e);
+    }
+  }
+
+  onMount(() => {
+    // Register reconnect handler
+    setReconnectHandler(handleReconnectAuthCheck);
+  });
+
+  onDestroy(() => {
+    // Cleanup reconnect handler
+    setReconnectHandler(null);
+  });
+
+  // Get user's first name from appropriate source
+  const greeting = $derived(() => {
+    if ($userDisplayInfo?.firstName) {
+      return $userDisplayInfo.firstName;
+    }
+    if (data.session?.user) {
+      const profile = getUserProfile(data.session.user);
+      return profile.firstName || 'there';
+    }
+    return 'there';
+  });
+
+  // Check if user is authenticated (either mode)
+  const isAuthenticated = $derived(data.authMode !== 'none');
 
   const navItems = [
     { href: '/tasks', label: 'Tasks', icon: 'tasks', mobileLabel: 'Tasks' },
@@ -32,7 +108,17 @@
     await clearLocalCache();
     localStorage.removeItem('lastSyncTimestamp');
     syncStatusStore.reset();
+
+    // Clear offline auth data
+    await clearOfflineCredentials();
+    await clearOfflineSession();
+
+    // Sign out from Supabase
     await signOut();
+
+    // Reset auth state
+    authState.reset();
+
     // Use hard navigation to ensure session state is fully cleared
     window.location.href = '/login';
   }
@@ -40,16 +126,40 @@
   function isActive(href: string): boolean {
     return $page.url.pathname.startsWith(href);
   }
+
+  function dismissAuthKickedToast() {
+    showAuthKickedToast = false;
+  }
 </script>
 
-<div class="app" class:authenticated={data.session}>
+<div class="app" class:authenticated={isAuthenticated}>
+  <!-- Auth Kicked Toast Notification -->
+  {#if showAuthKickedToast}
+    <div class="auth-kicked-toast">
+      <div class="toast-content">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span>{authKickedMessage}</span>
+        <button class="toast-dismiss" onclick={dismissAuthKickedToast} aria-label="Dismiss notification">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+  {/if}
+
   <!-- Pull to Refresh for PWA -->
-  {#if data.session}
+  {#if isAuthenticated}
     <PullToRefresh />
   {/if}
 
   <!-- iPhone Pro Dynamic Island Status Bar (Mobile Only) -->
-  {#if data.session}
+  {#if isAuthenticated}
     <header class="island-header">
       <div class="island-left">
         <span class="island-brand">
@@ -79,7 +189,7 @@
   {/if}
 
   <!-- Desktop/Tablet Top Navigation -->
-  {#if data.session}
+  {#if isAuthenticated}
     <nav class="nav-desktop">
       <div class="nav-inner">
         <!-- Brand -->
@@ -142,19 +252,19 @@
         <!-- Right Actions -->
         <div class="nav-actions">
           <SyncStatus />
-          <div class="user-menu">
+          <a href="/profile" class="user-menu user-menu-link">
             <span class="user-avatar">
-              {greeting.charAt(0).toUpperCase()}
+              {greeting().charAt(0).toUpperCase()}
             </span>
-            <span class="user-greeting">Hey, {greeting}!</span>
-            <button class="logout-btn" onclick={handleSignOut} aria-label="Logout">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
-            </button>
-          </div>
+            <span class="user-greeting">Hey, {greeting()}!</span>
+          </a>
+          <button class="logout-btn" onclick={handleSignOut} aria-label="Logout">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
         </div>
       </div>
     </nav>
@@ -187,12 +297,12 @@
   {/if}
 
   <!-- Main Content Area -->
-  <main class="main" class:with-bottom-nav={data.session}>
+  <main class="main" class:with-bottom-nav={isAuthenticated}>
     {@render children?.()}
   </main>
 
   <!-- Mobile Bottom Tab Bar (iOS-style) -->
-  {#if data.session}
+  {#if isAuthenticated}
     <nav class="nav-mobile">
       <div class="tab-bar">
         {#each navItems as item}
@@ -237,7 +347,7 @@
         <!-- Profile/Logout -->
         <button class="tab-item tab-profile" onclick={handleSignOut}>
           <span class="tab-icon">
-            <span class="mobile-avatar">{greeting.charAt(0).toUpperCase()}</span>
+            <span class="mobile-avatar">{greeting().charAt(0).toUpperCase()}</span>
           </span>
           <span class="tab-label">Logout</span>
         </button>
@@ -1026,5 +1136,86 @@
     .nav-desktop::before {
       animation: none;
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     AUTH KICKED TOAST - Space themed notification
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .auth-kicked-toast {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 1rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    animation: toastSlideIn 0.4s var(--ease-spring);
+  }
+
+  @keyframes toastSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  .toast-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.25rem;
+    background: linear-gradient(135deg,
+      rgba(255, 121, 198, 0.15) 0%,
+      rgba(108, 92, 231, 0.2) 100%);
+    border: 1px solid rgba(255, 121, 198, 0.3);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.4),
+      0 0 40px rgba(255, 121, 198, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    color: var(--color-text);
+    font-size: 0.875rem;
+    font-weight: 500;
+    max-width: calc(100vw - 2rem);
+  }
+
+  .toast-content svg {
+    color: var(--color-accent);
+    flex-shrink: 0;
+  }
+
+  .toast-dismiss {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    margin-left: 0.25rem;
+    color: var(--color-text-muted);
+    background: none;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .toast-dismiss:hover {
+    color: var(--color-text);
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  /* User menu as link */
+  .user-menu-link {
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .user-menu-link:hover {
+    border-color: rgba(108, 92, 231, 0.4);
+    box-shadow: 0 0 20px var(--color-primary-glow);
   }
 </style>

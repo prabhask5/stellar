@@ -1,5 +1,7 @@
 import { supabase } from './client';
 import type { User, Session } from '@supabase/supabase-js';
+import { cacheOfflineCredentials, clearOfflineCredentials, updateOfflineCredentialsPassword, updateOfflineCredentialsProfile } from '$lib/auth/offlineCredentials';
+import { clearOfflineSession } from '$lib/auth/offlineSession';
 
 export interface UserProfile {
   firstName: string;
@@ -17,6 +19,16 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
     email,
     password
   });
+
+  // Cache credentials for offline use on successful login
+  if (!error && data.session && data.user) {
+    try {
+      await cacheOfflineCredentials(email, password, data.user, data.session);
+    } catch (e) {
+      // Don't fail login if credential caching fails
+      console.error('[Auth] Failed to cache offline credentials:', e);
+    }
+  }
 
   return {
     user: data.user,
@@ -50,6 +62,14 @@ export async function signUp(
 }
 
 export async function signOut(): Promise<{ error: string | null }> {
+  // Clear offline credentials and session first
+  try {
+    await clearOfflineCredentials();
+    await clearOfflineSession();
+  } catch (e) {
+    console.error('[Auth] Failed to clear offline data:', e);
+  }
+
   const { error } = await supabase.auth.signOut();
   return { error: error?.message || null };
 }
@@ -84,5 +104,74 @@ export function getUserProfile(user: User | null): UserProfile {
     firstName: user?.user_metadata?.first_name || '',
     lastName: user?.user_metadata?.last_name || ''
   };
+}
+
+/**
+ * Update user profile (first name, last name)
+ * Also updates cached offline credentials
+ */
+export async function updateProfile(
+  firstName: string,
+  lastName: string
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.auth.updateUser({
+    data: {
+      first_name: firstName,
+      last_name: lastName
+    }
+  });
+
+  if (!error) {
+    // Update offline cache
+    try {
+      await updateOfflineCredentialsProfile(firstName, lastName);
+    } catch (e) {
+      console.error('[Auth] Failed to update offline profile:', e);
+    }
+  }
+
+  return { error: error?.message || null };
+}
+
+/**
+ * Change user password
+ * Verifies current password first, then updates
+ * Also updates cached offline credentials
+ */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ error: string | null }> {
+  // Get current user email
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) {
+    return { error: 'No authenticated user found' };
+  }
+
+  // Verify current password by attempting to sign in
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword
+  });
+
+  if (verifyError) {
+    return { error: 'Current password is incorrect' };
+  }
+
+  // Update password
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword
+  });
+
+  if (!error) {
+    // Update offline cache with new password
+    try {
+      await updateOfflineCredentialsPassword(newPassword);
+    } catch (e) {
+      console.error('[Auth] Failed to update offline password:', e);
+    }
+  }
+
+  return { error: error?.message || null };
 }
 

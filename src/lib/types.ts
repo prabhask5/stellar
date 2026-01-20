@@ -130,3 +130,28 @@ export interface LongTermTask {
 export interface LongTermTaskWithCategory extends LongTermTask {
   category?: TaskCategory;
 }
+
+// ============================================================
+// OFFLINE AUTHENTICATION TYPES
+// ============================================================
+
+export interface OfflineCredentials {
+  id: string;              // 'current_user' - singleton pattern
+  userId: string;          // Supabase user ID
+  email: string;
+  passwordHash: string;    // PBKDF2-SHA256 hash
+  salt: string;            // Salt for password hashing
+  firstName: string;
+  lastName: string;
+  cachedAt: string;        // ISO timestamp when credentials were cached
+}
+
+export interface OfflineSession {
+  id: string;              // 'current_session' - singleton pattern
+  userId: string;          // Supabase user ID
+  offlineToken: string;    // UUID token for offline session
+  createdAt: string;       // ISO timestamp
+  expiresAt: string;       // ISO timestamp - same duration as Supabase session
+}
+
+export type AuthMode = 'supabase' | 'offline' | 'none';

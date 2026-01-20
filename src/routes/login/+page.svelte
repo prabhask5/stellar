@@ -1,6 +1,11 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { signIn, signUp } from '$lib/supabase/auth';
+  import { getOfflineCredentials, verifyOfflinePassword } from '$lib/auth/offlineCredentials';
+  import { createOfflineSession } from '$lib/auth/offlineSession';
+  import { isOnline } from '$lib/stores/network';
+  import type { OfflineCredentials } from '$lib/types';
 
   let mode: 'login' | 'signup' = $state('login');
   let email = $state('');
@@ -11,11 +16,29 @@
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
 
+  // Offline login state
+  let cachedCredentials = $state<OfflineCredentials | null>(null);
+  let isOfflineLoginMode = $derived(!$isOnline && cachedCredentials !== null);
+  let showNoInternetMessage = $derived(!$isOnline && cachedCredentials === null);
+
+  // Check for cached credentials on mount
+  onMount(async () => {
+    const cached = await getOfflineCredentials();
+    cachedCredentials = cached;
+  });
+
   async function handleSubmit(e: Event) {
     e.preventDefault();
     loading = true;
     error = null;
     success = null;
+
+    // Handle offline login
+    if (isOfflineLoginMode && cachedCredentials) {
+      await handleOfflineLogin();
+      loading = false;
+      return;
+    }
 
     if (mode === 'login') {
       const result = await signIn(email, password);
@@ -44,7 +67,25 @@
     loading = false;
   }
 
+  async function handleOfflineLogin() {
+    if (!cachedCredentials) return;
+
+    const valid = await verifyOfflinePassword(password);
+    if (!valid) {
+      error = 'Invalid password';
+      return;
+    }
+
+    // Create offline session
+    await createOfflineSession(cachedCredentials.userId);
+    goto('/');
+  }
+
   function toggleMode() {
+    // Don't allow toggling to signup when offline
+    if (!$isOnline && mode === 'login') {
+      return;
+    }
     mode = mode === 'login' ? 'signup' : 'login';
     error = null;
     success = null;
@@ -119,91 +160,188 @@
       <p class="brand-tagline">Your universe of goals awaits</p>
     </div>
 
-    <!-- Login Card -->
-    <div class="login-card">
-      <h2 class="card-title">{mode === 'login' ? 'Welcome Back' : 'Sign up'}</h2>
-
-      <form onsubmit={handleSubmit}>
-        {#if mode === 'signup'}
-          <div class="name-row">
-            <div class="form-group">
-              <label for="firstName">First Name</label>
-              <input
-                type="text"
-                id="firstName"
-                bind:value={firstName}
-                required
-                disabled={loading}
-                placeholder="John"
-              />
-            </div>
-
-            <div class="form-group">
-              <label for="lastName">Last Name</label>
-              <input
-                type="text"
-                id="lastName"
-                bind:value={lastName}
-                disabled={loading}
-                placeholder="Doe"
-              />
-            </div>
+    <!-- No Internet Message (offline with no cached credentials) -->
+    {#if showNoInternetMessage}
+      <div class="login-card">
+        <div class="offline-message">
+          <div class="offline-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+              <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+              <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+              <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+              <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+              <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
           </div>
-        {/if}
-
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input
-            type="email"
-            id="email"
-            bind:value={email}
-            required
-            disabled={loading}
-            placeholder="you@example.com"
-          />
+          <h2 class="card-title">Internet Required</h2>
+          <p class="offline-description">
+            Please connect to the internet to sign in. Once you've signed in online, you'll be able to use offline mode in the future.
+          </p>
         </div>
-
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            bind:value={password}
-            required
-            disabled={loading}
-            minlength="6"
-            placeholder="Min 6 characters"
-          />
-        </div>
-
-        {#if error}
-          <div class="message error">{error}</div>
-        {/if}
-
-        {#if success}
-          <div class="message success">{success}</div>
-        {/if}
-
-        <button type="submit" class="btn btn-primary submit-btn" disabled={loading}>
-          {#if loading}
-            <span class="loading-spinner"></span>
-            {mode === 'login' ? 'Signing in...' : 'Creating account...'}
-          {:else}
-            {mode === 'login' ? 'Log In' : 'Sign Up'}
-          {/if}
-        </button>
-      </form>
-
-      <div class="toggle-mode">
-        {#if mode === 'login'}
-          Don't have an account?
-          <button type="button" class="link-btn" onclick={toggleMode}>Create account</button>
-        {:else}
-          Already have an account?
-          <button type="button" class="link-btn" onclick={toggleMode}>Log in</button>
-        {/if}
       </div>
-    </div>
+
+    <!-- Offline Login Form (offline with cached credentials) -->
+    {:else if isOfflineLoginMode && cachedCredentials}
+      <div class="login-card">
+        <div class="offline-user-info">
+          <div class="offline-avatar">
+            {cachedCredentials.firstName.charAt(0).toUpperCase()}
+          </div>
+          <h2 class="card-title">Continue as {cachedCredentials.firstName}</h2>
+          <p class="offline-email">{cachedCredentials.email}</p>
+        </div>
+
+        <form onsubmit={handleSubmit}>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              bind:value={password}
+              required
+              disabled={loading}
+              minlength="6"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+            />
+          </div>
+
+          <p class="offline-hint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+              <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+              <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+              <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+            You're offline. Enter your password to continue.
+          </p>
+
+          {#if error}
+            <div class="message error">{error}</div>
+          {/if}
+
+          <button type="submit" class="btn btn-primary submit-btn" disabled={loading}>
+            {#if loading}
+              <span class="loading-spinner"></span>
+              Signing in...
+            {:else}
+              Continue Offline
+            {/if}
+          </button>
+        </form>
+
+        <div class="offline-switch-account">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          Different account? Connect to internet to switch.
+        </div>
+      </div>
+
+    <!-- Normal Online Login/Signup Form -->
+    {:else}
+      <div class="login-card">
+        <h2 class="card-title">{mode === 'login' ? 'Welcome Back' : 'Sign up'}</h2>
+
+        <form onsubmit={handleSubmit}>
+          {#if mode === 'signup'}
+            <div class="name-row">
+              <div class="form-group">
+                <label for="firstName">First Name</label>
+                <input
+                  type="text"
+                  id="firstName"
+                  bind:value={firstName}
+                  required
+                  disabled={loading}
+                  placeholder="John"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="lastName">Last Name</label>
+                <input
+                  type="text"
+                  id="lastName"
+                  bind:value={lastName}
+                  disabled={loading}
+                  placeholder="Doe"
+                />
+              </div>
+            </div>
+          {/if}
+
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              bind:value={email}
+              required
+              disabled={loading}
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              bind:value={password}
+              required
+              disabled={loading}
+              minlength="6"
+              placeholder="Min 6 characters"
+            />
+          </div>
+
+          {#if error}
+            <div class="message error">{error}</div>
+          {/if}
+
+          {#if success}
+            <div class="message success">{success}</div>
+          {/if}
+
+          <button type="submit" class="btn btn-primary submit-btn" disabled={loading}>
+            {#if loading}
+              <span class="loading-spinner"></span>
+              {mode === 'login' ? 'Signing in...' : 'Creating account...'}
+            {:else}
+              {mode === 'login' ? 'Log In' : 'Sign Up'}
+            {/if}
+          </button>
+        </form>
+
+        <div class="toggle-mode">
+          {#if mode === 'login'}
+            Don't have an account?
+            {#if $isOnline}
+              <button type="button" class="link-btn" onclick={toggleMode}>Create account</button>
+            {:else}
+              <span class="signup-disabled">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                  <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                  <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                  <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                </svg>
+                Internet required to create account
+              </span>
+            {/if}
+          {:else}
+            Already have an account?
+            <button type="button" class="link-btn" onclick={toggleMode}>Log in</button>
+          {/if}
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -823,5 +961,93 @@
       animation: none;
       opacity: 1;
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     OFFLINE LOGIN STYLES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .offline-message {
+    text-align: center;
+    padding: 1rem 0;
+  }
+
+  .offline-icon {
+    color: var(--color-text-muted);
+    margin-bottom: 1.5rem;
+    opacity: 0.7;
+  }
+
+  .offline-description {
+    color: var(--color-text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    margin: 1rem 0 0;
+  }
+
+  .offline-user-info {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .offline-avatar {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gradient-primary);
+    color: white;
+    font-weight: 700;
+    font-size: 1.5rem;
+    border-radius: 50%;
+    margin: 0 auto 1rem;
+    box-shadow: 0 4px 20px var(--color-primary-glow);
+  }
+
+  .offline-email {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    margin: 0.5rem 0 0;
+  }
+
+  .offline-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    margin: 0.5rem 0 1rem;
+    padding: 0.75rem;
+    background: rgba(108, 92, 231, 0.1);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+  }
+
+  .offline-switch-account {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1.75rem;
+    padding-top: 1.75rem;
+    border-top: 1px solid rgba(108, 92, 231, 0.15);
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+  }
+
+  .signup-disabled {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    opacity: 0.7;
+    margin-left: 0.25rem;
+  }
+
+  .offline-user-info .card-title {
+    margin-bottom: 0;
   }
 </style>
