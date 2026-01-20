@@ -23,6 +23,15 @@ export class GoalPlannerDB extends Dexie {
       // Auto-increment id for sync queue, indexed by table for batch operations
       syncQueue: '++id, table, timestamp'
     });
+
+    this.version(3).stores({
+      goalLists: 'id, user_id, created_at, updated_at',
+      goals: 'id, goal_list_id, created_at, updated_at',
+      dailyRoutineGoals: 'id, user_id, start_date, end_date, created_at, updated_at',
+      dailyGoalProgress: 'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+      // Added entityId index for coalescing updates to the same entity
+      syncQueue: '++id, table, entityId, timestamp'
+    });
   }
 }
 
