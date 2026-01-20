@@ -131,7 +131,8 @@
   const navItems = [
     { href: '/tasks', label: 'Tasks', icon: 'tasks', mobileLabel: 'Tasks' },
     { href: '/lists', label: 'Goals', icon: 'goals', mobileLabel: 'Goals' },
-    { href: '/calendar', label: 'Routines', icon: 'calendar', mobileLabel: 'Routines' }
+    { href: '/calendar', label: 'Routines', icon: 'calendar', mobileLabel: 'Routines' },
+    { href: '/focus', label: 'Focus', icon: 'focus', mobileLabel: 'Focus' }
   ];
 
   async function handleSignOut() {
@@ -241,7 +242,7 @@
             </defs>
           </svg>
         </span>
-        <span class="island-title">{$page.url.pathname.startsWith('/tasks') ? 'Tasks' : $page.url.pathname.startsWith('/calendar') ? 'Routines' : 'Goals'}</span>
+        <span class="island-title">{$page.url.pathname.startsWith('/tasks') ? 'Tasks' : $page.url.pathname.startsWith('/calendar') ? 'Routines' : $page.url.pathname.startsWith('/focus') ? 'Focus' : 'Goals'}</span>
       </div>
       <!-- Center gap for Dynamic Island -->
       <div class="island-center"></div>
@@ -294,6 +295,12 @@
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
                     <path d="M12 6v6l4 2"/>
+                  </svg>
+                {:else if item.icon === 'focus'}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <circle cx="12" cy="12" r="6"/>
+                    <circle cx="12" cy="12" r="2"/>
                   </svg>
                 {:else}
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -381,6 +388,12 @@
                   <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
                 </svg>
               {:else if item.icon === 'goals'}
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <circle cx="12" cy="12" r="6"/>
+                  <circle cx="12" cy="12" r="2"/>
+                </svg>
+              {:else if item.icon === 'focus'}
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="10"/>
                   <circle cx="12" cy="12" r="6"/>

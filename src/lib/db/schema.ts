@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, SyncQueueItem, TaskCategory, Commitment, DailyTask, LongTermTask, OfflineCredentials, OfflineSession } from '$lib/types';
+import type { Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, SyncQueueItem, TaskCategory, Commitment, DailyTask, LongTermTask, OfflineCredentials, OfflineSession, FocusSettings, FocusSession, BlockList, BlockedWebsite } from '$lib/types';
 
 export class GoalPlannerDB extends Dexie {
   goalLists!: Table<GoalList, string>;
@@ -13,6 +13,10 @@ export class GoalPlannerDB extends Dexie {
   longTermTasks!: Table<LongTermTask, string>;
   offlineCredentials!: Table<OfflineCredentials, string>;
   offlineSession!: Table<OfflineSession, string>;
+  focusSettings!: Table<FocusSettings, string>;
+  focusSessions!: Table<FocusSession, string>;
+  blockLists!: Table<BlockList, string>;
+  blockedWebsites!: Table<BlockedWebsite, string>;
 
   constructor() {
     super('GoalPlannerDB');
@@ -84,6 +88,25 @@ export class GoalPlannerDB extends Dexie {
       longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
       offlineCredentials: 'id',  // singleton: 'current_user'
       offlineSession: 'id'       // singleton: 'current_session'
+    });
+
+    // Version 7: Add Focus feature tables (focusSettings, focusSessions, blockLists, blockedWebsites)
+    this.version(7).stores({
+      goalLists: 'id, user_id, created_at, updated_at',
+      goals: 'id, goal_list_id, order, created_at, updated_at',
+      dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+      dailyGoalProgress: 'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+      syncQueue: '++id, table, entityId, timestamp',
+      taskCategories: 'id, user_id, order, created_at, updated_at',
+      commitments: 'id, user_id, section, order, created_at, updated_at',
+      dailyTasks: 'id, user_id, order, created_at, updated_at',
+      longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+      offlineCredentials: 'id',
+      offlineSession: 'id',
+      focusSettings: 'id, user_id, updated_at',
+      focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+      blockLists: 'id, user_id, order, updated_at',
+      blockedWebsites: 'id, block_list_id, updated_at'
     });
   }
 }

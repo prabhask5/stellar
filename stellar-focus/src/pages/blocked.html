@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Active - Stellar</title>
+  <link rel="stylesheet" href="blocked.css">
+</head>
+<body>
+  <div class="blocked-container">
+    <!-- Animated stars background -->
+    <div class="stars-container">
+      <div class="stars stars-small"></div>
+      <div class="stars stars-medium"></div>
+      <div class="stars stars-large"></div>
+    </div>
+
+    <!-- Nebula effect -->
+    <div class="nebula"></div>
+
+    <!-- Main content -->
+    <main class="blocked-content">
+      <!-- Animated orbital ring -->
+      <div class="orbital-container">
+        <div class="orbital-ring">
+          <div class="orbital-dot"></div>
+        </div>
+        <div class="focus-icon">
+          <svg width="64" height="64" viewBox="0 0 100 100" fill="none">
+            <circle cx="50" cy="50" r="45" stroke="url(#blockGrad)" stroke-width="5" fill="none"/>
+            <circle cx="50" cy="50" r="30" stroke="url(#blockGrad)" stroke-width="4" fill="none" opacity="0.6"/>
+            <circle cx="50" cy="50" r="15" stroke="url(#blockGrad)" stroke-width="3" fill="none" opacity="0.3"/>
+            <circle cx="50" cy="50" r="5" fill="url(#blockGrad)"/>
+            <defs>
+              <linearGradient id="blockGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6c5ce7"/>
+                <stop offset="100%" stop-color="#ff79c6"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Message -->
+      <h1 class="message" id="message">Your focus session is active.</h1>
+      <p class="submessage" id="submessage">This site will be here when you're done.</p>
+
+      <!-- Blocked URL (subtle) -->
+      <div class="blocked-url" id="blockedUrl"></div>
+
+      <!-- Return button -->
+      <a id="returnBtn" href="#" class="return-btn" target="_blank" rel="noopener">
+        <svg width="20" height="20" viewBox="0 0 100 100" fill="none">
+          <circle cx="50" cy="50" r="45" stroke="currentColor" stroke-width="6" fill="none"/>
+          <path d="M30 52 L45 67 L72 35" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <span>Return to Stellar</span>
+      </a>
+    </main>
+
+    <!-- Footer -->
+    <footer class="blocked-footer">
+      <span>Stellar Focus</span>
+    </footer>
+  </div>
+
+  <script src="blocked.js" type="module"></script>
+</body>
+</html>

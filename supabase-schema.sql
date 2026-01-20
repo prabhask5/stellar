@@ -467,3 +467,243 @@ create trigger update_daily_tasks_updated_at
 create trigger update_long_term_tasks_updated_at
   before update on long_term_tasks
   for each row execute function update_updated_at_column();
+
+-- ============================================================
+-- TABLES: Focus Feature
+-- ============================================================
+
+create table focus_settings (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  focus_duration integer default 25 not null,        -- minutes
+  break_duration integer default 5 not null,         -- minutes
+  long_break_duration integer default 15 not null,   -- minutes
+  cycles_before_long_break integer default 4 not null,
+  auto_start_breaks boolean default false not null,
+  auto_start_focus boolean default false not null,
+  deleted boolean default false not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(user_id)
+);
+
+create table focus_sessions (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  started_at timestamp with time zone not null,
+  ended_at timestamp with time zone,
+  phase text not null check (phase in ('focus', 'break', 'idle')),
+  status text not null check (status in ('running', 'paused', 'stopped')),
+  current_cycle integer default 1 not null,
+  total_cycles integer default 4 not null,
+  focus_duration integer not null,                   -- minutes
+  break_duration integer not null,                   -- minutes
+  phase_started_at timestamp with time zone not null,
+  phase_remaining_ms bigint not null,                -- milliseconds remaining in current phase
+  deleted boolean default false not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- ============================================================
+-- TABLES: Block Lists
+-- ============================================================
+
+create table block_lists (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  name text not null,
+  active_days jsonb default null,  -- Array of integers 0-6 (0=Sunday, 6=Saturday), null = all days
+  is_enabled boolean default true not null,
+  "order" double precision default 0 not null,
+  deleted boolean default false not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create table blocked_websites (
+  id uuid default uuid_generate_v4() primary key,
+  block_list_id uuid references block_lists(id) on delete cascade not null,
+  domain text not null,
+  deleted boolean default false not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- ============================================================
+-- INDEXES: Focus Feature
+-- ============================================================
+
+create index idx_focus_settings_user_id on focus_settings(user_id);
+create index idx_focus_settings_updated_at on focus_settings(updated_at);
+create index idx_focus_settings_deleted on focus_settings(deleted) where deleted = false;
+
+create index idx_focus_sessions_user_id on focus_sessions(user_id);
+create index idx_focus_sessions_status on focus_sessions(status);
+create index idx_focus_sessions_started_at on focus_sessions(started_at);
+create index idx_focus_sessions_ended_at on focus_sessions(ended_at);
+create index idx_focus_sessions_updated_at on focus_sessions(updated_at);
+create index idx_focus_sessions_deleted on focus_sessions(deleted) where deleted = false;
+-- Index for finding active sessions (ended_at IS NULL and status = 'running')
+create index idx_focus_sessions_active on focus_sessions(user_id, ended_at) where ended_at is null;
+
+-- ============================================================
+-- INDEXES: Block Lists
+-- ============================================================
+
+create index idx_block_lists_user_id on block_lists(user_id);
+create index idx_block_lists_order on block_lists("order");
+create index idx_block_lists_updated_at on block_lists(updated_at);
+create index idx_block_lists_deleted on block_lists(deleted) where deleted = false;
+
+create index idx_blocked_websites_block_list_id on blocked_websites(block_list_id);
+create index idx_blocked_websites_updated_at on blocked_websites(updated_at);
+create index idx_blocked_websites_deleted on blocked_websites(deleted) where deleted = false;
+
+-- ============================================================
+-- RLS: Focus Settings
+-- ============================================================
+
+alter table focus_settings enable row level security;
+
+create policy "Users can view their own focus settings"
+  on focus_settings for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own focus settings"
+  on focus_settings for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own focus settings"
+  on focus_settings for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete their own focus settings"
+  on focus_settings for delete
+  using (auth.uid() = user_id);
+
+-- ============================================================
+-- RLS: Focus Sessions
+-- ============================================================
+
+alter table focus_sessions enable row level security;
+
+create policy "Users can view their own focus sessions"
+  on focus_sessions for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own focus sessions"
+  on focus_sessions for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own focus sessions"
+  on focus_sessions for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete their own focus sessions"
+  on focus_sessions for delete
+  using (auth.uid() = user_id);
+
+-- ============================================================
+-- RLS: Block Lists
+-- ============================================================
+
+alter table block_lists enable row level security;
+
+create policy "Users can view their own block lists"
+  on block_lists for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own block lists"
+  on block_lists for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own block lists"
+  on block_lists for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete their own block lists"
+  on block_lists for delete
+  using (auth.uid() = user_id);
+
+-- ============================================================
+-- RLS: Blocked Websites (via block_list ownership)
+-- ============================================================
+
+alter table blocked_websites enable row level security;
+
+create policy "Users can view websites in their block lists"
+  on blocked_websites for select
+  using (
+    exists (
+      select 1 from block_lists
+      where block_lists.id = blocked_websites.block_list_id
+      and block_lists.user_id = auth.uid()
+    )
+  );
+
+create policy "Users can create websites in their block lists"
+  on blocked_websites for insert
+  with check (
+    exists (
+      select 1 from block_lists
+      where block_lists.id = blocked_websites.block_list_id
+      and block_lists.user_id = auth.uid()
+    )
+  );
+
+create policy "Users can update websites in their block lists"
+  on blocked_websites for update
+  using (
+    exists (
+      select 1 from block_lists
+      where block_lists.id = blocked_websites.block_list_id
+      and block_lists.user_id = auth.uid()
+    )
+  );
+
+create policy "Users can delete websites in their block lists"
+  on blocked_websites for delete
+  using (
+    exists (
+      select 1 from block_lists
+      where block_lists.id = blocked_websites.block_list_id
+      and block_lists.user_id = auth.uid()
+    )
+  );
+
+-- ============================================================
+-- TRIGGERS: Focus Feature Auto-set user_id
+-- ============================================================
+
+create trigger set_focus_settings_user_id
+  before insert on focus_settings
+  for each row execute function set_user_id();
+
+create trigger set_focus_sessions_user_id
+  before insert on focus_sessions
+  for each row execute function set_user_id();
+
+create trigger set_block_lists_user_id
+  before insert on block_lists
+  for each row execute function set_user_id();
+
+-- ============================================================
+-- TRIGGERS: Focus Feature Auto-update updated_at
+-- ============================================================
+
+create trigger update_focus_settings_updated_at
+  before update on focus_settings
+  for each row execute function update_updated_at_column();
+
+create trigger update_focus_sessions_updated_at
+  before update on focus_sessions
+  for each row execute function update_updated_at_column();
+
+create trigger update_block_lists_updated_at
+  before update on block_lists
+  for each row execute function update_updated_at_column();
+
+create trigger update_blocked_websites_updated_at
+  before update on blocked_websites
+  for each row execute function update_updated_at_column();

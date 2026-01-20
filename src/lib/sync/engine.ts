@@ -1,7 +1,7 @@
 import { supabase } from '$lib/supabase/client';
 import { db } from '$lib/db/client';
 import { getPendingSync, removeSyncItem, incrementRetry, getPendingEntityIds, cleanupFailedItems } from './queue';
-import type { SyncQueueItem, Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, GoalListWithProgress, TaskCategory, Commitment, DailyTask, LongTermTask, LongTermTaskWithCategory } from '$lib/types';
+import type { SyncQueueItem, Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, GoalListWithProgress, TaskCategory, Commitment, DailyTask, LongTermTask, LongTermTaskWithCategory, FocusSettings, FocusSession, BlockList, BlockedWebsite } from '$lib/types';
 import { syncStatusStore } from '$lib/stores/sync';
 import { calculateGoalProgress } from '$lib/utils/colors';
 import { isRoutineActiveOnDate } from '$lib/utils/dates';
@@ -378,6 +378,55 @@ export async function getLongTermTask(id: string): Promise<LongTermTaskWithCateg
 }
 
 // ============================================================
+// FOCUS FEATURE LOCAL READ OPERATIONS
+// ============================================================
+
+// Get focus settings from LOCAL DB
+export async function getFocusSettingsLocal(userId: string): Promise<FocusSettings | null> {
+  const settings = await db.focusSettings
+    .where('user_id')
+    .equals(userId)
+    .first();
+
+  if (!settings || settings.deleted) return null;
+  return settings;
+}
+
+// Get active focus session from LOCAL DB
+export async function getActiveFocusSession(userId: string): Promise<FocusSession | null> {
+  const sessions = await db.focusSessions
+    .where('user_id')
+    .equals(userId)
+    .toArray();
+
+  // Find active session (not deleted and not ended)
+  const active = sessions.find(s => !s.deleted && !s.ended_at && s.status !== 'stopped');
+  return active || null;
+}
+
+// Get all block lists from LOCAL DB
+export async function getBlockListsLocal(userId: string): Promise<BlockList[]> {
+  const lists = await db.blockLists
+    .where('user_id')
+    .equals(userId)
+    .toArray();
+
+  return lists
+    .filter(l => !l.deleted)
+    .sort((a, b) => a.order - b.order);
+}
+
+// Get blocked websites for a block list from LOCAL DB
+export async function getBlockedWebsitesLocal(blockListId: string): Promise<BlockedWebsite[]> {
+  const websites = await db.blockedWebsites
+    .where('block_list_id')
+    .equals(blockListId)
+    .toArray();
+
+  return websites.filter(w => !w.deleted);
+}
+
+// ============================================================
 // SYNC OPERATIONS - Background sync to/from Supabase
 // ============================================================
 
@@ -495,8 +544,40 @@ async function pullRemoteChanges(): Promise<void> {
 
   if (longTermTasksError) throw longTermTasksError;
 
+  // Pull focus_settings changed since last sync
+  const { data: remoteFocusSettings, error: focusSettingsError } = await supabase
+    .from('focus_settings')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (focusSettingsError) throw focusSettingsError;
+
+  // Pull focus_sessions changed since last sync
+  const { data: remoteFocusSessions, error: focusSessionsError } = await supabase
+    .from('focus_sessions')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (focusSessionsError) throw focusSessionsError;
+
+  // Pull block_lists changed since last sync
+  const { data: remoteBlockLists, error: blockListsError } = await supabase
+    .from('block_lists')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (blockListsError) throw blockListsError;
+
+  // Pull blocked_websites changed since last sync
+  const { data: remoteBlockedWebsites, error: blockedWebsitesError } = await supabase
+    .from('blocked_websites')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (blockedWebsitesError) throw blockedWebsitesError;
+
   // Apply changes to local DB with conflict handling
-  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks], async () => {
+  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks, db.focusSettings, db.focusSessions, db.blockLists, db.blockedWebsites], async () => {
     // Apply goal_lists
     for (const remote of (remoteLists || [])) {
       // Skip if we have pending ops for this entity (local takes precedence)
@@ -583,6 +664,50 @@ async function pullRemoteChanges(): Promise<void> {
       const local = await db.longTermTasks.get(remote.id);
       if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
         await db.longTermTasks.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+
+    // Apply focus_settings
+    for (const remote of (remoteFocusSettings || [])) {
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.focusSettings.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.focusSettings.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+
+    // Apply focus_sessions
+    for (const remote of (remoteFocusSessions || [])) {
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.focusSessions.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.focusSessions.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+
+    // Apply block_lists
+    for (const remote of (remoteBlockLists || [])) {
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.blockLists.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.blockLists.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+
+    // Apply blocked_websites
+    for (const remote of (remoteBlockedWebsites || [])) {
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.blockedWebsites.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.blockedWebsites.put(remote);
       }
       if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
@@ -907,6 +1032,30 @@ export async function hydrateFromRemote(): Promise<void> {
       .or('deleted.is.null,deleted.eq.false');
     if (longTermTasksError) throw longTermTasksError;
 
+    const { data: focusSettings, error: focusSettingsError } = await supabase
+      .from('focus_settings')
+      .select('*')
+      .or('deleted.is.null,deleted.eq.false');
+    if (focusSettingsError) throw focusSettingsError;
+
+    const { data: focusSessions, error: focusSessionsError } = await supabase
+      .from('focus_sessions')
+      .select('*')
+      .or('deleted.is.null,deleted.eq.false');
+    if (focusSessionsError) throw focusSessionsError;
+
+    const { data: blockLists, error: blockListsError } = await supabase
+      .from('block_lists')
+      .select('*')
+      .or('deleted.is.null,deleted.eq.false');
+    if (blockListsError) throw blockListsError;
+
+    const { data: blockedWebsites, error: blockedWebsitesError } = await supabase
+      .from('blocked_websites')
+      .select('*')
+      .or('deleted.is.null,deleted.eq.false');
+    if (blockedWebsitesError) throw blockedWebsitesError;
+
     // Calculate the max updated_at from all pulled data to use as sync cursor
     // This prevents missing changes that happened during hydration
     let maxUpdatedAt = '1970-01-01T00:00:00.000Z';
@@ -918,7 +1067,11 @@ export async function hydrateFromRemote(): Promise<void> {
       ...(categories || []),
       ...(commitments || []),
       ...(dailyTasks || []),
-      ...(longTermTasks || [])
+      ...(longTermTasks || []),
+      ...(focusSettings || []),
+      ...(focusSessions || []),
+      ...(blockLists || []),
+      ...(blockedWebsites || [])
     ];
     for (const item of allData) {
       if (item.updated_at && item.updated_at > maxUpdatedAt) {
@@ -927,7 +1080,7 @@ export async function hydrateFromRemote(): Promise<void> {
     }
 
     // Store everything locally
-    await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks], async () => {
+    await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks, db.focusSettings, db.focusSessions, db.blockLists, db.blockedWebsites], async () => {
       if (lists && lists.length > 0) {
         await db.goalLists.bulkPut(lists);
       }
@@ -951,6 +1104,18 @@ export async function hydrateFromRemote(): Promise<void> {
       }
       if (longTermTasks && longTermTasks.length > 0) {
         await db.longTermTasks.bulkPut(longTermTasks);
+      }
+      if (focusSettings && focusSettings.length > 0) {
+        await db.focusSettings.bulkPut(focusSettings);
+      }
+      if (focusSessions && focusSessions.length > 0) {
+        await db.focusSessions.bulkPut(focusSessions);
+      }
+      if (blockLists && blockLists.length > 0) {
+        await db.blockLists.bulkPut(blockLists);
+      }
+      if (blockedWebsites && blockedWebsites.length > 0) {
+        await db.blockedWebsites.bulkPut(blockedWebsites);
       }
     });
 
@@ -994,7 +1159,7 @@ async function cleanupLocalTombstones(): Promise<void> {
   const cutoffStr = cutoffDate.toISOString();
 
   try {
-    await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks], async () => {
+    await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks, db.focusSettings, db.focusSessions, db.blockLists, db.blockedWebsites], async () => {
       // Delete old tombstones from each table
       await db.goalLists.filter(item => item.deleted && item.updated_at < cutoffStr).delete();
       await db.goals.filter(item => item.deleted && item.updated_at < cutoffStr).delete();
@@ -1004,6 +1169,10 @@ async function cleanupLocalTombstones(): Promise<void> {
       await db.commitments.filter(item => item.deleted && item.updated_at < cutoffStr).delete();
       await db.dailyTasks.filter(item => item.deleted && item.updated_at < cutoffStr).delete();
       await db.longTermTasks.filter(item => item.deleted && item.updated_at < cutoffStr).delete();
+      await db.focusSettings.filter(item => item.deleted && item.updated_at < cutoffStr).delete();
+      await db.focusSessions.filter(item => item.deleted && item.updated_at < cutoffStr).delete();
+      await db.blockLists.filter(item => item.deleted && item.updated_at < cutoffStr).delete();
+      await db.blockedWebsites.filter(item => item.deleted && item.updated_at < cutoffStr).delete();
     });
   } catch (error) {
     console.error('Failed to cleanup local tombstones:', error);
@@ -1030,7 +1199,11 @@ async function cleanupServerTombstones(): Promise<void> {
     'task_categories',
     'commitments',
     'daily_tasks',
-    'long_term_tasks'
+    'long_term_tasks',
+    'focus_settings',
+    'focus_sessions',
+    'block_lists',
+    'blocked_websites'
   ];
 
   try {
@@ -1187,7 +1360,7 @@ export async function clearLocalCache(): Promise<void> {
   // Get user ID before clearing to remove their sync cursor
   const userId = await getCurrentUserId();
 
-  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.syncQueue, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks], async () => {
+  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.syncQueue, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks, db.focusSettings, db.focusSessions, db.blockLists, db.blockedWebsites], async () => {
     await db.goalLists.clear();
     await db.goals.clear();
     await db.dailyRoutineGoals.clear();
@@ -1196,6 +1369,10 @@ export async function clearLocalCache(): Promise<void> {
     await db.commitments.clear();
     await db.dailyTasks.clear();
     await db.longTermTasks.clear();
+    await db.focusSettings.clear();
+    await db.focusSessions.clear();
+    await db.blockLists.clear();
+    await db.blockedWebsites.clear();
     await db.syncQueue.clear();
   });
   // Reset sync cursor (user-specific) and hydration flag

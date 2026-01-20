@@ -57,7 +57,7 @@ export type SyncOperation = 'create' | 'update' | 'delete';
 
 export interface SyncQueueItem {
   id?: number;
-  table: 'goal_lists' | 'goals' | 'daily_routine_goals' | 'daily_goal_progress' | 'task_categories' | 'commitments' | 'daily_tasks' | 'long_term_tasks';
+  table: 'goal_lists' | 'goals' | 'daily_routine_goals' | 'daily_goal_progress' | 'task_categories' | 'commitments' | 'daily_tasks' | 'long_term_tasks' | 'focus_settings' | 'focus_sessions' | 'block_lists' | 'blocked_websites';
   operation: SyncOperation;
   entityId: string;
   payload: Record<string, unknown>;
@@ -159,3 +159,67 @@ export interface OfflineSession {
 }
 
 export type AuthMode = 'supabase' | 'offline' | 'none';
+
+// ============================================================
+// FOCUS FEATURE TYPES
+// ============================================================
+
+export type FocusPhase = 'focus' | 'break' | 'idle';
+export type FocusStatus = 'running' | 'paused' | 'stopped';
+
+export interface FocusSettings {
+  id: string;
+  user_id: string;
+  focus_duration: number;        // minutes (default: 25)
+  break_duration: number;        // minutes (default: 5)
+  long_break_duration: number;   // minutes (default: 15)
+  cycles_before_long_break: number;
+  auto_start_breaks: boolean;
+  auto_start_focus: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted?: boolean;
+}
+
+export interface FocusSession {
+  id: string;
+  user_id: string;
+  started_at: string;
+  ended_at: string | null;
+  phase: FocusPhase;
+  status: FocusStatus;
+  current_cycle: number;
+  total_cycles: number;
+  focus_duration: number;
+  break_duration: number;
+  phase_started_at: string;
+  phase_remaining_ms: number;
+  created_at: string;
+  updated_at: string;
+  deleted?: boolean;
+}
+
+// ============================================================
+// BLOCK LIST TYPES
+// ============================================================
+
+export interface BlockList {
+  id: string;
+  user_id: string;
+  name: string;
+  active_days: DayOfWeek[] | null;  // null = all days
+  is_enabled: boolean;
+  order: number;
+  created_at: string;
+  updated_at: string;
+  deleted?: boolean;
+}
+
+export interface BlockedWebsite {
+  id: string;
+  block_list_id: string;
+  domain: string;
+  created_at: string;
+  updated_at: string;
+  deleted?: boolean;
+}

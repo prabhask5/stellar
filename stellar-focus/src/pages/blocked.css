@@ -1,0 +1,302 @@
+/* Stellar Focus - Blocked Page Styles */
+
+:root {
+  --color-bg: #050510;
+  --color-text: #f0f0f5;
+  --color-text-muted: #8888a0;
+  --color-primary: #6c5ce7;
+  --color-primary-light: #a29bfe;
+  --color-primary-glow: rgba(108, 92, 231, 0.4);
+  --color-accent: #ff79c6;
+  --gradient-primary: linear-gradient(135deg, #6c5ce7 0%, #ff79c6 100%);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.blocked-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  overflow: hidden;
+}
+
+/* Stars Background */
+.stars-container {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.stars {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+
+.stars-small {
+  background-image: radial-gradient(1px 1px at 20px 30px, white, transparent),
+    radial-gradient(1px 1px at 40px 70px, white, transparent),
+    radial-gradient(1px 1px at 50px 160px, white, transparent),
+    radial-gradient(1px 1px at 90px 40px, white, transparent),
+    radial-gradient(1px 1px at 130px 80px, white, transparent),
+    radial-gradient(1px 1px at 160px 120px, white, transparent);
+  background-size: 200px 200px;
+  opacity: 0.5;
+  animation: twinkle 4s ease-in-out infinite;
+}
+
+.stars-medium {
+  background-image: radial-gradient(1.5px 1.5px at 25px 50px, white, transparent),
+    radial-gradient(1.5px 1.5px at 80px 90px, white, transparent),
+    radial-gradient(1.5px 1.5px at 145px 30px, white, transparent),
+    radial-gradient(1.5px 1.5px at 180px 150px, white, transparent);
+  background-size: 250px 250px;
+  opacity: 0.4;
+  animation: twinkle 5s ease-in-out infinite reverse;
+  animation-delay: 1s;
+}
+
+.stars-large {
+  background-image: radial-gradient(2px 2px at 60px 100px, white, transparent),
+    radial-gradient(2px 2px at 120px 40px, white, transparent),
+    radial-gradient(2px 2px at 200px 180px, white, transparent);
+  background-size: 300px 300px;
+  opacity: 0.3;
+  animation: twinkle 6s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+/* Nebula Effect */
+.nebula {
+  position: fixed;
+  width: 150vmax;
+  height: 150vmax;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at center,
+    rgba(108, 92, 231, 0.08) 0%,
+    rgba(255, 121, 198, 0.04) 30%,
+    transparent 60%);
+  animation: nebulaPulse 10s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes nebulaPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.7; }
+}
+
+/* Content */
+.blocked-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 500px;
+}
+
+/* Orbital Animation */
+.orbital-container {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin-bottom: 2rem;
+}
+
+.orbital-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(108, 92, 231, 0.3);
+  border-radius: 50%;
+  animation: ringRotate 8s linear infinite;
+}
+
+.orbital-ring::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 1px solid rgba(255, 121, 198, 0.2);
+  border-radius: 50%;
+}
+
+.orbital-dot {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  background: var(--gradient-primary);
+  border-radius: 50%;
+  box-shadow: 0 0 15px var(--color-primary-glow), 0 0 30px var(--color-primary-glow);
+}
+
+@keyframes ringRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.focus-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: iconPulse 3s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.focus-icon svg {
+  filter: drop-shadow(0 0 20px var(--color-primary-glow));
+}
+
+/* Message */
+.message {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.submessage {
+  font-size: 1.125rem;
+  color: var(--color-text-muted);
+  margin-bottom: 2rem;
+  animation: fadeInUp 0.8s ease-out 0.1s backwards;
+}
+
+/* Blocked URL */
+.blocked-url {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  margin-bottom: 2rem;
+  padding: 0.5rem 1rem;
+  background: rgba(108, 92, 231, 0.1);
+  border-radius: 20px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: fadeInUp 0.8s ease-out 0.2s backwards;
+}
+
+.blocked-url:empty {
+  display: none;
+}
+
+/* Return Button */
+.return-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background: var(--gradient-primary);
+  border: none;
+  border-radius: 50px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px var(--color-primary-glow);
+  animation: fadeInUp 0.8s ease-out 0.3s backwards;
+}
+
+.return-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px var(--color-primary-glow);
+}
+
+.return-btn:active {
+  transform: translateY(0);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Footer */
+.blocked-footer {
+  position: absolute;
+  bottom: 2rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  letter-spacing: 0.05em;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .blocked-content {
+    padding: 1rem;
+  }
+
+  .orbital-container {
+    width: 140px;
+    height: 140px;
+  }
+
+  .focus-icon svg {
+    width: 48px;
+    height: 48px;
+  }
+
+  .message {
+    font-size: 1.5rem;
+  }
+
+  .submessage {
+    font-size: 1rem;
+  }
+
+  .return-btn {
+    padding: 0.875rem 1.75rem;
+    font-size: 0.9375rem;
+  }
+}
