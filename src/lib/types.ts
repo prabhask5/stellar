@@ -11,6 +11,7 @@ export interface Goal {
   order: number;
   created_at: string;
   updated_at: string;
+  deleted?: boolean; // Tombstone flag
 }
 
 export interface GoalList {
@@ -19,6 +20,7 @@ export interface GoalList {
   name: string;
   created_at: string;
   updated_at: string;
+  deleted?: boolean; // Tombstone flag
   goals?: Goal[];
 }
 
@@ -32,6 +34,7 @@ export interface DailyRoutineGoal {
   end_date: string | null;
   created_at: string;
   updated_at: string;
+  deleted?: boolean; // Tombstone flag
 }
 
 export interface DailyGoalProgress {
@@ -44,7 +47,7 @@ export interface DailyGoalProgress {
 }
 
 // Sync-related types
-export type SyncOperation = 'create' | 'update' | 'delete';
+export type SyncOperation = 'create' | 'update' | 'delete' | 'increment';
 
 export interface SyncQueueItem {
   id?: number;

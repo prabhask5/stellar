@@ -1,42 +1,257 @@
 import { supabase } from '$lib/supabase/client';
 import { db } from '$lib/db/client';
-import { getPendingSync, removeSyncItem, incrementRetry } from './queue';
+import { getPendingSync, removeSyncItem, incrementRetry, getPendingEntityIds } from './queue';
 import type { SyncQueueItem, Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, GoalListWithProgress } from '$lib/types';
 import { syncStatusStore } from '$lib/stores/sync';
 import { calculateGoalProgress } from '$lib/utils/colors';
 
+// ============================================================
+// LOCAL-FIRST SYNC ENGINE
+//
+// Rules:
+// 1. All reads come from local DB (IndexedDB)
+// 2. All writes go to local DB first, immediately
+// 3. Every write creates a pending operation in the outbox
+// 4. Sync loop ships outbox to server in background
+// 5. On refresh, load local state instantly, then run background sync
+// ============================================================
+
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
-const SYNC_DEBOUNCE_MS = 1500; // 1.5 seconds debounce for writes
+let syncInterval: ReturnType<typeof setInterval> | null = null;
+const SYNC_DEBOUNCE_MS = 2000; // 2 seconds debounce after writes
+const SYNC_INTERVAL_MS = 60000; // 1 minute periodic sync
+
+// Callbacks for when sync completes (stores can refresh from local)
+const syncCompleteCallbacks: Set<() => void> = new Set();
+
+export function onSyncComplete(callback: () => void): () => void {
+  syncCompleteCallbacks.add(callback);
+  return () => syncCompleteCallbacks.delete(callback);
+}
+
+function notifySyncComplete(): void {
+  for (const callback of syncCompleteCallbacks) {
+    try {
+      callback();
+    } catch (e) {
+      console.error('Sync callback error:', e);
+    }
+  }
+}
 
 // ============================================================
-// WRITE OPERATIONS - Debounced background sync to Supabase
+// LOCAL READ OPERATIONS - UI always reads from here
 // ============================================================
 
-// Schedule a debounced sync push - call this after local writes
+// Helper to calculate progress for a list
+function calculateListProgress(goals: Goal[]): { totalGoals: number; completedGoals: number; completionPercentage: number } {
+  // Filter out deleted goals
+  const activeGoals = goals.filter(g => !g.deleted);
+  const totalGoals = activeGoals.length;
+  const completedProgress = activeGoals.reduce((sum: number, goal: Goal) => {
+    return sum + calculateGoalProgress(goal.type, goal.completed, goal.current_value, goal.target_value);
+  }, 0);
+  const completionPercentage = totalGoals > 0 ? completedProgress / totalGoals : 0;
+
+  return {
+    totalGoals,
+    completedGoals: activeGoals.filter((g: Goal) =>
+      g.type === 'completion' ? g.completed : g.current_value >= (g.target_value || 0)
+    ).length,
+    completionPercentage: Math.round(completionPercentage)
+  };
+}
+
+// Get all goal lists from LOCAL DB only
+export async function getGoalLists(): Promise<GoalListWithProgress[]> {
+  const lists = await db.goalLists.orderBy('created_at').reverse().toArray();
+  // Filter out deleted lists
+  const activeLists = lists.filter(l => !l.deleted);
+
+  const listsWithProgress: GoalListWithProgress[] = await Promise.all(
+    activeLists.map(async (list) => {
+      const goals = await db.goals.where('goal_list_id').equals(list.id).toArray();
+      return { ...list, ...calculateListProgress(goals) };
+    })
+  );
+  return listsWithProgress;
+}
+
+// Get a single goal list from LOCAL DB only
+export async function getGoalList(id: string): Promise<(GoalList & { goals: Goal[] }) | null> {
+  const list = await db.goalLists.get(id);
+  if (!list || list.deleted) return null;
+
+  const goals = await db.goals.where('goal_list_id').equals(id).toArray();
+  // Filter out deleted goals and sort by order
+  const activeGoals = goals.filter(g => !g.deleted).sort((a, b) => a.order - b.order);
+  return { ...list, goals: activeGoals };
+}
+
+// Get all daily routine goals from LOCAL DB only
+export async function getDailyRoutineGoals(): Promise<DailyRoutineGoal[]> {
+  const routines = await db.dailyRoutineGoals.orderBy('created_at').reverse().toArray();
+  return routines.filter(r => !r.deleted);
+}
+
+// Get a single daily routine goal from LOCAL DB only
+export async function getDailyRoutineGoal(id: string): Promise<DailyRoutineGoal | null> {
+  const routine = await db.dailyRoutineGoals.get(id);
+  if (!routine || routine.deleted) return null;
+  return routine;
+}
+
+// Get active routines for a specific date from LOCAL DB only
+export async function getActiveRoutinesForDate(date: string): Promise<DailyRoutineGoal[]> {
+  const allRoutines = await db.dailyRoutineGoals.toArray();
+  return allRoutines.filter((routine) => {
+    if (routine.deleted) return false;
+    if (routine.start_date > date) return false;
+    if (routine.end_date && routine.end_date < date) return false;
+    return true;
+  });
+}
+
+// Get daily progress for a specific date from LOCAL DB only
+export async function getDailyProgress(date: string): Promise<DailyGoalProgress[]> {
+  return db.dailyGoalProgress.where('date').equals(date).toArray();
+}
+
+// Get month progress from LOCAL DB only
+export async function getMonthProgress(year: number, month: number): Promise<DailyGoalProgress[]> {
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+  return db.dailyGoalProgress
+    .where('date')
+    .between(startDate, endDate, true, true)
+    .toArray();
+}
+
+// ============================================================
+// SYNC OPERATIONS - Background sync to/from Supabase
+// ============================================================
+
+// Schedule a debounced sync after local writes
 export function scheduleSyncPush(): void {
   if (syncTimeout) {
     clearTimeout(syncTimeout);
   }
-
   syncTimeout = setTimeout(() => {
-    pushChanges();
+    runFullSync();
   }, SYNC_DEBOUNCE_MS);
 }
 
-// Push local changes to Supabase
-export async function pushChanges(): Promise<void> {
-  if (typeof navigator === 'undefined' || !navigator.onLine) {
-    syncStatusStore.setStatus('offline');
-    return;
-  }
+// Get last sync cursor from localStorage
+function getLastSyncCursor(): string {
+  if (typeof localStorage === 'undefined') return '1970-01-01T00:00:00.000Z';
+  return localStorage.getItem('lastSyncCursor') || '1970-01-01T00:00:00.000Z';
+}
 
+// Set last sync cursor
+function setLastSyncCursor(cursor: string): void {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('lastSyncCursor', cursor);
+  }
+}
+
+// PULL: Fetch changes from remote since last sync
+async function pullRemoteChanges(): Promise<void> {
+  const lastSync = getLastSyncCursor();
+  const pendingEntityIds = await getPendingEntityIds();
+
+  // Track the newest updated_at we see
+  let newestUpdate = lastSync;
+
+  // Pull goal_lists changed since last sync
+  const { data: remoteLists, error: listsError } = await supabase
+    .from('goal_lists')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (listsError) throw listsError;
+
+  // Pull goals changed since last sync
+  const { data: remoteGoals, error: goalsError } = await supabase
+    .from('goals')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (goalsError) throw goalsError;
+
+  // Pull daily_routine_goals changed since last sync
+  const { data: remoteRoutines, error: routinesError } = await supabase
+    .from('daily_routine_goals')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (routinesError) throw routinesError;
+
+  // Pull daily_goal_progress changed since last sync
+  const { data: remoteProgress, error: progressError } = await supabase
+    .from('daily_goal_progress')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (progressError) throw progressError;
+
+  // Apply changes to local DB with conflict handling
+  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress], async () => {
+    // Apply goal_lists
+    for (const remote of (remoteLists || [])) {
+      // Skip if we have pending ops for this entity (local takes precedence)
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.goalLists.get(remote.id);
+      // Accept remote if no local or remote is newer
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.goalLists.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+
+    // Apply goals
+    for (const remote of (remoteGoals || [])) {
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.goals.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.goals.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+
+    // Apply daily_routine_goals
+    for (const remote of (remoteRoutines || [])) {
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.dailyRoutineGoals.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.dailyRoutineGoals.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+
+    // Apply daily_goal_progress
+    for (const remote of (remoteProgress || [])) {
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.dailyGoalProgress.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.dailyGoalProgress.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+  });
+
+  // Update sync cursor
+  setLastSyncCursor(newestUpdate);
+}
+
+// PUSH: Send pending operations to remote
+async function pushPendingOps(): Promise<void> {
   const pendingItems = await getPendingSync();
-  if (pendingItems.length === 0) {
-    syncStatusStore.setStatus('idle');
-    return;
-  }
+  if (pendingItems.length === 0) return;
 
-  syncStatusStore.setStatus('syncing');
   syncStatusStore.setPendingCount(pendingItems.length);
 
   for (const item of pendingItems) {
@@ -55,13 +270,9 @@ export async function pushChanges(): Promise<void> {
 
   const remaining = await getPendingSync();
   syncStatusStore.setPendingCount(remaining.length);
-  syncStatusStore.setStatus(remaining.length > 0 ? 'error' : 'idle');
-
-  if (remaining.length === 0) {
-    syncStatusStore.setLastSyncTime(new Date().toISOString());
-  }
 }
 
+// Process a single sync item
 async function processSyncItem(item: SyncQueueItem): Promise<void> {
   const { table, operation, entityId, payload } = item;
 
@@ -70,7 +281,7 @@ async function processSyncItem(item: SyncQueueItem): Promise<void> {
       const { error } = await supabase
         .from(table)
         .insert({ id: entityId, ...payload });
-      // Ignore duplicate key errors (item already exists)
+      // Ignore duplicate key errors (item already synced)
       if (error && !error.message.includes('duplicate')) {
         throw error;
       }
@@ -85,402 +296,182 @@ async function processSyncItem(item: SyncQueueItem): Promise<void> {
       break;
     }
     case 'delete': {
+      // For deletes, we mark as deleted in Supabase (tombstone)
       const { error } = await supabase
         .from(table)
-        .delete()
+        .update({ deleted: true, updated_at: payload.updated_at })
         .eq('id', entityId);
       if (error) throw error;
+      break;
+    }
+    case 'increment': {
+      // Increment operations use Supabase RPC for atomicity
+      // The payload contains: { field: 'current_value', amount: 1, ... }
+      const { field, amount, ...otherUpdates } = payload as { field: string; amount: number; [key: string]: unknown };
+
+      // First, try to do an atomic increment using raw SQL or update
+      // Since Supabase doesn't have native increment, we fetch, add, update
+      const { data: current, error: fetchError } = await supabase
+        .from(table)
+        .select(field)
+        .eq('id', entityId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const currentValue = (current as Record<string, number>)[field] || 0;
+      const newValue = currentValue + (amount as number);
+
+      const { error: updateError } = await supabase
+        .from(table)
+        .update({ [field]: newValue, ...otherUpdates })
+        .eq('id', entityId);
+
+      if (updateError) throw updateError;
       break;
     }
   }
 }
 
-// Manual sync trigger (for UI button)
-export async function performSync(): Promise<void> {
-  await pushChanges();
-}
-
-// ============================================================
-// MERGE HELPERS - Keep newer version based on updated_at
-// ============================================================
-
-interface Timestamped {
-  id: string;
-  updated_at: string;
-}
-
-// Returns true if local is newer than remote
-function isLocalNewer<T extends Timestamped>(local: T | undefined, remote: T): boolean {
-  if (!local) return false;
-  return new Date(local.updated_at) > new Date(remote.updated_at);
-}
-
-// Merge arrays, keeping the newer version of each entity by id
-function mergeByTimestamp<T extends Timestamped>(localItems: T[], remoteItems: T[]): T[] {
-  const localMap = new Map(localItems.map(item => [item.id, item]));
-  const remoteMap = new Map(remoteItems.map(item => [item.id, item]));
-
-  const result: T[] = [];
-  const seenIds = new Set<string>();
-
-  // Process remote items, keeping local if newer
-  for (const remote of remoteItems) {
-    const local = localMap.get(remote.id);
-    if (isLocalNewer(local, remote)) {
-      result.push(local!);
-    } else {
-      result.push(remote);
-    }
-    seenIds.add(remote.id);
-  }
-
-  // Add local-only items (items that exist locally but not in remote - pending creates)
-  for (const local of localItems) {
-    if (!seenIds.has(local.id)) {
-      result.push(local);
-    }
-  }
-
-  return result;
-}
-
-// ============================================================
-// READ OPERATIONS - Fetch from Supabase, merge with local cache
-// ============================================================
-
-// Helper to calculate progress for a list
-function calculateListProgress(goals: Goal[]): { totalGoals: number; completedGoals: number; completionPercentage: number } {
-  const totalGoals = goals.length;
-  const completedProgress = goals.reduce((sum: number, goal: Goal) => {
-    return sum + calculateGoalProgress(goal.type, goal.completed, goal.current_value, goal.target_value);
-  }, 0);
-  const completionPercentage = totalGoals > 0 ? completedProgress / totalGoals : 0;
-
-  return {
-    totalGoals,
-    completedGoals: goals.filter((g: Goal) =>
-      g.type === 'completion' ? g.completed : g.current_value >= (g.target_value || 0)
-    ).length,
-    completionPercentage: Math.round(completionPercentage)
-  };
-}
-
-// Fetch all goal lists with progress
-export async function fetchGoalLists(): Promise<GoalListWithProgress[]> {
-  // If offline, return from cache
+// Full sync: push first (so our changes are persisted), then pull
+export async function runFullSync(): Promise<void> {
   if (typeof navigator === 'undefined' || !navigator.onLine) {
-    const lists = await db.goalLists.orderBy('created_at').reverse().toArray();
-    const listsWithProgress: GoalListWithProgress[] = await Promise.all(
-      lists.map(async (list) => {
-        const goals = await db.goals.where('goal_list_id').equals(list.id).toArray();
-        return { ...list, ...calculateListProgress(goals) };
-      })
-    );
-    return listsWithProgress;
+    syncStatusStore.setStatus('offline');
+    return;
   }
 
-  // Online: fetch from Supabase
-  const { data: remoteLists, error } = await supabase
-    .from('goal_lists')
-    .select('*, goals(*)')
-    .order('created_at', { ascending: false });
+  try {
+    syncStatusStore.setStatus('syncing');
 
-  if (error) throw error;
+    // Push first so local changes are persisted
+    await pushPendingOps();
 
-  // Get local data for merging
-  const localLists = await db.goalLists.toArray();
-  const localGoals = await db.goals.toArray();
+    // Then pull remote changes
+    await pullRemoteChanges();
 
-  // Separate goals from lists for merging
-  const remoteGoals: Goal[] = [];
-  const remoteListsOnly: GoalList[] = (remoteLists || []).map(list => {
-    const { goals, ...listData } = list;
-    if (goals) remoteGoals.push(...goals);
-    return listData as GoalList;
-  });
+    const remaining = await getPendingSync();
+    syncStatusStore.setStatus(remaining.length > 0 ? 'error' : 'idle');
+    syncStatusStore.setLastSyncTime(new Date().toISOString());
 
-  // Merge keeping newer versions
-  const mergedLists = mergeByTimestamp(localLists, remoteListsOnly);
-  const mergedGoals = mergeByTimestamp(localGoals, remoteGoals);
-
-  // Update cache with merged data
-  await db.transaction('rw', [db.goalLists, db.goals], async () => {
-    await db.goalLists.clear();
-    await db.goals.clear();
-    if (mergedLists.length > 0) {
-      await db.goalLists.bulkPut(mergedLists);
-    }
-    if (mergedGoals.length > 0) {
-      await db.goals.bulkPut(mergedGoals);
-    }
-  });
-
-  // Return with progress calculated, sorted by created_at desc
-  const sortedLists = mergedLists.sort((a, b) =>
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
-
-  return sortedLists.map((list) => {
-    const listGoals = mergedGoals.filter(g => g.goal_list_id === list.id);
-    return { ...list, ...calculateListProgress(listGoals) };
-  });
+    // Notify stores that sync is complete so they can refresh from local
+    notifySyncComplete();
+  } catch (error) {
+    console.error('Sync failed:', error);
+    syncStatusStore.setStatus('error');
+    syncStatusStore.setError(error instanceof Error ? error.message : 'Sync failed');
+  }
 }
 
-// Fetch a single goal list with its goals
-export async function fetchGoalList(id: string): Promise<(GoalList & { goals: Goal[] }) | null> {
-  // If offline, return from cache
-  if (typeof navigator === 'undefined' || !navigator.onLine) {
-    const list = await db.goalLists.get(id);
-    if (!list) return null;
-    const goals = await db.goals.where('goal_list_id').equals(id).toArray();
-    goals.sort((a, b) => a.order - b.order);
-    return { ...list, goals };
+// Initial hydration: if local DB is empty, pull everything from remote
+export async function hydrateFromRemote(): Promise<void> {
+  if (typeof navigator === 'undefined' || !navigator.onLine) return;
+
+  // Check if local DB is empty
+  const localListCount = await db.goalLists.count();
+  const localRoutineCount = await db.dailyRoutineGoals.count();
+
+  if (localListCount > 0 || localRoutineCount > 0) {
+    // Local has data, just do a normal sync
+    await runFullSync();
+    return;
   }
 
-  // Online: fetch from Supabase
-  const { data: remoteList, error: listError } = await supabase
-    .from('goal_lists')
-    .select('*')
-    .eq('id', id)
-    .single();
+  // Local is empty, do a full pull
+  syncStatusStore.setStatus('syncing');
 
-  if (listError) throw listError;
-  if (!remoteList) return null;
+  try {
+    // Pull all goal_lists
+    const { data: lists, error: listsError } = await supabase
+      .from('goal_lists')
+      .select('*')
+      .is('deleted', null);
+    if (listsError) throw listsError;
 
-  const { data: remoteGoals, error: goalsError } = await supabase
-    .from('goals')
-    .select('*')
-    .eq('goal_list_id', id)
-    .order('order', { ascending: true });
+    // Pull all goals
+    const { data: goals, error: goalsError } = await supabase
+      .from('goals')
+      .select('*')
+      .is('deleted', null);
+    if (goalsError) throw goalsError;
 
-  if (goalsError) throw goalsError;
+    // Pull all daily_routine_goals
+    const { data: routines, error: routinesError } = await supabase
+      .from('daily_routine_goals')
+      .select('*')
+      .is('deleted', null);
+    if (routinesError) throw routinesError;
 
-  // Get local data for merging
-  const localList = await db.goalLists.get(id);
-  const localGoals = await db.goals.where('goal_list_id').equals(id).toArray();
+    // Pull all daily_goal_progress
+    const { data: progress, error: progressError } = await supabase
+      .from('daily_goal_progress')
+      .select('*');
+    if (progressError) throw progressError;
 
-  // Merge keeping newer versions
-  const mergedList = isLocalNewer(localList, remoteList) ? localList! : remoteList;
-  const mergedGoals = mergeByTimestamp(localGoals, remoteGoals || []);
-
-  // Update cache
-  await db.goalLists.put(mergedList);
-  await db.transaction('rw', db.goals, async () => {
-    await db.goals.where('goal_list_id').equals(id).delete();
-    if (mergedGoals.length > 0) {
-      await db.goals.bulkPut(mergedGoals);
-    }
-  });
-
-  // Sort by order and return
-  mergedGoals.sort((a, b) => a.order - b.order);
-  return { ...mergedList, goals: mergedGoals };
-}
-
-// Fetch all daily routine goals
-export async function fetchDailyRoutineGoals(): Promise<DailyRoutineGoal[]> {
-  // If offline, return from cache
-  if (typeof navigator === 'undefined' || !navigator.onLine) {
-    return db.dailyRoutineGoals.orderBy('created_at').reverse().toArray();
-  }
-
-  // Online: fetch from Supabase
-  const { data: remoteRoutines, error } = await supabase
-    .from('daily_routine_goals')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-
-  // Get local data for merging
-  const localRoutines = await db.dailyRoutineGoals.toArray();
-
-  // Merge keeping newer versions
-  const mergedRoutines = mergeByTimestamp(localRoutines, remoteRoutines || []);
-
-  // Update cache
-  await db.transaction('rw', db.dailyRoutineGoals, async () => {
-    await db.dailyRoutineGoals.clear();
-    if (mergedRoutines.length > 0) {
-      await db.dailyRoutineGoals.bulkPut(mergedRoutines);
-    }
-  });
-
-  // Sort by created_at desc
-  return mergedRoutines.sort((a, b) =>
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
-}
-
-// Fetch a single daily routine goal
-export async function fetchDailyRoutineGoal(id: string): Promise<DailyRoutineGoal | null> {
-  // If offline, return from cache
-  if (typeof navigator === 'undefined' || !navigator.onLine) {
-    return (await db.dailyRoutineGoals.get(id)) || null;
-  }
-
-  // Online: fetch from Supabase
-  const { data: remoteRoutine, error } = await supabase
-    .from('daily_routine_goals')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error) throw error;
-  if (!remoteRoutine) return null;
-
-  // Get local for merging
-  const localRoutine = await db.dailyRoutineGoals.get(id);
-
-  // Keep newer version
-  const mergedRoutine = isLocalNewer(localRoutine, remoteRoutine) ? localRoutine! : remoteRoutine;
-
-  // Update cache
-  await db.dailyRoutineGoals.put(mergedRoutine);
-
-  return mergedRoutine;
-}
-
-// Fetch active routines for a specific date
-export async function fetchActiveRoutinesForDate(date: string): Promise<DailyRoutineGoal[]> {
-  // If offline, return from cache
-  if (typeof navigator === 'undefined' || !navigator.onLine) {
-    const allRoutines = await db.dailyRoutineGoals.toArray();
-    return allRoutines.filter((routine) => {
-      if (routine.start_date > date) return false;
-      if (routine.end_date && routine.end_date < date) return false;
-      return true;
+    // Store everything locally
+    await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress], async () => {
+      if (lists && lists.length > 0) {
+        await db.goalLists.bulkPut(lists);
+      }
+      if (goals && goals.length > 0) {
+        await db.goals.bulkPut(goals);
+      }
+      if (routines && routines.length > 0) {
+        await db.dailyRoutineGoals.bulkPut(routines);
+      }
+      if (progress && progress.length > 0) {
+        await db.dailyGoalProgress.bulkPut(progress);
+      }
     });
+
+    // Set sync cursor to now
+    setLastSyncCursor(new Date().toISOString());
+    syncStatusStore.setStatus('idle');
+    syncStatusStore.setLastSyncTime(new Date().toISOString());
+
+    // Notify stores
+    notifySyncComplete();
+  } catch (error) {
+    console.error('Hydration failed:', error);
+    syncStatusStore.setStatus('error');
   }
-
-  // Online: fetch from Supabase
-  const { data: remoteRoutines, error } = await supabase
-    .from('daily_routine_goals')
-    .select('*')
-    .lte('start_date', date);
-
-  if (error) throw error;
-
-  // Get local data for merging
-  const localRoutines = await db.dailyRoutineGoals.toArray();
-
-  // Merge keeping newer versions
-  const mergedRoutines = mergeByTimestamp(localRoutines, remoteRoutines || []);
-
-  // Update cache with merged routines
-  if (mergedRoutines.length > 0) {
-    await db.dailyRoutineGoals.bulkPut(mergedRoutines);
-  }
-
-  // Filter for active routines on this date
-  return mergedRoutines.filter((routine) => {
-    if (routine.start_date > date) return false;
-    if (routine.end_date && routine.end_date < date) return false;
-    return true;
-  });
-}
-
-// Fetch daily progress for a specific date
-export async function fetchDailyProgress(date: string): Promise<DailyGoalProgress[]> {
-  // If offline, return from cache
-  if (typeof navigator === 'undefined' || !navigator.onLine) {
-    return db.dailyGoalProgress.where('date').equals(date).toArray();
-  }
-
-  // Online: fetch from Supabase
-  const { data: remoteProgress, error } = await supabase
-    .from('daily_goal_progress')
-    .select('*')
-    .eq('date', date);
-
-  if (error) throw error;
-
-  // Get local data for merging
-  const localProgress = await db.dailyGoalProgress.where('date').equals(date).toArray();
-
-  // Merge keeping newer versions
-  const mergedProgress = mergeByTimestamp(localProgress, remoteProgress || []);
-
-  // Update cache
-  await db.transaction('rw', db.dailyGoalProgress, async () => {
-    await db.dailyGoalProgress.where('date').equals(date).delete();
-    if (mergedProgress.length > 0) {
-      await db.dailyGoalProgress.bulkPut(mergedProgress);
-    }
-  });
-
-  return mergedProgress;
-}
-
-// Fetch month progress for calendar view
-export async function fetchMonthProgress(year: number, month: number): Promise<DailyGoalProgress[]> {
-  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-  const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
-
-  // If offline, return from cache
-  if (typeof navigator === 'undefined' || !navigator.onLine) {
-    return db.dailyGoalProgress
-      .where('date')
-      .between(startDate, endDate, true, true)
-      .toArray();
-  }
-
-  // Online: fetch from Supabase
-  const { data: remoteProgress, error } = await supabase
-    .from('daily_goal_progress')
-    .select('*')
-    .gte('date', startDate)
-    .lte('date', endDate);
-
-  if (error) throw error;
-
-  // Get local data for merging
-  const localProgress = await db.dailyGoalProgress
-    .where('date')
-    .between(startDate, endDate, true, true)
-    .toArray();
-
-  // Merge keeping newer versions
-  const mergedProgress = mergeByTimestamp(localProgress, remoteProgress || []);
-
-  // Update cache
-  await db.transaction('rw', db.dailyGoalProgress, async () => {
-    await db.dailyGoalProgress
-      .where('date')
-      .between(startDate, endDate, true, true)
-      .delete();
-    if (mergedProgress.length > 0) {
-      await db.dailyGoalProgress.bulkPut(mergedProgress);
-    }
-  });
-
-  return mergedProgress;
 }
 
 // ============================================================
-// LIFECYCLE - Start/stop sync engine
+// LIFECYCLE
 // ============================================================
 
 export function startSyncEngine(): void {
   if (typeof window === 'undefined') return;
 
-  window.addEventListener('online', () => {
-    pushChanges();
-  });
+  // Handle online event - run sync when connection restored
+  const handleOnline = () => {
+    runFullSync();
+  };
+  window.addEventListener('online', handleOnline);
 
-  // Push any pending changes on start
+  // Start periodic sync
+  syncInterval = setInterval(() => {
+    if (navigator.onLine) {
+      runFullSync();
+    }
+  }, SYNC_INTERVAL_MS);
+
+  // Initial sync: hydrate if empty, otherwise push pending
   if (navigator.onLine) {
-    pushChanges();
+    hydrateFromRemote();
   }
 }
 
 export function stopSyncEngine(): void {
   if (typeof window === 'undefined') return;
 
-  window.removeEventListener('online', pushChanges);
   if (syncTimeout) {
     clearTimeout(syncTimeout);
     syncTimeout = null;
+  }
+  if (syncInterval) {
+    clearInterval(syncInterval);
+    syncInterval = null;
   }
 }
 
@@ -493,4 +484,13 @@ export async function clearLocalCache(): Promise<void> {
     await db.dailyGoalProgress.clear();
     await db.syncQueue.clear();
   });
+  // Reset sync cursor
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('lastSyncCursor');
+  }
+}
+
+// Manual sync trigger (for UI button)
+export async function performSync(): Promise<void> {
+  await runFullSync();
 }

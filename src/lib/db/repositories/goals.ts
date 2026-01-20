@@ -71,10 +71,13 @@ export async function updateGoal(
 }
 
 export async function deleteGoal(id: string): Promise<void> {
-  await db.goals.delete(id);
+  const timestamp = now();
+
+  // Tombstone delete: mark as deleted instead of actually deleting
+  await db.goals.update(id, { deleted: true, updated_at: timestamp });
 
   // Queue for sync and schedule debounced push
-  await queueSync('goals', 'delete', id, {});
+  await queueSync('goals', 'delete', id, { updated_at: timestamp });
   scheduleSyncPush();
 }
 
@@ -82,10 +85,24 @@ export async function incrementGoal(id: string, amount: number = 1): Promise<Goa
   const goal = await db.goals.get(id);
   if (!goal) return undefined;
 
+  const timestamp = now();
   const newValue = Math.min(goal.current_value + amount, goal.target_value || Infinity);
   const completed = goal.target_value ? newValue >= goal.target_value : false;
 
-  return updateGoal(id, { current_value: newValue, completed });
+  // Update local immediately
+  await db.goals.update(id, { current_value: newValue, completed, updated_at: timestamp });
+
+  // Queue INCREMENT operation (not update with final value)
+  // This allows server to apply increments atomically
+  await queueSync('goals', 'increment', id, {
+    field: 'current_value',
+    amount,
+    completed,
+    updated_at: timestamp
+  });
+  scheduleSyncPush();
+
+  return db.goals.get(id);
 }
 
 export async function getGoalsByListId(goalListId: string): Promise<Goal[]> {

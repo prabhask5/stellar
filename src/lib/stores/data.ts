@@ -3,11 +3,21 @@ import type { GoalListWithProgress, Goal, GoalList, DailyRoutineGoal, DailyGoalP
 import * as repo from '$lib/db/repositories';
 import * as sync from '$lib/sync/engine';
 import { calculateGoalProgress } from '$lib/utils/colors';
+import { browser } from '$app/environment';
+
+// ============================================================
+// LOCAL-FIRST STORES
+//
+// All reads come from local DB via sync engine functions.
+// Writes go to local DB immediately via repositories.
+// Background sync updates local, stores can refresh from local.
+// ============================================================
 
 // Goal Lists Store
 function createGoalListsStore() {
   const { subscribe, set, update }: Writable<GoalListWithProgress[]> = writable([]);
   let loading = writable(true);
+  let unsubscribe: (() => void) | null = null;
 
   return {
     subscribe,
@@ -15,15 +25,23 @@ function createGoalListsStore() {
     load: async () => {
       loading.set(true);
       try {
-        // Fetch from Supabase when online, cache when offline
-        const lists = await sync.fetchGoalLists();
+        // Always read from local DB
+        const lists = await sync.getGoalLists();
         set(lists);
+
+        // Register for sync complete to auto-refresh
+        if (browser && !unsubscribe) {
+          unsubscribe = sync.onSyncComplete(async () => {
+            const refreshed = await sync.getGoalLists();
+            set(refreshed);
+          });
+        }
       } finally {
         loading.set(false);
       }
     },
     create: async (name: string, userId: string) => {
-      // Write to local DB immediately, sync in background
+      // Write to local DB immediately
       const newList = await repo.createGoalList(name, userId);
       update(lists => [
         { ...newList, totalGoals: 0, completedGoals: 0, completionPercentage: 0 },
@@ -43,7 +61,7 @@ function createGoalListsStore() {
       update(lists => lists.filter(l => l.id !== id));
     },
     refresh: async () => {
-      const lists = await sync.fetchGoalLists();
+      const lists = await sync.getGoalLists();
       set(lists);
     }
   };
@@ -55,16 +73,29 @@ export const goalListsStore = createGoalListsStore();
 function createGoalListStore() {
   const { subscribe, set, update }: Writable<(GoalList & { goals: Goal[] }) | null> = writable(null);
   let loading = writable(true);
+  let currentId: string | null = null;
+  let unsubscribe: (() => void) | null = null;
 
   return {
     subscribe,
     loading: { subscribe: loading.subscribe },
     load: async (id: string) => {
       loading.set(true);
+      currentId = id;
       try {
-        // Fetch from Supabase when online, cache when offline
-        const list = await sync.fetchGoalList(id);
+        // Always read from local DB
+        const list = await sync.getGoalList(id);
         set(list);
+
+        // Register for sync complete to auto-refresh
+        if (browser && !unsubscribe) {
+          unsubscribe = sync.onSyncComplete(async () => {
+            if (currentId) {
+              const refreshed = await sync.getGoalList(currentId);
+              set(refreshed);
+            }
+          });
+        }
       } finally {
         loading.set(false);
       }
@@ -105,7 +136,10 @@ function createGoalListStore() {
       }
       return updated;
     },
-    clear: () => set(null)
+    clear: () => {
+      currentId = null;
+      set(null);
+    }
   };
 }
 
@@ -115,6 +149,7 @@ export const goalListStore = createGoalListStore();
 function createDailyRoutinesStore() {
   const { subscribe, set, update }: Writable<DailyRoutineGoal[]> = writable([]);
   let loading = writable(true);
+  let unsubscribe: (() => void) | null = null;
 
   return {
     subscribe,
@@ -122,9 +157,17 @@ function createDailyRoutinesStore() {
     load: async () => {
       loading.set(true);
       try {
-        // Fetch from Supabase when online, cache when offline
-        const routines = await sync.fetchDailyRoutineGoals();
+        // Always read from local DB
+        const routines = await sync.getDailyRoutineGoals();
         set(routines);
+
+        // Register for sync complete to auto-refresh
+        if (browser && !unsubscribe) {
+          unsubscribe = sync.onSyncComplete(async () => {
+            const refreshed = await sync.getDailyRoutineGoals();
+            set(refreshed);
+          });
+        }
       } finally {
         loading.set(false);
       }
@@ -153,7 +196,7 @@ function createDailyRoutinesStore() {
       update(routines => routines.filter(r => r.id !== id));
     },
     refresh: async () => {
-      const routines = await sync.fetchDailyRoutineGoals();
+      const routines = await sync.getDailyRoutineGoals();
       set(routines);
     }
   };
@@ -165,16 +208,29 @@ export const dailyRoutinesStore = createDailyRoutinesStore();
 function createRoutineStore() {
   const { subscribe, set }: Writable<DailyRoutineGoal | null> = writable(null);
   let loading = writable(true);
+  let currentId: string | null = null;
+  let unsubscribe: (() => void) | null = null;
 
   return {
     subscribe,
     loading: { subscribe: loading.subscribe },
     load: async (id: string) => {
       loading.set(true);
+      currentId = id;
       try {
-        // Fetch from Supabase when online, cache when offline
-        const routine = await sync.fetchDailyRoutineGoal(id);
+        // Always read from local DB
+        const routine = await sync.getDailyRoutineGoal(id);
         set(routine);
+
+        // Register for sync complete to auto-refresh
+        if (browser && !unsubscribe) {
+          unsubscribe = sync.onSyncComplete(async () => {
+            if (currentId) {
+              const refreshed = await sync.getDailyRoutineGoal(currentId);
+              set(refreshed);
+            }
+          });
+        }
       } finally {
         loading.set(false);
       }
@@ -186,7 +242,10 @@ function createRoutineStore() {
       }
       return updated;
     },
-    clear: () => set(null)
+    clear: () => {
+      currentId = null;
+      set(null);
+    }
   };
 }
 
@@ -202,17 +261,20 @@ interface DailyProgressState {
 function createDailyProgressStore() {
   const { subscribe, set, update }: Writable<DailyProgressState | null> = writable(null);
   let loading = writable(true);
+  let currentDate: string | null = null;
+  let unsubscribe: (() => void) | null = null;
 
   return {
     subscribe,
     loading: { subscribe: loading.subscribe },
     load: async (date: string) => {
       loading.set(true);
+      currentDate = date;
       try {
-        // Fetch from Supabase when online, cache when offline
+        // Always read from local DB
         const [routines, progressList] = await Promise.all([
-          sync.fetchActiveRoutinesForDate(date),
-          sync.fetchDailyProgress(date)
+          sync.getActiveRoutinesForDate(date),
+          sync.getDailyProgress(date)
         ]);
 
         const progressMap = new Map<string, DailyGoalProgress>();
@@ -221,6 +283,23 @@ function createDailyProgressStore() {
         }
 
         set({ date, routines, progress: progressMap });
+
+        // Register for sync complete to auto-refresh
+        if (browser && !unsubscribe) {
+          unsubscribe = sync.onSyncComplete(async () => {
+            if (currentDate) {
+              const [r, p] = await Promise.all([
+                sync.getActiveRoutinesForDate(currentDate),
+                sync.getDailyProgress(currentDate)
+              ]);
+              const pMap = new Map<string, DailyGoalProgress>();
+              for (const prog of p) {
+                pMap.set(prog.daily_routine_goal_id, prog);
+              }
+              set({ date: currentDate, routines: r, progress: pMap });
+            }
+          });
+        }
       } finally {
         loading.set(false);
       }
@@ -247,12 +326,8 @@ function createDailyProgressStore() {
       update(s => { state = s; return s; });
 
       if (!state) return;
-      const current = (state as DailyProgressState).progress.get(routineId);
-      const currentValue = current?.current_value || 0;
-      const newValue = Math.max(0, Math.min(currentValue + amount, targetValue));
-      const completed = newValue >= targetValue;
 
-      const updated = await repo.upsertDailyProgress(routineId, date, newValue, completed);
+      const updated = await repo.incrementDailyProgress(routineId, date, targetValue, amount);
 
       update(s => {
         if (!s) return s;
@@ -261,7 +336,10 @@ function createDailyProgressStore() {
         return { ...s, progress: newProgress };
       });
     },
-    clear: () => set(null)
+    clear: () => {
+      currentDate = null;
+      set(null);
+    }
   };
 }
 
@@ -277,84 +355,108 @@ interface MonthProgressState {
 function createMonthProgressStore() {
   const { subscribe, set }: Writable<MonthProgressState | null> = writable(null);
   let loading = writable(true);
+  let currentYear: number | null = null;
+  let currentMonth: number | null = null;
+  let unsubscribe: (() => void) | null = null;
+
+  async function loadMonthData(year: number, month: number): Promise<MonthProgressState> {
+    // Always read from local DB
+    const [routines, progressList] = await Promise.all([
+      sync.getDailyRoutineGoals(),
+      sync.getMonthProgress(year, month)
+    ]);
+
+    // Group progress by date
+    const progressByDate = new Map<string, DailyGoalProgress[]>();
+    for (const p of progressList) {
+      const list = progressByDate.get(p.date) || [];
+      list.push(p);
+      progressByDate.set(p.date, list);
+    }
+
+    // Calculate day progress
+    const dayProgress = new Map<string, DayProgress>();
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+      // Get active routines for this date
+      const activeRoutines = routines.filter(r => {
+        if (r.start_date > dateStr) return false;
+        if (r.end_date && r.end_date < dateStr) return false;
+        return true;
+      });
+
+      if (activeRoutines.length === 0) continue;
+
+      const dayProgressList = progressByDate.get(dateStr) || [];
+      const progressMap = new Map<string, DailyGoalProgress>();
+      for (const p of dayProgressList) {
+        progressMap.set(p.daily_routine_goal_id, p);
+      }
+
+      let completedProgress = 0;
+      let completedGoals = 0;
+
+      for (const routine of activeRoutines) {
+        const progress = progressMap.get(routine.id);
+        const currentValue = progress?.current_value || 0;
+        const isCompleted = progress?.completed || false;
+
+        const progressPercent = calculateGoalProgress(
+          routine.type,
+          isCompleted,
+          currentValue,
+          routine.target_value
+        );
+        completedProgress += progressPercent;
+
+        if (routine.type === 'completion' ? isCompleted : currentValue >= (routine.target_value || 0)) {
+          completedGoals++;
+        }
+      }
+
+      dayProgress.set(dateStr, {
+        date: dateStr,
+        totalGoals: activeRoutines.length,
+        completedGoals,
+        completionPercentage: Math.round(completedProgress / activeRoutines.length)
+      });
+    }
+
+    return { year, month, dayProgress };
+  }
 
   return {
     subscribe,
     loading: { subscribe: loading.subscribe },
     load: async (year: number, month: number) => {
       loading.set(true);
+      currentYear = year;
+      currentMonth = month;
       try {
-        // Fetch from Supabase when online, cache when offline
-        const [routines, progressList] = await Promise.all([
-          sync.fetchDailyRoutineGoals(),
-          sync.fetchMonthProgress(year, month)
-        ]);
+        const state = await loadMonthData(year, month);
+        set(state);
 
-        // Group progress by date
-        const progressByDate = new Map<string, DailyGoalProgress[]>();
-        for (const p of progressList) {
-          const list = progressByDate.get(p.date) || [];
-          list.push(p);
-          progressByDate.set(p.date, list);
-        }
-
-        // Calculate day progress
-        const dayProgress = new Map<string, DayProgress>();
-        const daysInMonth = new Date(year, month, 0).getDate();
-
-        for (let day = 1; day <= daysInMonth; day++) {
-          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-          // Get active routines for this date
-          const activeRoutines = routines.filter(r => {
-            if (r.start_date > dateStr) return false;
-            if (r.end_date && r.end_date < dateStr) return false;
-            return true;
-          });
-
-          if (activeRoutines.length === 0) continue;
-
-          const dayProgressList = progressByDate.get(dateStr) || [];
-          const progressMap = new Map<string, DailyGoalProgress>();
-          for (const p of dayProgressList) {
-            progressMap.set(p.daily_routine_goal_id, p);
-          }
-
-          let completedProgress = 0;
-          let completedGoals = 0;
-
-          for (const routine of activeRoutines) {
-            const progress = progressMap.get(routine.id);
-            const currentValue = progress?.current_value || 0;
-            const isCompleted = progress?.completed || false;
-
-            const progressPercent = calculateGoalProgress(
-              routine.type,
-              isCompleted,
-              currentValue,
-              routine.target_value
-            );
-            completedProgress += progressPercent;
-
-            if (routine.type === 'completion' ? isCompleted : currentValue >= (routine.target_value || 0)) {
-              completedGoals++;
+        // Register for sync complete to auto-refresh
+        if (browser && !unsubscribe) {
+          unsubscribe = sync.onSyncComplete(async () => {
+            if (currentYear !== null && currentMonth !== null) {
+              const refreshed = await loadMonthData(currentYear, currentMonth);
+              set(refreshed);
             }
-          }
-
-          dayProgress.set(dateStr, {
-            date: dateStr,
-            totalGoals: activeRoutines.length,
-            completedGoals,
-            completionPercentage: Math.round(completedProgress / activeRoutines.length)
           });
         }
-
-        set({ year, month, dayProgress });
       } finally {
         loading.set(false);
       }
     },
-    clear: () => set(null)
+    clear: () => {
+      currentYear = null;
+      currentMonth = null;
+      set(null);
+    }
   };
 }
 

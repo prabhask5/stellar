@@ -89,6 +89,8 @@ export async function incrementDailyProgress(
   targetValue: number,
   amount: number = 1
 ): Promise<DailyGoalProgress> {
+  const timestamp = now();
+
   // Get current progress
   const existing = await getProgressForRoutineAndDate(dailyRoutineGoalId, date);
 
@@ -96,5 +98,48 @@ export async function incrementDailyProgress(
   const newValue = Math.min(currentValue + amount, targetValue);
   const completed = newValue >= targetValue;
 
-  return upsertDailyProgress(dailyRoutineGoalId, date, newValue, completed);
+  if (existing) {
+    // Update local immediately
+    await db.dailyGoalProgress.update(existing.id, {
+      current_value: newValue,
+      completed,
+      updated_at: timestamp
+    });
+
+    // Queue INCREMENT operation for sync
+    await queueSync('daily_goal_progress', 'increment', existing.id, {
+      field: 'current_value',
+      amount,
+      completed,
+      updated_at: timestamp
+    });
+    scheduleSyncPush();
+
+    const updated = await db.dailyGoalProgress.get(existing.id);
+    return updated!;
+  }
+
+  // Create new progress record
+  const newProgress: DailyGoalProgress = {
+    id: generateId(),
+    daily_routine_goal_id: dailyRoutineGoalId,
+    date,
+    current_value: newValue,
+    completed,
+    updated_at: timestamp
+  };
+
+  await db.dailyGoalProgress.add(newProgress);
+
+  // Queue for sync and schedule debounced push
+  await queueSync('daily_goal_progress', 'create', newProgress.id, {
+    daily_routine_goal_id: dailyRoutineGoalId,
+    date,
+    current_value: newValue,
+    completed,
+    updated_at: timestamp
+  });
+  scheduleSyncPush();
+
+  return newProgress;
 }

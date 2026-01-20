@@ -85,13 +85,20 @@ export async function updateGoalList(id: string, name: string): Promise<GoalList
 }
 
 export async function deleteGoalList(id: string): Promise<void> {
+  const timestamp = now();
+
   await db.transaction('rw', [db.goalLists, db.goals], async () => {
-    // Delete all goals in this list first
-    await db.goals.where('goal_list_id').equals(id).delete();
-    await db.goalLists.delete(id);
+    // Tombstone delete all goals in this list first
+    const goals = await db.goals.where('goal_list_id').equals(id).toArray();
+    for (const goal of goals) {
+      await db.goals.update(goal.id, { deleted: true, updated_at: timestamp });
+      await queueSync('goals', 'delete', goal.id, { updated_at: timestamp });
+    }
+    // Tombstone delete the list
+    await db.goalLists.update(id, { deleted: true, updated_at: timestamp });
   });
 
   // Queue for sync and schedule debounced push
-  await queueSync('goal_lists', 'delete', id, {});
+  await queueSync('goal_lists', 'delete', id, { updated_at: timestamp });
   scheduleSyncPush();
 }

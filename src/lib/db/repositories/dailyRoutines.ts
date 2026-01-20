@@ -81,13 +81,16 @@ export async function updateDailyRoutineGoal(
 }
 
 export async function deleteDailyRoutineGoal(id: string): Promise<void> {
+  const timestamp = now();
+
   await db.transaction('rw', [db.dailyRoutineGoals, db.dailyGoalProgress], async () => {
-    // Delete all progress records for this routine
+    // Delete all progress records for this routine (progress can be hard deleted)
     await db.dailyGoalProgress.where('daily_routine_goal_id').equals(id).delete();
-    await db.dailyRoutineGoals.delete(id);
+    // Tombstone delete the routine
+    await db.dailyRoutineGoals.update(id, { deleted: true, updated_at: timestamp });
   });
 
   // Queue for sync and schedule debounced push
-  await queueSync('daily_routine_goals', 'delete', id, {});
+  await queueSync('daily_routine_goals', 'delete', id, { updated_at: timestamp });
   scheduleSyncPush();
 }

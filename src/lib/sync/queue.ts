@@ -51,3 +51,9 @@ export async function pruneFailedItems(): Promise<void> {
     }
   }
 }
+
+// Get entity IDs that have pending sync operations
+export async function getPendingEntityIds(): Promise<Set<string>> {
+  const pending = await db.syncQueue.toArray();
+  return new Set(pending.map(item => item.entityId));
+}
