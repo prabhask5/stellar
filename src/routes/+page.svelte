@@ -1,24 +1,61 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { getSession, getUserProfile } from '$lib/supabase/auth';
+  import { onSyncComplete } from '$lib/sync/engine';
   import type { Session } from '@supabase/supabase-js';
 
   let session = $state<Session | null>(null);
   let isLoading = $state(true);
   let selectedCompliment = $state('');
   let timeGreeting = $state('Good day');
+  let isGreetingTransitioning = $state(false);
 
-  function getTimeBasedGreeting(): string {
+  // Time periods for comparison (avoids string comparison overhead)
+  type TimePeriod = 'morning' | 'afternoon' | 'evening';
+  let currentTimePeriod = $state<TimePeriod>('morning');
+
+  function getTimePeriod(): TimePeriod {
     const hour = new Date().getHours();
     if (hour >= 5 && hour < 12) {
-      return 'Good morning';
+      return 'morning';
     } else if (hour >= 12 && hour < 17) {
-      return 'Good afternoon';
+      return 'afternoon';
     } else {
-      return 'Good evening';
+      return 'evening';
     }
   }
+
+  function getGreetingForPeriod(period: TimePeriod): string {
+    switch (period) {
+      case 'morning': return 'Good morning';
+      case 'afternoon': return 'Good afternoon';
+      case 'evening': return 'Good evening';
+    }
+  }
+
+  // Smoothly transition greeting when time period changes
+  function updateGreetingIfNeeded(): void {
+    const newPeriod = getTimePeriod();
+    if (newPeriod !== currentTimePeriod) {
+      // Time period changed - animate the transition
+      isGreetingTransitioning = true;
+
+      // After fade out, update the text
+      setTimeout(() => {
+        currentTimePeriod = newPeriod;
+        timeGreeting = getGreetingForPeriod(newPeriod);
+
+        // After text update, fade back in
+        setTimeout(() => {
+          isGreetingTransitioning = false;
+        }, 50);
+      }, 300);
+    }
+  }
+
+  // Cleanup function for sync subscription
+  let unsubscribeSyncComplete: (() => void) | null = null;
 
   const compliments = [
     "you're going to do great things.",
@@ -46,14 +83,31 @@
   const firstName = $derived(profile.firstName || 'Explorer');
 
   onMount(async () => {
+    // Initialize greeting based on current time
+    currentTimePeriod = getTimePeriod();
+    timeGreeting = getGreetingForPeriod(currentTimePeriod);
     selectedCompliment = getRandomCompliment();
-    timeGreeting = getTimeBasedGreeting();
+
     const userSession = await getSession();
     if (!userSession) {
       goto('/login');
     } else {
       session = userSession;
       isLoading = false;
+
+      // Subscribe to sync completion - check if greeting needs update
+      // This handles the case where the page is open overnight
+      unsubscribeSyncComplete = onSyncComplete(() => {
+        updateGreetingIfNeeded();
+      });
+    }
+  });
+
+  onDestroy(() => {
+    // Clean up sync subscription
+    if (unsubscribeSyncComplete) {
+      unsubscribeSyncComplete();
+      unsubscribeSyncComplete = null;
     }
   });
 </script>
@@ -96,7 +150,7 @@
       <div class="greeting-wrapper">
         <div class="greeting-glow"></div>
         <h1 class="greeting">
-          <span class="greeting-hello">{timeGreeting},</span>
+          <span class="greeting-hello" class:greeting-transitioning={isGreetingTransitioning}>{timeGreeting},</span>
           <span class="greeting-name">{firstName}</span>
         </h1>
       </div>
@@ -531,6 +585,13 @@
     text-transform: uppercase;
     opacity: 0;
     animation: fadeSlideIn 0.8s ease-out 0.3s forwards;
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  }
+
+  /* Subtle fade transition when time greeting changes */
+  .greeting-hello.greeting-transitioning {
+    opacity: 0 !important;
+    transform: translateY(-4px);
   }
 
   .greeting-name {
