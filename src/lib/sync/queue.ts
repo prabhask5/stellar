@@ -7,6 +7,26 @@ export async function queueSync(
   entityId: string,
   payload: Record<string, unknown>
 ): Promise<void> {
+  // For updates, coalesce with existing pending update for same entity
+  // This prevents multiple ops when user rapidly clicks (e.g., increment spam)
+  if (operation === 'update') {
+    const existing = await db.syncQueue
+      .where('entityId')
+      .equals(entityId)
+      .filter(item => item.table === table && item.operation === 'update')
+      .first();
+
+    if (existing && existing.id) {
+      // Merge payloads, newer values overwrite older
+      const mergedPayload = { ...existing.payload, ...payload };
+      await db.syncQueue.update(existing.id, {
+        payload: mergedPayload,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+  }
+
   const item: SyncQueueItem = {
     table,
     operation,

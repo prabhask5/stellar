@@ -106,10 +106,9 @@ export async function incrementDailyProgress(
       updated_at: timestamp
     });
 
-    // Queue INCREMENT operation for sync
-    await queueSync('daily_goal_progress', 'increment', existing.id, {
-      field: 'current_value',
-      amount,
+    // Queue UPDATE with final value (will be coalesced if user clicks rapidly)
+    await queueSync('daily_goal_progress', 'update', existing.id, {
+      current_value: newValue,
       completed,
       updated_at: timestamp
     });

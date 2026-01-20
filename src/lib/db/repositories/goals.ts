@@ -92,11 +92,9 @@ export async function incrementGoal(id: string, amount: number = 1): Promise<Goa
   // Update local immediately
   await db.goals.update(id, { current_value: newValue, completed, updated_at: timestamp });
 
-  // Queue INCREMENT operation (not update with final value)
-  // This allows server to apply increments atomically
-  await queueSync('goals', 'increment', id, {
-    field: 'current_value',
-    amount,
+  // Queue UPDATE with final value (will be coalesced if user clicks rapidly)
+  await queueSync('goals', 'update', id, {
+    current_value: newValue,
     completed,
     updated_at: timestamp
   });
