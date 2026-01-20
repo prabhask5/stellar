@@ -23,21 +23,21 @@
   }
 
   const compliments = [
-    "You're going to crush it today.",
-    "The stars align for those who show up.",
+    "You're going to do great things.",
+    "The universe is on your side.",
     "Your potential is limitless.",
-    "Today is your day to shine.",
     "You're capable of amazing things.",
     "Keep reaching for the stars.",
     "Your dedication is inspiring.",
     "Greatness is within your reach.",
     "You make the impossible possible.",
-    "The universe believes in you.",
     "You're stronger than you know.",
-    "Every step forward is a victory.",
+    "Every step you take matters.",
     "Your journey is extraordinary.",
-    "Success follows those who persist.",
-    "You're exactly where you need to be."
+    "You're exactly where you need to be.",
+    "The best is yet to come.",
+    "You've got this.",
+    "Your hard work will pay off."
   ];
 
   function getRandomCompliment(): string {
@@ -188,6 +188,8 @@
   .home-container {
     position: fixed;
     inset: 0;
+    /* Account for desktop navbar (64px) */
+    top: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -669,6 +671,7 @@
      RESPONSIVE
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
+  /* Tablet - still has top navbar */
   @media (max-width: 768px) {
     .orbit-1 { width: 200px; height: 200px; }
     .orbit-2 { width: 350px; height: 350px; }
@@ -701,6 +704,14 @@
       width: 150px;
       height: 75px;
       margin-top: 2rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .home-container {
+      /* Mobile: no top navbar, has island header + bottom nav */
+      top: calc(env(safe-area-inset-top, 47px) + 20px);
+      bottom: calc(60px + env(safe-area-inset-bottom, 0px));
     }
   }
 
