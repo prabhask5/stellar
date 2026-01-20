@@ -249,3 +249,179 @@ create trigger update_daily_goal_progress_updated_at
 -- )
 -- update daily_routine_goals set "order" = ordered_routines.new_order
 -- from ordered_routines where daily_routine_goals.id = ordered_routines.id;
+
+-- ============================================================
+-- TASKS FEATURE TABLES
+-- ============================================================
+
+-- Task Categories table (for long-term task categorization)
+create table if not exists task_categories (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  name text not null,
+  color text not null default '#6c5ce7',
+  "order" double precision default 0 not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Commitments table (reference items for creating daily tasks)
+create table if not exists commitments (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  name text not null,
+  section text not null check (section in ('career', 'social', 'personal')),
+  "order" double precision default 0 not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Daily Tasks table (simple quick tasks)
+create table if not exists daily_tasks (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  name text not null,
+  "order" double precision default 0 not null,
+  completed boolean default false not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Long-term Tasks table (tasks with due dates shown on calendar)
+create table if not exists long_term_tasks (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  name text not null,
+  due_date date not null,
+  category_id uuid references task_categories(id) on delete set null,
+  completed boolean default false not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Indexes for task tables
+create index if not exists idx_task_categories_user_id on task_categories(user_id);
+create index if not exists idx_task_categories_order on task_categories("order");
+create index if not exists idx_task_categories_updated_at on task_categories(updated_at);
+
+create index if not exists idx_commitments_user_id on commitments(user_id);
+create index if not exists idx_commitments_section on commitments(section);
+create index if not exists idx_commitments_order on commitments("order");
+create index if not exists idx_commitments_updated_at on commitments(updated_at);
+
+create index if not exists idx_daily_tasks_user_id on daily_tasks(user_id);
+create index if not exists idx_daily_tasks_order on daily_tasks("order");
+create index if not exists idx_daily_tasks_updated_at on daily_tasks(updated_at);
+
+create index if not exists idx_long_term_tasks_user_id on long_term_tasks(user_id);
+create index if not exists idx_long_term_tasks_due_date on long_term_tasks(due_date);
+create index if not exists idx_long_term_tasks_category_id on long_term_tasks(category_id);
+create index if not exists idx_long_term_tasks_updated_at on long_term_tasks(updated_at);
+
+-- Enable RLS on task tables
+alter table task_categories enable row level security;
+alter table commitments enable row level security;
+alter table daily_tasks enable row level security;
+alter table long_term_tasks enable row level security;
+
+-- Policies for task_categories
+create policy "Users can view their own task categories"
+  on task_categories for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own task categories"
+  on task_categories for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own task categories"
+  on task_categories for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete their own task categories"
+  on task_categories for delete
+  using (auth.uid() = user_id);
+
+-- Policies for commitments
+create policy "Users can view their own commitments"
+  on commitments for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own commitments"
+  on commitments for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own commitments"
+  on commitments for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete their own commitments"
+  on commitments for delete
+  using (auth.uid() = user_id);
+
+-- Policies for daily_tasks
+create policy "Users can view their own daily tasks"
+  on daily_tasks for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own daily tasks"
+  on daily_tasks for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own daily tasks"
+  on daily_tasks for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete their own daily tasks"
+  on daily_tasks for delete
+  using (auth.uid() = user_id);
+
+-- Policies for long_term_tasks
+create policy "Users can view their own long term tasks"
+  on long_term_tasks for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create their own long term tasks"
+  on long_term_tasks for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own long term tasks"
+  on long_term_tasks for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete their own long term tasks"
+  on long_term_tasks for delete
+  using (auth.uid() = user_id);
+
+-- Triggers to auto-set user_id for new task tables
+create trigger set_task_categories_user_id
+  before insert on task_categories
+  for each row execute function set_user_id();
+
+create trigger set_commitments_user_id
+  before insert on commitments
+  for each row execute function set_user_id();
+
+create trigger set_daily_tasks_user_id
+  before insert on daily_tasks
+  for each row execute function set_user_id();
+
+create trigger set_long_term_tasks_user_id
+  before insert on long_term_tasks
+  for each row execute function set_user_id();
+
+-- Triggers to auto-update updated_at for new task tables
+create trigger update_task_categories_updated_at
+  before update on task_categories
+  for each row execute function update_updated_at_column();
+
+create trigger update_commitments_updated_at
+  before update on commitments
+  for each row execute function update_updated_at_column();
+
+create trigger update_daily_tasks_updated_at
+  before update on daily_tasks
+  for each row execute function update_updated_at_column();
+
+create trigger update_long_term_tasks_updated_at
+  before update on long_term_tasks
+  for each row execute function update_updated_at_column();

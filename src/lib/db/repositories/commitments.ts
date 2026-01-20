@@ -1,0 +1,75 @@
+import { db, generateId, now } from '../client';
+import type { Commitment, CommitmentSection } from '$lib/types';
+import { queueSync } from '$lib/sync/queue';
+import { scheduleSyncPush } from '$lib/sync/engine';
+
+export async function createCommitment(name: string, section: CommitmentSection, userId: string): Promise<Commitment> {
+  const timestamp = now();
+
+  // Get the lowest order within the section to insert at the top
+  const existing = await db.commitments.where('user_id').equals(userId).toArray();
+  const sectionItems = existing.filter(c => c.section === section && !c.deleted);
+  const minOrder = sectionItems.length > 0 ? Math.min(...sectionItems.map(c => c.order)) - 1 : 0;
+
+  const newCommitment: Commitment = {
+    id: generateId(),
+    user_id: userId,
+    name,
+    section,
+    order: minOrder,
+    created_at: timestamp,
+    updated_at: timestamp
+  };
+
+  await db.commitments.add(newCommitment);
+
+  await queueSync('commitments', 'create', newCommitment.id, {
+    name,
+    section,
+    order: minOrder,
+    user_id: userId,
+    created_at: timestamp,
+    updated_at: timestamp
+  });
+  scheduleSyncPush();
+
+  return newCommitment;
+}
+
+export async function updateCommitment(id: string, updates: Partial<Pick<Commitment, 'name' | 'section'>>): Promise<Commitment | undefined> {
+  const timestamp = now();
+
+  await db.commitments.update(id, { ...updates, updated_at: timestamp });
+
+  const updated = await db.commitments.get(id);
+  if (!updated) return undefined;
+
+  await queueSync('commitments', 'update', id, { ...updates, updated_at: timestamp });
+  scheduleSyncPush();
+
+  return updated;
+}
+
+export async function deleteCommitment(id: string): Promise<void> {
+  const timestamp = now();
+
+  // Tombstone delete
+  await db.commitments.update(id, { deleted: true, updated_at: timestamp });
+
+  await queueSync('commitments', 'delete', id, { updated_at: timestamp });
+  scheduleSyncPush();
+}
+
+export async function reorderCommitment(id: string, newOrder: number): Promise<Commitment | undefined> {
+  const timestamp = now();
+
+  await db.commitments.update(id, { order: newOrder, updated_at: timestamp });
+
+  const updated = await db.commitments.get(id);
+  if (!updated) return undefined;
+
+  await queueSync('commitments', 'update', id, { order: newOrder, updated_at: timestamp });
+  scheduleSyncPush();
+
+  return updated;
+}

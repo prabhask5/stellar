@@ -1,7 +1,7 @@
 import { supabase } from '$lib/supabase/client';
 import { db } from '$lib/db/client';
 import { getPendingSync, removeSyncItem, incrementRetry, getPendingEntityIds } from './queue';
-import type { SyncQueueItem, Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, GoalListWithProgress } from '$lib/types';
+import type { SyncQueueItem, Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, GoalListWithProgress, TaskCategory, Commitment, DailyTask, LongTermTask, LongTermTaskWithCategory } from '$lib/types';
 import { syncStatusStore } from '$lib/stores/sync';
 import { calculateGoalProgress } from '$lib/utils/colors';
 
@@ -244,6 +244,103 @@ export async function getMonthProgress(year: number, month: number): Promise<Dai
 }
 
 // ============================================================
+// TASKS FEATURE LOCAL READ OPERATIONS
+// ============================================================
+
+// Get all task categories from LOCAL DB
+export async function getTaskCategories(): Promise<TaskCategory[]> {
+  let categories = await db.taskCategories.toArray();
+
+  // If local is empty and online and we haven't tried hydrating yet, try to hydrate from remote
+  if (categories.length === 0 && !hasHydrated && typeof navigator !== 'undefined' && navigator.onLine) {
+    await hydrateFromRemote();
+    categories = await db.taskCategories.toArray();
+  }
+
+  // Sort by order, filter out deleted
+  return categories
+    .filter(c => !c.deleted)
+    .sort((a, b) => a.order - b.order);
+}
+
+// Get all commitments from LOCAL DB
+export async function getCommitments(): Promise<Commitment[]> {
+  let commitments = await db.commitments.toArray();
+
+  // If local is empty and online and we haven't tried hydrating yet, try to hydrate from remote
+  if (commitments.length === 0 && !hasHydrated && typeof navigator !== 'undefined' && navigator.onLine) {
+    await hydrateFromRemote();
+    commitments = await db.commitments.toArray();
+  }
+
+  // Sort by order, filter out deleted
+  return commitments
+    .filter(c => !c.deleted)
+    .sort((a, b) => a.order - b.order);
+}
+
+// Get all daily tasks from LOCAL DB
+export async function getDailyTasks(): Promise<DailyTask[]> {
+  let tasks = await db.dailyTasks.toArray();
+
+  // If local is empty and online and we haven't tried hydrating yet, try to hydrate from remote
+  if (tasks.length === 0 && !hasHydrated && typeof navigator !== 'undefined' && navigator.onLine) {
+    await hydrateFromRemote();
+    tasks = await db.dailyTasks.toArray();
+  }
+
+  // Sort by order, filter out deleted
+  return tasks
+    .filter(t => !t.deleted)
+    .sort((a, b) => a.order - b.order);
+}
+
+// Get all long-term tasks from LOCAL DB with optional category join
+export async function getLongTermTasks(): Promise<LongTermTaskWithCategory[]> {
+  let tasks = await db.longTermTasks.toArray();
+
+  // If local is empty and online and we haven't tried hydrating yet, try to hydrate from remote
+  if (tasks.length === 0 && !hasHydrated && typeof navigator !== 'undefined' && navigator.onLine) {
+    await hydrateFromRemote();
+    tasks = await db.longTermTasks.toArray();
+  }
+
+  // Filter out deleted
+  const activeTasks = tasks.filter(t => !t.deleted);
+
+  // Get all categories for joining
+  const categories = await db.taskCategories.toArray();
+  const categoryMap = new Map<string, TaskCategory>();
+  for (const cat of categories) {
+    if (!cat.deleted) {
+      categoryMap.set(cat.id, cat);
+    }
+  }
+
+  // Join with categories
+  return activeTasks.map(task => ({
+    ...task,
+    category: task.category_id ? categoryMap.get(task.category_id) : undefined
+  }));
+}
+
+// Get a single long-term task from LOCAL DB
+export async function getLongTermTask(id: string): Promise<LongTermTaskWithCategory | null> {
+  const task = await db.longTermTasks.get(id);
+  if (!task || task.deleted) return null;
+
+  let category: TaskCategory | undefined;
+  if (task.category_id) {
+    const cat = await db.taskCategories.get(task.category_id);
+    if (cat && !cat.deleted) {
+      category = cat;
+    }
+  }
+
+  return { ...task, category };
+}
+
+// ============================================================
 // SYNC OPERATIONS - Background sync to/from Supabase
 // ============================================================
 
@@ -310,8 +407,40 @@ async function pullRemoteChanges(): Promise<void> {
 
   if (progressError) throw progressError;
 
+  // Pull task_categories changed since last sync
+  const { data: remoteCategories, error: categoriesError } = await supabase
+    .from('task_categories')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (categoriesError) throw categoriesError;
+
+  // Pull commitments changed since last sync
+  const { data: remoteCommitments, error: commitmentsError } = await supabase
+    .from('commitments')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (commitmentsError) throw commitmentsError;
+
+  // Pull daily_tasks changed since last sync
+  const { data: remoteDailyTasks, error: dailyTasksError } = await supabase
+    .from('daily_tasks')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (dailyTasksError) throw dailyTasksError;
+
+  // Pull long_term_tasks changed since last sync
+  const { data: remoteLongTermTasks, error: longTermTasksError } = await supabase
+    .from('long_term_tasks')
+    .select('*')
+    .gt('updated_at', lastSync);
+
+  if (longTermTasksError) throw longTermTasksError;
+
   // Apply changes to local DB with conflict handling
-  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress], async () => {
+  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks], async () => {
     // Apply goal_lists
     for (const remote of (remoteLists || [])) {
       // Skip if we have pending ops for this entity (local takes precedence)
@@ -354,6 +483,50 @@ async function pullRemoteChanges(): Promise<void> {
       const local = await db.dailyGoalProgress.get(remote.id);
       if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
         await db.dailyGoalProgress.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+
+    // Apply task_categories
+    for (const remote of (remoteCategories || [])) {
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.taskCategories.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.taskCategories.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+
+    // Apply commitments
+    for (const remote of (remoteCommitments || [])) {
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.commitments.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.commitments.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+
+    // Apply daily_tasks
+    for (const remote of (remoteDailyTasks || [])) {
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.dailyTasks.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.dailyTasks.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+    }
+
+    // Apply long_term_tasks
+    for (const remote of (remoteLongTermTasks || [])) {
+      if (pendingEntityIds.has(remote.id)) continue;
+
+      const local = await db.longTermTasks.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.longTermTasks.put(remote);
       }
       if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
@@ -485,8 +658,10 @@ export async function hydrateFromRemote(): Promise<void> {
   // Check if local DB is empty
   const localListCount = await db.goalLists.count();
   const localRoutineCount = await db.dailyRoutineGoals.count();
+  const localDailyTaskCount = await db.dailyTasks.count();
+  const localLongTermTaskCount = await db.longTermTasks.count();
 
-  if (localListCount > 0 || localRoutineCount > 0) {
+  if (localListCount > 0 || localRoutineCount > 0 || localDailyTaskCount > 0 || localLongTermTaskCount > 0) {
     // Local has data, just do a normal sync
     await runFullSync();
     return;
@@ -521,8 +696,32 @@ export async function hydrateFromRemote(): Promise<void> {
       .select('*');
     if (progressError) throw progressError;
 
+    // Pull all task_categories
+    const { data: categories, error: categoriesError } = await supabase
+      .from('task_categories')
+      .select('*');
+    if (categoriesError) throw categoriesError;
+
+    // Pull all commitments
+    const { data: commitments, error: commitmentsError } = await supabase
+      .from('commitments')
+      .select('*');
+    if (commitmentsError) throw commitmentsError;
+
+    // Pull all daily_tasks
+    const { data: dailyTasks, error: dailyTasksError } = await supabase
+      .from('daily_tasks')
+      .select('*');
+    if (dailyTasksError) throw dailyTasksError;
+
+    // Pull all long_term_tasks
+    const { data: longTermTasks, error: longTermTasksError } = await supabase
+      .from('long_term_tasks')
+      .select('*');
+    if (longTermTasksError) throw longTermTasksError;
+
     // Store everything locally
-    await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress], async () => {
+    await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks], async () => {
       if (lists && lists.length > 0) {
         await db.goalLists.bulkPut(lists);
       }
@@ -534,6 +733,18 @@ export async function hydrateFromRemote(): Promise<void> {
       }
       if (progress && progress.length > 0) {
         await db.dailyGoalProgress.bulkPut(progress);
+      }
+      if (categories && categories.length > 0) {
+        await db.taskCategories.bulkPut(categories);
+      }
+      if (commitments && commitments.length > 0) {
+        await db.commitments.bulkPut(commitments);
+      }
+      if (dailyTasks && dailyTasks.length > 0) {
+        await db.dailyTasks.bulkPut(dailyTasks);
+      }
+      if (longTermTasks && longTermTasks.length > 0) {
+        await db.longTermTasks.bulkPut(longTermTasks);
       }
     });
 
@@ -595,11 +806,15 @@ export function stopSyncEngine(): void {
 
 // Clear local cache (for logout)
 export async function clearLocalCache(): Promise<void> {
-  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.syncQueue], async () => {
+  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.syncQueue, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks], async () => {
     await db.goalLists.clear();
     await db.goals.clear();
     await db.dailyRoutineGoals.clear();
     await db.dailyGoalProgress.clear();
+    await db.taskCategories.clear();
+    await db.commitments.clear();
+    await db.dailyTasks.clear();
+    await db.longTermTasks.clear();
     await db.syncQueue.clear();
   });
   // Reset sync cursor and hydration flag

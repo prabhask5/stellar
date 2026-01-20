@@ -1,5 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
-import type { GoalListWithProgress, Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, DayProgress } from '$lib/types';
+import type { GoalListWithProgress, Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, DayProgress, TaskCategory, Commitment, CommitmentSection, DailyTask, LongTermTask, LongTermTaskWithCategory } from '$lib/types';
 import * as repo from '$lib/db/repositories';
 import * as sync from '$lib/sync/engine';
 import { calculateGoalProgress } from '$lib/utils/colors';
@@ -505,3 +505,269 @@ function createMonthProgressStore() {
 }
 
 export const monthProgressStore = createMonthProgressStore();
+
+// ============================================================
+// TASKS FEATURE STORES
+// ============================================================
+
+// Task Categories Store
+function createTaskCategoriesStore() {
+  const { subscribe, set, update }: Writable<TaskCategory[]> = writable([]);
+  let loading = writable(true);
+  let unsubscribe: (() => void) | null = null;
+
+  return {
+    subscribe,
+    loading: { subscribe: loading.subscribe },
+    load: async () => {
+      loading.set(true);
+      try {
+        const categories = await sync.getTaskCategories();
+        set(categories);
+
+        if (browser && !unsubscribe) {
+          unsubscribe = sync.onSyncComplete(async () => {
+            const refreshed = await sync.getTaskCategories();
+            set(refreshed);
+          });
+        }
+      } finally {
+        loading.set(false);
+      }
+    },
+    create: async (name: string, color: string, userId: string) => {
+      const newCategory = await repo.createTaskCategory(name, color, userId);
+      update(categories => [newCategory, ...categories]);
+      return newCategory;
+    },
+    update: async (id: string, updates: Partial<Pick<TaskCategory, 'name' | 'color'>>) => {
+      const updated = await repo.updateTaskCategory(id, updates);
+      if (updated) {
+        update(categories => categories.map(c => c.id === id ? updated : c));
+      }
+      return updated;
+    },
+    delete: async (id: string) => {
+      await repo.deleteTaskCategory(id);
+      update(categories => categories.filter(c => c.id !== id));
+    },
+    reorder: async (id: string, newOrder: number) => {
+      const updated = await repo.reorderTaskCategory(id, newOrder);
+      if (updated) {
+        update(categories => {
+          const updatedCategories = categories.map(c => c.id === id ? updated : c);
+          updatedCategories.sort((a, b) => a.order - b.order);
+          return updatedCategories;
+        });
+      }
+      return updated;
+    },
+    refresh: async () => {
+      const categories = await sync.getTaskCategories();
+      set(categories);
+    }
+  };
+}
+
+export const taskCategoriesStore = createTaskCategoriesStore();
+
+// Commitments Store
+function createCommitmentsStore() {
+  const { subscribe, set, update }: Writable<Commitment[]> = writable([]);
+  let loading = writable(true);
+  let unsubscribe: (() => void) | null = null;
+
+  return {
+    subscribe,
+    loading: { subscribe: loading.subscribe },
+    load: async () => {
+      loading.set(true);
+      try {
+        const commitments = await sync.getCommitments();
+        set(commitments);
+
+        if (browser && !unsubscribe) {
+          unsubscribe = sync.onSyncComplete(async () => {
+            const refreshed = await sync.getCommitments();
+            set(refreshed);
+          });
+        }
+      } finally {
+        loading.set(false);
+      }
+    },
+    create: async (name: string, section: CommitmentSection, userId: string) => {
+      const newCommitment = await repo.createCommitment(name, section, userId);
+      update(commitments => [newCommitment, ...commitments]);
+      return newCommitment;
+    },
+    update: async (id: string, updates: Partial<Pick<Commitment, 'name' | 'section'>>) => {
+      const updated = await repo.updateCommitment(id, updates);
+      if (updated) {
+        update(commitments => commitments.map(c => c.id === id ? updated : c));
+      }
+      return updated;
+    },
+    delete: async (id: string) => {
+      await repo.deleteCommitment(id);
+      update(commitments => commitments.filter(c => c.id !== id));
+    },
+    reorder: async (id: string, newOrder: number) => {
+      const updated = await repo.reorderCommitment(id, newOrder);
+      if (updated) {
+        update(commitments => {
+          const updatedCommitments = commitments.map(c => c.id === id ? updated : c);
+          updatedCommitments.sort((a, b) => a.order - b.order);
+          return updatedCommitments;
+        });
+      }
+      return updated;
+    },
+    refresh: async () => {
+      const commitments = await sync.getCommitments();
+      set(commitments);
+    }
+  };
+}
+
+export const commitmentsStore = createCommitmentsStore();
+
+// Daily Tasks Store
+function createDailyTasksStore() {
+  const { subscribe, set, update }: Writable<DailyTask[]> = writable([]);
+  let loading = writable(true);
+  let unsubscribe: (() => void) | null = null;
+
+  return {
+    subscribe,
+    loading: { subscribe: loading.subscribe },
+    load: async () => {
+      loading.set(true);
+      try {
+        const tasks = await sync.getDailyTasks();
+        set(tasks);
+
+        if (browser && !unsubscribe) {
+          unsubscribe = sync.onSyncComplete(async () => {
+            const refreshed = await sync.getDailyTasks();
+            set(refreshed);
+          });
+        }
+      } finally {
+        loading.set(false);
+      }
+    },
+    create: async (name: string, userId: string) => {
+      const newTask = await repo.createDailyTask(name, userId);
+      update(tasks => [...tasks, newTask]);
+      return newTask;
+    },
+    update: async (id: string, updates: Partial<Pick<DailyTask, 'name' | 'completed'>>) => {
+      const updated = await repo.updateDailyTask(id, updates);
+      if (updated) {
+        update(tasks => tasks.map(t => t.id === id ? updated : t));
+      }
+      return updated;
+    },
+    toggle: async (id: string) => {
+      const updated = await repo.toggleDailyTaskComplete(id);
+      if (updated) {
+        update(tasks => tasks.map(t => t.id === id ? updated : t));
+      }
+      return updated;
+    },
+    delete: async (id: string) => {
+      await repo.deleteDailyTask(id);
+      update(tasks => tasks.filter(t => t.id !== id));
+    },
+    reorder: async (id: string, newOrder: number) => {
+      const updated = await repo.reorderDailyTask(id, newOrder);
+      if (updated) {
+        update(tasks => {
+          const updatedTasks = tasks.map(t => t.id === id ? updated : t);
+          updatedTasks.sort((a, b) => a.order - b.order);
+          return updatedTasks;
+        });
+      }
+      return updated;
+    },
+    clearCompleted: async (userId: string) => {
+      await repo.clearCompletedDailyTasks(userId);
+      update(tasks => tasks.filter(t => !t.completed));
+    },
+    refresh: async () => {
+      const tasks = await sync.getDailyTasks();
+      set(tasks);
+    }
+  };
+}
+
+export const dailyTasksStore = createDailyTasksStore();
+
+// Long Term Tasks Store
+function createLongTermTasksStore() {
+  const { subscribe, set, update }: Writable<LongTermTaskWithCategory[]> = writable([]);
+  let loading = writable(true);
+  let unsubscribe: (() => void) | null = null;
+
+  return {
+    subscribe,
+    loading: { subscribe: loading.subscribe },
+    load: async () => {
+      loading.set(true);
+      try {
+        const tasks = await sync.getLongTermTasks();
+        set(tasks);
+
+        if (browser && !unsubscribe) {
+          unsubscribe = sync.onSyncComplete(async () => {
+            const refreshed = await sync.getLongTermTasks();
+            set(refreshed);
+          });
+        }
+      } finally {
+        loading.set(false);
+      }
+    },
+    create: async (name: string, dueDate: string, categoryId: string | null, userId: string) => {
+      const newTask = await repo.createLongTermTask(name, dueDate, categoryId, userId);
+      // Fetch the task with category for the store
+      const taskWithCategory = await sync.getLongTermTask(newTask.id);
+      if (taskWithCategory) {
+        update(tasks => [...tasks, taskWithCategory]);
+      }
+      return newTask;
+    },
+    update: async (id: string, updates: Partial<Pick<LongTermTask, 'name' | 'due_date' | 'category_id' | 'completed'>>) => {
+      const updated = await repo.updateLongTermTask(id, updates);
+      if (updated) {
+        // Fetch the updated task with category
+        const taskWithCategory = await sync.getLongTermTask(updated.id);
+        if (taskWithCategory) {
+          update(tasks => tasks.map(t => t.id === id ? taskWithCategory : t));
+        }
+      }
+      return updated;
+    },
+    toggle: async (id: string) => {
+      const updated = await repo.toggleLongTermTaskComplete(id);
+      if (updated) {
+        const taskWithCategory = await sync.getLongTermTask(updated.id);
+        if (taskWithCategory) {
+          update(tasks => tasks.map(t => t.id === id ? taskWithCategory : t));
+        }
+      }
+      return updated;
+    },
+    delete: async (id: string) => {
+      await repo.deleteLongTermTask(id);
+      update(tasks => tasks.filter(t => t.id !== id));
+    },
+    refresh: async () => {
+      const tasks = await sync.getLongTermTasks();
+      set(tasks);
+    }
+  };
+}
+
+export const longTermTasksStore = createLongTermTasksStore();

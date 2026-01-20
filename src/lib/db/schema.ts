@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, SyncQueueItem } from '$lib/types';
+import type { Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, SyncQueueItem, TaskCategory, Commitment, DailyTask, LongTermTask } from '$lib/types';
 
 export class GoalPlannerDB extends Dexie {
   goalLists!: Table<GoalList, string>;
@@ -7,6 +7,10 @@ export class GoalPlannerDB extends Dexie {
   dailyRoutineGoals!: Table<DailyRoutineGoal, string>;
   dailyGoalProgress!: Table<DailyGoalProgress, string>;
   syncQueue!: Table<SyncQueueItem, number>;
+  taskCategories!: Table<TaskCategory, string>;
+  commitments!: Table<Commitment, string>;
+  dailyTasks!: Table<DailyTask, string>;
+  longTermTasks!: Table<LongTermTask, string>;
 
   constructor() {
     super('GoalPlannerDB');
@@ -50,6 +54,19 @@ export class GoalPlannerDB extends Dexie {
       for (let i = 0; i < sorted.length; i++) {
         await tx.table('dailyRoutineGoals').update(sorted[i].id, { order: i });
       }
+    });
+
+    // Version 5: Add Tasks feature tables (task_categories, commitments, daily_tasks, long_term_tasks)
+    this.version(5).stores({
+      goalLists: 'id, user_id, created_at, updated_at',
+      goals: 'id, goal_list_id, order, created_at, updated_at',
+      dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+      dailyGoalProgress: 'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+      syncQueue: '++id, table, entityId, timestamp',
+      taskCategories: 'id, user_id, order, created_at, updated_at',
+      commitments: 'id, user_id, section, order, created_at, updated_at',
+      dailyTasks: 'id, user_id, order, created_at, updated_at',
+      longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at'
     });
   }
 }

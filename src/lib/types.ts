@@ -52,7 +52,7 @@ export type SyncOperation = 'create' | 'update' | 'delete';
 
 export interface SyncQueueItem {
   id?: number;
-  table: 'goal_lists' | 'goals' | 'daily_routine_goals' | 'daily_goal_progress';
+  table: 'goal_lists' | 'goals' | 'daily_routine_goals' | 'daily_goal_progress' | 'task_categories' | 'commitments' | 'daily_tasks' | 'long_term_tasks';
   operation: SyncOperation;
   entityId: string;
   payload: Record<string, unknown>;
@@ -73,4 +73,59 @@ export interface GoalListWithProgress extends GoalList {
   totalGoals: number;
   completedGoals: number;
   completionPercentage: number;
+}
+
+// ============================================================
+// TASKS FEATURE TYPES
+// ============================================================
+
+export type CommitmentSection = 'career' | 'social' | 'personal';
+
+export interface TaskCategory {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string; // hex color for visual tag
+  order: number;
+  created_at: string;
+  updated_at: string;
+  deleted?: boolean; // Tombstone flag
+}
+
+export interface Commitment {
+  id: string;
+  user_id: string;
+  name: string;
+  section: CommitmentSection;
+  order: number;
+  created_at: string;
+  updated_at: string;
+  deleted?: boolean; // Tombstone flag
+}
+
+export interface DailyTask {
+  id: string;
+  user_id: string;
+  name: string;
+  order: number;
+  completed: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted?: boolean; // Tombstone flag
+}
+
+export interface LongTermTask {
+  id: string;
+  user_id: string;
+  name: string;
+  due_date: string; // YYYY-MM-DD
+  category_id: string | null;
+  completed: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted?: boolean; // Tombstone flag
+}
+
+export interface LongTermTaskWithCategory extends LongTermTask {
+  category?: TaskCategory;
 }
