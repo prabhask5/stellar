@@ -1,31 +1,22 @@
 import { browser } from '$app/environment';
 import { getSession } from '$lib/supabase/auth';
 import { isOnline } from '$lib/stores/network';
-import { startSyncEngine } from '$lib/sync/engine';
+import { startSyncEngine, performSync } from '$lib/sync/engine';
 import type { LayoutLoad } from './$types';
 
 export const ssr = true;
 export const prerender = false;
 
-// Initialize browser-only features
+// Initialize browser-only features once
 if (browser) {
-  // Register service worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
-      console.warn('Service worker registration failed:', err);
-    });
-
-    // Listen for service worker updates
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data?.type === 'SW_UPDATED') {
-        // Optionally notify user of update
-        console.log('App updated. Refresh for the latest version.');
-      }
-    });
-  }
-
   // Initialize network status monitoring
   isOnline.init();
+
+  // Register callback to sync when coming back online
+  isOnline.onReconnect(() => {
+    console.log('[App] Back online - triggering sync');
+    performSync();
+  });
 }
 
 export const load: LayoutLoad = async () => {

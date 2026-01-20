@@ -3,12 +3,47 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+
+    <!-- Theme and description -->
     <meta name="theme-color" content="#1a1a2e" />
     <meta name="description" content="Goal Planner - Track your goals and daily routines" />
+
+    <!-- PWA Manifest -->
     <link rel="manifest" href="%sveltekit.assets%/manifest.json" />
+
+    <!-- iOS PWA meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Goals" />
     <link rel="apple-touch-icon" href="%sveltekit.assets%/icon-192.png" />
+
+    <!-- Prevent iOS from auto-detecting phone numbers -->
+    <meta name="format-detection" content="telephone=no" />
+
     %sveltekit.head%
+
+    <!-- Register service worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('[App] Service worker registered:', registration.scope);
+
+              // Check for updates on page focus (important for iOS)
+              document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                  registration.update();
+                }
+              });
+            })
+            .catch((error) => {
+              console.error('[App] Service worker registration failed:', error);
+            });
+        });
+      }
+    </script>
   </head>
   <body data-sveltekit-preload-data="hover">
     <div style="display: contents">%sveltekit.body%</div>

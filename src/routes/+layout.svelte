@@ -6,6 +6,7 @@
   import { stopSyncEngine, clearLocalCache } from '$lib/sync/engine';
   import { syncStatusStore } from '$lib/stores/sync';
   import SyncStatus from '$lib/components/SyncStatus.svelte';
+  import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
   import type { Session } from '@supabase/supabase-js';
 
   interface Props {
@@ -69,6 +70,8 @@
   <main class="main">
     {@render children?.()}
   </main>
+
+  <UpdatePrompt />
 </div>
 
 <style>
