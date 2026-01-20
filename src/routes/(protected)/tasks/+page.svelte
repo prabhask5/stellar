@@ -19,7 +19,6 @@
   import LongTermTaskList from '$lib/components/LongTermTaskList.svelte';
   import LongTermTaskModal from '$lib/components/LongTermTaskModal.svelte';
   import LongTermTaskForm from '$lib/components/LongTermTaskForm.svelte';
-  import CategoryManager from '$lib/components/CategoryManager.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
 
   // State
@@ -35,7 +34,6 @@
 
   // Modal state
   let showCommitmentsModal = $state(false);
-  let showCategoryManager = $state(false);
   let showTaskForm = $state(false);
   let showTaskModal = $state(false);
   let selectedTask = $state<LongTermTaskWithCategory | null>(null);
@@ -135,16 +133,8 @@
     await taskCategoriesStore.create(name, color, userId);
   }
 
-  async function handleUpdateCategory(id: string, updates: { name?: string; color?: string }) {
-    await taskCategoriesStore.update(id, updates);
-  }
-
   async function handleDeleteCategory(id: string) {
     await taskCategoriesStore.delete(id);
-  }
-
-  async function handleReorderCategory(id: string, newOrder: number) {
-    await taskCategoriesStore.reorder(id, newOrder);
   }
 
   // Long-term task handlers
@@ -230,9 +220,6 @@
     <header class="section-header">
       <h2 class="section-title">Long-term Tasks</h2>
       <div class="section-actions">
-        <button class="btn btn-secondary btn-sm" onclick={() => showCategoryManager = true}>
-          Categories
-        </button>
         <button class="btn btn-primary btn-sm" onclick={() => { defaultTaskDate = undefined; showTaskForm = true; }}>
           + New Task
         </button>
@@ -296,22 +283,14 @@
   onReorder={handleReorderCommitment}
 />
 
-<CategoryManager
-  open={showCategoryManager}
-  {categories}
-  onClose={() => showCategoryManager = false}
-  onCreate={handleCreateCategory}
-  onUpdate={handleUpdateCategory}
-  onDelete={handleDeleteCategory}
-  onReorder={handleReorderCategory}
-/>
-
 <LongTermTaskForm
   open={showTaskForm}
   {categories}
   defaultDate={defaultTaskDate}
   onClose={() => showTaskForm = false}
   onCreate={handleCreateLongTermTask}
+  onCreateCategory={handleCreateCategory}
+  onDeleteCategory={handleDeleteCategory}
 />
 
 <LongTermTaskModal
