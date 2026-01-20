@@ -865,13 +865,213 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     RESPONSIVE
+     RESPONSIVE - Large Screens and Tablets
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
-  @media (max-width: 640px) {
+  /* Large screens - more dramatic effects */
+  @media (min-width: 1200px) {
+    .login-content {
+      max-width: 480px;
+    }
+
+    .brand-icon svg {
+      width: 56px;
+      height: 56px;
+    }
+
+    .brand-title {
+      font-size: 3rem;
+    }
+
+    .brand-tagline {
+      font-size: 1.125rem;
+    }
+
+    .login-card {
+      padding: 3rem;
+    }
+
+    .orbit-1 { width: 500px; height: 500px; }
+    .orbit-2 { width: 750px; height: 750px; }
+    .orbit-3 { width: 1000px; height: 1000px; }
+
+    .nebula-1 { width: 800px; height: 800px; }
+    .nebula-2 { width: 700px; height: 700px; }
+    .nebula-3 { width: 600px; height: 600px; }
+  }
+
+  /* Tablets */
+  @media (min-width: 768px) and (max-width: 1199px) {
+    .login-content {
+      max-width: 460px;
+    }
+
+    .brand-icon svg {
+      width: 52px;
+      height: 52px;
+    }
+
+    .brand-title {
+      font-size: 2.75rem;
+    }
+
+    .login-card {
+      padding: 2.75rem;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     RESPONSIVE - Mobile Devices
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  @media (max-width: 767px) {
     .login-content {
       padding: 1.5rem;
       gap: 1.5rem;
+    }
+
+    .brand-icon svg {
+      width: 44px;
+      height: 44px;
+    }
+
+    .brand-title {
+      font-size: 2.25rem;
+    }
+
+    .brand-tagline {
+      font-size: 0.9375rem;
+    }
+
+    .login-card {
+      padding: 2rem;
+    }
+
+    .card-title {
+      font-size: 1.375rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .orbit-1 { width: 320px; height: 320px; }
+    .orbit-2 { width: 480px; height: 480px; }
+    .orbit-3 { width: 640px; height: 640px; }
+
+    @keyframes orbitParticle1 {
+      from { transform: rotate(0deg) translateX(160px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(160px) rotate(-360deg); }
+    }
+
+    @keyframes orbitParticle2 {
+      from { transform: rotate(0deg) translateX(240px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(240px) rotate(-360deg); }
+    }
+
+    @keyframes orbitParticle3 {
+      from { transform: rotate(0deg) translateX(320px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(320px) rotate(-360deg); }
+    }
+
+    .nebula-1 { width: 500px; height: 500px; }
+    .nebula-2 { width: 450px; height: 450px; }
+    .nebula-3 { width: 400px; height: 400px; }
+  }
+
+  /* iPhone 16 Pro / 15 Pro / 14 Pro (393px width) */
+  @media (min-width: 390px) and (max-width: 429px) {
+    .login-page {
+      /* Account for safe areas */
+      padding-top: env(safe-area-inset-top, 0);
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    .login-content {
+      padding: 1.25rem;
+      gap: 1.75rem;
+    }
+
+    .brand-icon svg {
+      width: 48px;
+      height: 48px;
+    }
+
+    .brand-title {
+      font-size: 2.5rem;
+    }
+
+    .brand-tagline {
+      font-size: 1rem;
+    }
+
+    .login-card {
+      padding: 2rem;
+      border-radius: 24px;
+    }
+
+    .card-title {
+      font-size: 1.5rem;
+      margin-bottom: 1.75rem;
+    }
+
+    input {
+      padding: 1rem 1.125rem;
+      font-size: 1rem;
+      border-radius: 14px;
+    }
+
+    .submit-btn {
+      padding: 1.125rem;
+      font-size: 1.0625rem;
+      border-radius: 14px;
+    }
+
+    .offline-avatar {
+      width: 72px;
+      height: 72px;
+      font-size: 1.75rem;
+    }
+
+    .offline-hint {
+      padding: 1rem;
+      font-size: 0.875rem;
+    }
+  }
+
+  /* iPhone 16 Pro Max / 15 Pro Max (430px width) */
+  @media (min-width: 430px) and (max-width: 480px) {
+    .login-content {
+      padding: 1.5rem;
+      gap: 2rem;
+    }
+
+    .brand-icon svg {
+      width: 52px;
+      height: 52px;
+    }
+
+    .brand-title {
+      font-size: 2.75rem;
+    }
+
+    .login-card {
+      padding: 2.25rem;
+    }
+
+    .card-title {
+      font-size: 1.5rem;
+    }
+
+    .offline-avatar {
+      width: 76px;
+      height: 76px;
+      font-size: 1.875rem;
+    }
+  }
+
+  /* Small devices (iPhone SE, older phones) */
+  @media (max-width: 389px) {
+    .login-content {
+      padding: 1rem;
+      gap: 1.25rem;
     }
 
     .brand-icon svg {
@@ -884,11 +1084,11 @@
     }
 
     .brand-tagline {
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
     }
 
     .login-card {
-      padding: 1.75rem;
+      padding: 1.5rem;
     }
 
     .card-title {
@@ -900,46 +1100,49 @@
       grid-template-columns: 1fr;
     }
 
-    .orbit-1 { width: 280px; height: 280px; }
-    .orbit-2 { width: 420px; height: 420px; }
-    .orbit-3 { width: 560px; height: 560px; }
+    input {
+      padding: 0.75rem 0.875rem;
+      font-size: 0.9375rem;
+    }
+
+    .submit-btn {
+      padding: 0.875rem;
+      font-size: 0.9375rem;
+    }
+
+    .offline-avatar {
+      width: 56px;
+      height: 56px;
+      font-size: 1.375rem;
+    }
+
+    .offline-hint {
+      font-size: 0.75rem;
+      padding: 0.625rem;
+    }
+
+    .orbit-1 { width: 240px; height: 240px; }
+    .orbit-2 { width: 360px; height: 360px; }
+    .orbit-3 { width: 480px; height: 480px; }
 
     @keyframes orbitParticle1 {
-      from { transform: rotate(0deg) translateX(140px) rotate(0deg); }
-      to { transform: rotate(360deg) translateX(140px) rotate(-360deg); }
+      from { transform: rotate(0deg) translateX(120px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
     }
 
     @keyframes orbitParticle2 {
-      from { transform: rotate(0deg) translateX(210px) rotate(0deg); }
-      to { transform: rotate(360deg) translateX(210px) rotate(-360deg); }
+      from { transform: rotate(0deg) translateX(180px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(180px) rotate(-360deg); }
     }
 
     @keyframes orbitParticle3 {
-      from { transform: rotate(0deg) translateX(280px) rotate(0deg); }
-      to { transform: rotate(360deg) translateX(280px) rotate(-360deg); }
+      from { transform: rotate(0deg) translateX(240px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(240px) rotate(-360deg); }
     }
 
-    .nebula-1 { width: 450px; height: 450px; }
-    .nebula-2 { width: 400px; height: 400px; }
-    .nebula-3 { width: 350px; height: 350px; }
-  }
-
-  @media (max-width: 375px) {
-    .login-content {
-      padding: 1rem;
-    }
-
-    .login-card {
-      padding: 1.5rem;
-    }
-
-    .brand-title {
-      font-size: 1.75rem;
-    }
-
-    .card-title {
-      font-size: 1.125rem;
-    }
+    .nebula-1 { width: 350px; height: 350px; }
+    .nebula-2 { width: 300px; height: 300px; }
+    .nebula-3 { width: 250px; height: 250px; }
   }
 
   /* Reduced motion */

@@ -124,9 +124,9 @@
   });
 
   // Check if user is authenticated (either mode)
-  // Also hide navbar during sign out and on login page
+  // Hide navbar on login page (it has its own full-screen layout)
   const isOnLoginPage = $derived($page.url.pathname.startsWith('/login'));
-  const isAuthenticated = $derived(data.authMode !== 'none' && !isSigningOut && !isOnLoginPage);
+  const isAuthenticated = $derived(data.authMode !== 'none' && !isOnLoginPage);
 
   const navItems = [
     { href: '/tasks', label: 'Tasks', icon: 'tasks', mobileLabel: 'Tasks' },
@@ -135,12 +135,13 @@
   ];
 
   async function handleSignOut() {
-    // Immediately hide navbar for smooth transition
+    // Show full-screen overlay immediately
     isSigningOut = true;
 
-    // Small delay to let the fade animation play
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    // Wait for overlay to fully appear
+    await new Promise((resolve) => setTimeout(resolve, 250));
 
+    // Do cleanup in background (user sees overlay)
     stopSyncEngine();
     await clearLocalCache();
     localStorage.removeItem('lastSyncTimestamp');
@@ -156,7 +157,7 @@
     // Reset auth state
     authState.reset();
 
-    // Use hard navigation to ensure session state is fully cleared
+    // Navigate to login - overlay stays visible during navigation
     window.location.href = '/login';
   }
 
@@ -170,6 +171,31 @@
 </script>
 
 <div class="app" class:authenticated={isAuthenticated}>
+  <!-- Sign Out Overlay - covers everything during sign out -->
+  {#if isSigningOut}
+    <div class="signout-overlay" transition:fade={{ duration: 200 }}>
+      <div class="signout-content">
+        <div class="signout-icon">
+          <svg width="48" height="48" viewBox="0 0 100 100" fill="none">
+            <circle cx="50" cy="50" r="45" stroke="url(#signoutGrad)" stroke-width="5" fill="none"/>
+            <path d="M30 52 L45 67 L72 35" stroke="url(#signoutCheck)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <defs>
+              <linearGradient id="signoutGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6c5ce7"/>
+                <stop offset="100%" stop-color="#ff79c6"/>
+              </linearGradient>
+              <linearGradient id="signoutCheck" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#26de81"/>
+                <stop offset="100%" stop-color="#00d4ff"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <p class="signout-text">Signing out...</p>
+      </div>
+    </div>
+  {/if}
+
   <!-- Auth Kicked Toast Notification -->
   {#if showAuthKickedToast}
     <div class="auth-kicked-toast">
@@ -197,7 +223,7 @@
 
   <!-- iPhone Pro Dynamic Island Status Bar (Mobile Only) -->
   {#if isAuthenticated}
-    <header class="island-header" transition:fade={{ duration: 150 }}>
+    <header class="island-header">
       <div class="island-left">
         <span class="island-brand">
           <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
@@ -227,7 +253,7 @@
 
   <!-- Desktop/Tablet Top Navigation -->
   {#if isAuthenticated}
-    <nav class="nav-desktop" transition:fade={{ duration: 150 }}>
+    <nav class="nav-desktop">
       <div class="nav-inner">
         <!-- Brand -->
         <a href="/" class="nav-brand">
@@ -305,8 +331,8 @@
         </div>
       </div>
     </nav>
-  {:else if !$page.url.pathname.startsWith('/login')}
-    <!-- Unauthenticated header (hidden on login page) -->
+  {:else if !$page.url.pathname.startsWith('/login') && !isSigningOut}
+    <!-- Unauthenticated header (hidden on login page and during sign out) -->
     <nav class="nav-desktop nav-simple">
       <div class="nav-inner">
         <a href="/" class="nav-brand">
@@ -340,7 +366,7 @@
 
   <!-- Mobile Bottom Tab Bar (iOS-style) -->
   {#if isAuthenticated}
-    <nav class="nav-mobile" transition:fade={{ duration: 150 }}>
+    <nav class="nav-mobile">
       <div class="tab-bar">
         {#each navItems as item}
           <a
@@ -1173,6 +1199,54 @@
     .nav-desktop::before {
       animation: none;
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     SIGN OUT OVERLAY - Full screen transition overlay
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .signout-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000; /* Above everything */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center,
+      rgba(15, 15, 35, 1) 0%,
+      rgba(5, 5, 16, 1) 50%,
+      rgba(0, 0, 5, 1) 100%);
+  }
+
+  .signout-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    animation: signoutPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes signoutPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(0.98); }
+  }
+
+  .signout-icon {
+    filter: drop-shadow(0 0 30px var(--color-primary-glow));
+    animation: signoutSpin 3s linear infinite;
+  }
+
+  @keyframes signoutSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .signout-text {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    letter-spacing: 0.05em;
+    margin: 0;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
