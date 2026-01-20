@@ -27,18 +27,6 @@
     { href: '/calendar', label: 'Routines', icon: 'calendar', mobileLabel: 'Routines' }
   ];
 
-  // Track hovered nav item for sliding indicator
-  let hoveredNavIndex = $state<number | null>(null);
-
-  // Get the active nav index based on current path
-  const activeNavIndex = $derived(() => {
-    const idx = navItems.findIndex(item => $page.url.pathname.startsWith(item.href));
-    return idx >= 0 ? idx : 0;
-  });
-
-  // The slider should follow hover, or fall back to active
-  const sliderIndex = $derived(hoveredNavIndex !== null ? hoveredNavIndex : activeNavIndex());
-
   async function handleSignOut() {
     stopSyncEngine();
     await clearLocalCache();
@@ -116,15 +104,12 @@
         </a>
 
         <!-- Center Navigation Links -->
-        <div class="nav-center" onmouseleave={() => hoveredNavIndex = null}>
-          <!-- Sliding indicator -->
-          <div class="nav-slider" style="--slider-index: {sliderIndex}"></div>
-          {#each navItems as item, i}
+        <div class="nav-center">
+          {#each navItems as item}
             <a
               href={item.href}
               class="nav-link"
               class:active={isActive(item.href)}
-              onmouseenter={() => hoveredNavIndex = i}
             >
               <span class="link-icon">
                 {#if item.icon === 'tasks'}
@@ -147,6 +132,9 @@
                 {/if}
               </span>
               <span class="link-text">{item.label}</span>
+              {#if isActive(item.href)}
+                <span class="active-indicator"></span>
+              {/if}
             </a>
           {/each}
         </div>
@@ -420,7 +408,7 @@
     height: 64px;
     max-width: 1400px;
     margin: 0 auto;
-    gap: 1.5rem;
+    gap: 2rem;
   }
 
   /* Brand */
@@ -429,8 +417,7 @@
     align-items: center;
     gap: 0.75rem;
     text-decoration: none;
-    flex: 1;
-    min-width: 0;
+    flex-shrink: 0;
   }
 
   .brand-icon {
@@ -469,7 +456,7 @@
   .nav-center {
     display: flex;
     align-items: center;
-    gap: 0;
+    gap: 0.25rem;
     padding: 0.375rem;
     background: rgba(15, 15, 26, 0.6);
     border: 1px solid rgba(108, 92, 231, 0.15);
@@ -477,25 +464,60 @@
     position: relative;
   }
 
-  /* Sliding indicator that moves horizontally */
-  .nav-slider {
-    position: absolute;
-    top: 0.375rem;
-    bottom: 0.375rem;
-    left: 0.375rem;
-    width: calc((100% - 0.75rem) / 3);
-    background: var(--gradient-primary);
+  .nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 1.25rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    font-size: 0.9rem;
     border-radius: var(--radius-lg);
-    transition: transform 0.4s var(--ease-spring);
-    transform: translateX(calc(var(--slider-index) * 100%));
-    box-shadow:
-      0 4px 20px var(--color-primary-glow),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
-    z-index: 0;
+    text-decoration: none;
+    transition: color 0.4s var(--ease-out);
+    z-index: 1;
+    overflow: hidden;
   }
 
-  /* Shimmer effect on slider */
-  .nav-slider::after {
+  /* Sliding background effect */
+  .nav-link::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(108, 92, 231, 0.15);
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.4s var(--ease-spring);
+    z-index: -1;
+  }
+
+  .nav-link:hover::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .nav-link:hover {
+    color: var(--color-text);
+  }
+
+  /* Active state with gradient slide-in */
+  .nav-link.active::before {
+    opacity: 1;
+    transform: scale(1);
+    background: var(--gradient-primary);
+    box-shadow:
+      0 4px 20px var(--color-primary-glow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .nav-link.active {
+    color: white;
+  }
+
+  /* Shimmer effect on active */
+  .nav-link.active::after {
     content: '';
     position: absolute;
     top: 0;
@@ -505,41 +527,16 @@
     background: linear-gradient(
       90deg,
       transparent,
-      rgba(255, 255, 255, 0.25),
+      rgba(255, 255, 255, 0.2),
       transparent
     );
-    border-radius: inherit;
-    animation: sliderShimmer 3s ease-in-out infinite;
+    animation: navShimmer 2s ease-in-out infinite;
+    z-index: 0;
   }
 
-  @keyframes sliderShimmer {
+  @keyframes navShimmer {
     0% { left: -100%; }
     50%, 100% { left: 100%; }
-  }
-
-  .nav-link {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.625rem;
-    padding: 0.625rem 1.25rem;
-    color: var(--color-text-muted);
-    font-weight: 600;
-    font-size: 0.9rem;
-    border-radius: var(--radius-lg);
-    text-decoration: none;
-    transition: color 0.3s var(--ease-out);
-    z-index: 1;
-    flex: 1;
-  }
-
-  .nav-link:hover {
-    color: var(--color-text);
-  }
-
-  .nav-link.active {
-    color: white;
   }
 
   .link-icon {
@@ -548,10 +545,11 @@
     justify-content: center;
     transition: transform 0.4s var(--ease-spring), filter 0.3s;
     position: relative;
+    z-index: 1;
   }
 
   .nav-link:hover .link-icon {
-    transform: scale(1.15);
+    transform: scale(1.15) rotate(-5deg);
   }
 
   .nav-link.active .link-icon {
@@ -559,19 +557,44 @@
     transform: scale(1.1);
   }
 
+  .nav-link.active:hover .link-icon {
+    transform: scale(1.2) rotate(-5deg);
+  }
+
   .link-text {
     letter-spacing: 0.02em;
     position: relative;
+    z-index: 1;
+    transition: transform 0.3s var(--ease-spring);
+  }
+
+  .nav-link:hover .link-text {
+    transform: translateX(2px);
+  }
+
+  .active-indicator {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%) scale(0);
+    width: 4px;
+    height: 4px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 10px white, 0 0 20px var(--color-primary);
+    transition: transform 0.4s var(--ease-spring);
+  }
+
+  .nav-link.active .active-indicator {
+    transform: translateX(-50%) scale(1);
   }
 
   /* Right Actions */
   .nav-actions {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
     gap: 1rem;
-    flex: 1;
-    min-width: 0;
+    flex-shrink: 0;
   }
 
   .user-menu {
@@ -585,8 +608,6 @@
     border: 1px solid rgba(108, 92, 231, 0.15);
     border-radius: var(--radius-full);
     transition: all 0.3s var(--ease-out);
-    max-width: 220px;
-    min-width: 0;
   }
 
   .user-menu:hover {
@@ -607,7 +628,6 @@
     border-radius: 50%;
     box-shadow: 0 2px 8px var(--color-primary-glow);
     transition: transform 0.3s var(--ease-spring), box-shadow 0.3s;
-    flex-shrink: 0;
   }
 
   .user-menu:hover .user-avatar {
@@ -618,8 +638,6 @@
   .user-greeting {
     font-size: 0.875rem;
     font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
     color: var(--color-text);
     white-space: nowrap;
     padding-right: 0.25rem;
