@@ -21,7 +21,7 @@ let syncInterval: ReturnType<typeof setInterval> | null = null;
 let isSyncing = false; // Lock to prevent concurrent syncs
 let hasHydrated = false; // Track if initial hydration has been attempted
 const SYNC_DEBOUNCE_MS = 2000; // 2 seconds debounce after writes
-const SYNC_INTERVAL_MS = 60000; // 1 minute periodic sync
+const SYNC_INTERVAL_MS = 300000; // 5 minutes periodic sync (reduced frequency)
 
 // Callbacks for when sync completes (stores can refresh from local)
 const syncCompleteCallbacks: Set<() => void> = new Set();
@@ -253,7 +253,7 @@ export function scheduleSyncPush(): void {
     clearTimeout(syncTimeout);
   }
   syncTimeout = setTimeout(() => {
-    runFullSync();
+    runFullSync(false); // Show syncing indicator for user-triggered writes
   }, SYNC_DEBOUNCE_MS);
 }
 
@@ -422,9 +422,12 @@ async function processSyncItem(item: SyncQueueItem): Promise<void> {
 }
 
 // Full sync: push first (so our changes are persisted), then pull
-export async function runFullSync(): Promise<void> {
+// quiet: if true, don't update UI status at all (for background periodic syncs)
+export async function runFullSync(quiet: boolean = false): Promise<void> {
   if (typeof navigator === 'undefined' || !navigator.onLine) {
-    syncStatusStore.setStatus('offline');
+    if (!quiet) {
+      syncStatusStore.setStatus('offline');
+    }
     return;
   }
 
@@ -433,7 +436,14 @@ export async function runFullSync(): Promise<void> {
   isSyncing = true;
 
   try {
-    syncStatusStore.setStatus('syncing');
+    // Check if there are pending items
+    const pendingItems = await getPendingSync();
+    const hasPendingWork = pendingItems.length > 0;
+
+    // Only show "syncing" indicator for non-quiet syncs
+    if (!quiet) {
+      syncStatusStore.setStatus('syncing');
+    }
 
     // Push first so local changes are persisted
     await pushPendingOps();
@@ -441,18 +451,22 @@ export async function runFullSync(): Promise<void> {
     // Then pull remote changes
     await pullRemoteChanges();
 
-    // Update pending count and status at the end
-    const remaining = await getPendingSync();
-    syncStatusStore.setPendingCount(remaining.length);
-    syncStatusStore.setStatus(remaining.length > 0 ? 'error' : 'idle');
-    syncStatusStore.setLastSyncTime(new Date().toISOString());
+    // Update status only for non-quiet syncs
+    if (!quiet) {
+      const remaining = await getPendingSync();
+      syncStatusStore.setPendingCount(remaining.length);
+      syncStatusStore.setStatus(remaining.length > 0 ? 'error' : 'idle');
+      syncStatusStore.setLastSyncTime(new Date().toISOString());
+    }
 
     // Notify stores that sync is complete so they can refresh from local
     notifySyncComplete();
   } catch (error) {
     console.error('Sync failed:', error);
-    syncStatusStore.setStatus('error');
-    syncStatusStore.setError(error instanceof Error ? error.message : 'Sync failed');
+    if (!quiet) {
+      syncStatusStore.setStatus('error');
+      syncStatusStore.setError(error instanceof Error ? error.message : 'Sync failed');
+    }
   } finally {
     isSyncing = false;
   }
@@ -545,16 +559,16 @@ export async function hydrateFromRemote(): Promise<void> {
 export function startSyncEngine(): void {
   if (typeof window === 'undefined') return;
 
-  // Handle online event - run sync when connection restored
+  // Handle online event - run sync when connection restored (show indicator)
   const handleOnline = () => {
-    runFullSync();
+    runFullSync(false);
   };
   window.addEventListener('online', handleOnline);
 
-  // Start periodic sync
+  // Start periodic sync (quiet mode - don't show indicator unless needed)
   syncInterval = setInterval(() => {
     if (navigator.onLine) {
-      runFullSync();
+      runFullSync(true); // Quiet background sync
     }
   }, SYNC_INTERVAL_MS);
 
@@ -595,7 +609,7 @@ export async function clearLocalCache(): Promise<void> {
   hasHydrated = false;
 }
 
-// Manual sync trigger (for UI button)
+// Manual sync trigger (for UI button / pull-to-refresh)
 export async function performSync(): Promise<void> {
-  await runFullSync();
+  await runFullSync(false); // Always show syncing indicator for manual sync
 }

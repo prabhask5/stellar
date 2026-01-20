@@ -19,12 +19,18 @@ function createSyncStatusStore() {
     lastSyncTime: null
   });
 
+  let currentStatus: SyncStatus = 'idle';
   let syncingStartTime: number | null = null;
   let pendingStatusChange: { status: SyncStatus; timeout: ReturnType<typeof setTimeout> } | null = null;
 
   return {
     subscribe,
     setStatus: (status: SyncStatus) => {
+      // Ignore redundant status updates to prevent unnecessary re-renders
+      if (status === currentStatus && status !== 'syncing') {
+        return;
+      }
+
       // Clear any pending status change
       if (pendingStatusChange) {
         clearTimeout(pendingStatusChange.timeout);
@@ -34,6 +40,7 @@ function createSyncStatusStore() {
       if (status === 'syncing') {
         // Starting sync - record the time
         syncingStartTime = Date.now();
+        currentStatus = status;
         update(state => ({ ...state, status, lastError: null }));
       } else if (syncingStartTime !== null) {
         // Ending sync - ensure minimum display time
@@ -47,14 +54,17 @@ function createSyncStatusStore() {
             timeout: setTimeout(() => {
               syncingStartTime = null;
               pendingStatusChange = null;
+              currentStatus = status;
               update(state => ({ ...state, status, lastError: status === 'idle' ? null : state.lastError }));
             }, remaining)
           };
         } else {
           syncingStartTime = null;
+          currentStatus = status;
           update(state => ({ ...state, status, lastError: status === 'idle' ? null : state.lastError }));
         }
       } else {
+        currentStatus = status;
         update(state => ({ ...state, status, lastError: status === 'idle' ? null : state.lastError }));
       }
     },

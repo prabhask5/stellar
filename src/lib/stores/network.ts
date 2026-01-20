@@ -10,24 +10,33 @@ function createNetworkStore(): Readable<boolean> & {
   const { subscribe, set } = writable<boolean>(true);
   const reconnectCallbacks: Set<OnlineCallback> = new Set();
   let wasOffline = false;
+  let currentValue = true; // Track current value to prevent redundant updates
+
+  function setIfChanged(value: boolean) {
+    if (value !== currentValue) {
+      currentValue = value;
+      set(value);
+    }
+  }
 
   function init() {
     if (!browser) return;
 
     // Set initial state
     const initiallyOnline = navigator.onLine;
+    currentValue = initiallyOnline;
     set(initiallyOnline);
     wasOffline = !initiallyOnline;
 
     // Listen for going offline
     window.addEventListener('offline', () => {
       wasOffline = true;
-      set(false);
+      setIfChanged(false);
     });
 
     // Listen for coming back online
     window.addEventListener('online', () => {
-      set(true);
+      setIfChanged(true);
 
       // If we were offline, trigger reconnect callbacks
       if (wasOffline) {
@@ -49,7 +58,7 @@ function createNetworkStore(): Readable<boolean> & {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         const nowOnline = navigator.onLine;
-        set(nowOnline);
+        setIfChanged(nowOnline); // Only update if actually changed
 
         // If we're coming back online after being hidden
         if (nowOnline && wasOffline) {
