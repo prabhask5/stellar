@@ -1066,6 +1066,47 @@ a, button, img {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════════════
+   iPHONE PRO DYNAMIC ISLAND SPECIFIC STYLES
+   The Dynamic Island is ~126px wide on iPhone 14/15/16 Pro models
+   Time displays on the LEFT, battery/signal on the RIGHT of the island
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+/* iPhone 14 Pro / 15 Pro / 16 Pro (393px logical width, Dynamic Island) */
+@media (min-width: 390px) and (max-width: 395px) and (max-width: 640px) {
+  .container {
+    /* Ensure content doesn't overlap with status bar on sides */
+    padding-left: max(1.25rem, env(safe-area-inset-left, 1.25rem));
+    padding-right: max(1.25rem, env(safe-area-inset-right, 1.25rem));
+  }
+}
+
+/* iPhone 14/15/16 Pro Max (430px logical width, Dynamic Island) */
+@media (min-width: 428px) and (max-width: 435px) {
+  .container {
+    padding-left: max(1.5rem, env(safe-area-inset-left, 1.5rem));
+    padding-right: max(1.5rem, env(safe-area-inset-right, 1.5rem));
+  }
+}
+
+/* Dynamic Island detection via safe-area height
+   - Notch devices (iPhone X-13): ~47px safe-area-inset-top
+   - Dynamic Island devices (iPhone 14-16 Pro): ~59px safe-area-inset-top
+   We can't directly query this, but we use the combination of screen size + safe area support */
+@supports (padding-top: env(safe-area-inset-top)) {
+  @media (max-width: 640px) {
+    /* Page headers should have extra top margin on Dynamic Island devices */
+    .page-header {
+      margin-top: 0.5rem;
+    }
+
+    /* Ensure modals don't overlap with Dynamic Island */
+    .modal-content {
+      margin-top: max(1rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
+    }
+  }
+}
+
 /* Landscape mode on phones */
 @media (max-height: 500px) and (orientation: landscape) {
   .container {

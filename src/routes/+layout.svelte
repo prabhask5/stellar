@@ -7,6 +7,7 @@
   import { syncStatusStore } from '$lib/stores/sync';
   import SyncStatus from '$lib/components/SyncStatus.svelte';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
+  import PullToRefresh from '$lib/components/PullToRefresh.svelte';
   import type { Session } from '@supabase/supabase-js';
 
   interface Props {
@@ -40,6 +41,41 @@
 </script>
 
 <div class="app" class:authenticated={data.session}>
+  <!-- Pull to Refresh for PWA -->
+  {#if data.session}
+    <PullToRefresh />
+  {/if}
+
+  <!-- iPhone Pro Dynamic Island Status Bar (Mobile Only) -->
+  {#if data.session}
+    <header class="island-header">
+      <div class="island-left">
+        <span class="island-brand">
+          <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
+            <circle cx="50" cy="50" r="45" stroke="url(#islandGrad)" stroke-width="6" fill="none"/>
+            <path d="M30 52 L45 67 L72 35" stroke="url(#islandCheck)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <defs>
+              <linearGradient id="islandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6c5ce7"/>
+                <stop offset="100%" stop-color="#ff79c6"/>
+              </linearGradient>
+              <linearGradient id="islandCheck" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#26de81"/>
+                <stop offset="100%" stop-color="#00d4ff"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </span>
+        <span class="island-title">{$page.url.pathname.startsWith('/calendar') ? 'Routines' : 'Goals'}</span>
+      </div>
+      <!-- Center gap for Dynamic Island -->
+      <div class="island-center"></div>
+      <div class="island-right">
+        <SyncStatus />
+      </div>
+    </header>
+  {/if}
+
   <!-- Desktop/Tablet Top Navigation -->
   {#if data.session}
     <nav class="nav-desktop">
@@ -209,6 +245,106 @@
     min-height: 100dvh; /* Dynamic viewport height for mobile */
     display: flex;
     flex-direction: column;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     IPHONE PRO DYNAMIC ISLAND HEADER (Mobile Only)
+     Creates a split header that respects the Dynamic Island and status bar
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .island-header {
+    display: none; /* Hidden by default, shown on mobile */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 150;
+    height: calc(env(safe-area-inset-top, 47px) + 8px);
+    padding-top: env(safe-area-inset-top, 47px);
+    background: linear-gradient(180deg,
+      rgba(10, 10, 18, 0.98) 0%,
+      rgba(10, 10, 18, 0.85) 60%,
+      transparent 100%);
+    pointer-events: none;
+  }
+
+  .island-header > * {
+    pointer-events: auto;
+  }
+
+  /* Container for the split layout */
+  .island-header {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding-left: env(safe-area-inset-left, 16px);
+    padding-right: env(safe-area-inset-right, 16px);
+    padding-bottom: 8px;
+  }
+
+  /* Left side - Brand and current section */
+  .island-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-left: 8px;
+    max-width: 110px; /* Keep away from Dynamic Island */
+  }
+
+  .island-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.9;
+  }
+
+  .island-title {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--color-text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Center gap - Reserved space for Dynamic Island */
+  .island-center {
+    /* This creates the gap around the Dynamic Island */
+    /* Dynamic Island is ~126px wide on iPhone 14/15/16 Pro */
+    flex: 0 0 140px;
+    min-width: 140px;
+    height: 100%;
+  }
+
+  /* Right side - Sync status */
+  .island-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+    max-width: 110px; /* Keep away from Dynamic Island */
+  }
+
+  /* Scale down sync indicator for the island header */
+  .island-right :global(.sync-indicator) {
+    width: 32px;
+    height: 32px;
+    border-width: 1px;
+  }
+
+  .island-right :global(.sync-indicator svg) {
+    width: 14px;
+    height: 14px;
+  }
+
+  .island-right :global(.pending-badge) {
+    min-width: 14px;
+    height: 14px;
+    font-size: 9px;
+    padding: 0 3px;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -600,26 +736,16 @@
     }
   }
 
-  /* Mobile - Show bottom nav, hide desktop */
+  /* Mobile - Show bottom nav, hide desktop, show island header */
   @media (max-width: 640px) {
+    /* Hide desktop nav completely on mobile */
     .nav-desktop {
-      padding: 0 1rem;
-    }
-
-    .nav-inner {
-      height: 56px;
-    }
-
-    .nav-center {
       display: none;
     }
 
-    .nav-actions {
-      gap: 0.5rem;
-    }
-
-    .user-menu {
-      display: none;
+    /* Show Dynamic Island header */
+    .island-header {
+      display: flex;
     }
 
     .nav-mobile {
@@ -628,19 +754,16 @@
 
     .main {
       padding: 1.25rem;
-      padding-top: 1.5rem;
+      /* Add top padding for the island header fade area */
+      padding-top: calc(env(safe-area-inset-top, 47px) + 20px);
     }
 
     .main.with-bottom-nav {
       padding-bottom: calc(80px + env(safe-area-inset-bottom, 0));
     }
-
-    .brand-text {
-      font-size: 1.125rem;
-    }
   }
 
-  /* iPhone SE and smaller */
+  /* iPhone SE and smaller - No Dynamic Island, use notch layout */
   @media (max-width: 375px) {
     .tab-item {
       padding: 0.5rem 0.5rem;
@@ -653,10 +776,43 @@
 
     .main {
       padding: 1rem;
+      padding-top: calc(env(safe-area-inset-top, 20px) + 16px);
+    }
+
+    /* Smaller center gap for notch devices (no Dynamic Island) */
+    .island-center {
+      flex: 0 0 100px;
+      min-width: 100px;
+    }
+
+    .island-left,
+    .island-right {
+      max-width: 100px;
+    }
+
+    .island-title {
+      font-size: 0.625rem;
     }
   }
 
-  /* iPhone 16 Pro Max and larger phones */
+  /* iPhone 14/15/16 Pro (393px width, has Dynamic Island) */
+  @media (min-width: 390px) and (max-width: 429px) and (max-height: 900px) {
+    .island-center {
+      flex: 0 0 130px;
+      min-width: 130px;
+    }
+
+    .island-left,
+    .island-right {
+      max-width: 115px;
+    }
+
+    .island-title {
+      font-size: 0.6875rem;
+    }
+  }
+
+  /* iPhone 14/15/16 Pro Max and larger phones (430px+, has Dynamic Island) */
   @media (min-width: 430px) and (max-width: 640px) {
     .tab-bar {
       max-width: 100%;
@@ -665,6 +821,41 @@
 
     .tab-item {
       padding: 0.5rem 1.25rem;
+    }
+
+    /* Larger center gap for Pro Max - more screen real estate */
+    .island-center {
+      flex: 0 0 145px;
+      min-width: 145px;
+    }
+
+    .island-left,
+    .island-right {
+      max-width: 130px;
+    }
+
+    .island-title {
+      font-size: 0.75rem;
+    }
+
+    .island-brand svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  /* Extra: Detect iPhone Pro via safe-area (Dynamic Island has larger inset ~59px vs ~47px notch) */
+  @supports (padding-top: env(safe-area-inset-top)) {
+    @media (max-width: 640px) {
+      /* Adjust header for proper Dynamic Island clearance */
+      .island-header {
+        /* The gradient fades below the Dynamic Island area */
+        background: linear-gradient(180deg,
+          rgba(10, 10, 18, 1) 0%,
+          rgba(10, 10, 18, 0.95) 40%,
+          rgba(10, 10, 18, 0.7) 70%,
+          transparent 100%);
+      }
     }
   }
 
