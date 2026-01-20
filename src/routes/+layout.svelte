@@ -146,6 +146,7 @@
             <span class="user-avatar">
               {greeting.charAt(0).toUpperCase()}
             </span>
+            <span class="user-greeting">Hey, {greeting}</span>
             <button class="logout-btn" onclick={handleSignOut} aria-label="Logout">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -455,11 +456,12 @@
   .nav-center {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.25rem;
     padding: 0.375rem;
     background: rgba(15, 15, 26, 0.6);
     border: 1px solid rgba(108, 92, 231, 0.15);
     border-radius: var(--radius-xl);
+    position: relative;
   }
 
   .nav-link {
@@ -472,52 +474,119 @@
     font-weight: 600;
     font-size: 0.9rem;
     border-radius: var(--radius-lg);
-    transition: all 0.3s var(--ease-out);
     text-decoration: none;
+    transition: color 0.4s var(--ease-out);
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  /* Sliding background effect */
+  .nav-link::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(108, 92, 231, 0.15);
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.4s var(--ease-spring);
+    z-index: -1;
+  }
+
+  .nav-link:hover::before {
+    opacity: 1;
+    transform: scale(1);
   }
 
   .nav-link:hover {
     color: var(--color-text);
-    background: rgba(108, 92, 231, 0.1);
+  }
+
+  /* Active state with gradient slide-in */
+  .nav-link.active::before {
+    opacity: 1;
+    transform: scale(1);
+    background: var(--gradient-primary);
+    box-shadow:
+      0 4px 20px var(--color-primary-glow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 
   .nav-link.active {
     color: white;
-    background: var(--gradient-primary);
-    box-shadow:
-      0 4px 16px var(--color-primary-glow),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  /* Shimmer effect on active */
+  .nav-link.active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    animation: navShimmer 2s ease-in-out infinite;
+    z-index: 0;
+  }
+
+  @keyframes navShimmer {
+    0% { left: -100%; }
+    50%, 100% { left: 100%; }
   }
 
   .link-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.3s var(--ease-spring);
+    transition: transform 0.4s var(--ease-spring), filter 0.3s;
+    position: relative;
+    z-index: 1;
   }
 
   .nav-link:hover .link-icon {
-    transform: scale(1.1);
+    transform: scale(1.15) rotate(-5deg);
   }
 
   .nav-link.active .link-icon {
-    filter: drop-shadow(0 0 8px white);
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+    transform: scale(1.1);
+  }
+
+  .nav-link.active:hover .link-icon {
+    transform: scale(1.2) rotate(-5deg);
   }
 
   .link-text {
     letter-spacing: 0.02em;
+    position: relative;
+    z-index: 1;
+    transition: transform 0.3s var(--ease-spring);
+  }
+
+  .nav-link:hover .link-text {
+    transform: translateX(2px);
   }
 
   .active-indicator {
     position: absolute;
     bottom: -8px;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%) scale(0);
     width: 4px;
     height: 4px;
     background: white;
     border-radius: 50%;
     box-shadow: 0 0 10px white, 0 0 20px var(--color-primary);
+    transition: transform 0.4s var(--ease-spring);
+  }
+
+  .nav-link.active .active-indicator {
+    transform: translateX(-50%) scale(1);
   }
 
   /* Right Actions */
@@ -531,12 +600,19 @@
   .user-menu {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.625rem;
     padding: 0.375rem;
     padding-left: 0.5rem;
+    padding-right: 0.375rem;
     background: rgba(15, 15, 26, 0.6);
     border: 1px solid rgba(108, 92, 231, 0.15);
     border-radius: var(--radius-full);
+    transition: all 0.3s var(--ease-out);
+  }
+
+  .user-menu:hover {
+    border-color: rgba(108, 92, 231, 0.3);
+    background: rgba(15, 15, 26, 0.8);
   }
 
   .user-avatar {
@@ -551,6 +627,20 @@
     font-size: 0.875rem;
     border-radius: 50%;
     box-shadow: 0 2px 8px var(--color-primary-glow);
+    transition: transform 0.3s var(--ease-spring), box-shadow 0.3s;
+  }
+
+  .user-menu:hover .user-avatar {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px var(--color-primary-glow);
+  }
+
+  .user-greeting {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    padding-right: 0.25rem;
   }
 
   .logout-btn {
@@ -745,6 +835,14 @@
 
     .nav-center {
       gap: 0.25rem;
+    }
+
+    .user-greeting {
+      display: none;
+    }
+
+    .user-menu {
+      padding-right: 0.375rem;
     }
   }
 

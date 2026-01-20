@@ -121,7 +121,7 @@
 
     <!-- Login Card -->
     <div class="login-card">
-      <h2 class="card-title">{mode === 'login' ? 'Welcome Back' : 'Join the Journey'}</h2>
+      <h2 class="card-title">{mode === 'login' ? 'Welcome Back' : 'Sign up'}</h2>
 
       <form onsubmit={handleSubmit}>
         {#if mode === 'signup'}
