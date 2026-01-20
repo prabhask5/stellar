@@ -8,6 +8,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import RoutineForm from '$lib/components/RoutineForm.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import DraggableList from '$lib/components/DraggableList.svelte';
 
   let routines = $state<DailyRoutineGoal[]>([]);
   let loading = $state(true);
@@ -82,6 +83,14 @@
   function navigateToEdit(id: string) {
     goto(`/routines/${id}`);
   }
+
+  async function handleReorderRoutine(routineId: string, newOrder: number) {
+    try {
+      await dailyRoutinesStore.reorder(routineId, newOrder);
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to reorder routine';
+    }
+  }
 </script>
 
 <svelte:head>
@@ -122,43 +131,48 @@
     {#if activeRoutines.length > 0}
       <section class="routine-section">
         <h2>Active Routines ({activeRoutines.length})</h2>
-        <div class="routines-list">
-          {#each activeRoutines as routine (routine.id)}
-            <div class="routine-card">
-              <div class="routine-info">
-                <h3>{routine.name}</h3>
-                <div class="routine-meta">
-                  <span class="badge type-{routine.type}">
-                    {routine.type === 'completion' ? '✓ Completion' : '↑ Incremental'}
-                  </span>
-                  {#if routine.type === 'incremental'}
-                    <span class="target">Target: {routine.target_value}/day</span>
-                  {/if}
+        <DraggableList items={activeRoutines} onReorder={handleReorderRoutine}>
+          {#snippet renderItem({ item: routine, dragHandleProps })}
+            <div class="routine-with-handle">
+              <button class="drag-handle" {...dragHandleProps} aria-label="Drag to reorder">
+                ⋮⋮
+              </button>
+              <div class="routine-card">
+                <div class="routine-info">
+                  <h3>{routine.name}</h3>
+                  <div class="routine-meta">
+                    <span class="badge type-{routine.type}">
+                      {routine.type === 'completion' ? '✓ Completion' : '↑ Incremental'}
+                    </span>
+                    {#if routine.type === 'incremental'}
+                      <span class="target">Target: {routine.target_value}/day</span>
+                    {/if}
+                  </div>
+                  <p class="date-range">
+                    {formatDisplayDate(routine.start_date)} →
+                    {routine.end_date ? formatDisplayDate(routine.end_date) : 'No end date'}
+                  </p>
                 </div>
-                <p class="date-range">
-                  {formatDisplayDate(routine.start_date)} →
-                  {routine.end_date ? formatDisplayDate(routine.end_date) : 'No end date'}
-                </p>
-              </div>
-              <div class="routine-actions">
-                <button
-                  class="action-btn"
-                  onclick={() => navigateToEdit(routine.id)}
-                  aria-label="Edit routine"
-                >
-                  ✎
-                </button>
-                <button
-                  class="action-btn delete"
-                  onclick={() => handleDeleteRoutine(routine.id)}
-                  aria-label="Delete routine"
-                >
-                  ×
-                </button>
+                <div class="routine-actions">
+                  <button
+                    class="action-btn"
+                    onclick={() => navigateToEdit(routine.id)}
+                    aria-label="Edit routine"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    class="action-btn delete"
+                    onclick={() => handleDeleteRoutine(routine.id)}
+                    aria-label="Delete routine"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             </div>
-          {/each}
-        </div>
+          {/snippet}
+        </DraggableList>
       </section>
     {/if}
 
@@ -166,43 +180,48 @@
       <section class="routine-section">
         <h2>Inactive Routines ({inactiveRoutines.length})</h2>
         <p class="section-description">These routines are outside their active date range.</p>
-        <div class="routines-list">
-          {#each inactiveRoutines as routine (routine.id)}
-            <div class="routine-card inactive">
-              <div class="routine-info">
-                <h3>{routine.name}</h3>
-                <div class="routine-meta">
-                  <span class="badge type-{routine.type}">
-                    {routine.type === 'completion' ? '✓ Completion' : '↑ Incremental'}
-                  </span>
-                  {#if routine.type === 'incremental'}
-                    <span class="target">Target: {routine.target_value}/day</span>
-                  {/if}
+        <DraggableList items={inactiveRoutines} onReorder={handleReorderRoutine}>
+          {#snippet renderItem({ item: routine, dragHandleProps })}
+            <div class="routine-with-handle">
+              <button class="drag-handle" {...dragHandleProps} aria-label="Drag to reorder">
+                ⋮⋮
+              </button>
+              <div class="routine-card inactive">
+                <div class="routine-info">
+                  <h3>{routine.name}</h3>
+                  <div class="routine-meta">
+                    <span class="badge type-{routine.type}">
+                      {routine.type === 'completion' ? '✓ Completion' : '↑ Incremental'}
+                    </span>
+                    {#if routine.type === 'incremental'}
+                      <span class="target">Target: {routine.target_value}/day</span>
+                    {/if}
+                  </div>
+                  <p class="date-range">
+                    {formatDisplayDate(routine.start_date)} →
+                    {routine.end_date ? formatDisplayDate(routine.end_date) : 'No end date'}
+                  </p>
                 </div>
-                <p class="date-range">
-                  {formatDisplayDate(routine.start_date)} →
-                  {routine.end_date ? formatDisplayDate(routine.end_date) : 'No end date'}
-                </p>
-              </div>
-              <div class="routine-actions">
-                <button
-                  class="action-btn"
-                  onclick={() => navigateToEdit(routine.id)}
-                  aria-label="Edit routine"
-                >
-                  ✎
-                </button>
-                <button
-                  class="action-btn delete"
-                  onclick={() => handleDeleteRoutine(routine.id)}
-                  aria-label="Delete routine"
-                >
-                  ×
-                </button>
+                <div class="routine-actions">
+                  <button
+                    class="action-btn"
+                    onclick={() => navigateToEdit(routine.id)}
+                    aria-label="Edit routine"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    class="action-btn delete"
+                    onclick={() => handleDeleteRoutine(routine.id)}
+                    aria-label="Delete routine"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             </div>
-          {/each}
-        </div>
+          {/snippet}
+        </DraggableList>
       </section>
     {/if}
   {/if}
@@ -271,10 +290,28 @@
     margin-bottom: 1rem;
   }
 
-  .routines-list {
+  .routine-with-handle {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .routine-with-handle .drag-handle {
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-right: none;
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    font-size: 0.875rem;
+    letter-spacing: 1px;
+    color: var(--color-text-muted);
+    min-width: 24px;
+  }
+
+  .routine-with-handle .routine-card {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    flex: 1;
+    min-width: 0;
   }
 
   .routine-card {

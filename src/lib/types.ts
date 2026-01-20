@@ -32,6 +32,7 @@ export interface DailyRoutineGoal {
   target_value: number | null;
   start_date: string;
   end_date: string | null;
+  order: number;
   created_at: string;
   updated_at: string;
   deleted?: boolean; // Tombstone flag

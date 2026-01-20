@@ -103,3 +103,18 @@ export async function incrementGoal(id: string, amount: number = 1): Promise<Goa
   return db.goals.get(id);
 }
 
+export async function reorderGoal(id: string, newOrder: number): Promise<Goal | undefined> {
+  const timestamp = now();
+
+  await db.goals.update(id, { order: newOrder, updated_at: timestamp });
+
+  const updated = await db.goals.get(id);
+  if (!updated) return undefined;
+
+  // Queue for sync and schedule debounced push
+  await queueSync('goals', 'update', id, { order: newOrder, updated_at: timestamp });
+  scheduleSyncPush();
+
+  return updated;
+}
+

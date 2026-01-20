@@ -13,6 +13,15 @@ export async function createDailyRoutineGoal(
 ): Promise<DailyRoutineGoal> {
   const timestamp = now();
 
+  // Get the current max order
+  const existingRoutines = await db.dailyRoutineGoals
+    .where('user_id')
+    .equals(userId)
+    .toArray();
+
+  const maxOrder = existingRoutines.reduce((max, r) => Math.max(max, r.order ?? -1), -1);
+  const nextOrder = maxOrder + 1;
+
   const newRoutine: DailyRoutineGoal = {
     id: generateId(),
     user_id: userId,
@@ -21,6 +30,7 @@ export async function createDailyRoutineGoal(
     target_value: type === 'incremental' ? targetValue : null,
     start_date: startDate,
     end_date: endDate,
+    order: nextOrder,
     created_at: timestamp,
     updated_at: timestamp
   };
@@ -35,6 +45,7 @@ export async function createDailyRoutineGoal(
     target_value: newRoutine.target_value,
     start_date: startDate,
     end_date: endDate,
+    order: nextOrder,
     created_at: timestamp,
     updated_at: timestamp
   });
@@ -74,4 +85,19 @@ export async function deleteDailyRoutineGoal(id: string): Promise<void> {
   // Queue for sync and schedule debounced push
   await queueSync('daily_routine_goals', 'delete', id, { updated_at: timestamp });
   scheduleSyncPush();
+}
+
+export async function reorderDailyRoutineGoal(id: string, newOrder: number): Promise<DailyRoutineGoal | undefined> {
+  const timestamp = now();
+
+  await db.dailyRoutineGoals.update(id, { order: newOrder, updated_at: timestamp });
+
+  const updated = await db.dailyRoutineGoals.get(id);
+  if (!updated) return undefined;
+
+  // Queue for sync and schedule debounced push
+  await queueSync('daily_routine_goals', 'update', id, { order: newOrder, updated_at: timestamp });
+  scheduleSyncPush();
+
+  return updated;
 }

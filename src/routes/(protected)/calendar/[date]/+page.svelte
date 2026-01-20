@@ -2,13 +2,14 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { dailyProgressStore } from '$lib/stores/data';
+  import { dailyProgressStore, dailyRoutinesStore } from '$lib/stores/data';
   import { formatDisplayDate, isPastDay, isTodayDate } from '$lib/utils/dates';
   import { calculateGoalProgress } from '$lib/utils/colors';
   import type { DailyRoutineGoal, DailyGoalProgress } from '$lib/types';
   import GoalItem from '$lib/components/GoalItem.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import DraggableList from '$lib/components/DraggableList.svelte';
   import { parseISO } from 'date-fns';
 
   interface GoalWithProgress extends DailyRoutineGoal {
@@ -97,6 +98,16 @@
       error = e instanceof Error ? e.message : 'Failed to update progress';
     }
   }
+
+  async function handleReorderGoal(goalId: string, newOrder: number) {
+    try {
+      await dailyRoutinesStore.reorder(goalId, newOrder);
+      // Reload the daily progress to get the updated order
+      await dailyProgressStore.load(dateStr);
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to reorder goal';
+    }
+  }
 </script>
 
 <svelte:head>
@@ -151,16 +162,25 @@
       </div>
     {/if}
 
-    <div class="goals-list">
-      {#each goalsWithProgress as goal (goal.id)}
-        <GoalItem
-          {goal}
-          onToggleComplete={canEdit ? () => handleToggleComplete(goal) : undefined}
-          onIncrement={canEdit ? () => handleIncrement(goal, 1) : undefined}
-          onDecrement={canEdit ? () => handleIncrement(goal, -1) : undefined}
-        />
-      {/each}
-    </div>
+    <DraggableList items={goalsWithProgress} onReorder={handleReorderGoal} disabled={!canEdit}>
+      {#snippet renderItem({ item: goal, dragHandleProps })}
+        <div class="goal-with-handle">
+          {#if canEdit}
+            <button class="drag-handle" {...dragHandleProps} aria-label="Drag to reorder">
+              ⋮⋮
+            </button>
+          {/if}
+          <div class="goal-item-wrapper" class:no-handle={!canEdit}>
+            <GoalItem
+              {goal}
+              onToggleComplete={canEdit ? () => handleToggleComplete(goal) : undefined}
+              onIncrement={canEdit ? () => handleIncrement(goal, 1) : undefined}
+              onDecrement={canEdit ? () => handleIncrement(goal, -1) : undefined}
+            />
+          </div>
+        </div>
+      {/snippet}
+    </DraggableList>
   {/if}
 </div>
 
@@ -270,9 +290,31 @@
     margin-bottom: 1.5rem;
   }
 
-  .goals-list {
+  .goal-with-handle {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .goal-item-wrapper {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .goal-item-wrapper:not(.no-handle) :global(.goal-item) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: none;
+  }
+
+  .goal-with-handle .drag-handle {
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-right: none;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    font-size: 0.875rem;
+    letter-spacing: 1px;
+    color: var(--color-text-muted);
+    min-width: 24px;
   }
 </style>

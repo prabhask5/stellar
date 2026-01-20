@@ -10,6 +10,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import GoalForm from '$lib/components/GoalForm.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import DraggableList from '$lib/components/DraggableList.svelte';
 
   let list = $state<(GoalList & { goals: Goal[] }) | null>(null);
   let loading = $state(true);
@@ -128,6 +129,14 @@
       error = e instanceof Error ? e.message : 'Failed to update list name';
     }
   }
+
+  async function handleReorderGoal(goalId: string, newOrder: number) {
+    try {
+      await goalListStore.reorderGoal(goalId, newOrder);
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to reorder goal';
+    }
+  }
 </script>
 
 <svelte:head>
@@ -188,18 +197,25 @@
         </button>
       </EmptyState>
     {:else}
-      <div class="goals-list">
-        {#each list.goals as goal (goal.id)}
-          <GoalItem
-            {goal}
-            onToggleComplete={() => handleToggleComplete(goal)}
-            onIncrement={() => handleIncrement(goal, 1)}
-            onDecrement={() => handleIncrement(goal, -1)}
-            onEdit={() => (editingGoal = goal)}
-            onDelete={() => handleDeleteGoal(goal)}
-          />
-        {/each}
-      </div>
+      <DraggableList items={list.goals} onReorder={handleReorderGoal}>
+        {#snippet renderItem({ item: goal, dragHandleProps })}
+          <div class="goal-with-handle">
+            <button class="drag-handle" {...dragHandleProps} aria-label="Drag to reorder">
+              ⋮⋮
+            </button>
+            <div class="goal-item-wrapper">
+              <GoalItem
+                {goal}
+                onToggleComplete={() => handleToggleComplete(goal)}
+                onIncrement={() => handleIncrement(goal, 1)}
+                onDecrement={() => handleIncrement(goal, -1)}
+                onEdit={() => (editingGoal = goal)}
+                onDelete={() => handleDeleteGoal(goal)}
+              />
+            </div>
+          </div>
+        {/snippet}
+      </DraggableList>
     {/if}
   {/if}
 </div>
@@ -312,9 +328,31 @@
     margin-bottom: 1.5rem;
   }
 
-  .goals-list {
+  .goal-with-handle {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .goal-item-wrapper {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .goal-item-wrapper :global(.goal-item) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: none;
+  }
+
+  .goal-with-handle .drag-handle {
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-right: none;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    font-size: 0.875rem;
+    letter-spacing: 1px;
+    color: var(--color-text-muted);
+    min-width: 24px;
   }
 </style>

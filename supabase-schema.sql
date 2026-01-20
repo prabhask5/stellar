@@ -22,7 +22,7 @@ create table if not exists goals (
   target_value integer,
   current_value integer default 0 not null,
   completed boolean default false not null,
-  "order" integer default 0 not null,
+  "order" double precision default 0 not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -36,6 +36,7 @@ create table if not exists daily_routine_goals (
   target_value integer,
   start_date date not null,
   end_date date,
+  "order" double precision default 0 not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -54,7 +55,9 @@ create table if not exists daily_goal_progress (
 -- Indexes for better query performance
 create index if not exists idx_goal_lists_user_id on goal_lists(user_id);
 create index if not exists idx_goals_goal_list_id on goals(goal_list_id);
+create index if not exists idx_goals_order on goals("order");
 create index if not exists idx_daily_routine_goals_user_id on daily_routine_goals(user_id);
+create index if not exists idx_daily_routine_goals_order on daily_routine_goals("order");
 create index if not exists idx_daily_goal_progress_date on daily_goal_progress(date);
 create index if not exists idx_daily_goal_progress_goal_id on daily_goal_progress(daily_routine_goal_id);
 
@@ -229,3 +232,20 @@ create trigger update_daily_routine_goals_updated_at
 create trigger update_daily_goal_progress_updated_at
   before update on daily_goal_progress
   for each row execute function update_updated_at_column();
+
+-- ============================================================
+-- MIGRATION: Add order column to daily_routine_goals (for existing databases)
+-- Run this if you're upgrading from a previous schema version
+-- ============================================================
+-- alter table daily_routine_goals add column if not exists "order" double precision default 0 not null;
+-- alter table goals alter column "order" type double precision using "order"::double precision;
+-- create index if not exists idx_daily_routine_goals_order on daily_routine_goals("order");
+-- create index if not exists idx_goals_order on goals("order");
+--
+-- Assign sequential order values to existing daily_routine_goals (newest first):
+-- with ordered_routines as (
+--   select id, row_number() over (order by created_at desc) - 1 as new_order
+--   from daily_routine_goals
+-- )
+-- update daily_routine_goals set "order" = ordered_routines.new_order
+-- from ordered_routines where daily_routine_goals.id = ordered_routines.id;

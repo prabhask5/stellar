@@ -128,15 +128,18 @@ export async function getGoalList(id: string): Promise<(GoalList & { goals: Goal
 
 // Get all daily routine goals from LOCAL DB, fetch from remote if empty
 export async function getDailyRoutineGoals(): Promise<DailyRoutineGoal[]> {
-  let routines = await db.dailyRoutineGoals.orderBy('created_at').reverse().toArray();
+  let routines = await db.dailyRoutineGoals.toArray();
 
   // If local is empty and online and we haven't tried hydrating yet, try to hydrate from remote
   if (routines.length === 0 && !hasHydrated && typeof navigator !== 'undefined' && navigator.onLine) {
     await hydrateFromRemote();
-    routines = await db.dailyRoutineGoals.orderBy('created_at').reverse().toArray();
+    routines = await db.dailyRoutineGoals.toArray();
   }
 
-  return routines.filter(r => !r.deleted);
+  // Sort by order (ascending), filter out deleted
+  return routines
+    .filter(r => !r.deleted)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 // Get a single daily routine goal from LOCAL DB, fetch from remote if not found
@@ -175,12 +178,14 @@ export async function getActiveRoutinesForDate(date: string): Promise<DailyRouti
     allRoutines = await db.dailyRoutineGoals.toArray();
   }
 
-  return allRoutines.filter((routine) => {
-    if (routine.deleted) return false;
-    if (routine.start_date > date) return false;
-    if (routine.end_date && routine.end_date < date) return false;
-    return true;
-  });
+  return allRoutines
+    .filter((routine) => {
+      if (routine.deleted) return false;
+      if (routine.start_date > date) return false;
+      if (routine.end_date && routine.end_date < date) return false;
+      return true;
+    })
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 // Get daily progress for a specific date from LOCAL DB, fetch from remote if not found

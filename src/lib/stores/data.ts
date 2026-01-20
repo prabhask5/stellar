@@ -136,6 +136,19 @@ function createGoalListStore() {
       }
       return updated;
     },
+    reorderGoal: async (goalId: string, newOrder: number) => {
+      const updated = await repo.reorderGoal(goalId, newOrder);
+      if (updated) {
+        update(list => {
+          if (!list) return null;
+          const updatedGoals = list.goals.map(g => g.id === goalId ? updated : g);
+          // Re-sort by order
+          updatedGoals.sort((a, b) => a.order - b.order);
+          return { ...list, goals: updatedGoals };
+        });
+      }
+      return updated;
+    },
     clear: () => {
       currentId = null;
       set(null);
@@ -194,6 +207,18 @@ function createDailyRoutinesStore() {
     delete: async (id: string) => {
       await repo.deleteDailyRoutineGoal(id);
       update(routines => routines.filter(r => r.id !== id));
+    },
+    reorder: async (id: string, newOrder: number) => {
+      const updated = await repo.reorderDailyRoutineGoal(id, newOrder);
+      if (updated) {
+        update(routines => {
+          const updatedRoutines = routines.map(r => r.id === id ? updated : r);
+          // Re-sort by order
+          updatedRoutines.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          return updatedRoutines;
+        });
+      }
+      return updated;
     },
     refresh: async () => {
       const routines = await sync.getDailyRoutineGoals();

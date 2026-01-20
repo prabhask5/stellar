@@ -32,6 +32,25 @@ export class GoalPlannerDB extends Dexie {
       // Added entityId index for coalescing updates to the same entity
       syncQueue: '++id, table, entityId, timestamp'
     });
+
+    // Version 4: Add order index to dailyRoutineGoals for drag-drop reordering
+    this.version(4).stores({
+      goalLists: 'id, user_id, created_at, updated_at',
+      goals: 'id, goal_list_id, order, created_at, updated_at',
+      dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+      dailyGoalProgress: 'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+      syncQueue: '++id, table, entityId, timestamp'
+    }).upgrade(async (tx) => {
+      // Assign sequential order to existing daily routine goals
+      const routines = await tx.table('dailyRoutineGoals').toArray();
+      // Sort by created_at descending (newest first, matching current display order)
+      const sorted = routines.sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      for (let i = 0; i < sorted.length; i++) {
+        await tx.table('dailyRoutineGoals').update(sorted[i].id, { order: i });
+      }
+    });
   }
 }
 
