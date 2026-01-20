@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import { routineStore, dailyRoutinesStore } from '$lib/stores/data';
-  import type { DailyRoutineGoal, GoalType } from '$lib/types';
+  import type { DailyRoutineGoal, GoalType, DayOfWeek } from '$lib/types';
   import RoutineForm from '$lib/components/RoutineForm.svelte';
 
   let routine = $state<DailyRoutineGoal | null>(null);
@@ -42,17 +42,19 @@
     targetValue: number | null;
     startDate: string;
     endDate: string | null;
+    activeDays: DayOfWeek[] | null;
   }) {
     if (!routine || saving) return;
 
     try {
       saving = true;
-      await routineStore.update(routine.id, {
+      await dailyRoutinesStore.update(routine.id, {
         name: data.name,
         type: data.type,
         target_value: data.targetValue,
         start_date: data.startDate,
-        end_date: data.endDate
+        end_date: data.endDate,
+        active_days: data.activeDays
       });
       goto('/calendar');
     } catch (e) {
@@ -140,6 +142,7 @@
         targetValue={routine.target_value}
         startDate={routine.start_date}
         endDate={routine.end_date}
+        activeDays={routine.active_days}
         submitLabel={saving ? 'Saving...' : 'Save Changes'}
         onSubmit={handleUpdateRoutine}
         onCancel={() => goto('/calendar')}

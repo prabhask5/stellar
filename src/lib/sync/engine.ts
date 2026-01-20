@@ -4,6 +4,7 @@ import { getPendingSync, removeSyncItem, incrementRetry, getPendingEntityIds, cl
 import type { SyncQueueItem, Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, GoalListWithProgress, TaskCategory, Commitment, DailyTask, LongTermTask, LongTermTaskWithCategory } from '$lib/types';
 import { syncStatusStore } from '$lib/stores/sync';
 import { calculateGoalProgress } from '$lib/utils/colors';
+import { isRoutineActiveOnDate } from '$lib/utils/dates';
 
 // ============================================================
 // LOCAL-FIRST SYNC ENGINE
@@ -215,9 +216,7 @@ export async function getActiveRoutinesForDate(date: string): Promise<DailyRouti
   return allRoutines
     .filter((routine) => {
       if (routine.deleted) return false;
-      if (routine.start_date > date) return false;
-      if (routine.end_date && routine.end_date < date) return false;
-      return true;
+      return isRoutineActiveOnDate(routine, date);
     })
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }

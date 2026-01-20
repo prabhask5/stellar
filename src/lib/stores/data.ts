@@ -3,6 +3,7 @@ import type { GoalListWithProgress, Goal, GoalList, DailyRoutineGoal, DailyGoalP
 import * as repo from '$lib/db/repositories';
 import * as sync from '$lib/sync/engine';
 import { calculateGoalProgress } from '$lib/utils/colors';
+import { isRoutineActiveOnDate } from '$lib/utils/dates';
 import { browser } from '$app/environment';
 
 // ============================================================
@@ -192,13 +193,14 @@ function createDailyRoutinesStore() {
       targetValue: number | null,
       startDate: string,
       endDate: string | null,
-      userId: string
+      userId: string,
+      activeDays: DailyRoutineGoal['active_days'] = null
     ) => {
-      const newRoutine = await repo.createDailyRoutineGoal(name, type, targetValue, startDate, endDate, userId);
+      const newRoutine = await repo.createDailyRoutineGoal(name, type, targetValue, startDate, endDate, userId, activeDays);
       update(routines => [newRoutine, ...routines]);
       return newRoutine;
     },
-    update: async (id: string, updates: Partial<Pick<DailyRoutineGoal, 'name' | 'type' | 'target_value' | 'start_date' | 'end_date'>>) => {
+    update: async (id: string, updates: Partial<Pick<DailyRoutineGoal, 'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days'>>) => {
       const updated = await repo.updateDailyRoutineGoal(id, updates);
       if (updated) {
         update(routines => routines.map(r => r.id === id ? updated : r));
@@ -261,7 +263,7 @@ function createRoutineStore() {
         loading.set(false);
       }
     },
-    update: async (id: string, updates: Partial<Pick<DailyRoutineGoal, 'name' | 'type' | 'target_value' | 'start_date' | 'end_date'>>) => {
+    update: async (id: string, updates: Partial<Pick<DailyRoutineGoal, 'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days'>>) => {
       const updated = await repo.updateDailyRoutineGoal(id, updates);
       if (updated) {
         set(updated);
@@ -426,12 +428,8 @@ function createMonthProgressStore() {
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-      // Get active routines for this date
-      const activeRoutines = routines.filter(r => {
-        if (r.start_date > dateStr) return false;
-        if (r.end_date && r.end_date < dateStr) return false;
-        return true;
-      });
+      // Get active routines for this date (checks both date range AND active days)
+      const activeRoutines = routines.filter(r => isRoutineActiveOnDate(r, dateStr));
 
       if (activeRoutines.length === 0) continue;
 

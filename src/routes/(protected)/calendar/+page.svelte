@@ -3,8 +3,8 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { monthProgressStore, dailyRoutinesStore } from '$lib/stores/data';
-  import { formatDate, formatDisplayDate, isPastDay, isTodayDate, isDateInRange } from '$lib/utils/dates';
-  import type { DayProgress, DailyRoutineGoal, GoalType } from '$lib/types';
+  import { formatDate, formatDisplayDate, isPastDay, isTodayDate, isRoutineActiveOnDate } from '$lib/utils/dates';
+  import type { DayProgress, DailyRoutineGoal, GoalType, DayOfWeek } from '$lib/types';
   import Calendar from '$lib/components/Calendar.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import RoutineForm from '$lib/components/RoutineForm.svelte';
@@ -19,6 +19,19 @@
   let showCreateModal = $state(false);
 
   const today = formatDate(new Date());
+
+  // Helper to display active days as a short string
+  const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  function getActiveDaysDisplay(activeDays: DayOfWeek[] | null): string {
+    if (activeDays === null) return 'Every day';
+    if (activeDays.length === 5 && !activeDays.includes(0) && !activeDays.includes(6)) {
+      return 'Weekdays';
+    }
+    if (activeDays.length === 2 && activeDays.includes(0) && activeDays.includes(6)) {
+      return 'Weekends';
+    }
+    return activeDays.sort((a, b) => a - b).map(d => dayLabels[d]).join(' ');
+  }
 
   // Derive dayProgressMap from store, filtering for past days and today only
   const dayProgressMap = $derived(() => {
@@ -35,10 +48,10 @@
   });
 
   const activeRoutines = $derived(
-    routines.filter((r) => isDateInRange(today, r.start_date, r.end_date))
+    routines.filter((r) => isRoutineActiveOnDate(r, today))
   );
   const inactiveRoutines = $derived(
-    routines.filter((r) => !isDateInRange(today, r.start_date, r.end_date))
+    routines.filter((r) => !isRoutineActiveOnDate(r, today))
   );
 
   // Subscribe to stores
@@ -104,6 +117,7 @@
     targetValue: number | null;
     startDate: string;
     endDate: string | null;
+    activeDays: DayOfWeek[] | null;
   }) {
     try {
       const session = $page.data.session;
@@ -117,7 +131,8 @@
         data.targetValue,
         data.startDate,
         data.endDate,
-        session.user.id
+        session.user.id,
+        data.activeDays
       );
       showCreateModal = false;
       // Refresh calendar data to show new routine
@@ -266,6 +281,9 @@
                       <span class="badge type-{routine.type}">
                         {routine.type === 'completion' ? '✓' : '↑'} {routine.type === 'incremental' ? routine.target_value + '/day' : 'Complete'}
                       </span>
+                      <span class="badge days-badge">
+                        {getActiveDaysDisplay(routine.active_days)}
+                      </span>
                       <span class="date-range">
                         {formatDisplayDate(routine.start_date)} → {routine.end_date ? formatDisplayDate(routine.end_date) : '∞'}
                       </span>
@@ -309,6 +327,9 @@
                     <div class="routine-meta">
                       <span class="badge type-{routine.type}">
                         {routine.type === 'completion' ? '✓' : '↑'} {routine.type === 'incremental' ? routine.target_value + '/day' : 'Complete'}
+                      </span>
+                      <span class="badge days-badge">
+                        {getActiveDaysDisplay(routine.active_days)}
                       </span>
                       <span class="date-range">
                         {formatDisplayDate(routine.start_date)} → {routine.end_date ? formatDisplayDate(routine.end_date) : '∞'}
@@ -827,6 +848,13 @@
     color: var(--color-primary-light);
     border-color: rgba(108, 92, 231, 0.3);
     box-shadow: 0 0 10px var(--color-primary-glow);
+  }
+
+  .badge.days-badge {
+    color: var(--color-text-muted);
+    border-color: rgba(255, 255, 255, 0.1);
+    font-family: var(--font-mono);
+    letter-spacing: 0.1em;
   }
 
   .date-range {

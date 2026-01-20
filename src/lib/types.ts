@@ -24,6 +24,9 @@ export interface GoalList {
   goals?: Goal[];
 }
 
+// Days of week: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
 export interface DailyRoutineGoal {
   id: string;
   user_id: string;
@@ -32,6 +35,7 @@ export interface DailyRoutineGoal {
   target_value: number | null;
   start_date: string;
   end_date: string | null;
+  active_days: DayOfWeek[] | null; // null = all days (backwards compatible)
   order: number;
   created_at: string;
   updated_at: string;

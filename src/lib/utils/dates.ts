@@ -7,8 +7,10 @@ import {
   isAfter,
   isToday,
   parseISO,
-  startOfDay
+  startOfDay,
+  getDay
 } from 'date-fns';
+import type { DayOfWeek, DailyRoutineGoal } from '$lib/types';
 
 export function formatDate(date: Date | string): string {
   const d = typeof date === 'string' ? parseISO(date) : date;
@@ -68,4 +70,30 @@ export function getWeekdayNames(): string[] {
 
 export function getFirstDayOfMonthWeekday(date: Date): number {
   return startOfMonth(date).getDay();
+}
+
+/**
+ * Check if a routine is active on a specific date.
+ * A routine is active if:
+ * 1. The date is within the routine's start_date and end_date range
+ * 2. The day of week is included in the routine's active_days (null/undefined = all days)
+ */
+export function isRoutineActiveOnDate(
+  routine: Pick<DailyRoutineGoal, 'start_date' | 'end_date' | 'active_days'>,
+  date: Date | string
+): boolean {
+  const d = typeof date === 'string' ? parseISO(date) : date;
+  const dateStr = formatDate(d);
+
+  // Check date range
+  if (routine.start_date > dateStr) return false;
+  if (routine.end_date && routine.end_date < dateStr) return false;
+
+  // Check active days (null/undefined = all days are active for backwards compatibility)
+  if (routine.active_days != null && routine.active_days.length > 0) {
+    const dayOfWeek = getDay(d) as DayOfWeek;
+    if (!routine.active_days.includes(dayOfWeek)) return false;
+  }
+
+  return true;
 }

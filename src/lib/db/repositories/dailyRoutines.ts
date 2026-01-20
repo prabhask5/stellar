@@ -1,5 +1,5 @@
 import { db, generateId, now } from '../client';
-import type { DailyRoutineGoal, GoalType } from '$lib/types';
+import type { DailyRoutineGoal, GoalType, DayOfWeek } from '$lib/types';
 import { queueSync, queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
@@ -9,7 +9,8 @@ export async function createDailyRoutineGoal(
   targetValue: number | null,
   startDate: string,
   endDate: string | null,
-  userId: string
+  userId: string,
+  activeDays: DayOfWeek[] | null = null // null = all days (backwards compatible)
 ): Promise<DailyRoutineGoal> {
   const timestamp = now();
 
@@ -35,6 +36,7 @@ export async function createDailyRoutineGoal(
     target_value: type === 'incremental' ? targetValue : null,
     start_date: startDate,
     end_date: endDate,
+    active_days: activeDays,
     order: nextOrder,
     created_at: timestamp,
     updated_at: timestamp
@@ -50,6 +52,7 @@ export async function createDailyRoutineGoal(
       target_value: newRoutine.target_value,
       start_date: startDate,
       end_date: endDate,
+      active_days: activeDays,
       order: nextOrder,
       created_at: timestamp,
       updated_at: timestamp
@@ -62,7 +65,7 @@ export async function createDailyRoutineGoal(
 
 export async function updateDailyRoutineGoal(
   id: string,
-  updates: Partial<Pick<DailyRoutineGoal, 'name' | 'type' | 'target_value' | 'start_date' | 'end_date'>>
+  updates: Partial<Pick<DailyRoutineGoal, 'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days'>>
 ): Promise<DailyRoutineGoal | undefined> {
   const timestamp = now();
 
