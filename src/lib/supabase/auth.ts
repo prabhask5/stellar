@@ -1,6 +1,11 @@
 import { supabase } from './client';
 import type { User, Session } from '@supabase/supabase-js';
 
+export interface UserProfile {
+  firstName: string;
+  lastName: string;
+}
+
 export interface AuthResponse {
   user: User | null;
   session: Session | null;
@@ -20,10 +25,21 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
   };
 }
 
-export async function signUp(email: string, password: string): Promise<AuthResponse> {
+export async function signUp(
+  email: string,
+  password: string,
+  firstName: string,
+  lastName: string
+): Promise<AuthResponse> {
   const { data, error } = await supabase.auth.signUp({
     email,
-    password
+    password,
+    options: {
+      data: {
+        first_name: firstName,
+        last_name: lastName
+      }
+    }
   });
 
   return {
@@ -46,4 +62,22 @@ export async function getSession(): Promise<Session | null> {
 export async function getUser(): Promise<User | null> {
   const { data } = await supabase.auth.getUser();
   return data.user;
+}
+
+export function getUserProfile(user: User | null): UserProfile {
+  return {
+    firstName: user?.user_metadata?.first_name || '',
+    lastName: user?.user_metadata?.last_name || ''
+  };
+}
+
+export async function updateProfile(firstName: string, lastName: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.auth.updateUser({
+    data: {
+      first_name: firstName,
+      last_name: lastName
+    }
+  });
+
+  return { error: error?.message || null };
 }

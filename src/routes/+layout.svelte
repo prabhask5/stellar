@@ -2,7 +2,7 @@
   import '../app.css';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { signOut } from '$lib/supabase/auth';
+  import { signOut, getUserProfile } from '$lib/supabase/auth';
   import { stopSyncEngine, clearLocalCache } from '$lib/sync/engine';
   import { syncStatusStore } from '$lib/stores/sync';
   import SyncStatus from '$lib/components/SyncStatus.svelte';
@@ -15,6 +15,10 @@
   }
 
   let { children, data }: Props = $props();
+
+  // Get user's first name from profile
+  const profile = $derived(getUserProfile(data.session?.user ?? null));
+  const greeting = $derived(profile.firstName ? `Hi, ${profile.firstName}` : 'Hi there');
 
   const navItems = [
     { href: '/lists', label: 'Goal Lists', icon: '☐' },
@@ -57,7 +61,7 @@
       </div>
       <div class="nav-auth">
         <SyncStatus />
-        <span class="user-email">{data.session.user.email}</span>
+        <span class="user-greeting">{greeting}</span>
         <button class="btn btn-secondary btn-sm" onclick={handleSignOut}>Logout</button>
       </div>
     {:else}
@@ -138,12 +142,9 @@
     gap: 0.75rem;
   }
 
-  .user-email {
+  .user-greeting {
     font-size: 0.875rem;
-    color: var(--color-text-muted);
-    max-width: 150px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    color: var(--color-text);
     white-space: nowrap;
   }
 
@@ -171,7 +172,7 @@
       justify-content: center;
     }
 
-    .user-email {
+    .user-greeting {
       display: none;
     }
   }

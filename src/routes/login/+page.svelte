@@ -5,6 +5,8 @@
   let mode: 'login' | 'signup' = $state('login');
   let email = $state('');
   let password = $state('');
+  let firstName = $state('');
+  let lastName = $state('');
   let loading = $state(false);
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
@@ -23,7 +25,12 @@
         goto('/lists');
       }
     } else {
-      const result = await signUp(email, password);
+      if (!firstName.trim()) {
+        error = 'First name is required';
+        loading = false;
+        return;
+      }
+      const result = await signUp(email, password, firstName.trim(), lastName.trim());
       if (result.error) {
         error = result.error;
       } else if (result.session) {
@@ -49,6 +56,33 @@
     <h1>{mode === 'login' ? 'Log In' : 'Sign Up'}</h1>
 
     <form onsubmit={handleSubmit}>
+      {#if mode === 'signup'}
+        <div class="name-row">
+          <div class="form-group">
+            <label for="firstName">First Name</label>
+            <input
+              type="text"
+              id="firstName"
+              bind:value={firstName}
+              required
+              disabled={loading}
+              placeholder="John"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="lastName">Last Name</label>
+            <input
+              type="text"
+              id="lastName"
+              bind:value={lastName}
+              disabled={loading}
+              placeholder="Doe"
+            />
+          </div>
+        </div>
+      {/if}
+
       <div class="form-group">
         <label for="email">Email</label>
         <input
@@ -130,6 +164,12 @@
     gap: 1rem;
   }
 
+  .name-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
   .form-group {
     display: flex;
     flex-direction: column;
@@ -191,5 +231,11 @@
 
   .link-btn:hover {
     text-decoration: underline;
+  }
+
+  @media (max-width: 400px) {
+    .name-row {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
