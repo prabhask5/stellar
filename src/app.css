@@ -993,6 +993,18 @@ body {
     min-height: auto;
     min-width: auto;
   }
+
+  /* Exception for toggle switches - they need fixed dimensions for proper aspect ratio */
+  .toggle-btn {
+    min-height: auto;
+    min-width: auto;
+  }
+
+  /* Exception for styled checkboxes within labels - the label provides the touch target */
+  .checkbox-label input[type="checkbox"] {
+    min-height: auto;
+    min-width: auto;
+  }
 }
 
 /* Prevent text size adjustment on orientation change */

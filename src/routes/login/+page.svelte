@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { signIn, signUp } from '$lib/supabase/auth';
   import { getOfflineCredentials, verifyOfflinePassword } from '$lib/auth/offlineCredentials';
   import { createOfflineSession } from '$lib/auth/offlineSession';
@@ -15,6 +16,9 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
+
+  // Get redirect URL from query params
+  const redirectUrl = $derived($page.url.searchParams.get('redirect') || '/');
 
   // Offline login state
   let cachedCredentials = $state<OfflineCredentials | null>(null);
@@ -45,7 +49,7 @@
       if (result.error) {
         error = result.error;
       } else {
-        goto('/');
+        goto(redirectUrl);
       }
     } else {
       if (!firstName.trim()) {
@@ -57,7 +61,7 @@
       if (result.error) {
         error = result.error;
       } else if (result.session) {
-        goto('/');
+        goto(redirectUrl);
       } else {
         success = 'Check your email for the confirmation link!';
         mode = 'login';
@@ -78,7 +82,7 @@
 
     // Create offline session
     await createOfflineSession(cachedCredentials.userId);
-    goto('/');
+    goto(redirectUrl);
   }
 
   function toggleMode() {

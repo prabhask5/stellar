@@ -13,7 +13,7 @@ export interface ProtectedLayoutData {
   offlineProfile: OfflineCredentials | null;
 }
 
-export const load: LayoutLoad = async (): Promise<ProtectedLayoutData> => {
+export const load: LayoutLoad = async ({ url }): Promise<ProtectedLayoutData> => {
   if (browser) {
     // 1. Try Supabase session first
     const session = await getSession();
@@ -30,8 +30,12 @@ export const load: LayoutLoad = async (): Promise<ProtectedLayoutData> => {
       }
     }
 
-    // 3. No valid session - redirect to login
-    throw redirect(302, '/login');
+    // 3. No valid session - redirect to login with return URL
+    const returnUrl = url.pathname + url.search;
+    const loginUrl = returnUrl && returnUrl !== '/'
+      ? `/login?redirect=${encodeURIComponent(returnUrl)}`
+      : '/login';
+    throw redirect(302, loginUrl);
   }
   return { session: null, authMode: 'none', offlineProfile: null };
 };
