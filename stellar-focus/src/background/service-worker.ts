@@ -130,7 +130,7 @@ browser.webNavigation.onBeforeNavigate.addListener(async (details: browser.WebNa
     console.log('[Stellar Focus] 🚫 Blocking:', hostname);
     // Redirect to blocked page
     const blockedUrl = browser.runtime.getURL(
-      `dist/pages/blocked.html?url=${encodeURIComponent(details.url)}&domain=${encodeURIComponent(hostname)}`
+      `pages/blocked.html?url=${encodeURIComponent(details.url)}&domain=${encodeURIComponent(hostname)}`
     );
 
     browser.tabs.update(details.tabId, { url: blockedUrl });
