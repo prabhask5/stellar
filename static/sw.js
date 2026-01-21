@@ -53,14 +53,8 @@ self.addEventListener('activate', (event) => {
       // Take control of all open tabs immediately
       await self.clients.claim();
 
-      // Notify all clients that a new version is active
-      const clients = await self.clients.matchAll({ type: 'window' });
-      clients.forEach((client) => {
-        client.postMessage({
-          type: 'SW_UPDATED',
-          version: APP_VERSION
-        });
-      });
+      // Note: Don't send SW_UPDATED message here - it causes duplicate prompts after refresh
+      // The UpdatePrompt component detects updates via registration.waiting and updatefound event
     })()
   );
 });

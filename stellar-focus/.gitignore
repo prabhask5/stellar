@@ -1,8 +1,9 @@
 # Dependencies
 node_modules/
 
-# Build output
-dist/
+# Build outputs
+dist-firefox/
+dist-chrome/
 
 # Local config with secrets
 src/config.local.ts
@@ -18,3 +19,4 @@ Thumbs.db
 # Packages
 *.zip
 *.xpi
+*.crx

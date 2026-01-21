@@ -1,6 +1,6 @@
-# Stellar Focus - Firefox Extension
+# Stellar Focus - Browser Extension
 
-Block distracting websites during Stellar focus sessions.
+Block distracting websites during Stellar focus sessions. Supports both **Firefox** and **Chrome**.
 
 ## Quick Setup
 
@@ -14,39 +14,43 @@ cp src/config.local.example.ts src/config.local.ts
 Then edit `src/config.local.ts` with your actual values:
 
 ```typescript
-export const SUPABASE_URL = 'https://dqllviacdoartbmhkqrk.supabase.co';
+export const SUPABASE_URL = 'https://your-project.supabase.co';
 export const SUPABASE_ANON_KEY = 'your-actual-anon-key';
-export const APP_URL = 'https://stellarplanner.vercel.app';
+export const APP_URL = 'https://your-app-url.com';
 ```
 
 ### 2. Install and build
 
 ```bash
 npm install
-npm run build
+npm run build          # Build for both browsers
+npm run build:firefox  # Build Firefox only
+npm run build:chrome   # Build Chrome only
 ```
 
-### 3. Test locally in Firefox
+### 3. Test locally
 
+**Firefox:**
 1. Open Firefox and go to `about:debugging`
 2. Click "This Firefox"
 3. Click "Load Temporary Add-on"
-4. Select the `manifest.json` file from `stellar-focus/`
+4. Select `dist-firefox/manifest.json`
 
-### 4. Deploy to Firefox Add-ons
+**Chrome:**
+1. Open Chrome and go to `chrome://extensions`
+2. Enable "Developer mode" (top right)
+3. Click "Load unpacked"
+4. Select the `dist-chrome` folder
+
+### 4. Package for distribution
 
 ```bash
-# Create ZIP for submission
-zip -r stellar-focus.zip manifest.json icons/ dist/ -x "*.DS_Store"
-```
+# Firefox (.xpi)
+cd dist-firefox && zip -r ../stellar-focus-firefox.zip . && cd ..
 
-Then:
-1. Go to [addons.mozilla.org](https://addons.mozilla.org)
-2. Sign in / create account
-3. Click "Submit a New Add-on"
-4. Upload `stellar-focus.zip`
-5. Fill in listing details
-6. Submit for review (1-3 days)
+# Chrome (.zip for Chrome Web Store)
+cd dist-chrome && zip -r ../stellar-focus-chrome.zip . && cd ..
+```
 
 ---
 
@@ -69,22 +73,24 @@ Then:
 
 ```
 stellar-focus/
-├── manifest.json              # Extension manifest (Manifest V3)
+├── manifests/
+│   ├── firefox.json           # Firefox manifest (MV3)
+│   └── chrome.json            # Chrome manifest (MV3)
 ├── package.json               # Dependencies and scripts
 ├── tsconfig.json              # TypeScript configuration
-├── build.js                   # Build script for HTML/CSS copying
-├── .gitignore                 # Ignores config.local.ts, dist/, node_modules/
+├── build.js                   # Multi-target build script
 ├── icons/                     # Extension icons
-├── src/
-│   ├── config.ts              # Config loader (imports from config.local.ts)
+├── src/                       # Shared source code
+│   ├── config.ts              # Config loader
 │   ├── config.local.ts        # YOUR SECRETS - gitignored!
 │   ├── config.local.example.ts # Template for config.local.ts
 │   ├── popup/                 # Extension popup UI
 │   ├── background/            # Service worker for blocking
 │   ├── pages/                 # Block page shown when sites are blocked
-│   ├── auth/                  # Authentication (same pattern as main app)
+│   ├── auth/                  # Authentication
 │   └── lib/                   # Utilities (storage, network, sync)
-└── dist/                      # Built extension files (gitignored)
+├── dist-firefox/              # Firefox build output (gitignored)
+└── dist-chrome/               # Chrome build output (gitignored)
 ```
 
 ## How It Works
@@ -104,9 +110,11 @@ stellar-focus/
 ## Development
 
 ```bash
-npm run build    # Compile TypeScript and copy assets
-npm run watch    # Watch for TypeScript changes
-npm run clean    # Clean dist folder
+npm run build          # Build for all browsers
+npm run build:firefox  # Build Firefox only
+npm run build:chrome   # Build Chrome only
+npm run clean          # Clean all build outputs
+npm run typecheck      # Type-check TypeScript
 ```
 
 ## Troubleshooting

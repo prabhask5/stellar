@@ -2,18 +2,9 @@
   import { browser } from '$app/environment';
 
   let showPrompt = $state(false);
-  let newVersion = $state<string | null>(null);
 
   if (browser) {
-    // Listen for service worker update messages
-    navigator.serviceWorker?.addEventListener('message', (event) => {
-      if (event.data?.type === 'SW_UPDATED') {
-        newVersion = event.data.version || 'new';
-        showPrompt = true;
-      }
-    });
-
-    // Also check for waiting service worker on load
+    // Check for waiting service worker on load
     navigator.serviceWorker?.ready.then((registration) => {
       if (registration.waiting) {
         showPrompt = true;
