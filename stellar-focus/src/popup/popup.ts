@@ -85,6 +85,8 @@ let blockListSubscription: RealtimeChannel | null = null;
 let syncStatus: SyncStatus = 'idle';
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let cachedBlockLists: BlockList[] = [];
+let focusTimeInterval: ReturnType<typeof setInterval> | null = null;
+let hasActiveRunningSession = false;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', init);
@@ -120,6 +122,8 @@ function handleOnline() {
 function handleOffline() {
   isOnline = false;
   unsubscribeFromRealtime();
+  stopFocusTimeTick();
+  hasActiveRunningSession = false;
   updateView();
 }
 
@@ -203,6 +207,8 @@ async function handleLogin(e: Event) {
 async function handleLogout() {
   try {
     unsubscribeFromRealtime();
+    stopFocusTimeTick();
+    hasActiveRunningSession = false;
     await supabase.auth.signOut();
     currentUserId = null;
     updateView();
@@ -218,7 +224,8 @@ function updateUserInfo(user: { email?: string; user_metadata?: { first_name?: s
   const firstName = user.user_metadata?.first_name || '';
   const initial = firstName.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || '?';
   if (userAvatar) userAvatar.textContent = initial;
-  if (userName) userName.textContent = firstName || user.email || 'User';
+  const displayName = firstName || user.email?.split('@')[0] || 'there';
+  if (userName) userName.textContent = `Hey, ${displayName}!`;
 }
 
 // Data loading with sync indicator
@@ -324,7 +331,7 @@ function updateActiveBlockListCount(lists: BlockList[]) {
 }
 
 // Load focus time today
-async function loadFocusTimeToday() {
+async function loadFocusTimeToday(animate = true) {
   if (!currentUserId) return;
 
   try {
@@ -344,6 +351,7 @@ async function loadFocusTimeToday() {
     if (error) throw error;
 
     let totalMs = 0;
+    let foundRunningFocusSession = false;
 
     for (const session of (sessions || [])) {
       // Skip deleted sessions
@@ -354,12 +362,24 @@ async function loadFocusTimeToday() {
 
       // For currently running focus phase, add current elapsed
       if (!session.ended_at && session.phase === 'focus' && session.status === 'running') {
+        foundRunningFocusSession = true;
         const currentElapsed = Date.now() - new Date(session.phase_started_at).getTime();
         totalMs += Math.min(currentElapsed, session.focus_duration * 60 * 1000);
       }
     }
 
-    updateFocusTimeDisplay(totalMs);
+    // Track if there's an active running focus session
+    const wasRunning = hasActiveRunningSession;
+    hasActiveRunningSession = foundRunningFocusSession;
+
+    // Start/stop the tick interval based on session state
+    if (foundRunningFocusSession && !wasRunning) {
+      startFocusTimeTick();
+    } else if (!foundRunningFocusSession && wasRunning) {
+      stopFocusTimeTick();
+    }
+
+    updateFocusTimeDisplay(totalMs, animate);
   } catch (error) {
     console.error('[Stellar Focus] Load focus time error:', error);
   }
@@ -380,13 +400,37 @@ function formatDuration(ms: number): string {
 }
 
 // Update focus time display
-function updateFocusTimeDisplay(ms: number) {
+function updateFocusTimeDisplay(ms: number, animate = true) {
   if (focusTimeValue) {
-    focusTimeValue.classList.add('updating');
-    setTimeout(() => {
+    if (animate) {
+      focusTimeValue.classList.add('updating');
+      setTimeout(() => {
+        focusTimeValue.textContent = formatDuration(ms);
+        focusTimeValue.classList.remove('updating');
+      }, 150);
+    } else {
+      // No animation for periodic ticks
       focusTimeValue.textContent = formatDuration(ms);
-      focusTimeValue.classList.remove('updating');
-    }, 150);
+    }
+  }
+}
+
+// Start focus time tick interval (updates every 30 seconds while focus is running)
+function startFocusTimeTick() {
+  stopFocusTimeTick();
+  // Update every 30 seconds for smooth incrementing
+  focusTimeInterval = setInterval(() => {
+    if (hasActiveRunningSession) {
+      loadFocusTimeToday(false); // Don't animate periodic updates
+    }
+  }, 30000); // 30 seconds
+}
+
+// Stop focus time tick interval
+function stopFocusTimeTick() {
+  if (focusTimeInterval) {
+    clearInterval(focusTimeInterval);
+    focusTimeInterval = null;
   }
 }
 
@@ -574,6 +618,11 @@ async function subscribeToRealtime() {
           loadFocusTimeToday();
         }
 
+        // Notify service worker to refresh its focus session state
+        browser.runtime.sendMessage({ type: 'FOCUS_SESSION_UPDATED' }).catch(() => {
+          // Service worker might not be ready, ignore error
+        });
+
         // Show sync indicator with enough time to see the animation
         setSyncStatus('syncing');
         setTimeout(() => setSyncStatus('synced'), 800);
@@ -606,6 +655,11 @@ async function subscribeToRealtime() {
 
         // Reload block lists to get the latest data
         loadBlockLists();
+
+        // Notify service worker to refresh its block lists cache
+        browser.runtime.sendMessage({ type: 'BLOCK_LIST_UPDATED' }).catch(() => {
+          // Service worker might not be ready, ignore error
+        });
 
         // Show sync indicator
         setSyncStatus('syncing');

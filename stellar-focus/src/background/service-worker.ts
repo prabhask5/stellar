@@ -5,6 +5,7 @@
  */
 
 import browser from 'webextension-polyfill';
+import { type RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase, getSession, getUser } from '../auth/supabase';
 import { blockListsCache, blockedWebsitesCache, focusSessionCacheStore, type FocusSessionCache } from '../lib/storage';
 import { getNetworkStatus, checkConnectivity, getSupabaseUrl } from '../lib/network';
@@ -17,10 +18,16 @@ let currentFocusSession: FocusSessionCache | null = null;
 let isOnline = getNetworkStatus();
 let pollAlarmName = 'focus-poll';
 
+// Real-time subscriptions
+let focusSessionChannel: RealtimeChannel | null = null;
+let blockListChannel: RealtimeChannel | null = null;
+let blockedWebsitesChannel: RealtimeChannel | null = null;
+
 // Initialize
 browser.runtime.onInstalled.addListener(() => {
   console.log('[Stellar Focus] Extension installed');
   setupAlarm();
+  init();
 });
 
 browser.runtime.onStartup.addListener(() => {
@@ -64,6 +71,12 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
     return;
   }
 
+  if (message.type === 'FOCUS_SESSION_UPDATED') {
+    // Refresh focus session state immediately
+    pollFocusSession();
+    return;
+  }
+
   if (message.type === 'GET_STATUS') {
     sendResponse({
       isOnline,
@@ -78,6 +91,25 @@ browser.webNavigation.onBeforeNavigate.addListener(async (details: browser.WebNa
   // Only block main frame navigations
   if (details.frameId !== 0) return;
 
+  const url = new URL(details.url);
+  const hostname = url.hostname;
+
+  // Skip internal URLs
+  if (hostname === '' || url.protocol === 'moz-extension:' || url.protocol === 'about:') return;
+
+  // Debug: Log navigation attempts for common distracting sites
+  const debugDomains = ['youtube.com', 'twitter.com', 'facebook.com', 'reddit.com', 'instagram.com'];
+  const isDebugDomain = debugDomains.some(d => hostname.includes(d));
+
+  if (isDebugDomain) {
+    console.log('[Stellar Focus] Navigation to:', hostname, {
+      isOnline,
+      hasSession: !!currentFocusSession,
+      sessionStatus: currentFocusSession?.status,
+      sessionPhase: currentFocusSession?.phase
+    });
+  }
+
   // CRITICAL: Don't block if offline
   if (!isOnline) return;
 
@@ -88,13 +120,17 @@ browser.webNavigation.onBeforeNavigate.addListener(async (details: browser.WebNa
   if (currentFocusSession.phase !== 'focus') return;
 
   // Check if the URL should be blocked
-  const url = new URL(details.url);
-  const shouldBlock = await isDomainBlocked(url.hostname);
+  const shouldBlock = await isDomainBlocked(hostname);
+
+  if (isDebugDomain) {
+    console.log('[Stellar Focus] Should block', hostname, ':', shouldBlock);
+  }
 
   if (shouldBlock) {
+    console.log('[Stellar Focus] 🚫 Blocking:', hostname);
     // Redirect to blocked page
     const blockedUrl = browser.runtime.getURL(
-      `dist/pages/blocked.html?url=${encodeURIComponent(details.url)}&domain=${encodeURIComponent(url.hostname)}`
+      `dist/pages/blocked.html?url=${encodeURIComponent(details.url)}&domain=${encodeURIComponent(hostname)}`
     );
 
     browser.tabs.update(details.tabId, { url: blockedUrl });
@@ -116,15 +152,127 @@ async function init() {
 
   // Load block lists
   await refreshBlockLists();
+
+  // Set up real-time subscriptions for instant updates
+  await setupRealtimeSubscriptions();
+}
+
+// Set up real-time subscriptions for instant updates
+async function setupRealtimeSubscriptions() {
+  if (!isOnline) return;
+
+  const session = await getSession();
+  if (!session) return;
+
+  const user = await getUser();
+  if (!user) return;
+
+  const supabase = getSupabase();
+
+  // Clean up existing subscriptions
+  cleanupRealtimeSubscriptions();
+
+  // Set auth token for realtime
+  supabase.realtime.setAuth(session.access_token);
+
+  const timestamp = Date.now();
+
+  // Subscribe to focus sessions changes
+  focusSessionChannel = supabase
+    .channel(`sw-focus-sessions-${user.id}-${timestamp}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'focus_sessions',
+        filter: `user_id=eq.${user.id}`
+      },
+      (payload) => {
+        console.log('[Stellar Focus] 🚀 Real-time: Focus session update', payload.eventType);
+        pollFocusSession();
+      }
+    )
+    .subscribe((status) => {
+      console.log('[Stellar Focus] Focus session subscription:', status);
+    });
+
+  // Subscribe to block lists changes
+  blockListChannel = supabase
+    .channel(`sw-block-lists-${user.id}-${timestamp}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'block_lists',
+        filter: `user_id=eq.${user.id}`
+      },
+      (payload) => {
+        console.log('[Stellar Focus] 🚀 Real-time: Block list update', payload.eventType);
+        refreshBlockLists();
+      }
+    )
+    .subscribe((status) => {
+      console.log('[Stellar Focus] Block list subscription:', status);
+    });
+
+  // Subscribe to blocked websites changes (most important for instant blocking)
+  blockedWebsitesChannel = supabase
+    .channel(`sw-blocked-websites-${user.id}-${timestamp}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'blocked_websites'
+      },
+      (payload) => {
+        console.log('[Stellar Focus] 🚀 Real-time: Blocked website update', payload.eventType);
+        // Refresh block lists to get the updated websites
+        refreshBlockLists();
+      }
+    )
+    .subscribe((status) => {
+      console.log('[Stellar Focus] Blocked websites subscription:', status);
+    });
+
+  console.log('[Stellar Focus] Real-time subscriptions set up');
+}
+
+// Clean up real-time subscriptions
+function cleanupRealtimeSubscriptions() {
+  const supabase = getSupabase();
+
+  if (focusSessionChannel) {
+    supabase.removeChannel(focusSessionChannel);
+    focusSessionChannel = null;
+  }
+  if (blockListChannel) {
+    supabase.removeChannel(blockListChannel);
+    blockListChannel = null;
+  }
+  if (blockedWebsitesChannel) {
+    supabase.removeChannel(blockedWebsitesChannel);
+    blockedWebsitesChannel = null;
+  }
 }
 
 async function pollFocusSession() {
   // Check connectivity first
+  const wasOnline = isOnline;
   isOnline = await checkConnectivity(getSupabaseUrl());
 
   if (!isOnline) {
     console.log('[Stellar Focus] Offline - skipping poll');
+    cleanupRealtimeSubscriptions();
     return;
+  }
+
+  // Re-setup subscriptions if we just came back online
+  if (!wasOnline && isOnline) {
+    console.log('[Stellar Focus] Back online - setting up real-time subscriptions');
+    await setupRealtimeSubscriptions();
   }
 
   try {
@@ -133,6 +281,7 @@ async function pollFocusSession() {
     if (!session) {
       currentFocusSession = null;
       await focusSessionCacheStore.clear();
+      cleanupRealtimeSubscriptions();
       return;
     }
 
@@ -151,6 +300,11 @@ async function pollFocusSession() {
 
     if (data && data.length > 0 && !error) {
       const session = data[0];
+
+      // Check if focus session just started (wasn't running before, now it is)
+      const wasRunning = currentFocusSession?.status === 'running' && currentFocusSession?.phase === 'focus';
+      const isNowRunning = session.status === 'running' && session.phase === 'focus';
+
       // Update cached session
       const sessionData: FocusSessionCache = {
         id: 'current',
@@ -165,6 +319,12 @@ async function pollFocusSession() {
 
       await focusSessionCacheStore.put(sessionData);
       currentFocusSession = sessionData;
+
+      // Refresh block lists when focus session starts to ensure we have latest data
+      if (!wasRunning && isNowRunning) {
+        console.log('[Stellar Focus] Focus session started - refreshing block lists');
+        await refreshBlockLists();
+      }
 
       console.log('[Stellar Focus] Focus session active:', session.phase, session.status);
     } else {
