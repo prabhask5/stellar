@@ -743,7 +743,7 @@ async function pushPendingOps(): Promise<void> {
         console.error(`Failed to sync item ${item.id}:`, error);
         // Capture error details for UI display
         const errorInfo = {
-          message: error instanceof Error ? error.message : String(error),
+          message: extractErrorMessage(error),
           table: item.table,
           operation: item.operation,
           entityId: item.entityId
@@ -826,6 +826,52 @@ async function processSyncItem(item: SyncQueueItem): Promise<void> {
       break;
     }
   }
+}
+
+// Extract raw error message from various error formats (Supabase, Error, etc.)
+function extractErrorMessage(error: unknown): string {
+  // Standard Error object
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  // Supabase/PostgreSQL error object: { message, details, hint, code }
+  if (error && typeof error === 'object') {
+    const err = error as Record<string, unknown>;
+
+    // Try common error message properties
+    if (typeof err.message === 'string' && err.message) {
+      // Include details/hint if available for more context
+      let msg = err.message;
+      if (typeof err.details === 'string' && err.details) {
+        msg += ` - ${err.details}`;
+      }
+      if (typeof err.hint === 'string' && err.hint) {
+        msg += ` (${err.hint})`;
+      }
+      return msg;
+    }
+
+    // Try error property (some wrappers use this)
+    if (typeof err.error === 'string' && err.error) {
+      return err.error;
+    }
+
+    // Try description property
+    if (typeof err.description === 'string' && err.description) {
+      return err.description;
+    }
+
+    // Last resort: stringify the object
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return '[Unable to parse error]';
+    }
+  }
+
+  // Primitive types
+  return String(error);
 }
 
 // Parse error into user-friendly message
@@ -951,7 +997,7 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
     // Background syncs fail silently - they'll retry automatically
     if (!quiet) {
       const friendlyMessage = parseErrorMessage(error);
-      const rawMessage = error instanceof Error ? error.message : String(error);
+      const rawMessage = extractErrorMessage(error);
       syncStatusStore.setStatus('error');
       syncStatusStore.setError(friendlyMessage, rawMessage);
       syncStatusStore.setSyncMessage(friendlyMessage);
@@ -1153,7 +1199,7 @@ export async function hydrateFromRemote(): Promise<void> {
   } catch (error) {
     console.error('Hydration failed:', error);
     const friendlyMessage = parseErrorMessage(error);
-    const rawMessage = error instanceof Error ? error.message : String(error);
+    const rawMessage = extractErrorMessage(error);
     syncStatusStore.setStatus('error');
     syncStatusStore.setError(friendlyMessage, rawMessage);
     syncStatusStore.setSyncMessage(friendlyMessage);
