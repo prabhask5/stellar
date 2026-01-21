@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
-  import { focusStore, blockListStore } from '$lib/stores/focus';
-  import type { FocusSettings, FocusSession, BlockList } from '$lib/types';
+  import { focusStore, blockListStore, focusTimeUpdated } from '$lib/stores/focus';
+  import type { FocusSettings, FocusSession, BlockList, DayOfWeek } from '$lib/types';
   import { formatDuration } from '$lib/utils/focus';
 
   import FocusTimer from '$lib/components/focus/FocusTimer.svelte';
@@ -49,7 +49,11 @@
         isRunning = state.isRunning;
       }),
       focusStore.loading.subscribe(v => loading = v),
-      blockListStore.subscribe(v => blockLists = v)
+      blockListStore.subscribe(v => blockLists = v),
+      // Refresh focus time when it's updated (e.g., after phase completion)
+      focusTimeUpdated.subscribe(() => {
+        loadTodayFocusTime();
+      })
     ];
 
     return () => unsubs.forEach(u => u());
@@ -99,8 +103,16 @@
     focusStore.updateSettings(updates);
   }
 
+  // Helper to check if a block list is active today
+  function isBlockListActiveToday(list: BlockList): boolean {
+    if (!list.is_enabled) return false;
+    if (list.active_days === null) return true; // null means every day
+    const currentDay = new Date().getDay() as DayOfWeek;
+    return list.active_days.includes(currentDay);
+  }
+
   // Derived values
-  const enabledBlockListCount = $derived(blockLists.filter(l => l.is_enabled).length);
+  const enabledBlockListCount = $derived(blockLists.filter(isBlockListActiveToday).length);
   const todayFocusFormatted = $derived(formatDuration(todayFocusTime));
 </script>
 

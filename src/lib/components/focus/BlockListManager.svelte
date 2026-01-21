@@ -92,6 +92,17 @@
     editingListId = null;
     blockedWebsitesStore.clear();
   }
+
+  // Helper to check if a block list is active today
+  function isBlockListActiveToday(list: { is_enabled: boolean; active_days: DayOfWeek[] | null }): boolean {
+    if (!list.is_enabled) return false;
+    if (list.active_days === null) return true; // null means every day
+    const currentDay = new Date().getDay() as DayOfWeek;
+    return list.active_days.includes(currentDay);
+  }
+
+  // Derived count of active block lists
+  const activeBlockListCount = $derived($blockListStore.filter(isBlockListActiveToday).length);
 </script>
 
 <div class="block-list-manager">
@@ -103,7 +114,7 @@
       <rect x="3" y="14" width="7" height="7"/>
     </svg>
     <span>Block Lists</span>
-    <span class="badge">{$blockListStore.filter(l => l.is_enabled).length}</span>
+    <span class="badge">{activeBlockListCount}</span>
     <svg class="chevron" class:open={isOpen} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
       <polyline points="6,9 12,15 18,9"/>
     </svg>

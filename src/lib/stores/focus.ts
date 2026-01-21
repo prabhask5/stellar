@@ -22,6 +22,9 @@ interface FocusState {
   isRunning: boolean;
 }
 
+// Store to notify when focus time should be refreshed
+const focusTimeUpdatedStore = writable(0);
+
 function createFocusStore() {
   const { subscribe, set, update }: Writable<FocusState> = writable({
     settings: null,
@@ -34,6 +37,11 @@ function createFocusStore() {
   let tickInterval: ReturnType<typeof setInterval> | null = null;
   let currentUserId: string | null = null;
   let unsubscribe: (() => void) | null = null;
+
+  // Function to trigger focus time refresh
+  function notifyFocusTimeUpdated() {
+    focusTimeUpdatedStore.update(n => n + 1);
+  }
 
   // Tick function to update remaining time
   function tick() {
@@ -83,6 +91,10 @@ function createFocusStore() {
         isRunning: false
       }));
       stopTicker();
+      // Notify that focus time has been updated
+      if (elapsedFocusMinutes !== undefined) {
+        notifyFocusTimeUpdated();
+      }
       return;
     }
 
@@ -119,6 +131,11 @@ function createFocusStore() {
           remainingMs: next.durationMs,
           isRunning: true
         }));
+      }
+
+      // Notify that focus time has been updated after completing a focus phase
+      if (elapsedFocusMinutes !== undefined) {
+        notifyFocusTimeUpdated();
       }
     }
   }
@@ -292,6 +309,11 @@ function createFocusStore() {
       }));
 
       stopTicker();
+
+      // Notify that focus time has been updated
+      if (elapsedFocusMinutes !== undefined) {
+        notifyFocusTimeUpdated();
+      }
     },
 
     // Skip to next phase
@@ -324,6 +346,10 @@ function createFocusStore() {
           isRunning: false
         }));
         stopTicker();
+        // Notify that focus time has been updated
+        if (elapsedFocusMinutes !== undefined) {
+          notifyFocusTimeUpdated();
+        }
         return;
       }
 
@@ -354,6 +380,11 @@ function createFocusStore() {
             remainingMs: next.durationMs,
             isRunning: false
           }));
+        }
+
+        // Notify that focus time has been updated after completing a focus phase
+        if (elapsedFocusMinutes !== undefined) {
+          notifyFocusTimeUpdated();
         }
       }
     },
@@ -391,6 +422,9 @@ function createFocusStore() {
 }
 
 export const focusStore = createFocusStore();
+
+// Export the focus time updated store for components to subscribe to
+export const focusTimeUpdated: Readable<number> = { subscribe: focusTimeUpdatedStore.subscribe };
 
 // ============================================================
 // BLOCK LIST STORE
@@ -586,6 +620,8 @@ function createSingleBlockListStore() {
       const updated = await repo.updateBlockList(id, updates);
       if (updated) {
         set(updated);
+        // Also refresh the main block list store so counts update
+        blockListStore.refresh();
       }
       return updated;
     },
