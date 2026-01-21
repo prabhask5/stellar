@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { TaskCategory } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 export async function createTaskCategory(name: string, color: string, userId: string): Promise<TaskCategory> {
@@ -40,13 +40,19 @@ export async function createTaskCategory(name: string, color: string, userId: st
 export async function updateTaskCategory(id: string, updates: Partial<Pick<TaskCategory, 'name' | 'color'>>): Promise<TaskCategory | undefined> {
   const timestamp = now();
 
-  await db.taskCategories.update(id, { ...updates, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: TaskCategory | undefined;
+  await db.transaction('rw', [db.taskCategories, db.syncQueue], async () => {
+    await db.taskCategories.update(id, { ...updates, updated_at: timestamp });
+    updated = await db.taskCategories.get(id);
+    if (updated) {
+      await queueSyncDirect('task_categories', 'update', id, { ...updates, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.taskCategories.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('task_categories', 'update', id, { ...updates, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }
@@ -76,13 +82,19 @@ export async function deleteTaskCategory(id: string): Promise<void> {
 export async function reorderTaskCategory(id: string, newOrder: number): Promise<TaskCategory | undefined> {
   const timestamp = now();
 
-  await db.taskCategories.update(id, { order: newOrder, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: TaskCategory | undefined;
+  await db.transaction('rw', [db.taskCategories, db.syncQueue], async () => {
+    await db.taskCategories.update(id, { order: newOrder, updated_at: timestamp });
+    updated = await db.taskCategories.get(id);
+    if (updated) {
+      await queueSyncDirect('task_categories', 'update', id, { order: newOrder, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.taskCategories.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('task_categories', 'update', id, { order: newOrder, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }

@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { FocusSettings } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 // Default focus settings
@@ -61,13 +61,19 @@ export async function updateFocusSettings(
 ): Promise<FocusSettings | undefined> {
   const timestamp = now();
 
-  await db.focusSettings.update(id, { ...updates, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: FocusSettings | undefined;
+  await db.transaction('rw', [db.focusSettings, db.syncQueue], async () => {
+    await db.focusSettings.update(id, { ...updates, updated_at: timestamp });
+    updated = await db.focusSettings.get(id);
+    if (updated) {
+      await queueSyncDirect('focus_settings', 'update', id, { ...updates, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.focusSettings.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('focus_settings', 'update', id, { ...updates, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }

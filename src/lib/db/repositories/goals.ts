@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { Goal, GoalType } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 export async function createGoal(
@@ -64,14 +64,19 @@ export async function updateGoal(
 ): Promise<Goal | undefined> {
   const timestamp = now();
 
-  await db.goals.update(id, { ...updates, updated_at: timestamp });
+  // Use transaction to ensure atomicity - prevents sync pull from overwriting during the gap
+  let updated: Goal | undefined;
+  await db.transaction('rw', [db.goals, db.syncQueue], async () => {
+    await db.goals.update(id, { ...updates, updated_at: timestamp });
+    updated = await db.goals.get(id);
+    if (updated) {
+      await queueSyncDirect('goals', 'update', id, { ...updates, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.goals.get(id);
-  if (!updated) return undefined;
-
-  // Queue for sync and schedule debounced push
-  await queueSync('goals', 'update', id, { ...updates, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }
@@ -97,31 +102,43 @@ export async function incrementGoal(id: string, amount: number = 1): Promise<Goa
   const newValue = Math.min(goal.current_value + amount, goal.target_value || Infinity);
   const completed = goal.target_value ? newValue >= goal.target_value : false;
 
-  // Update local immediately
-  await db.goals.update(id, { current_value: newValue, completed, updated_at: timestamp });
-
-  // Queue UPDATE with final value (will be coalesced if user clicks rapidly)
-  await queueSync('goals', 'update', id, {
-    current_value: newValue,
-    completed,
-    updated_at: timestamp
+  // Use transaction to ensure atomicity - prevents sync pull from overwriting during rapid clicks
+  let updated: Goal | undefined;
+  await db.transaction('rw', [db.goals, db.syncQueue], async () => {
+    await db.goals.update(id, { current_value: newValue, completed, updated_at: timestamp });
+    updated = await db.goals.get(id);
+    if (updated) {
+      await queueSyncDirect('goals', 'update', id, {
+        current_value: newValue,
+        completed,
+        updated_at: timestamp
+      });
+    }
   });
-  scheduleSyncPush();
 
-  return db.goals.get(id);
+  if (updated) {
+    scheduleSyncPush();
+  }
+
+  return updated;
 }
 
 export async function reorderGoal(id: string, newOrder: number): Promise<Goal | undefined> {
   const timestamp = now();
 
-  await db.goals.update(id, { order: newOrder, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: Goal | undefined;
+  await db.transaction('rw', [db.goals, db.syncQueue], async () => {
+    await db.goals.update(id, { order: newOrder, updated_at: timestamp });
+    updated = await db.goals.get(id);
+    if (updated) {
+      await queueSyncDirect('goals', 'update', id, { order: newOrder, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.goals.get(id);
-  if (!updated) return undefined;
-
-  // Queue for sync and schedule debounced push
-  await queueSync('goals', 'update', id, { order: newOrder, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }

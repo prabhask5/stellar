@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { BlockedWebsite } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 export async function getBlockedWebsites(blockListId: string): Promise<BlockedWebsite[]> {
@@ -50,13 +50,19 @@ export async function updateBlockedWebsite(
   const timestamp = now();
   const normalizedDomain = normalizeDomain(domain);
 
-  await db.blockedWebsites.update(id, { domain: normalizedDomain, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: BlockedWebsite | undefined;
+  await db.transaction('rw', [db.blockedWebsites, db.syncQueue], async () => {
+    await db.blockedWebsites.update(id, { domain: normalizedDomain, updated_at: timestamp });
+    updated = await db.blockedWebsites.get(id);
+    if (updated) {
+      await queueSyncDirect('blocked_websites', 'update', id, { domain: normalizedDomain, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.blockedWebsites.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('blocked_websites', 'update', id, { domain: normalizedDomain, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }

@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { DailyGoalProgress } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 async function getProgressForRoutineAndDate(
@@ -29,20 +29,25 @@ export async function upsertDailyProgress(
   const existing = await getProgressForRoutineAndDate(dailyRoutineGoalId, date);
 
   if (existing) {
-    await db.dailyGoalProgress.update(existing.id, {
-      current_value: currentValue,
-      completed,
-      updated_at: timestamp
-    });
-
-    const updated = await db.dailyGoalProgress.get(existing.id);
-    if (updated) {
-      // Queue for sync and schedule debounced push
-      await queueSync('daily_goal_progress', 'update', existing.id, {
+    // Use transaction to ensure atomicity
+    let updated: DailyGoalProgress | undefined;
+    await db.transaction('rw', [db.dailyGoalProgress, db.syncQueue], async () => {
+      await db.dailyGoalProgress.update(existing.id, {
         current_value: currentValue,
         completed,
         updated_at: timestamp
       });
+      updated = await db.dailyGoalProgress.get(existing.id);
+      if (updated) {
+        await queueSyncDirect('daily_goal_progress', 'update', existing.id, {
+          current_value: currentValue,
+          completed,
+          updated_at: timestamp
+        });
+      }
+    });
+
+    if (updated) {
       scheduleSyncPush();
       return updated;
     }
@@ -90,23 +95,28 @@ export async function incrementDailyProgress(
   const completed = newValue >= targetValue;
 
   if (existing) {
-    // Update local immediately
-    await db.dailyGoalProgress.update(existing.id, {
-      current_value: newValue,
-      completed,
-      updated_at: timestamp
+    // Use transaction to ensure atomicity - prevents sync pull from overwriting during rapid clicks
+    let updated: DailyGoalProgress | undefined;
+    await db.transaction('rw', [db.dailyGoalProgress, db.syncQueue], async () => {
+      await db.dailyGoalProgress.update(existing.id, {
+        current_value: newValue,
+        completed,
+        updated_at: timestamp
+      });
+      updated = await db.dailyGoalProgress.get(existing.id);
+      if (updated) {
+        await queueSyncDirect('daily_goal_progress', 'update', existing.id, {
+          current_value: newValue,
+          completed,
+          updated_at: timestamp
+        });
+      }
     });
 
-    // Queue UPDATE with final value (will be coalesced if user clicks rapidly)
-    await queueSync('daily_goal_progress', 'update', existing.id, {
-      current_value: newValue,
-      completed,
-      updated_at: timestamp
-    });
-    scheduleSyncPush();
-
-    const updated = await db.dailyGoalProgress.get(existing.id);
-    return updated!;
+    if (updated) {
+      scheduleSyncPush();
+      return updated;
+    }
   }
 
   // Create new progress record

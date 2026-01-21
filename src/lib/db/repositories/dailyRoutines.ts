@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { DailyRoutineGoal, GoalType, DayOfWeek } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 export async function createDailyRoutineGoal(
@@ -69,14 +69,19 @@ export async function updateDailyRoutineGoal(
 ): Promise<DailyRoutineGoal | undefined> {
   const timestamp = now();
 
-  await db.dailyRoutineGoals.update(id, { ...updates, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: DailyRoutineGoal | undefined;
+  await db.transaction('rw', [db.dailyRoutineGoals, db.syncQueue], async () => {
+    await db.dailyRoutineGoals.update(id, { ...updates, updated_at: timestamp });
+    updated = await db.dailyRoutineGoals.get(id);
+    if (updated) {
+      await queueSyncDirect('daily_routine_goals', 'update', id, { ...updates, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.dailyRoutineGoals.get(id);
-  if (!updated) return undefined;
-
-  // Queue for sync and schedule debounced push
-  await queueSync('daily_routine_goals', 'update', id, { ...updates, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }
@@ -109,14 +114,19 @@ export async function deleteDailyRoutineGoal(id: string): Promise<void> {
 export async function reorderDailyRoutineGoal(id: string, newOrder: number): Promise<DailyRoutineGoal | undefined> {
   const timestamp = now();
 
-  await db.dailyRoutineGoals.update(id, { order: newOrder, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: DailyRoutineGoal | undefined;
+  await db.transaction('rw', [db.dailyRoutineGoals, db.syncQueue], async () => {
+    await db.dailyRoutineGoals.update(id, { order: newOrder, updated_at: timestamp });
+    updated = await db.dailyRoutineGoals.get(id);
+    if (updated) {
+      await queueSyncDirect('daily_routine_goals', 'update', id, { order: newOrder, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.dailyRoutineGoals.get(id);
-  if (!updated) return undefined;
-
-  // Queue for sync and schedule debounced push
-  await queueSync('daily_routine_goals', 'update', id, { order: newOrder, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }

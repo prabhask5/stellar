@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { BlockList, DayOfWeek } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 export async function getBlockLists(userId: string): Promise<BlockList[]> {
@@ -73,13 +73,19 @@ export async function updateBlockList(
 ): Promise<BlockList | undefined> {
   const timestamp = now();
 
-  await db.blockLists.update(id, { ...updates, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: BlockList | undefined;
+  await db.transaction('rw', [db.blockLists, db.syncQueue], async () => {
+    await db.blockLists.update(id, { ...updates, updated_at: timestamp });
+    updated = await db.blockLists.get(id);
+    if (updated) {
+      await queueSyncDirect('block_lists', 'update', id, { ...updates, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.blockLists.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('block_lists', 'update', id, { ...updates, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }
@@ -118,13 +124,19 @@ export async function deleteBlockList(id: string): Promise<void> {
 export async function reorderBlockList(id: string, newOrder: number): Promise<BlockList | undefined> {
   const timestamp = now();
 
-  await db.blockLists.update(id, { order: newOrder, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: BlockList | undefined;
+  await db.transaction('rw', [db.blockLists, db.syncQueue], async () => {
+    await db.blockLists.update(id, { order: newOrder, updated_at: timestamp });
+    updated = await db.blockLists.get(id);
+    if (updated) {
+      await queueSyncDirect('block_lists', 'update', id, { order: newOrder, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.blockLists.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('block_lists', 'update', id, { order: newOrder, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }

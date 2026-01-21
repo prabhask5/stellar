@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { DailyTask } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 export async function createDailyTask(name: string, userId: string): Promise<DailyTask> {
@@ -46,13 +46,19 @@ export async function createDailyTask(name: string, userId: string): Promise<Dai
 export async function updateDailyTask(id: string, updates: Partial<Pick<DailyTask, 'name' | 'completed'>>): Promise<DailyTask | undefined> {
   const timestamp = now();
 
-  await db.dailyTasks.update(id, { ...updates, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: DailyTask | undefined;
+  await db.transaction('rw', [db.dailyTasks, db.syncQueue], async () => {
+    await db.dailyTasks.update(id, { ...updates, updated_at: timestamp });
+    updated = await db.dailyTasks.get(id);
+    if (updated) {
+      await queueSyncDirect('daily_tasks', 'update', id, { ...updates, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.dailyTasks.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('daily_tasks', 'update', id, { ...updates, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }
@@ -64,13 +70,19 @@ export async function toggleDailyTaskComplete(id: string): Promise<DailyTask | u
   const timestamp = now();
   const newCompleted = !task.completed;
 
-  await db.dailyTasks.update(id, { completed: newCompleted, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: DailyTask | undefined;
+  await db.transaction('rw', [db.dailyTasks, db.syncQueue], async () => {
+    await db.dailyTasks.update(id, { completed: newCompleted, updated_at: timestamp });
+    updated = await db.dailyTasks.get(id);
+    if (updated) {
+      await queueSyncDirect('daily_tasks', 'update', id, { completed: newCompleted, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.dailyTasks.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('daily_tasks', 'update', id, { completed: newCompleted, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }
@@ -90,13 +102,19 @@ export async function deleteDailyTask(id: string): Promise<void> {
 export async function reorderDailyTask(id: string, newOrder: number): Promise<DailyTask | undefined> {
   const timestamp = now();
 
-  await db.dailyTasks.update(id, { order: newOrder, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: DailyTask | undefined;
+  await db.transaction('rw', [db.dailyTasks, db.syncQueue], async () => {
+    await db.dailyTasks.update(id, { order: newOrder, updated_at: timestamp });
+    updated = await db.dailyTasks.get(id);
+    if (updated) {
+      await queueSyncDirect('daily_tasks', 'update', id, { order: newOrder, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.dailyTasks.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('daily_tasks', 'update', id, { order: newOrder, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }

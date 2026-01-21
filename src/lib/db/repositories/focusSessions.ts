@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { FocusSession, FocusPhase } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 export async function getActiveSession(userId: string): Promise<FocusSession | null> {
@@ -77,13 +77,19 @@ export async function updateFocusSession(
 ): Promise<FocusSession | undefined> {
   const timestamp = now();
 
-  await db.focusSessions.update(id, { ...updates, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: FocusSession | undefined;
+  await db.transaction('rw', [db.focusSessions, db.syncQueue], async () => {
+    await db.focusSessions.update(id, { ...updates, updated_at: timestamp });
+    updated = await db.focusSessions.get(id);
+    if (updated) {
+      await queueSyncDirect('focus_sessions', 'update', id, { ...updates, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.focusSessions.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('focus_sessions', 'update', id, { ...updates, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }

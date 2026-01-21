@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { GoalList } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 export async function createGoalList(name: string, userId: string): Promise<GoalList> {
@@ -31,15 +31,19 @@ export async function createGoalList(name: string, userId: string): Promise<Goal
 export async function updateGoalList(id: string, name: string): Promise<GoalList | undefined> {
   const timestamp = now();
 
-  // Use transaction to ensure atomicity - update coalescing happens outside transaction
-  await db.goalLists.update(id, { name, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: GoalList | undefined;
+  await db.transaction('rw', [db.goalLists, db.syncQueue], async () => {
+    await db.goalLists.update(id, { name, updated_at: timestamp });
+    updated = await db.goalLists.get(id);
+    if (updated) {
+      await queueSyncDirect('goal_lists', 'update', id, { name, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.goalLists.get(id);
-  if (!updated) return undefined;
-
-  // Queue for sync (uses coalescing for updates, so can't be in transaction)
-  await queueSync('goal_lists', 'update', id, { name, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }

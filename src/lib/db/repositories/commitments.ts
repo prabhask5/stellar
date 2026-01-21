@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { Commitment, CommitmentSection } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 export async function createCommitment(name: string, section: CommitmentSection, userId: string): Promise<Commitment> {
@@ -41,13 +41,19 @@ export async function createCommitment(name: string, section: CommitmentSection,
 export async function updateCommitment(id: string, updates: Partial<Pick<Commitment, 'name' | 'section'>>): Promise<Commitment | undefined> {
   const timestamp = now();
 
-  await db.commitments.update(id, { ...updates, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: Commitment | undefined;
+  await db.transaction('rw', [db.commitments, db.syncQueue], async () => {
+    await db.commitments.update(id, { ...updates, updated_at: timestamp });
+    updated = await db.commitments.get(id);
+    if (updated) {
+      await queueSyncDirect('commitments', 'update', id, { ...updates, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.commitments.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('commitments', 'update', id, { ...updates, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }
@@ -67,13 +73,19 @@ export async function deleteCommitment(id: string): Promise<void> {
 export async function reorderCommitment(id: string, newOrder: number): Promise<Commitment | undefined> {
   const timestamp = now();
 
-  await db.commitments.update(id, { order: newOrder, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: Commitment | undefined;
+  await db.transaction('rw', [db.commitments, db.syncQueue], async () => {
+    await db.commitments.update(id, { order: newOrder, updated_at: timestamp });
+    updated = await db.commitments.get(id);
+    if (updated) {
+      await queueSyncDirect('commitments', 'update', id, { order: newOrder, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.commitments.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('commitments', 'update', id, { order: newOrder, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }

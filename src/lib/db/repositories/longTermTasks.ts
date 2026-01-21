@@ -1,6 +1,6 @@
 import { db, generateId, now } from '../client';
 import type { LongTermTask } from '$lib/types';
-import { queueSync, queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
 export async function createLongTermTask(
@@ -46,13 +46,19 @@ export async function updateLongTermTask(
 ): Promise<LongTermTask | undefined> {
   const timestamp = now();
 
-  await db.longTermTasks.update(id, { ...updates, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: LongTermTask | undefined;
+  await db.transaction('rw', [db.longTermTasks, db.syncQueue], async () => {
+    await db.longTermTasks.update(id, { ...updates, updated_at: timestamp });
+    updated = await db.longTermTasks.get(id);
+    if (updated) {
+      await queueSyncDirect('long_term_tasks', 'update', id, { ...updates, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.longTermTasks.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('long_term_tasks', 'update', id, { ...updates, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }
@@ -64,13 +70,19 @@ export async function toggleLongTermTaskComplete(id: string): Promise<LongTermTa
   const timestamp = now();
   const newCompleted = !task.completed;
 
-  await db.longTermTasks.update(id, { completed: newCompleted, updated_at: timestamp });
+  // Use transaction to ensure atomicity
+  let updated: LongTermTask | undefined;
+  await db.transaction('rw', [db.longTermTasks, db.syncQueue], async () => {
+    await db.longTermTasks.update(id, { completed: newCompleted, updated_at: timestamp });
+    updated = await db.longTermTasks.get(id);
+    if (updated) {
+      await queueSyncDirect('long_term_tasks', 'update', id, { completed: newCompleted, updated_at: timestamp });
+    }
+  });
 
-  const updated = await db.longTermTasks.get(id);
-  if (!updated) return undefined;
-
-  await queueSync('long_term_tasks', 'update', id, { completed: newCompleted, updated_at: timestamp });
-  scheduleSyncPush();
+  if (updated) {
+    scheduleSyncPush();
+  }
 
   return updated;
 }
