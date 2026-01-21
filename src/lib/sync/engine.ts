@@ -378,55 +378,6 @@ export async function getLongTermTask(id: string): Promise<LongTermTaskWithCateg
 }
 
 // ============================================================
-// FOCUS FEATURE LOCAL READ OPERATIONS
-// ============================================================
-
-// Get focus settings from LOCAL DB
-export async function getFocusSettingsLocal(userId: string): Promise<FocusSettings | null> {
-  const settings = await db.focusSettings
-    .where('user_id')
-    .equals(userId)
-    .first();
-
-  if (!settings || settings.deleted) return null;
-  return settings;
-}
-
-// Get active focus session from LOCAL DB
-export async function getActiveFocusSession(userId: string): Promise<FocusSession | null> {
-  const sessions = await db.focusSessions
-    .where('user_id')
-    .equals(userId)
-    .toArray();
-
-  // Find active session (not deleted and not ended)
-  const active = sessions.find(s => !s.deleted && !s.ended_at && s.status !== 'stopped');
-  return active || null;
-}
-
-// Get all block lists from LOCAL DB
-export async function getBlockListsLocal(userId: string): Promise<BlockList[]> {
-  const lists = await db.blockLists
-    .where('user_id')
-    .equals(userId)
-    .toArray();
-
-  return lists
-    .filter(l => !l.deleted)
-    .sort((a, b) => a.order - b.order);
-}
-
-// Get blocked websites for a block list from LOCAL DB
-export async function getBlockedWebsitesLocal(blockListId: string): Promise<BlockedWebsite[]> {
-  const websites = await db.blockedWebsites
-    .where('block_list_id')
-    .equals(blockListId)
-    .toArray();
-
-  return websites.filter(w => !w.deleted);
-}
-
-// ============================================================
 // SYNC OPERATIONS - Background sync to/from Supabase
 // ============================================================
 

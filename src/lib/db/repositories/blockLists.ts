@@ -20,11 +20,6 @@ export async function getBlockList(id: string): Promise<BlockList | null> {
   return list;
 }
 
-export async function getEnabledBlockLists(userId: string): Promise<BlockList[]> {
-  const lists = await getBlockLists(userId);
-  return lists.filter(l => l.is_enabled);
-}
-
 export async function createBlockList(
   name: string,
   userId: string,

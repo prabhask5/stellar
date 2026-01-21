@@ -1,29 +1,10 @@
 /**
- * IndexedDB storage for the Firefox extension
- * Stores cached credentials, sessions, and block lists for offline access
+ * IndexedDB storage for the extension
+ * Stores cached block lists and focus sessions
  */
 
 const DB_NAME = 'stellar-focus-extension';
 const DB_VERSION = 1;
-
-interface OfflineCredentials {
-  id: string;
-  userId: string;
-  email: string;
-  passwordHash: string;
-  salt: string;
-  firstName: string;
-  lastName: string;
-  cachedAt: string;
-}
-
-interface OfflineSession {
-  id: string;
-  userId: string;
-  offlineToken: string;
-  createdAt: string;
-  expiresAt: string;
-}
 
 type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -42,7 +23,7 @@ interface CachedBlockedWebsite {
   domain: string;
 }
 
-interface FocusSessionCache {
+export interface FocusSessionCache {
   id: string;
   user_id: string;
   phase: 'focus' | 'break' | 'idle';
@@ -68,16 +49,6 @@ function openDB(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-
-      // Offline credentials store
-      if (!db.objectStoreNames.contains('offlineCredentials')) {
-        db.createObjectStore('offlineCredentials', { keyPath: 'id' });
-      }
-
-      // Offline session store
-      if (!db.objectStoreNames.contains('offlineSession')) {
-        db.createObjectStore('offlineSession', { keyPath: 'id' });
-      }
 
       // Block lists cache
       if (!db.objectStoreNames.contains('blockLists')) {
@@ -160,20 +131,6 @@ async function clear(storeName: string): Promise<void> {
   });
 }
 
-// Offline Credentials
-export const offlineCredentialsStore = {
-  put: (data: OfflineCredentials) => put('offlineCredentials', data),
-  get: (key: string) => get<OfflineCredentials>('offlineCredentials', key),
-  delete: (key: string) => remove('offlineCredentials', key),
-};
-
-// Offline Session
-export const offlineSessionStore = {
-  put: (data: OfflineSession) => put('offlineSession', data),
-  get: (key: string) => get<OfflineSession>('offlineSession', key),
-  delete: (key: string) => remove('offlineSession', key),
-};
-
 // Block Lists Cache
 export const blockListsCache = {
   put: (data: CachedBlockList) => put('blockLists', data),
@@ -198,12 +155,4 @@ export const focusSessionCacheStore = {
   get: (key: string) => get<FocusSessionCache>('focusSessionCache', key),
   delete: (key: string) => remove('focusSessionCache', key),
   clear: () => clear('focusSessionCache'),
-};
-
-export type {
-  OfflineCredentials,
-  OfflineSession,
-  CachedBlockList,
-  CachedBlockedWebsite,
-  FocusSessionCache,
 };

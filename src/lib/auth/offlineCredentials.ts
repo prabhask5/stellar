@@ -100,14 +100,6 @@ export async function updateOfflineCredentialsProfile(
 }
 
 /**
- * Check if offline credentials exist for any user
- */
-export async function hasOfflineCredentials(): Promise<boolean> {
-  const credentials = await db.offlineCredentials.get(CREDENTIALS_ID);
-  return !!credentials;
-}
-
-/**
  * Clear all cached offline credentials (on logout)
  */
 export async function clearOfflineCredentials(): Promise<void> {

@@ -1,24 +1,21 @@
 /**
- * Supabase client for Firefox extension
+ * Supabase client for the browser extension
  * Uses the same project as the main Stellar app
  */
 
 import browser from 'webextension-polyfill';
-import { createClient, type SupabaseClient, type Session, type User } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from '../config';
-
-const SUPABASE_URL = config.supabaseUrl;
-const SUPABASE_ANON_KEY = config.supabaseAnonKey;
 
 let supabaseInstance: SupabaseClient | null = null;
 
 export function getSupabase(): SupabaseClient {
   if (!supabaseInstance) {
-    supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    supabaseInstance = createClient(config.supabaseUrl, config.supabaseAnonKey, {
       auth: {
         persistSession: true,
         storage: {
-          // Use browser.storage.local for Firefox extension
+          // Use browser.storage.local for extension
           getItem: async (key: string) => {
             const result = await browser.storage.local.get(key);
             return result[key] || null;
@@ -36,43 +33,14 @@ export function getSupabase(): SupabaseClient {
   return supabaseInstance;
 }
 
-export async function signIn(email: string, password: string): Promise<{
-  user: User | null;
-  session: Session | null;
-  error: Error | null;
-}> {
-  const supabase = getSupabase();
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  return {
-    user: data?.user || null,
-    session: data?.session || null,
-    error: error ? new Error(error.message) : null,
-  };
-}
-
-export async function signOut(): Promise<void> {
-  const supabase = getSupabase();
-  await supabase.auth.signOut();
-}
-
-export async function getSession(): Promise<Session | null> {
+export async function getSession() {
   const supabase = getSupabase();
   const { data } = await supabase.auth.getSession();
   return data?.session || null;
 }
 
-export async function getUser(): Promise<User | null> {
+export async function getUser() {
   const supabase = getSupabase();
   const { data } = await supabase.auth.getUser();
   return data?.user || null;
 }
-
-export function getSupabaseUrl(): string {
-  return SUPABASE_URL;
-}
-
-export type { Session, User };

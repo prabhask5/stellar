@@ -30,7 +30,7 @@ export async function getOrCreateFocusSettings(userId: string): Promise<FocusSet
   return createFocusSettings(userId);
 }
 
-export async function createFocusSettings(userId: string): Promise<FocusSettings> {
+async function createFocusSettings(userId: string): Promise<FocusSettings> {
   const timestamp = now();
 
   const newSettings: FocusSettings = {

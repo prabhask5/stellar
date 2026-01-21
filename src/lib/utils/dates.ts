@@ -4,7 +4,6 @@ import {
   endOfMonth,
   eachDayOfInterval,
   isBefore,
-  isAfter,
   isToday,
   parseISO,
   startOfDay,
@@ -41,27 +40,6 @@ export function isPastDay(date: Date): boolean {
 
 export function isTodayDate(date: Date): boolean {
   return isToday(date);
-}
-
-export function isDateInRange(
-  date: Date | string,
-  startDate: string,
-  endDate: string | null
-): boolean {
-  const d = typeof date === 'string' ? parseISO(date) : date;
-  const start = parseISO(startDate);
-  const dDay = startOfDay(d);
-  const startDay = startOfDay(start);
-
-  if (isBefore(dDay, startDay)) return false;
-
-  if (endDate) {
-    const end = parseISO(endDate);
-    const endDay = startOfDay(end);
-    if (isAfter(dDay, endDay)) return false;
-  }
-
-  return true;
 }
 
 export function getWeekdayNames(): string[] {

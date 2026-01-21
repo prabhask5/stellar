@@ -12,36 +12,6 @@ export async function getBlockedWebsites(blockListId: string): Promise<BlockedWe
   return websites.filter(w => !w.deleted);
 }
 
-export async function getBlockedWebsite(id: string): Promise<BlockedWebsite | null> {
-  const website = await db.blockedWebsites.get(id);
-  if (!website || website.deleted) return null;
-  return website;
-}
-
-export async function getAllBlockedDomains(userId: string): Promise<string[]> {
-  // Get all enabled block lists for this user
-  const blockLists = await db.blockLists
-    .where('user_id')
-    .equals(userId)
-    .toArray();
-
-  const enabledListIds = blockLists
-    .filter(l => !l.deleted && l.is_enabled)
-    .map(l => l.id);
-
-  if (enabledListIds.length === 0) return [];
-
-  // Get all websites from enabled lists
-  const allWebsites = await db.blockedWebsites.toArray();
-
-  const domains = allWebsites
-    .filter(w => !w.deleted && enabledListIds.includes(w.block_list_id))
-    .map(w => w.domain);
-
-  // Return unique domains
-  return [...new Set(domains)];
-}
-
 export async function createBlockedWebsite(
   blockListId: string,
   domain: string
@@ -119,24 +89,4 @@ function normalizeDomain(input: string): string {
   domain = domain.split(':')[0];
 
   return domain;
-}
-
-// Check if a URL matches any blocked domain
-export function isDomainBlocked(url: string, blockedDomains: string[]): boolean {
-  try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname.toLowerCase().replace(/^www\./, '');
-
-    for (const blocked of blockedDomains) {
-      // Exact match
-      if (hostname === blocked) return true;
-
-      // Subdomain match (e.g., mail.google.com matches google.com)
-      if (hostname.endsWith('.' + blocked)) return true;
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
 }

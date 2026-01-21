@@ -2,25 +2,14 @@ import { db } from '$lib/db/client';
 import type { SyncQueueItem, SyncOperation } from '$lib/types';
 
 // Max retries before giving up on a sync item
-export const MAX_SYNC_RETRIES = 5;
+const MAX_SYNC_RETRIES = 5;
 
 // Max queue size to prevent memory issues on low-end devices
-export const MAX_QUEUE_SIZE = 1000;
-
-// Check if queue is at capacity
-export async function isQueueFull(): Promise<boolean> {
-  const count = await db.syncQueue.count();
-  return count >= MAX_QUEUE_SIZE;
-}
-
-// Get current queue size
-export async function getQueueSize(): Promise<number> {
-  return db.syncQueue.count();
-}
+const MAX_QUEUE_SIZE = 1000;
 
 // Exponential backoff: check if item should be retried based on retry count
 // Returns true if enough time has passed since last attempt
-export function shouldRetryItem(item: SyncQueueItem): boolean {
+function shouldRetryItem(item: SyncQueueItem): boolean {
   if (item.retries >= MAX_SYNC_RETRIES) return false;
 
   // Exponential backoff: 2^retries seconds (1s, 2s, 4s, 8s, 16s)
@@ -89,11 +78,6 @@ export async function getPendingSync(): Promise<SyncQueueItem[]> {
   const allItems = await db.syncQueue.orderBy('timestamp').toArray();
   // Filter to only items that should be retried (haven't exceeded max retries and backoff has passed)
   return allItems.filter(item => shouldRetryItem(item));
-}
-
-// Get all pending items including those waiting for backoff
-export async function getAllPendingSync(): Promise<SyncQueueItem[]> {
-  return db.syncQueue.orderBy('timestamp').toArray();
 }
 
 // Remove items that have exceeded max retries and return details for notification

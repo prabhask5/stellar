@@ -733,9 +733,6 @@ function stopPolling() {
   }
 }
 
-// Track previous state for transitions
-let prevSyncStatus: SyncStatus = 'idle';
-
 // Sync status indicator (matches main app SyncStatus behavior)
 function setSyncStatus(status: SyncStatus) {
   const prevStatus = syncStatus;
@@ -778,8 +775,6 @@ function setSyncStatus(status: SyncStatus) {
       syncedIcon?.classList.remove('active', 'morph-in');
     }, 2000);
   }
-
-  prevSyncStatus = status;
 }
 
 // UI helpers

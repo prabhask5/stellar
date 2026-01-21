@@ -7,8 +7,7 @@ import {
   calculateRemainingMs,
   getNextPhase,
   formatTime,
-  DEFAULT_FOCUS_SETTINGS,
-  getPhaseDurationMs
+  DEFAULT_FOCUS_SETTINGS
 } from '$lib/utils/focus';
 
 // ============================================================

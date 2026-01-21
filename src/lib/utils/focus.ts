@@ -28,26 +28,6 @@ export function calculateRemainingMs(session: FocusSession): number {
   return Math.max(0, remaining);
 }
 
-// Get phase duration in milliseconds
-export function getPhaseDurationMs(
-  phase: FocusPhase,
-  session: FocusSession,
-  settings: FocusSettings
-): number {
-  if (phase === 'focus') {
-    return session.focus_duration * 60 * 1000;
-  }
-
-  // Check if it's a long break
-  const isLongBreak = session.current_cycle >= settings.cycles_before_long_break;
-
-  if (isLongBreak) {
-    return settings.long_break_duration * 60 * 1000;
-  }
-
-  return session.break_duration * 60 * 1000;
-}
-
 // Determine next phase after current phase completes
 export function getNextPhase(session: FocusSession, settings: FocusSettings): {
   phase: FocusPhase;

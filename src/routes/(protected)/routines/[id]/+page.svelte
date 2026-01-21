@@ -539,10 +539,6 @@
       width: 100%;
     }
 
-    .loading {
-      padding: 3rem;
-    }
-
     .error-state {
       padding: 3rem 1.5rem;
     }

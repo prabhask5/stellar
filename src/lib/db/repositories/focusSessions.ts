@@ -1,5 +1,5 @@
 import { db, generateId, now } from '../client';
-import type { FocusSession, FocusPhase, FocusStatus } from '$lib/types';
+import type { FocusSession, FocusPhase } from '$lib/types';
 import { queueSync, queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
 
