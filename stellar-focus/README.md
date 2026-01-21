@@ -2,6 +2,31 @@
 
 Browser extension that blocks distracting websites during focus sessions managed by the Stellar productivity app. Integrates via Supabase Realtime for instant state synchronization.
 
+---
+
+## Table of Contents
+
+1. [Tech Stack](#tech-stack)
+2. [Complete Feature Inventory](#complete-feature-inventory)
+   - [Website Blocking](#1-website-blocking)
+   - [Block List Management](#2-block-list-management)
+   - [Focus Session Integration](#3-focus-session-integration)
+   - [Real-Time Synchronization](#4-real-time-synchronization)
+   - [Polling Backup](#5-polling-backup)
+   - [Local Caching](#6-local-caching)
+   - [Authentication](#7-authentication)
+3. [UI Surfaces](#ui-surfaces)
+4. [Blocking Decision Flow](#blocking-decision-flow)
+5. [Permissions](#permissions)
+6. [Installation](#installation)
+7. [Configuration](#configuration)
+8. [Project Structure](#project-structure)
+9. [Troubleshooting](#troubleshooting)
+10. [Privacy](#privacy)
+11. [Related Documentation](#related-documentation)
+
+---
+
 ## Tech Stack
 
 | Component | Technology |

@@ -4,6 +4,29 @@ A space-themed productivity Progressive Web App featuring offline-first architec
 
 **Live:** [stellarplanner.vercel.app](https://stellarplanner.vercel.app)
 
+---
+
+## Table of Contents
+
+1. [Tech Stack](#tech-stack)
+2. [Complete Feature Inventory](#complete-feature-inventory)
+   - [Task Management System](#1-task-management-system)
+   - [Goal Management System](#2-goal-management-system)
+   - [Daily Routine System](#3-daily-routine-system)
+   - [Focus/Pomodoro System](#4-focuspomodoro-system)
+   - [Block List System](#5-block-list-system)
+   - [Authentication System](#6-authentication-system)
+   - [Synchronization System](#7-synchronization-system)
+   - [PWA Features](#8-pwa-features)
+3. [UI Surfaces and Pages](#ui-surfaces-and-pages)
+4. [Global UI Components](#global-ui-components)
+5. [Offline Behavior](#offline-behavior)
+6. [Local Development](#local-development)
+7. [Companion Extension](#companion-extension)
+8. [Related Documentation](#related-documentation)
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
