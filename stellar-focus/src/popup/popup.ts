@@ -107,10 +107,10 @@ async function init() {
   loginForm?.addEventListener('submit', handleLogin);
   logoutBtn?.addEventListener('click', handleLogout);
 
-  // Open Stellar button - reuse existing tab if available
+  // Open Stellar button - focus existing tab if available, otherwise open new
   openStellarBtn?.addEventListener('click', async (e) => {
     e.preventDefault();
-    await navigateToApp(config.appUrl);
+    await focusOrOpenApp();
   });
 
   // Check auth if online
@@ -816,11 +816,36 @@ function escapeHtml(str: string): string {
 }
 
 /**
- * Navigate to a URL in the main app, reusing an existing tab if one is open
+ * Focus an existing app tab if open, otherwise open a new tab to the app home
+ */
+async function focusOrOpenApp() {
+  try {
+    const tabs = await browser.tabs.query({
+      currentWindow: true,
+      url: `${config.appUrl}/*`
+    });
+
+    if (tabs.length > 0 && tabs[0].id !== undefined) {
+      // Found an existing app tab - just focus it without changing URL
+      await browser.tabs.update(tabs[0].id, { active: true });
+    } else {
+      // No existing tab - create a new one
+      await browser.tabs.create({ url: config.appUrl });
+    }
+
+    window.close();
+  } catch (error) {
+    console.error('[Stellar Focus] Navigation error:', error);
+    await browser.tabs.create({ url: config.appUrl });
+    window.close();
+  }
+}
+
+/**
+ * Navigate to a specific URL in the main app, reusing an existing tab if one is open
  */
 async function navigateToApp(url: string) {
   try {
-    // Query for existing tabs matching the app URL in the current window
     const tabs = await browser.tabs.query({
       currentWindow: true,
       url: `${config.appUrl}/*`
@@ -834,11 +859,9 @@ async function navigateToApp(url: string) {
       await browser.tabs.create({ url });
     }
 
-    // Close the popup
     window.close();
   } catch (error) {
     console.error('[Stellar Focus] Navigation error:', error);
-    // Fallback: open in new tab
     await browser.tabs.create({ url });
     window.close();
   }

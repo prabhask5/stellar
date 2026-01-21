@@ -3,6 +3,7 @@
  * A cinematic moment of encouragement
  */
 
+import browser from 'webextension-polyfill';
 import { config } from '../config';
 
 // Encouraging submessages - the main message stays fixed for impact
@@ -23,6 +24,29 @@ const submessages = [
 function getRandomSubmessage(): string {
   const index = Math.floor(Math.random() * submessages.length);
   return submessages[index];
+}
+
+/**
+ * Focus an existing app tab if open, otherwise open a new tab to the app
+ */
+async function focusOrOpenApp() {
+  try {
+    const tabs = await browser.tabs.query({
+      currentWindow: true,
+      url: `${config.appUrl}/*`
+    });
+
+    if (tabs.length > 0 && tabs[0].id !== undefined) {
+      // Found an existing app tab - just focus it without changing URL
+      await browser.tabs.update(tabs[0].id, { active: true });
+    } else {
+      // No existing tab - create a new one
+      await browser.tabs.create({ url: `${config.appUrl}/focus` });
+    }
+  } catch (error) {
+    console.error('[Stellar Focus] Navigation error:', error);
+    window.open(`${config.appUrl}/focus`, '_blank');
+  }
 }
 
 // Parse URL parameters
@@ -318,9 +342,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const blockedUrlEl = document.getElementById('blockedUrl');
   const returnBtn = document.getElementById('returnBtn') as HTMLAnchorElement;
 
-  // Set return button URL from config
+  // Set return button URL and click handler
   if (returnBtn) {
     returnBtn.href = `${config.appUrl}/focus`;
+    returnBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await focusOrOpenApp();
+    });
   }
 
   // Set random submessage
@@ -335,12 +363,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Keyboard shortcuts
-  document.addEventListener('keydown', (e) => {
+  document.addEventListener('keydown', async (e) => {
     if (e.key === 'Escape') {
       window.history.back();
     }
-    if (e.key === 'Enter' && returnBtn) {
-      window.open(returnBtn.href, '_blank');
+    if (e.key === 'Enter') {
+      await focusOrOpenApp();
     }
   });
 

@@ -41,10 +41,22 @@
     }, 5 * 60 * 1000);
   }
 
-  function handleRefresh() {
+  async function handleRefresh() {
     showPrompt = false;
-    // Force reload from server
-    window.location.reload();
+
+    // Tell the waiting service worker to take over
+    const registration = await navigator.serviceWorker?.ready;
+    if (registration?.waiting) {
+      // Listen for the new SW to take control, then reload
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      }, { once: true });
+
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      // No waiting worker, just reload
+      window.location.reload();
+    }
   }
 
   function handleDismiss() {

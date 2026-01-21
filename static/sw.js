@@ -28,8 +28,9 @@ self.addEventListener('install', (event) => {
     })
   );
 
-  // Immediately activate this SW
-  self.skipWaiting();
+  // Don't skipWaiting() here - let the UpdatePrompt control the transition
+  // This prevents visual glitches from hot-swapping content mid-page
+  // The app will call skipWaiting via postMessage when user clicks "Refresh"
 });
 
 // Activate event - clean old caches and take control
