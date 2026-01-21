@@ -16,12 +16,16 @@ interface FocusSession {
   phase_started_at: string;
   focus_duration: number;
   break_duration: number;
+  elapsed_duration: number;
+  started_at: string;
+  ended_at: string | null;
 }
 
 interface BlockList {
   id: string;
   name: string;
   is_enabled: boolean;
+  active_days: (0 | 1 | 2 | 3 | 4 | 5 | 6)[] | null;
 }
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
@@ -70,13 +74,17 @@ const userAvatar = document.getElementById('userAvatar') as HTMLElement;
 const userName = document.getElementById('userName') as HTMLElement;
 const openStellarBtn = document.getElementById('openStellarBtn') as HTMLAnchorElement;
 const signupLink = document.getElementById('signupLink') as HTMLAnchorElement;
+const focusTimeValue = document.getElementById('focusTimeValue') as HTMLElement;
+const activeBlockListCount = document.getElementById('activeBlockListCount') as HTMLElement;
 
 // State
 let isOnline = navigator.onLine;
 let currentUserId: string | null = null;
 let focusSubscription: RealtimeChannel | null = null;
+let blockListSubscription: RealtimeChannel | null = null;
 let syncStatus: SyncStatus = 'idle';
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
+let cachedBlockLists: BlockList[] = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', init);
@@ -218,7 +226,8 @@ async function loadData() {
   try {
     await Promise.all([
       loadFocusStatus(true), // Initial load shows sync indicator
-      loadBlockLists()
+      loadBlockLists(),
+      loadFocusTimeToday()
     ]);
   } catch (error) {
     console.error('Failed to load data:', error);
@@ -282,14 +291,103 @@ async function loadBlockLists() {
 
   const { data, error } = await supabase
     .from('block_lists')
-    .select('id, name, is_enabled')
+    .select('id, name, is_enabled, active_days')
     .eq('user_id', currentUserId)
     .eq('deleted', false)
     .order('order', { ascending: true });
 
   if (error) throw error;
 
-  renderBlockLists(data || []);
+  cachedBlockLists = data || [];
+  renderBlockLists(cachedBlockLists);
+  updateActiveBlockListCount(cachedBlockLists);
+}
+
+// Helper to check if a block list is active today
+function isBlockListActiveToday(list: BlockList): boolean {
+  if (!list.is_enabled) return false;
+  if (list.active_days === null) return true; // null means every day
+  const currentDay = new Date().getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  return list.active_days.includes(currentDay);
+}
+
+// Update active block list count display
+function updateActiveBlockListCount(lists: BlockList[]) {
+  const activeCount = lists.filter(isBlockListActiveToday).length;
+  if (activeBlockListCount) {
+    activeBlockListCount.classList.add('updating');
+    setTimeout(() => {
+      activeBlockListCount.textContent = `${activeCount} active`;
+      activeBlockListCount.classList.remove('updating');
+    }, 150);
+  }
+}
+
+// Load focus time today
+async function loadFocusTimeToday() {
+  if (!currentUserId) return;
+
+  try {
+    // Get today's date at midnight in local timezone
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString();
+
+    // Query all of today's sessions
+    const { data: sessions, error } = await supabase
+      .from('focus_sessions')
+      .select('*')
+      .eq('user_id', currentUserId)
+      .gte('started_at', todayStr)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    let totalMs = 0;
+
+    for (const session of (sessions || [])) {
+      // Skip deleted sessions
+      if (session.deleted) continue;
+
+      // Use elapsed_duration (actual time spent in focus)
+      totalMs += (session.elapsed_duration || 0) * 60 * 1000;
+
+      // For currently running focus phase, add current elapsed
+      if (!session.ended_at && session.phase === 'focus' && session.status === 'running') {
+        const currentElapsed = Date.now() - new Date(session.phase_started_at).getTime();
+        totalMs += Math.min(currentElapsed, session.focus_duration * 60 * 1000);
+      }
+    }
+
+    updateFocusTimeDisplay(totalMs);
+  } catch (error) {
+    console.error('[Stellar Focus] Load focus time error:', error);
+  }
+}
+
+// Format duration to readable string
+function formatDuration(ms: number): string {
+  const totalMinutes = Math.floor(ms / 60000);
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (minutes === 0) {
+    return `${hours}h`;
+  }
+  return `${hours}h ${minutes}m`;
+}
+
+// Update focus time display
+function updateFocusTimeDisplay(ms: number) {
+  if (focusTimeValue) {
+    focusTimeValue.classList.add('updating');
+    setTimeout(() => {
+      focusTimeValue.textContent = formatDuration(ms);
+      focusTimeValue.classList.remove('updating');
+    }, 150);
+  }
 }
 
 // Track previous timer state for transitions
@@ -387,28 +485,44 @@ function renderBlockLists(lists: BlockList[]) {
     return;
   }
 
-  blockListsContainer.innerHTML = lists.map(list => `
-    <div class="block-list-item">
-      <span class="list-status ${list.is_enabled ? 'enabled' : 'disabled'}"></span>
-      <span class="block-list-name">${escapeHtml(list.name)}</span>
-      <a href="${config.appUrl}/focus/block-lists/${list.id}" target="_blank" rel="noopener" class="edit-link" title="Edit in Stellar">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-        </svg>
-      </a>
-    </div>
-  `).join('');
+  // Sort: active lists first, then inactive
+  const sortedLists = [...lists].sort((a, b) => {
+    const aActive = isBlockListActiveToday(a);
+    const bActive = isBlockListActiveToday(b);
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+    return 0;
+  });
+
+  blockListsContainer.innerHTML = sortedLists.map(list => {
+    const isActive = isBlockListActiveToday(list);
+    return `
+      <div class="block-list-item">
+        <span class="list-status ${isActive ? 'enabled' : 'disabled'}"></span>
+        <span class="block-list-name">${escapeHtml(list.name)}</span>
+        <a href="${config.appUrl}/focus/block-lists/${list.id}" target="_blank" rel="noopener" class="edit-link" title="Edit in Stellar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </a>
+      </div>
+    `;
+  }).join('');
 }
 
 // Real-time subscription - instant updates
 async function subscribeToRealtime() {
   if (!currentUserId) return;
 
-  // Clean up existing subscription first
+  // Clean up existing subscriptions first
   if (focusSubscription) {
     supabase.removeChannel(focusSubscription);
     focusSubscription = null;
+  }
+  if (blockListSubscription) {
+    supabase.removeChannel(blockListSubscription);
+    blockListSubscription = null;
   }
 
   // Get the current session and set auth token for realtime
@@ -418,13 +532,14 @@ async function subscribeToRealtime() {
     console.log('[Stellar Focus] Realtime auth token set');
   }
 
-  // Use unique channel name with user ID for better isolation
-  const channelName = `focus-sessions-${currentUserId}-${Date.now()}`;
+  const timestamp = Date.now();
 
-  console.log('[Stellar Focus] Setting up realtime subscription...');
+  // Focus sessions subscription
+  const focusChannelName = `focus-sessions-${currentUserId}-${timestamp}`;
+  console.log('[Stellar Focus] Setting up realtime subscriptions...');
 
   focusSubscription = supabase
-    .channel(channelName)
+    .channel(focusChannelName)
     .on(
       'postgres_changes',
       {
@@ -438,7 +553,7 @@ async function subscribeToRealtime() {
 
         // Handle the update directly from payload for instant response
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          const session = payload.new as FocusSession & { ended_at?: string };
+          const session = payload.new as FocusSession;
 
           // Update the lastSessionJson to prevent duplicate updates from polling
           lastSessionJson = session ? JSON.stringify({ id: session.id, phase: session.phase, status: session.status }) : null;
@@ -450,9 +565,13 @@ async function subscribeToRealtime() {
             // Session ended - show idle
             updateStatusDisplay(null);
           }
+
+          // Refresh focus time today when session changes
+          loadFocusTimeToday();
         } else if (payload.eventType === 'DELETE') {
           lastSessionJson = null;
           updateStatusDisplay(null);
+          loadFocusTimeToday();
         }
 
         // Show sync indicator with enough time to see the animation
@@ -461,11 +580,44 @@ async function subscribeToRealtime() {
       }
     )
     .subscribe((status, err) => {
-      console.log('[Stellar Focus] Subscription status:', status, err || '');
+      console.log('[Stellar Focus] Focus subscription status:', status, err || '');
       if (status === 'SUBSCRIBED') {
-        console.log('[Stellar Focus] ✅ Real-time connected! Instant updates enabled.');
+        console.log('[Stellar Focus] ✅ Focus real-time connected!');
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.error('[Stellar Focus] ❌ Realtime failed:', err);
+        console.error('[Stellar Focus] ❌ Focus realtime failed:', err);
+      }
+    });
+
+  // Block lists subscription
+  const blockListChannelName = `block-lists-${currentUserId}-${timestamp}`;
+
+  blockListSubscription = supabase
+    .channel(blockListChannelName)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'block_lists',
+        filter: `user_id=eq.${currentUserId}`
+      },
+      (payload) => {
+        console.log('[Stellar Focus] 🚀 Block list update:', payload.eventType);
+
+        // Reload block lists to get the latest data
+        loadBlockLists();
+
+        // Show sync indicator
+        setSyncStatus('syncing');
+        setTimeout(() => setSyncStatus('synced'), 800);
+      }
+    )
+    .subscribe((status, err) => {
+      console.log('[Stellar Focus] Block list subscription status:', status, err || '');
+      if (status === 'SUBSCRIBED') {
+        console.log('[Stellar Focus] ✅ Block list real-time connected!');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.error('[Stellar Focus] ❌ Block list realtime failed:', err);
       }
     });
 
@@ -477,6 +629,10 @@ function unsubscribeFromRealtime() {
   if (focusSubscription) {
     supabase.removeChannel(focusSubscription);
     focusSubscription = null;
+  }
+  if (blockListSubscription) {
+    supabase.removeChannel(blockListSubscription);
+    blockListSubscription = null;
   }
   stopPolling();
 }

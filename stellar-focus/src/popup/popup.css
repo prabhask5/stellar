@@ -1058,11 +1058,50 @@ body {
   filter: drop-shadow(0 0 8px rgba(255, 121, 198, 0.4));
 }
 
+/* Focus Time Today */
+.focus-time-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: rgba(15, 15, 26, 0.6);
+  border: 1px solid rgba(108, 92, 231, 0.15);
+  border-radius: var(--radius-lg);
+  animation: cardSlideIn 0.5s var(--ease-spring);
+  animation-delay: 0.15s;
+  animation-fill-mode: both;
+}
+
+.focus-time-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.focus-time-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-primary-light);
+  transition: all 0.3s var(--ease-spring);
+}
+
+.focus-time-value.updating {
+  transform: scale(1.1);
+  color: var(--color-green);
+}
+
 /* Block Lists */
 .block-lists-section {
   animation: cardSlideIn 0.5s var(--ease-spring);
   animation-delay: 0.2s;
   animation-fill-mode: both;
+}
+
+.block-lists-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
 }
 
 .block-lists-section h3 {
@@ -1071,7 +1110,21 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-text-muted);
-  margin-bottom: 10px;
+  margin-bottom: 0;
+}
+
+.active-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-green);
+  padding: 2px 8px;
+  background: rgba(38, 222, 129, 0.15);
+  border-radius: var(--radius-full);
+  transition: all 0.3s var(--ease-spring);
+}
+
+.active-count.updating {
+  transform: scale(1.1);
 }
 
 .block-lists {
@@ -1108,8 +1161,9 @@ body {
 }
 
 .list-status.disabled {
-  background: var(--color-text-muted);
-  opacity: 0.5;
+  background: var(--color-red);
+  box-shadow: 0 0 6px rgba(255, 107, 107, 0.3);
+  opacity: 0.7;
 }
 
 .block-list-name {
