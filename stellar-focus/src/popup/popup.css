@@ -661,6 +661,55 @@ body {
   color: var(--color-text-muted);
 }
 
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  padding-right: 44px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.password-toggle:hover {
+  color: var(--color-text);
+  background: rgba(108, 92, 231, 0.15);
+}
+
+.password-toggle:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary-glow);
+}
+
+.password-toggle .icon-hide {
+  display: none;
+}
+
+.password-toggle.showing .icon-show {
+  display: none;
+}
+
+.password-toggle.showing .icon-hide {
+  display: block;
+}
+
 .error-message {
   padding: 12px;
   margin-bottom: 12px;

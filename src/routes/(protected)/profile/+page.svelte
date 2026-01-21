@@ -19,6 +19,9 @@
   let profileSuccess = $state<string | null>(null);
   let passwordError = $state<string | null>(null);
   let passwordSuccess = $state<string | null>(null);
+  let showCurrentPassword = $state(false);
+  let showNewPassword = $state(false);
+  let showConfirmPassword = $state(false);
 
   // Get initial values from user data
   $effect(() => {
@@ -230,40 +233,100 @@
     <form onsubmit={handlePasswordSubmit}>
       <div class="form-group">
         <label for="currentPassword">Current Password</label>
-        <input
-          type="password"
-          id="currentPassword"
-          bind:value={currentPassword}
-          disabled={passwordLoading || isOfflineMode}
-          required
-          autocomplete="current-password"
-        />
+        <div class="password-input-wrapper">
+          <input
+            type={showCurrentPassword ? 'text' : 'password'}
+            id="currentPassword"
+            bind:value={currentPassword}
+            disabled={passwordLoading || isOfflineMode}
+            required
+            autocomplete="current-password"
+          />
+          <button
+            type="button"
+            class="password-toggle"
+            onclick={() => showCurrentPassword = !showCurrentPassword}
+            aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
+          >
+            {#if showCurrentPassword}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            {:else}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            {/if}
+          </button>
+        </div>
       </div>
 
       <div class="form-group">
         <label for="newPassword">New Password</label>
-        <input
-          type="password"
-          id="newPassword"
-          bind:value={newPassword}
-          disabled={passwordLoading || isOfflineMode}
-          required
-          minlength="6"
-          autocomplete="new-password"
-          placeholder="Min 6 characters"
-        />
+        <div class="password-input-wrapper">
+          <input
+            type={showNewPassword ? 'text' : 'password'}
+            id="newPassword"
+            bind:value={newPassword}
+            disabled={passwordLoading || isOfflineMode}
+            required
+            minlength="6"
+            autocomplete="new-password"
+            placeholder="Min 6 characters"
+          />
+          <button
+            type="button"
+            class="password-toggle"
+            onclick={() => showNewPassword = !showNewPassword}
+            aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+          >
+            {#if showNewPassword}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            {:else}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            {/if}
+          </button>
+        </div>
       </div>
 
       <div class="form-group">
         <label for="confirmPassword">Confirm New Password</label>
-        <input
-          type="password"
-          id="confirmPassword"
-          bind:value={confirmPassword}
-          disabled={passwordLoading || isOfflineMode}
-          required
-          autocomplete="new-password"
-        />
+        <div class="password-input-wrapper">
+          <input
+            type={showConfirmPassword ? 'text' : 'password'}
+            id="confirmPassword"
+            bind:value={confirmPassword}
+            disabled={passwordLoading || isOfflineMode}
+            required
+            autocomplete="new-password"
+          />
+          <button
+            type="button"
+            class="password-toggle"
+            onclick={() => showConfirmPassword = !showConfirmPassword}
+            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+          >
+            {#if showConfirmPassword}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            {:else}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            {/if}
+          </button>
+        </div>
       </div>
 
       {#if passwordError}
@@ -562,6 +625,43 @@
     font-size: 0.75rem;
     color: var(--color-text-muted);
     opacity: 0.7;
+  }
+
+  .password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .password-input-wrapper input {
+    padding-right: 3rem;
+  }
+
+  .password-toggle {
+    position: absolute;
+    right: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .password-toggle:hover {
+    color: var(--color-text);
+    background: rgba(108, 92, 231, 0.15);
+  }
+
+  .password-toggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary-glow);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════

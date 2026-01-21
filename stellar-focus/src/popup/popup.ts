@@ -109,6 +109,15 @@ async function init() {
   loginForm?.addEventListener('submit', handleLogin);
   logoutBtn?.addEventListener('click', handleLogout);
 
+  // Password visibility toggle
+  const passwordToggle = document.getElementById('passwordToggle');
+  passwordToggle?.addEventListener('click', () => {
+    const isPassword = passwordInput.type === 'password';
+    passwordInput.type = isPassword ? 'text' : 'password';
+    passwordToggle.classList.toggle('showing', isPassword);
+    passwordToggle.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+  });
+
   // Open Stellar button - focus existing tab if available, otherwise open new
   openStellarBtn?.addEventListener('click', async (e) => {
     e.preventDefault();
