@@ -2,7 +2,7 @@ import { writable, type Writable } from 'svelte/store';
 import type { GoalListWithProgress, Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, DayProgress, TaskCategory, Commitment, CommitmentSection, DailyTask, LongTermTask, LongTermTaskWithCategory } from '$lib/types';
 import * as repo from '$lib/db/repositories';
 import * as sync from '$lib/sync/engine';
-import { calculateGoalProgress } from '$lib/utils/colors';
+import { calculateGoalProgressCapped } from '$lib/utils/colors';
 import { isRoutineActiveOnDate } from '$lib/utils/dates';
 import { browser } from '$app/environment';
 
@@ -370,8 +370,8 @@ function createDailyProgressStore() {
 
       if (!state) return;
 
-      // Clamp value to valid range
-      const clamped = Math.max(0, Math.min(value, targetValue));
+      // Only prevent negative - allow overflow above target
+      const clamped = Math.max(0, value);
       const completed = clamped >= targetValue;
 
       const updated = await repo.upsertDailyProgress(routineId, date, clamped, completed);
@@ -447,7 +447,7 @@ function createMonthProgressStore() {
         const currentValue = progress?.current_value || 0;
         const isCompleted = progress?.completed || false;
 
-        const progressPercent = calculateGoalProgress(
+        const progressPercent = calculateGoalProgressCapped(
           routine.type,
           isCompleted,
           currentValue,

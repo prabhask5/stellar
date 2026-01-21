@@ -4,7 +4,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { dailyProgressStore, dailyRoutinesStore } from '$lib/stores/data';
   import { formatDisplayDate, isPastDay, isTodayDate } from '$lib/utils/dates';
-  import { calculateGoalProgress } from '$lib/utils/colors';
+  import { calculateGoalProgressCapped } from '$lib/utils/colors';
   import type { DailyRoutineGoal, DailyGoalProgress } from '$lib/types';
   import GoalItem from '$lib/components/GoalItem.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
@@ -39,7 +39,7 @@
     const total = goalsWithProgress.reduce((sum, goal) => {
       const currentValue = goal.progress?.current_value ?? 0;
       const completed = goal.progress?.completed ?? false;
-      return sum + calculateGoalProgress(goal.type, completed, currentValue, goal.target_value);
+      return sum + calculateGoalProgressCapped(goal.type, completed, currentValue, goal.target_value);
     }, 0);
     return Math.round(total / goalsWithProgress.length);
   });

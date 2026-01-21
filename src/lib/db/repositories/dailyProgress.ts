@@ -91,7 +91,7 @@ export async function incrementDailyProgress(
   const existing = await getProgressForRoutineAndDate(dailyRoutineGoalId, date);
 
   const currentValue = existing ? existing.current_value : 0;
-  const newValue = Math.min(currentValue + amount, targetValue);
+  const newValue = currentValue + amount;
   const completed = newValue >= targetValue;
 
   if (existing) {

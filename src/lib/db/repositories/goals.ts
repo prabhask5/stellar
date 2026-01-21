@@ -99,7 +99,7 @@ export async function incrementGoal(id: string, amount: number = 1): Promise<Goa
   if (!goal) return undefined;
 
   const timestamp = now();
-  const newValue = Math.min(goal.current_value + amount, goal.target_value || Infinity);
+  const newValue = goal.current_value + amount;
   const completed = goal.target_value ? newValue >= goal.target_value : false;
 
   // Use transaction to ensure atomicity - prevents sync pull from overwriting during rapid clicks

@@ -612,6 +612,69 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
+   OVERFLOW CELEBRATION ANIMATIONS — For goals exceeding 100%
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+/* Cosmic glow that scales with intensity (uses CSS custom properties for dynamic values) */
+@keyframes cosmicGlow {
+  0%, 100% {
+    filter: brightness(1) drop-shadow(0 0 var(--glow-size, 10px) var(--glow-color, var(--color-cyan)));
+  }
+  50% {
+    filter: brightness(calc(1 + var(--glow-brightness, 0.1))) drop-shadow(0 0 calc(var(--glow-size, 10px) * 1.5) var(--glow-color, var(--color-cyan)));
+  }
+}
+
+/* Fast shimmer for supernova effect */
+@keyframes supernovaShimmer {
+  0% { left: -100%; opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { left: 100%; opacity: 0.5; }
+}
+
+/* Nebula breathing effect */
+@keyframes nebulaBreath {
+  0%, 100% {
+    opacity: var(--nebula-min, 0.1);
+    transform: scale(1);
+  }
+  50% {
+    opacity: var(--nebula-max, 0.3);
+    transform: scale(1.05);
+  }
+}
+
+/* Orbiting stars around the progress bar */
+@keyframes orbitalStar {
+  from {
+    transform: rotate(0deg) translateX(var(--orbit-radius, 50px)) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(var(--orbit-radius, 50px)) rotate(-360deg);
+  }
+}
+
+/* Star twinkle for celebration particles */
+@keyframes celebrationTwinkle {
+  0%, 100% {
+    opacity: var(--twinkle-min, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    opacity: var(--twinkle-max, 1);
+    transform: scale(1.2);
+  }
+}
+
+/* Disable celebration animations for reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .celebrating,
+  .celebrating * {
+    animation: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════
    UTILITY CLASSES — Cosmic tools
    ═══════════════════════════════════════════════════════════════════════════════════ */
 

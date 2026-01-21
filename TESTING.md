@@ -9,8 +9,10 @@ Comprehensive test plan covering features, edge cases, offline behavior, synchro
 1. [Authentication Tests](#1-authentication-tests)
 2. [Goal Lists Tests](#2-goal-lists-tests)
 3. [Goals Tests](#3-goals-tests)
+   - [Goal Overflow and Celebration Effects](#35-goal-overflow-and-celebration-effects)
 4. [Daily Routines Tests](#4-daily-routines-tests)
 5. [Daily Progress Tests](#5-daily-progress-tests)
+   - [Daily Progress Overflow](#54-daily-progress-overflow)
 6. [Calendar Tests](#6-calendar-tests)
 7. [Task Categories Tests](#7-task-categories-tests)
 8. [Commitments Tests](#8-commitments-tests)
@@ -201,6 +203,27 @@ Comprehensive test plan covering features, edge cases, offline behavior, synchro
 | Exceed target | Increment past target | Stays completed, value increases |
 | Edit goal name | Change name, save | Name updated |
 | Change goal type | Switch from completion to incremental | Type changes, values reset |
+| Direct input overflow | Click value, type number above target | Accepts value, shows overflow |
+| Decrement from overflow | At 15/10, click - | Value decreases to 14/10 |
+
+### 3.5 Goal Overflow and Celebration Effects
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Increment past 100% | Increment 10/10 goal | Becomes 11/10 (110%), subtle celebration |
+| Display shows overflow | Set goal to 15/10 | Displays "15/10" and "150%" |
+| Color at 110% | Set to 110% | Color slightly shifted toward cyan |
+| Color at 150% | Set to 150% | Full cyan color |
+| Color at 200%+ | Set to 200%+ | Purple color |
+| Progress bar width | Set to 150% | Bar fills 100% width (capped visually) |
+| Overflow star indicator | Exceed 100% | Star (✦) appears next to mini-progress |
+| Glow intensity scaling | Increase from 100% to 200% | Glow progressively intensifies |
+| Orbiting stars appear | Set to 170%+ | Orbiting star particles visible |
+| List total stays capped | Have 1 goal at 200% | List progress shows 100%, not 200% |
+| Reduced motion | Enable prefers-reduced-motion | All animations disabled |
+| Decrement removes effects | Go from 110% to 100% | Celebration effects disappear |
+| Persistence after refresh | Set overflow, refresh page | Overflow value persists |
+| Sync overflow value | Set overflow, sync to server | Value syncs correctly |
 
 ### 3.3 Reorder Goals
 
@@ -283,7 +306,20 @@ Comprehensive test plan covering features, edge cases, offline behavior, synchro
 | Decrement value | Click - | Value decreases (min 0) |
 | Set exact value | Enter value directly | Saves exact value |
 | Reach target | Increment to target | Auto-marks completed |
-| Exceed target | Set value above target | Remains completed |
+| Exceed target | Set value above target | Remains completed, shows overflow |
+
+### 5.4 Daily Progress Overflow
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Increment past target | Increment 5/5 routine | Becomes 6/5 (120%) |
+| Direct input overflow | Type value > target | Accepts, shows celebration |
+| Day total capped | Single routine at 200% | Day total shows 100%, not 200% |
+| Multiple routines overflow | 2 routines both at 150% | Day average = 100% (each capped) |
+| Calendar color capped | Day with overflow routines | Calendar cell shows green (100%) |
+| Celebration effects | Exceed target on routine | Space-themed visuals appear |
+| Navigate away and back | Set overflow, leave day, return | Overflow preserved |
+| Overflow syncs | Set overflow, sync | Value syncs to server correctly |
 
 ### 5.3 Progress Persistence
 
@@ -880,3 +916,16 @@ Comprehensive test plan covering features, edge cases, offline behavior, synchro
 | Intermittent connection | Packet loss simulation |
 | Proxy/firewall | Corporate network restrictions |
 | VPN connection | Connect/disconnect VPN |
+
+### Overflow Celebration Edge Cases
+
+| Scenario | Test |
+|----------|------|
+| Extreme overflow | Set goal to 1000% (100/10) |
+| Rapid increment | Quickly click + many times past 100% |
+| Animation performance | Many goals at various overflow levels |
+| Mobile touch | Celebration effects on touch devices |
+| Small screen | Overflow effects on narrow viewport |
+| Target value change | Change target while at overflow (e.g., 15/10 → 15/20) |
+| Zero target | Incremental with target 0 (edge case) |
+| Negative after overflow | At overflow, try to decrement below 0 |

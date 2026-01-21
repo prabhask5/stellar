@@ -23,7 +23,7 @@ export function getProgressColor(percentage: number): string {
 }
 
 /**
- * Calculate completion percentage for a goal
+ * Calculate completion percentage for a goal (uncapped - can exceed 100%)
  */
 export function calculateGoalProgress(
   type: 'completion' | 'incremental',
@@ -35,5 +35,49 @@ export function calculateGoalProgress(
     return completed ? 100 : 0;
   }
   if (targetValue === null || targetValue === 0) return 0;
-  return Math.min(100, (currentValue / targetValue) * 100);
+  return (currentValue / targetValue) * 100;
+}
+
+/**
+ * Calculate completion percentage for a goal (capped at 100% for aggregate totals)
+ */
+export function calculateGoalProgressCapped(
+  type: 'completion' | 'incremental',
+  completed: boolean,
+  currentValue: number,
+  targetValue: number | null
+): number {
+  return Math.min(100, calculateGoalProgress(type, completed, currentValue, targetValue));
+}
+
+/**
+ * Returns a color for overflow progress (>100%)
+ * 100%: #26de81 (Success Green)
+ * 150%: #00d4ff (Cosmic Cyan)
+ * 200%+: #6c5ce7 (Primary Purple)
+ */
+export function getOverflowColor(percentage: number): string {
+  if (percentage <= 100) return getProgressColor(percentage);
+
+  const overflow = percentage - 100;
+
+  // Green RGB: 38, 222, 129 (#26de81)
+  // Cyan RGB: 0, 212, 255 (#00d4ff)
+  // Purple RGB: 108, 92, 231 (#6c5ce7)
+
+  if (overflow <= 50) {
+    // Green to Cyan (100-150%)
+    const ratio = overflow / 50;
+    const r = Math.round(38 + (0 - 38) * ratio);
+    const g = Math.round(222 + (212 - 222) * ratio);
+    const b = Math.round(129 + (255 - 129) * ratio);
+    return `rgb(${r}, ${g}, ${b})`;
+  } else {
+    // Cyan to Purple (150-200%+)
+    const ratio = Math.min(1, (overflow - 50) / 50);
+    const r = Math.round(0 + (108 - 0) * ratio);
+    const g = Math.round(212 + (92 - 212) * ratio);
+    const b = Math.round(255 + (231 - 255) * ratio);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
 }

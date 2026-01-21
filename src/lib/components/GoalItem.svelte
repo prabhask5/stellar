@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getProgressColor, calculateGoalProgress } from '$lib/utils/colors';
+  import { getProgressColor, calculateGoalProgress, getOverflowColor } from '$lib/utils/colors';
   import type { Goal, DailyRoutineGoal, DailyGoalProgress } from '$lib/types';
 
   interface Props {
@@ -29,10 +29,8 @@
       ? (goal as Goal).current_value
       : ((goal as DailyRoutineGoal & { progress?: DailyGoalProgress }).progress?.current_value ?? 0)
   );
-  // Cap current value to target to handle case where target was reduced
-  const currentValue = $derived(
-    goal.target_value !== null ? Math.min(rawCurrentValue, goal.target_value) : rawCurrentValue
-  );
+  // Allow overflow - don't cap current value
+  const currentValue = $derived(rawCurrentValue);
   const completed = $derived(
     isRegularGoal
       ? (goal as Goal).completed
@@ -42,7 +40,14 @@
   const progress = $derived(
     calculateGoalProgress(goal.type, completed, currentValue, goal.target_value)
   );
-  const progressColor = $derived(getProgressColor(progress));
+  // Use overflow color for >100%, regular progress color otherwise
+  const progressColor = $derived(progress > 100 ? getOverflowColor(progress) : getProgressColor(progress));
+
+  // Celebration state for overflow
+  const isCelebrating = $derived(progress > 100);
+  const celebrationIntensity = $derived(
+    progress <= 100 ? 0 : Math.min(1, (progress - 100) / 100)
+  );
 
   function startEditing() {
     if (!onSetValue) return;
@@ -62,14 +67,18 @@
     editing = false;
     const parsed = parseInt(inputValue, 10);
     if (!isNaN(parsed) && parsed !== currentValue && onSetValue) {
-      // Clamp to valid range
-      const clamped = Math.max(0, Math.min(parsed, goal.target_value ?? Infinity));
+      // Only prevent negative values - allow overflow above target
+      const clamped = Math.max(0, parsed);
       onSetValue(clamped);
     }
   }
 </script>
 
-<div class="goal-item" style="border-left-color: {progressColor}">
+<div
+  class="goal-item"
+  class:celebrating={isCelebrating}
+  style="border-left-color: {progressColor}; --celebration-intensity: {celebrationIntensity}; --glow-color: {progressColor}"
+>
   <div class="goal-main">
     {#if goal.type === 'completion'}
       <button
@@ -94,7 +103,6 @@
             onkeydown={handleInputKeydown}
             onblur={commitValue}
             min="0"
-            max={goal.target_value ?? undefined}
             use:focus
           />
         {:else}
@@ -119,11 +127,19 @@
 
   <div class="goal-actions">
     {#if goal.type === 'incremental'}
-      <div class="mini-progress" style="background-color: var(--color-bg-tertiary)">
+      <div
+        class="mini-progress"
+        class:celebrating={isCelebrating}
+        style="background-color: var(--color-bg-tertiary); --glow-color: {progressColor}; --celebration-intensity: {celebrationIntensity}"
+      >
         <div
           class="mini-progress-fill"
-          style="width: {progress}%; background-color: {progressColor}"
+          class:celebrating={isCelebrating}
+          style="width: {Math.min(100, progress)}%; background-color: {progressColor}"
         ></div>
+        {#if isCelebrating}
+          <span class="overflow-star" style="color: {progressColor}">✦</span>
+        {/if}
       </div>
     {/if}
     {#if onEdit}
@@ -196,6 +212,19 @@
 
   .goal-item:hover::after {
     opacity: 1;
+  }
+
+  /* Celebration effects for overflow */
+  .goal-item.celebrating {
+    border-color: color-mix(in srgb, var(--glow-color) 40%, rgba(108, 92, 231, 0.15));
+    box-shadow:
+      0 4px 20px rgba(0, 0, 0, 0.3),
+      0 0 calc(20px + var(--celebration-intensity, 0) * 30px) color-mix(in srgb, var(--glow-color) calc(var(--celebration-intensity, 0) * 40%), transparent);
+  }
+
+  .goal-item.celebrating::after {
+    opacity: calc(0.3 + var(--celebration-intensity, 0) * 0.7);
+    background: radial-gradient(ellipse, color-mix(in srgb, var(--glow-color) 15%, transparent) 0%, transparent 70%);
   }
 
   .goal-main {
@@ -408,6 +437,38 @@
     border-radius: var(--radius-full);
   }
 
+  /* Celebration effects for mini-progress */
+  .mini-progress.celebrating {
+    box-shadow:
+      inset 0 2px 4px rgba(0, 0, 0, 0.4),
+      0 0 calc(8px + var(--celebration-intensity, 0) * 12px) color-mix(in srgb, var(--glow-color) calc(var(--celebration-intensity, 0) * 60%), transparent);
+    border-color: color-mix(in srgb, var(--glow-color) 30%, rgba(108, 92, 231, 0.15));
+  }
+
+  .mini-progress-fill.celebrating {
+    animation: miniProgressPulse calc(2s - var(--celebration-intensity, 0) * 1s) ease-in-out infinite;
+  }
+
+  @keyframes miniProgressPulse {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.15); }
+  }
+
+  .overflow-star {
+    position: absolute;
+    right: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    text-shadow: 0 0 8px currentColor;
+    animation: starTwinkle calc(1.5s - var(--celebration-intensity, 0) * 0.5s) ease-in-out infinite;
+  }
+
+  @keyframes starTwinkle {
+    0%, 100% { opacity: 0.7; transform: translateY(-50%) scale(1); }
+    50% { opacity: 1; transform: translateY(-50%) scale(1.2); }
+  }
+
   .action-btn {
     width: 36px;
     height: 36px;
@@ -448,6 +509,14 @@
       margin-top: 0.75rem;
       padding-top: 0.75rem;
       border-top: 1px solid rgba(108, 92, 231, 0.12);
+    }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .mini-progress-fill.celebrating,
+    .overflow-star {
+      animation: none !important;
     }
   }
 </style>

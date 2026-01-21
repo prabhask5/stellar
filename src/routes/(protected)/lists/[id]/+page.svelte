@@ -4,7 +4,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { goalListStore } from '$lib/stores/data';
   import type { GoalList, Goal, GoalType } from '$lib/types';
-  import { calculateGoalProgress } from '$lib/utils/colors';
+  import { calculateGoalProgressCapped } from '$lib/utils/colors';
   import GoalItem from '$lib/components/GoalItem.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import Modal from '$lib/components/Modal.svelte';
@@ -30,7 +30,7 @@
   const totalProgress = $derived(() => {
     if (!list?.goals || list.goals.length === 0) return 0;
     const total = list.goals.reduce((sum, goal) => {
-      return sum + calculateGoalProgress(goal.type, goal.completed, goal.current_value, goal.target_value);
+      return sum + calculateGoalProgressCapped(goal.type, goal.completed, goal.current_value, goal.target_value);
     }, 0);
     return Math.round(total / list.goals.length);
   });
@@ -132,7 +132,8 @@
     if (!list || goal.type !== 'incremental') return;
 
     try {
-      const clamped = Math.max(0, Math.min(value, goal.target_value ?? Infinity));
+      // Only prevent negative - allow overflow above target
+      const clamped = Math.max(0, value);
       const completed = goal.target_value ? clamped >= goal.target_value : false;
       await goalListStore.updateGoal(goal.id, { current_value: clamped, completed });
     } catch (e) {
