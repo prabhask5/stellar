@@ -115,6 +115,11 @@ async function init() {
     await focusOrOpenApp();
   });
 
+  privacyLink?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    await navigateToApp(`${config.appUrl}/policy`);
+  });
+
   // Check auth if online
   if (isOnline) {
     await checkAuth();
