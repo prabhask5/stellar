@@ -197,7 +197,11 @@ body {
 body::before {
   content: '';
   position: fixed;
-  inset: 0;
+  /* Extend into safe areas on iOS PWA - use negative margins to go beyond viewport */
+  top: calc(-1 * env(safe-area-inset-top, 0px));
+  bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+  left: calc(-1 * env(safe-area-inset-left, 0px));
+  right: calc(-1 * env(safe-area-inset-right, 0px));
   background:
     /* Distant star clusters */
     radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.8) 0%, transparent 100%),
@@ -224,11 +228,12 @@ body::before {
   50% { opacity: 0.85; }
 }
 
-/* Orbital ring that slowly rotates */
+/* Orbital ring that slowly rotates - extends into safe areas */
 body::after {
   content: '';
   position: fixed;
-  top: 50%;
+  /* Use full viewport including safe areas */
+  top: calc(50% - env(safe-area-inset-top, 0px) / 2);
   left: 50%;
   width: 200vmax;
   height: 200vmax;
@@ -884,28 +889,33 @@ button {
   }
 }
 
-/* Full viewport handling for iOS PWA */
+/* Full viewport handling for iOS PWA - MUST extend into safe areas */
 html {
   position: fixed;
+  /* Use 100% to get the full viewport including safe areas, not 100dvh which excludes them */
   width: 100%;
-  width: 100dvw;
   height: 100%;
-  height: 100dvh;
+  /* Also try explicit coverage of safe areas */
+  min-height: calc(100% + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
   overflow: hidden;
-  /* Extend behind status bar/Dynamic Island */
+  /* Critical: This background shows in the safe areas on iOS PWA */
   background: var(--color-void);
 }
 
 body {
   position: fixed;
+  /* Extend into safe areas explicitly */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Fallback dimensions */
   width: 100%;
-  width: 100dvw;
   height: 100%;
-  height: 100dvh;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: none;
-  /* Ensure background extends to all edges */
+  /* Critical: This background extends to all edges including safe areas */
   background: var(--color-void);
 }
 

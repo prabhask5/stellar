@@ -627,15 +627,14 @@
     right: 0;
     z-index: 150;
     /* Dynamic height based on safe area + extra padding for content */
-    height: calc(env(safe-area-inset-top, 47px) + 16px);
+    height: calc(env(safe-area-inset-top, 47px) + 20px);
     padding-top: env(safe-area-inset-top, 47px);
-    /* Cinematic gradient that fades into content */
+    /* SOLID background that extends behind Dynamic Island - no black bars */
     background: linear-gradient(180deg,
-      rgba(8, 8, 16, 1) 0%,
-      rgba(8, 8, 16, 0.95) 30%,
-      rgba(8, 8, 16, 0.8) 60%,
-      rgba(8, 8, 16, 0.4) 85%,
-      transparent 100%);
+      #080810 0%,
+      #080810 60%,
+      rgba(8, 8, 16, 0.95) 80%,
+      rgba(8, 8, 16, 0.7) 100%);
     pointer-events: none;
     /* Entry animation */
     animation: islandFadeIn 0.6s var(--ease-out) 0.1s backwards;
@@ -1141,16 +1140,22 @@
     left: 0;
     right: 0;
     z-index: 100;
+    /* SOLID background that extends behind home indicator - no black bars */
+    background: #080810;
     /* iPhone safe area for home indicator - critical for iPhone 16 Pro */
     padding-bottom: env(safe-area-inset-bottom, 0);
     padding-left: env(safe-area-inset-left, 0);
     padding-right: env(safe-area-inset-right, 0);
   }
 
-  /* Glass morphism background with cosmic gradient */
+  /* Glass morphism background with cosmic gradient - extends to absolute bottom */
   .nav-mobile-bg {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    /* Extend beyond parent's padding-bottom to fill safe area */
+    bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
     background: linear-gradient(180deg,
       rgba(12, 12, 24, 0.85) 0%,
       rgba(8, 8, 16, 0.95) 100%);
