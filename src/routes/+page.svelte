@@ -302,10 +302,8 @@
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .home-container {
-    display: none;
     position: fixed;
-    inset: 0;
-    z-index: 99999;
+    display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
