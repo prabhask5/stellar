@@ -1009,20 +1009,32 @@ async function pushPendingOps(): Promise<PushStats> {
         }
       } catch (error) {
         console.error(`Failed to sync item ${item.id}:`, error);
-        // Capture error details for UI display
-        const errorInfo = {
-          message: extractErrorMessage(error),
-          table: item.table,
-          operation: item.operation,
-          entityId: item.entityId
-        };
-        pushErrors.push(errorInfo);
 
-        // Also add to the sync status store for UI
-        syncStatusStore.addSyncError({
-          ...errorInfo,
-          timestamp: new Date().toISOString()
-        });
+        // Determine if this is a transient error that will likely succeed on retry
+        const transient = isTransientError(error);
+
+        // Only show error in UI if:
+        // 1. It's a persistent error (won't fix itself) OR
+        // 2. It's a transient error AND this is the last retry attempt (retries >= 3)
+        // This prevents momentary error flashes for network hiccups that resolve on retry
+        const shouldShowError = !transient || item.retries >= 3;
+
+        if (shouldShowError) {
+          // Capture error details for UI display
+          const errorInfo = {
+            message: extractErrorMessage(error),
+            table: item.table,
+            operation: item.operation,
+            entityId: item.entityId
+          };
+          pushErrors.push(errorInfo);
+
+          // Also add to the sync status store for UI
+          syncStatusStore.addSyncError({
+            ...errorInfo,
+            timestamp: new Date().toISOString()
+          });
+        }
 
         if (item.id) {
           await incrementRetry(item.id);
@@ -1057,6 +1069,50 @@ function isNotFoundError(error: { code?: string; message?: string }): boolean {
   // Fallback to message check
   const msg = (error.message || '').toLowerCase();
   return msg.includes('not found') || msg.includes('no rows');
+}
+
+// Classify an error as transient (will likely succeed on retry) or persistent (won't improve)
+// Transient errors should not show UI errors until retries are exhausted
+// Persistent errors should show immediately since they require user action
+function isTransientError(error: unknown): boolean {
+  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  const errObj = error as { code?: string; status?: number };
+
+  // Network/connectivity issues - transient
+  if (msg.includes('fetch') || msg.includes('network') || msg.includes('failed to fetch')) {
+    return true;
+  }
+  if (msg.includes('timeout') || msg.includes('timed out')) {
+    return true;
+  }
+  if (msg.includes('connection') || msg.includes('offline')) {
+    return true;
+  }
+
+  // Rate limiting - transient (will succeed after backoff)
+  if (msg.includes('rate') || msg.includes('limit') || msg.includes('too many')) {
+    return true;
+  }
+  if (errObj.code === '429' || errObj.status === 429) {
+    return true;
+  }
+
+  // Server errors (5xx) - transient
+  if (msg.includes('500') || msg.includes('502') || msg.includes('503') || msg.includes('504')) {
+    return true;
+  }
+  if (errObj.status && errObj.status >= 500 && errObj.status < 600) {
+    return true;
+  }
+
+  // Service unavailable - transient
+  if (msg.includes('unavailable') || msg.includes('temporarily')) {
+    return true;
+  }
+
+  // Everything else (auth errors, validation errors, etc.) - persistent
+  // These require user action and won't fix themselves with retries
+  return false;
 }
 
 // Process a single sync item
@@ -1268,15 +1324,26 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
     if (!quiet) {
       const remaining = await getPendingSync();
       syncStatusStore.setPendingCount(remaining.length);
-      syncStatusStore.setStatus(remaining.length > 0 ? 'error' : 'idle');
-      syncStatusStore.setLastSyncTime(new Date().toISOString());
-      syncStatusStore.setSyncMessage(remaining.length > 0
-        ? `${remaining.length} change${remaining.length === 1 ? '' : 's'} failed to sync`
-        : 'Everything is synced!');
 
-      // Show error summary if items remain
-      if (remaining.length > 0) {
-        if (pushErrors.length > 0) {
+      // Only show error status if:
+      // 1. We have push errors that were deemed serious enough to show, OR
+      // 2. Remaining items have been retrying for a while (retries >= 2)
+      // This prevents "error" flash for items that will succeed on next retry
+      const hasSignificantErrors = pushErrors.length > 0;
+      const hasStaleRetries = remaining.some(item => item.retries >= 2);
+      const showErrorStatus = remaining.length > 0 && (hasSignificantErrors || hasStaleRetries);
+
+      syncStatusStore.setStatus(showErrorStatus ? 'error' : 'idle');
+      syncStatusStore.setLastSyncTime(new Date().toISOString());
+
+      // Update message based on actual error state
+      if (showErrorStatus) {
+        syncStatusStore.setSyncMessage(
+          `${remaining.length} change${remaining.length === 1 ? '' : 's'} failed to sync`
+        );
+
+        // Show error details
+        if (hasSignificantErrors) {
           // Show the latest specific error
           const latestError = pushErrors[pushErrors.length - 1];
           syncStatusStore.setError(
@@ -1296,7 +1363,13 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
             `Affected: ${details}. Will retry automatically.`
           );
         }
+      } else if (remaining.length > 0) {
+        // Items exist but don't show error status yet (still early in retry cycle)
+        // Show a neutral "syncing" message instead of error
+        syncStatusStore.setSyncMessage('Syncing changes...');
+        syncStatusStore.setError(null);
       } else {
+        syncStatusStore.setSyncMessage('Everything is synced!');
         syncStatusStore.setError(null);
       }
     }
