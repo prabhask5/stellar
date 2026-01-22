@@ -661,7 +661,8 @@ function setLastSyncCursor(cursor: string, userId: string | null): void {
 
 // PULL: Fetch changes from remote since last sync
 // Returns egress stats for this pull operation
-async function pullRemoteChanges(): Promise<{ bytes: number; records: number }> {
+// minCursor: optional minimum cursor to use (e.g., timestamp after push completes)
+async function pullRemoteChanges(minCursor?: string): Promise<{ bytes: number; records: number }> {
   const userId = await getCurrentUserId();
 
   // Abort if no authenticated user (avoids confusing RLS errors)
@@ -669,7 +670,10 @@ async function pullRemoteChanges(): Promise<{ bytes: number; records: number }> 
     throw new Error('Not authenticated. Please sign in to sync.');
   }
 
-  const lastSync = getLastSyncCursor(userId);
+  // Use the later of stored cursor or provided minCursor
+  // This prevents re-fetching records we just pushed in this sync cycle
+  const storedCursor = getLastSyncCursor(userId);
+  const lastSync = minCursor && minCursor > storedCursor ? minCursor : storedCursor;
   const pendingEntityIds = await getPendingEntityIds();
 
   // Track the newest updated_at we see
@@ -1223,11 +1227,16 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
     pushedItems = pushStats.actualPushed;
     pushSucceeded = true;
 
+    // Capture timestamp AFTER push completes - this prevents re-fetching
+    // records we just pushed (their server updated_at will be <= this time)
+    const postPushCursor = new Date().toISOString();
+
     if (!quiet) {
       syncStatusStore.setSyncMessage('Downloading latest data...');
     }
 
     // Then pull remote changes - retry up to 3 times if push succeeded
+    // Pass postPushCursor to avoid fetching records we just pushed
     let pullAttempts = 0;
     const maxPullAttempts = 3;
     let lastPullError: unknown = null;
@@ -1235,7 +1244,7 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
 
     while (pullAttempts < maxPullAttempts && !pullSucceeded) {
       try {
-        pullEgress = await pullRemoteChanges();
+        pullEgress = await pullRemoteChanges(postPushCursor);
         pullSucceeded = true;
       } catch (pullError) {
         lastPullError = pullError;
