@@ -148,12 +148,12 @@
             class="mini-progress-fill"
             class:celebrating={isCelebrating}
             style="width: {Math.min(100, progress)}%; background-color: {progressColor}"
-          >
-            <!-- Shimmer overlay - inside fill to be clipped -->
-            {#if isCelebrating}
-              <div class="shimmer-overlay"></div>
-            {/if}
-          </div>
+          ></div>
+
+          <!-- Shimmer overlay -->
+          {#if isCelebrating}
+            <div class="shimmer-overlay"></div>
+          {/if}
         </div>
 
         <!-- Starburst particles -->
