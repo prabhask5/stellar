@@ -772,23 +772,14 @@
   }
 
   .island-right :global(.sync-indicator .indicator-core) {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
   }
 
-  /* Only make synced and syncing icons bigger on mobile */
-  .island-right :global(.sync-indicator .icon-synced),
-  .island-right :global(.sync-indicator .icon-syncing) {
-    width: 20px;
-    height: 20px;
-  }
-
-  /* Keep other icons at default size */
-  .island-right :global(.sync-indicator .icon-offline),
-  .island-right :global(.sync-indicator .icon-error),
-  .island-right :global(.sync-indicator .icon-pending) {
-    width: 16px;
-    height: 16px;
+  /* All status icons are 24px */
+  .island-right :global(.sync-indicator .icon) {
+    width: 24px;
+    height: 24px;
   }
 
   .island-right :global(.pending-badge) {
@@ -1166,12 +1157,13 @@
   .nav-mobile {
     display: none;
     position: fixed;
-    /* Position at absolute bottom of viewport */
-    bottom: 0;
+    /* Use negative bottom to push nav INTO the safe area */
+    bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
     left: 0;
     right: 0;
     z-index: 100;
-    /* No padding - let children handle safe areas */
+    /* Add padding to push content back up above safe area */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   /* Glass morphism background - fills entire nav including safe area */
@@ -1180,7 +1172,6 @@
     top: 0;
     left: 0;
     right: 0;
-    /* Fill to the absolute bottom edge of the screen */
     bottom: 0;
     /* SOLID color that extends to the very bottom - eliminates black bar */
     background: linear-gradient(180deg,
@@ -1242,8 +1233,7 @@
     max-width: 420px;
     margin: 0 auto;
     padding: 0 0.75rem;
-    /* Add safe area padding at bottom for home indicator - content stays above it */
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    /* Safe area handled by parent nav-mobile */
     padding-left: max(0.75rem, env(safe-area-inset-left, 0));
     padding-right: max(0.75rem, env(safe-area-inset-right, 0));
     z-index: 1;

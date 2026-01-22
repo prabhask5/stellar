@@ -303,9 +303,11 @@
 
   .home-container {
     position: fixed;
-    inset: 0;
-    /* Account for desktop navbar (64px) */
-    top: 64px;
+    /* Fill entire screen edge-to-edge */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -902,9 +904,9 @@
 
   @media (max-width: 640px) {
     .home-container {
-      /* Mobile: no top navbar, has island header + bottom nav */
-      top: calc(env(safe-area-inset-top, 47px) + 20px);
-      bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+      /* Mobile: fill entire screen, content is centered so no need for offsets */
+      top: 0;
+      bottom: 0;
     }
   }
 
