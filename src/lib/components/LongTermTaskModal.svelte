@@ -1,6 +1,7 @@
 <script lang="ts">
   import Modal from './Modal.svelte';
   import type { LongTermTaskWithCategory, TaskCategory } from '$lib/types';
+  import { parseDateString } from '$lib/utils/dates';
 
   interface Props {
     open: boolean;
@@ -88,7 +89,7 @@
     if (!task) return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const taskDueDate = new Date(task.due_date + 'T00:00:00');
+    const taskDueDate = parseDateString(task.due_date);
     return taskDueDate < today && !completed;
   }
 
@@ -96,12 +97,12 @@
     if (!task) return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const taskDueDate = new Date(task.due_date + 'T00:00:00');
+    const taskDueDate = parseDateString(task.due_date);
     return taskDueDate.getTime() === today.getTime() && !completed;
   }
 
   function formatDisplayDate(dateStr: string): string {
-    const date = new Date(dateStr + 'T00:00:00');
+    const date = parseDateString(dateStr);
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   }
 </script>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import Modal from './Modal.svelte';
   import type { TaskCategory } from '$lib/types';
+  import { getTodayDateString } from '$lib/utils/dates';
 
   interface Props {
     open: boolean;
@@ -51,8 +52,7 @@
   });
 
   function getTodayString(): string {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
+    return getTodayDateString();
   }
 
   function handleSubmit(e: Event) {

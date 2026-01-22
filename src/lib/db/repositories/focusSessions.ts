@@ -155,9 +155,11 @@ export async function advancePhase(
 }
 
 export async function getTodayFocusTime(userId: string): Promise<number> {
+  // Get local midnight as ISO string for comparison
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString();
+  // Convert local midnight to ISO by accounting for timezone offset
+  const localMidnightISO = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString();
 
   const sessions = await db.focusSessions
     .where('user_id')
@@ -168,7 +170,7 @@ export async function getTodayFocusTime(userId: string): Promise<number> {
   let totalMs = 0;
   for (const session of sessions) {
     if (session.deleted) continue;
-    if (session.started_at < todayStr) continue;
+    if (session.started_at < localMidnightISO) continue;
 
     // Use elapsed_duration (actual time spent in focus phases)
     totalMs += (session.elapsed_duration || 0) * 60 * 1000;

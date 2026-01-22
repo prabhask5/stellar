@@ -16,6 +16,23 @@ export function formatDate(date: Date | string): string {
   return format(d, 'yyyy-MM-dd');
 }
 
+/**
+ * Get today's date as a yyyy-MM-dd string in local timezone.
+ * Use this instead of new Date().toISOString().split('T')[0]
+ * which would give UTC date instead of local date.
+ */
+export function getTodayDateString(): string {
+  return formatDate(new Date());
+}
+
+/**
+ * Parse a yyyy-MM-dd date string into a Date object in local timezone.
+ * Use this instead of new Date(dateStr) which may parse as UTC.
+ */
+export function parseDateString(dateStr: string): Date {
+  return new Date(dateStr + 'T00:00:00');
+}
+
 export function formatDisplayDate(date: Date | string): string {
   const d = typeof date === 'string' ? parseISO(date) : date;
   return format(d, 'MMM d, yyyy');

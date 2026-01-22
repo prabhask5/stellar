@@ -5,7 +5,8 @@
     getFirstDayOfMonthWeekday,
     formatDate,
     formatMonthYear,
-    isTodayDate
+    isTodayDate,
+    parseDateString
   } from '$lib/utils/dates';
   import { addMonths, subMonths } from 'date-fns';
   import type { LongTermTaskWithCategory } from '$lib/types';
@@ -50,7 +51,8 @@
   function isOverdue(task: LongTermTaskWithCategory): boolean {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return new Date(task.due_date) < today && !task.completed;
+    const taskDueDate = parseDateString(task.due_date);
+    return taskDueDate < today && !task.completed;
   }
 </script>
 

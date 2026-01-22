@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade, scale } from 'svelte/transition';
   import type { TaskCategory, LongTermTaskWithCategory } from '$lib/types';
+  import { parseDateString } from '$lib/utils/dates';
 
   // Available colors for categories (same as CategoryCreateModal)
   const CATEGORY_COLORS = [
@@ -71,10 +72,10 @@
   }
 
   function formatDate(dateStr: string): string {
-    const date = new Date(dateStr + 'T00:00:00');
+    const date = parseDateString(dateStr);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const taskDate = new Date(dateStr + 'T00:00:00');
+    const taskDate = parseDateString(dateStr);
 
     const diffDays = Math.floor((taskDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -93,13 +94,13 @@
   function isOverdue(dateStr: string): boolean {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return new Date(dateStr + 'T00:00:00') < today;
+    return parseDateString(dateStr) < today;
   }
 
   function isDueToday(dateStr: string): boolean {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const taskDate = new Date(dateStr + 'T00:00:00');
+    const taskDate = parseDateString(dateStr);
     return taskDate.getTime() === today.getTime();
   }
 
