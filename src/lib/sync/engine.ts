@@ -1274,13 +1274,28 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
         ? `${remaining.length} change${remaining.length === 1 ? '' : 's'} failed to sync`
         : 'Everything is synced!');
 
-      // Show error summary if push failed
-      if (remaining.length > 0 && pushErrors.length > 0) {
-        const latestError = pushErrors[pushErrors.length - 1];
-        syncStatusStore.setError(
-          `Failed to sync ${latestError.table} (${latestError.operation})`,
-          latestError.message
-        );
+      // Show error summary if items remain
+      if (remaining.length > 0) {
+        if (pushErrors.length > 0) {
+          // Show the latest specific error
+          const latestError = pushErrors[pushErrors.length - 1];
+          syncStatusStore.setError(
+            `Failed to sync ${latestError.table} (${latestError.operation})`,
+            latestError.message
+          );
+        } else {
+          // Items in retry backoff - no specific errors this cycle
+          // Show pending retry info instead of clearing error details
+          const retryInfo = remaining.map(item => `${item.table} (${item.operation})`).slice(0, 3);
+          const moreCount = remaining.length - retryInfo.length;
+          const details = moreCount > 0
+            ? `${retryInfo.join(', ')} and ${moreCount} more`
+            : retryInfo.join(', ');
+          syncStatusStore.setError(
+            `${remaining.length} change${remaining.length === 1 ? '' : 's'} pending retry`,
+            `Affected: ${details}. Will retry automatically.`
+          );
+        }
       } else {
         syncStatusStore.setError(null);
       }

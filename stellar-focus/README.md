@@ -2,6 +2,9 @@
 
 Browser extension that blocks distracting websites during focus sessions managed by the Stellar productivity app. Integrates via Supabase Realtime for instant state synchronization.
 
+Get it on Chrome: https://chromewebstore.google.com/detail/stellar-focus/eppioehchokbecpepjkkcedffakhepfo
+And on Firefox: https://addons.mozilla.org/en-US/firefox/addon/stellar-focus/
+
 ---
 
 ## Table of Contents
