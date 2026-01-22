@@ -701,8 +701,14 @@ async function subscribeToRealtime() {
       console.log('[Stellar Focus] Focus subscription status:', status, err || '');
       if (status === 'SUBSCRIBED') {
         console.log('[Stellar Focus] ✅ Focus real-time connected!');
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        // Realtime is working - stop polling to reduce egress
+        realtimeHealthy = true;
+        stopPolling();
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         console.error('[Stellar Focus] ❌ Focus realtime failed:', err);
+        // Realtime failed - fall back to polling
+        realtimeHealthy = false;
+        startPolling();
       }
     });
 
@@ -761,21 +767,31 @@ function unsubscribeFromRealtime() {
 }
 
 let pollInterval: ReturnType<typeof setInterval> | null = null;
+let realtimeHealthy = false; // Track if realtime is working to avoid redundant polling
 
 function startPolling() {
+  // Don't start polling if realtime is working
+  if (realtimeHealthy) {
+    console.log('[Stellar Focus] Skipping polling - realtime is healthy');
+    return;
+  }
   stopPolling();
-  // Poll every 1 second for near-instant updates if realtime fails
+  // Poll every 30 seconds as fallback when realtime is unavailable
+  // Reduced from 1 second to minimize Supabase egress
   pollInterval = setInterval(async () => {
-    if (isOnline && currentUserId) {
+    if (isOnline && currentUserId && !realtimeHealthy) {
+      console.log('[Stellar Focus] Polling fallback (realtime unavailable)');
       await loadFocusStatus();
     }
-  }, 1000); // 1 second - feels instant
+  }, 30000); // 30 seconds - only as fallback when realtime fails
+  console.log('[Stellar Focus] Started 30s polling fallback');
 }
 
 function stopPolling() {
   if (pollInterval) {
     clearInterval(pollInterval);
     pollInterval = null;
+    console.log('[Stellar Focus] Stopped polling');
   }
 }
 

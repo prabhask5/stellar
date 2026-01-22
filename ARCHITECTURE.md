@@ -160,8 +160,8 @@ This guarantees that no local change can exist without a queued sync operation.
 | Trigger | Debounce | Purpose |
 |---------|----------|---------|
 | After local write | 2 seconds | Batch rapid changes |
-| Periodic interval | 5 minutes | Catch missed updates |
-| Tab becomes visible | 1 second | Sync after background |
+| Periodic interval | 15 minutes | Catch missed updates (optimized for egress) |
+| Tab becomes visible | 1 second (only if away >5 min) | Sync after background |
 | Network reconnect | Immediate | Recover from offline |
 | Manual pull-to-refresh | None | User-initiated sync |
 
@@ -524,6 +524,105 @@ The service worker implements multiple caching strategies based on resource type
 - **`elapsed_duration`**: Total focus minutes accumulated across all phases
 
 Time remaining is calculated dynamically: `phase_duration - (now - phase_started_at)`
+
+---
+
+## Egress Optimization
+
+The system implements several optimizations to minimize Supabase egress (data transfer from server to client).
+
+### Incremental Sync with Cursors
+
+Instead of fetching all data on each sync, the engine uses cursor-based incremental sync:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CURSOR-BASED SYNC                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Stored Cursor: lastSyncCursor_{userId} in localStorage          │
+│                                                                  │
+│  Pull Query: SELECT * FROM table WHERE updated_at > cursor       │
+│                                                                  │
+│  Result: Only changed records since last sync                    │
+│                                                                  │
+│  Update: cursor = MAX(pulled_records.updated_at)                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Explicit Column Selection
+
+All queries specify exact columns instead of `SELECT *`:
+
+```typescript
+const COLUMNS = {
+  goal_lists: 'id,user_id,name,created_at,updated_at,deleted',
+  goals: 'id,goal_list_id,name,type,target_value,current_value,...',
+  // ... other tables
+};
+
+// Query uses explicit columns
+.select(COLUMNS.goal_lists)
+```
+
+### Smart Polling Intervals
+
+| Component | Interval | Condition |
+|-----------|----------|-----------|
+| Main app periodic sync | 15 minutes | Tab visible AND online |
+| Tab visibility sync | On visible | Only if away >5 minutes |
+| Extension service worker | 30 seconds | Only when realtime unhealthy |
+| Extension popup | 30 seconds | Only when realtime unhealthy |
+
+### Realtime-First Architecture
+
+The browser extension uses Supabase Realtime as the primary data channel:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    REALTIME-FIRST PATTERN                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. Subscribe to Realtime channel                                │
+│  2. On SUBSCRIBED status: disable polling                        │
+│  3. Receive instant updates via WebSocket                        │
+│  4. If realtime fails: enable polling fallback (30s)            │
+│  5. On reconnect: re-subscribe, disable polling                  │
+│                                                                  │
+│  Result: Near-zero egress when realtime is healthy              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Queue Coalescing
+
+Multiple rapid updates to the same entity are merged before pushing:
+
+```
+User clicks increment 10 times rapidly:
+  Queue: 10 separate update operations
+
+Before push, coalesce runs:
+  Merged: 1 update operation with final value
+
+Result: 10x reduction in push requests
+```
+
+### Egress Monitoring
+
+Debug sync behavior in browser console:
+
+```javascript
+// View sync statistics
+window.__stellarSyncStats?.()
+
+// Output:
+// === STELLAR SYNC STATS ===
+// Total cycles: 15
+// Last minute: 0 cycles
+// Recent cycles: [...]
+```
 
 ---
 

@@ -17,14 +17,80 @@ import { isRoutineActiveOnDate } from '$lib/utils/dates';
 // 5. On refresh, load local state instantly, then run background sync
 // ============================================================
 
+// ============================================================
+// EGRESS MONITORING - Track sync cycles for debugging
+// ============================================================
+interface SyncCycleStats {
+  timestamp: string;
+  trigger: string;
+  pushedItems: number;
+  pulledTables: number;
+  durationMs: number;
+}
+
+const syncStats: SyncCycleStats[] = [];
+let totalSyncCycles = 0;
+
+function logSyncCycle(stats: Omit<SyncCycleStats, 'timestamp'>) {
+  const entry: SyncCycleStats = {
+    ...stats,
+    timestamp: new Date().toISOString(),
+  };
+  syncStats.push(entry);
+  totalSyncCycles++;
+
+  // Keep only last 100 entries
+  if (syncStats.length > 100) {
+    syncStats.shift();
+  }
+
+  console.log(
+    `[SYNC] Cycle #${totalSyncCycles}: ` +
+    `trigger=${stats.trigger}, pushed=${stats.pushedItems}, ` +
+    `pulled=${stats.pulledTables} tables, ${stats.durationMs}ms`
+  );
+}
+
+// Export for debugging in browser console: window.__stellarSyncStats?.()
+if (typeof window !== 'undefined') {
+  (window as unknown as Record<string, unknown>).__stellarSyncStats = () => {
+    const recentMinute = syncStats.filter(s =>
+      new Date(s.timestamp).getTime() > Date.now() - 60000
+    );
+    console.log('=== STELLAR SYNC STATS ===');
+    console.log(`Total cycles: ${totalSyncCycles}`);
+    console.log(`Last minute: ${recentMinute.length} cycles`);
+    console.log(`Recent cycles:`, syncStats.slice(-10));
+    return { totalSyncCycles, recentMinute: recentMinute.length, recent: syncStats.slice(-10) };
+  };
+}
+
+// Column definitions for each table (explicit to reduce egress vs select('*'))
+const COLUMNS = {
+  goal_lists: 'id,user_id,name,created_at,updated_at,deleted',
+  goals: 'id,goal_list_id,name,type,target_value,current_value,completed,order,created_at,updated_at,deleted',
+  daily_routine_goals: 'id,user_id,name,type,target_value,start_date,end_date,active_days,order,created_at,updated_at,deleted',
+  daily_goal_progress: 'id,daily_routine_goal_id,date,current_value,completed,updated_at,deleted',
+  task_categories: 'id,user_id,name,color,order,created_at,updated_at,deleted',
+  commitments: 'id,user_id,name,section,order,created_at,updated_at,deleted',
+  daily_tasks: 'id,user_id,name,order,completed,created_at,updated_at,deleted',
+  long_term_tasks: 'id,user_id,name,due_date,category_id,completed,created_at,updated_at,deleted',
+  focus_settings: 'id,user_id,focus_duration,break_duration,long_break_duration,cycles_before_long_break,auto_start_breaks,auto_start_focus,created_at,updated_at,deleted',
+  focus_sessions: 'id,user_id,started_at,ended_at,phase,status,current_cycle,total_cycles,focus_duration,break_duration,phase_started_at,phase_remaining_ms,elapsed_duration,created_at,updated_at,deleted',
+  block_lists: 'id,user_id,name,active_days,is_enabled,order,created_at,updated_at,deleted',
+  blocked_websites: 'id,block_list_id,domain,created_at,updated_at,deleted'
+} as const;
+
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let syncInterval: ReturnType<typeof setInterval> | null = null;
 let hasHydrated = false; // Track if initial hydration has been attempted
 let isTabVisible = true; // Track tab visibility
 let visibilityDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
+let tabHiddenAt: number | null = null; // Track when tab became hidden for smart sync
 const SYNC_DEBOUNCE_MS = 2000; // 2 seconds debounce after writes
-const SYNC_INTERVAL_MS = 300000; // 5 minutes periodic sync (reduced frequency)
+const SYNC_INTERVAL_MS = 900000; // 15 minutes periodic sync (optimized for single user egress)
 const VISIBILITY_SYNC_DEBOUNCE_MS = 1000; // Debounce for visibility change syncs
+const VISIBILITY_SYNC_MIN_AWAY_MS = 300000; // Only sync on tab return if away > 5 minutes
 const RECENTLY_MODIFIED_TTL_MS = 5000; // Protect recently modified entities for 5 seconds
 
 // Track recently modified entity IDs to prevent pull from overwriting fresh local changes
@@ -164,7 +230,7 @@ export async function getGoalList(id: string): Promise<(GoalList & { goals: Goal
     try {
       const { data: remoteList, error: listError } = await supabase
         .from('goal_lists')
-        .select('*')
+        .select(COLUMNS.goal_lists)
         .eq('id', id)
         .single();
 
@@ -175,7 +241,7 @@ export async function getGoalList(id: string): Promise<(GoalList & { goals: Goal
         // Also fetch its goals
         const { data: remoteGoals, error: goalsError } = await supabase
           .from('goals')
-          .select('*')
+          .select(COLUMNS.goals)
           .eq('goal_list_id', id);
 
         if (!goalsError && remoteGoals) {
@@ -220,7 +286,7 @@ export async function getDailyRoutineGoal(id: string): Promise<DailyRoutineGoal 
     try {
       const { data: remoteRoutine, error } = await supabase
         .from('daily_routine_goals')
-        .select('*')
+        .select(COLUMNS.daily_routine_goals)
         .eq('id', id)
         .single();
 
@@ -264,7 +330,7 @@ export async function getDailyProgress(date: string): Promise<DailyGoalProgress[
     try {
       const { data: remoteProgress, error } = await supabase
         .from('daily_goal_progress')
-        .select('*')
+        .select(COLUMNS.daily_goal_progress)
         .eq('date', date)
         .or('deleted.is.null,deleted.eq.false');
 
@@ -296,7 +362,7 @@ export async function getMonthProgress(year: number, month: number): Promise<Dai
     try {
       const { data: remoteProgress, error } = await supabase
         .from('daily_goal_progress')
-        .select('*')
+        .select(COLUMNS.daily_goal_progress)
         .gte('date', startDate)
         .lte('date', endDate)
         .or('deleted.is.null,deleted.eq.false');
@@ -468,7 +534,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull goal_lists changed since last sync
   const { data: remoteLists, error: listsError } = await supabase
     .from('goal_lists')
-    .select('*')
+    .select(COLUMNS.goal_lists)
     .gt('updated_at', lastSync);
 
   if (listsError) throw listsError;
@@ -476,7 +542,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull goals changed since last sync
   const { data: remoteGoals, error: goalsError } = await supabase
     .from('goals')
-    .select('*')
+    .select(COLUMNS.goals)
     .gt('updated_at', lastSync);
 
   if (goalsError) throw goalsError;
@@ -484,7 +550,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull daily_routine_goals changed since last sync
   const { data: remoteRoutines, error: routinesError } = await supabase
     .from('daily_routine_goals')
-    .select('*')
+    .select(COLUMNS.daily_routine_goals)
     .gt('updated_at', lastSync);
 
   if (routinesError) throw routinesError;
@@ -492,7 +558,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull daily_goal_progress changed since last sync
   const { data: remoteProgress, error: progressError } = await supabase
     .from('daily_goal_progress')
-    .select('*')
+    .select(COLUMNS.daily_goal_progress)
     .gt('updated_at', lastSync);
 
   if (progressError) throw progressError;
@@ -500,7 +566,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull task_categories changed since last sync
   const { data: remoteCategories, error: categoriesError } = await supabase
     .from('task_categories')
-    .select('*')
+    .select(COLUMNS.task_categories)
     .gt('updated_at', lastSync);
 
   if (categoriesError) throw categoriesError;
@@ -508,7 +574,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull commitments changed since last sync
   const { data: remoteCommitments, error: commitmentsError } = await supabase
     .from('commitments')
-    .select('*')
+    .select(COLUMNS.commitments)
     .gt('updated_at', lastSync);
 
   if (commitmentsError) throw commitmentsError;
@@ -516,7 +582,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull daily_tasks changed since last sync
   const { data: remoteDailyTasks, error: dailyTasksError } = await supabase
     .from('daily_tasks')
-    .select('*')
+    .select(COLUMNS.daily_tasks)
     .gt('updated_at', lastSync);
 
   if (dailyTasksError) throw dailyTasksError;
@@ -524,7 +590,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull long_term_tasks changed since last sync
   const { data: remoteLongTermTasks, error: longTermTasksError } = await supabase
     .from('long_term_tasks')
-    .select('*')
+    .select(COLUMNS.long_term_tasks)
     .gt('updated_at', lastSync);
 
   if (longTermTasksError) throw longTermTasksError;
@@ -532,7 +598,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull focus_settings changed since last sync
   const { data: remoteFocusSettings, error: focusSettingsError } = await supabase
     .from('focus_settings')
-    .select('*')
+    .select(COLUMNS.focus_settings)
     .gt('updated_at', lastSync);
 
   if (focusSettingsError) throw focusSettingsError;
@@ -540,7 +606,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull focus_sessions changed since last sync
   const { data: remoteFocusSessions, error: focusSessionsError } = await supabase
     .from('focus_sessions')
-    .select('*')
+    .select(COLUMNS.focus_sessions)
     .gt('updated_at', lastSync);
 
   if (focusSessionsError) throw focusSessionsError;
@@ -548,7 +614,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull block_lists changed since last sync
   const { data: remoteBlockLists, error: blockListsError } = await supabase
     .from('block_lists')
-    .select('*')
+    .select(COLUMNS.block_lists)
     .gt('updated_at', lastSync);
 
   if (blockListsError) throw blockListsError;
@@ -556,7 +622,7 @@ async function pullRemoteChanges(): Promise<void> {
   // Pull blocked_websites changed since last sync
   const { data: remoteBlockedWebsites, error: blockedWebsitesError } = await supabase
     .from('blocked_websites')
-    .select('*')
+    .select(COLUMNS.blocked_websites)
     .gt('updated_at', lastSync);
 
   if (blockedWebsitesError) throw blockedWebsitesError;
@@ -923,6 +989,11 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
   const acquired = await acquireSyncLock();
   if (!acquired) return;
 
+  // Track sync cycle for egress monitoring
+  const cycleStart = Date.now();
+  const trigger = quiet ? 'periodic' : 'user';
+  let pushedItems = 0;
+
   let pushSucceeded = false;
   let pullSucceeded = false;
 
@@ -936,6 +1007,8 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
     // Push first so local changes are persisted
     // Note: pushPendingOps now coalesces before pushing, so the actual
     // number of requests will be much lower than raw pending items
+    const beforePush = await getPendingSync();
+    pushedItems = beforePush.length;
     await pushPendingOps();
     pushSucceeded = true;
 
@@ -1008,6 +1081,13 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
       notifySyncComplete();
     }
   } finally {
+    // Log sync cycle stats for egress monitoring
+    logSyncCycle({
+      trigger,
+      pushedItems,
+      pulledTables: pullSucceeded ? 12 : 0, // 12 tables pulled on success
+      durationMs: Date.now() - cycleStart,
+    });
     releaseSyncLock();
   }
 }
@@ -1050,77 +1130,77 @@ export async function hydrateFromRemote(): Promise<void> {
   syncStatusStore.setSyncMessage('Loading your data...');
 
   try {
-    // Pull all non-deleted records from each table
+    // Pull all non-deleted records from each table (explicit columns for egress optimization)
     // Filter deleted = false OR deleted IS NULL to exclude tombstones
     const { data: lists, error: listsError } = await supabase
       .from('goal_lists')
-      .select('*')
+      .select(COLUMNS.goal_lists)
       .or('deleted.is.null,deleted.eq.false');
     if (listsError) throw listsError;
 
     const { data: goals, error: goalsError } = await supabase
       .from('goals')
-      .select('*')
+      .select(COLUMNS.goals)
       .or('deleted.is.null,deleted.eq.false');
     if (goalsError) throw goalsError;
 
     const { data: routines, error: routinesError } = await supabase
       .from('daily_routine_goals')
-      .select('*')
+      .select(COLUMNS.daily_routine_goals)
       .or('deleted.is.null,deleted.eq.false');
     if (routinesError) throw routinesError;
 
     const { data: progress, error: progressError } = await supabase
       .from('daily_goal_progress')
-      .select('*')
+      .select(COLUMNS.daily_goal_progress)
       .or('deleted.is.null,deleted.eq.false');
     if (progressError) throw progressError;
 
     const { data: categories, error: categoriesError } = await supabase
       .from('task_categories')
-      .select('*')
+      .select(COLUMNS.task_categories)
       .or('deleted.is.null,deleted.eq.false');
     if (categoriesError) throw categoriesError;
 
     const { data: commitments, error: commitmentsError } = await supabase
       .from('commitments')
-      .select('*')
+      .select(COLUMNS.commitments)
       .or('deleted.is.null,deleted.eq.false');
     if (commitmentsError) throw commitmentsError;
 
     const { data: dailyTasks, error: dailyTasksError } = await supabase
       .from('daily_tasks')
-      .select('*')
+      .select(COLUMNS.daily_tasks)
       .or('deleted.is.null,deleted.eq.false');
     if (dailyTasksError) throw dailyTasksError;
 
     const { data: longTermTasks, error: longTermTasksError } = await supabase
       .from('long_term_tasks')
-      .select('*')
+      .select(COLUMNS.long_term_tasks)
       .or('deleted.is.null,deleted.eq.false');
     if (longTermTasksError) throw longTermTasksError;
 
     const { data: focusSettings, error: focusSettingsError } = await supabase
       .from('focus_settings')
-      .select('*')
+      .select(COLUMNS.focus_settings)
       .or('deleted.is.null,deleted.eq.false');
     if (focusSettingsError) throw focusSettingsError;
 
     const { data: focusSessions, error: focusSessionsError } = await supabase
       .from('focus_sessions')
-      .select('*')
+      .select(COLUMNS.focus_sessions)
       .or('deleted.is.null,deleted.eq.false');
     if (focusSessionsError) throw focusSessionsError;
 
     const { data: blockLists, error: blockListsError } = await supabase
       .from('block_lists')
-      .select('*')
+      .select(COLUMNS.block_lists)
       .or('deleted.is.null,deleted.eq.false');
     if (blockListsError) throw blockListsError;
 
     const { data: blockedWebsites, error: blockedWebsitesError } = await supabase
       .from('blocked_websites')
-      .select('*')
+      .select(COLUMNS.blocked_websites)
       .or('deleted.is.null,deleted.eq.false');
     if (blockedWebsitesError) throw blockedWebsitesError;
 
@@ -1325,14 +1405,29 @@ export function startSyncEngine(): void {
   };
   window.addEventListener('offline', handleOfflineRef);
 
-  // Track visibility and sync when returning to tab (with debounce to prevent rapid syncs)
+  // Track visibility and sync when returning to tab (with smart timing)
   handleVisibilityChangeRef = () => {
     const wasHidden = !isTabVisible;
     isTabVisible = !document.hidden;
     syncStatusStore.setTabVisible(isTabVisible);
 
-    // If tab just became visible, do a quiet sync to get fresh data (debounced)
+    // Track when tab becomes hidden
+    if (!isTabVisible) {
+      tabHiddenAt = Date.now();
+      return;
+    }
+
+    // If tab just became visible, check if we should sync
     if (wasHidden && isTabVisible && navigator.onLine) {
+      // Only sync if user was away for > 5 minutes (reduces egress for quick tab switches)
+      const awayDuration = tabHiddenAt ? Date.now() - tabHiddenAt : 0;
+      tabHiddenAt = null;
+
+      if (awayDuration < VISIBILITY_SYNC_MIN_AWAY_MS) {
+        // User was only away briefly, skip sync
+        return;
+      }
+
       // Clear any pending visibility sync
       if (visibilityDebounceTimeout) {
         clearTimeout(visibilityDebounceTimeout);

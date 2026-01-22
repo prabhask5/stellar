@@ -18,6 +18,11 @@ let currentFocusSession: FocusSessionCache | null = null;
 let isOnline = getNetworkStatus();
 let pollAlarmName = 'focus-poll';
 
+// Rate limiting to prevent excessive polling (egress optimization)
+let lastPollTime = 0;
+const MIN_POLL_INTERVAL_MS = 25000; // Minimum 25 seconds between polls
+let realtimeHealthy = false; // Track if realtime subscriptions are working
+
 // Real-time subscriptions
 let focusSessionChannel: RealtimeChannel | null = null;
 let blockListChannel: RealtimeChannel | null = null;
@@ -43,12 +48,28 @@ function setupAlarm() {
   });
 }
 
-// Handle alarm
+// Handle alarm with rate limiting
 browser.alarms.onAlarm.addListener((alarm: browser.Alarms.Alarm) => {
   if (alarm.name === pollAlarmName) {
-    pollFocusSession();
+    // Skip polling if realtime is working (egress optimization)
+    if (realtimeHealthy) {
+      console.log('[Stellar Focus] Skipping poll - realtime is healthy');
+      return;
+    }
+    pollFocusSessionThrottled();
   }
 });
+
+// Throttled poll to prevent excessive requests
+async function pollFocusSessionThrottled() {
+  const now = Date.now();
+  if (now - lastPollTime < MIN_POLL_INTERVAL_MS) {
+    console.log('[Stellar Focus] Skipping poll - too soon (rate limited)');
+    return;
+  }
+  lastPollTime = now;
+  await pollFocusSession();
+}
 
 // Listen for network changes
 if (typeof navigator !== 'undefined') {
@@ -72,8 +93,8 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
   }
 
   if (message.type === 'FOCUS_SESSION_UPDATED') {
-    // Refresh focus session state immediately
-    pollFocusSession();
+    // Refresh focus session state (throttled to prevent spam)
+    pollFocusSessionThrottled();
     return;
   }
 
@@ -190,11 +211,51 @@ async function setupRealtimeSubscriptions() {
       },
       (payload) => {
         console.log('[Stellar Focus] 🚀 Real-time: Focus session update', payload.eventType);
-        pollFocusSession();
+        // Use the payload data directly instead of making another query
+        // This reduces egress since realtime already includes the data
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const session = payload.new as FocusSessionCache & { ended_at?: string | null };
+          if (!session.ended_at) {
+            // Active session - update cache directly
+            const sessionData: FocusSessionCache = {
+              id: 'current',
+              user_id: session.user_id,
+              phase: session.phase,
+              status: session.status,
+              phase_started_at: session.phase_started_at,
+              focus_duration: session.focus_duration,
+              break_duration: session.break_duration,
+              cached_at: new Date().toISOString()
+            };
+            focusSessionCacheStore.put(sessionData).then(() => {
+              currentFocusSession = sessionData;
+              // Only refresh block lists when session starts (phase becomes focus)
+              if (session.status === 'running' && session.phase === 'focus') {
+                refreshBlockLists();
+              }
+            });
+          } else {
+            // Session ended
+            focusSessionCacheStore.clear().then(() => {
+              currentFocusSession = null;
+            });
+          }
+        } else if (payload.eventType === 'DELETE') {
+          focusSessionCacheStore.clear().then(() => {
+            currentFocusSession = null;
+          });
+        }
       }
     )
     .subscribe((status) => {
       console.log('[Stellar Focus] Focus session subscription:', status);
+      if (status === 'SUBSCRIBED') {
+        realtimeHealthy = true;
+        console.log('[Stellar Focus] ✅ Realtime healthy - disabling polling fallback');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        realtimeHealthy = false;
+        console.log('[Stellar Focus] ❌ Realtime unhealthy - polling enabled');
+      }
     });
 
   // Subscribe to block lists changes
