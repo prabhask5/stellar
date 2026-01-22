@@ -6,6 +6,30 @@ A space-themed productivity Progressive Web App featuring offline-first architec
 
 ---
 
+## Table of Contents
+
+1. [Documentation](#documentation)
+2. [Tech Stack](#tech-stack)
+3. [Features](#features)
+4. [UI Highlights](#ui-highlights)
+5. [Local Development](#local-development)
+6. [Companion Extension](#companion-extension)
+
+---
+
+## Documentation
+
+For deeper understanding of the codebase:
+
+| Document | Description |
+|----------|-------------|
+| [FRAMEWORKS.md](./FRAMEWORKS.md) | Guide to frameworks and dependencies |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, sync engine, conflict resolution |
+| [TESTING.md](./TESTING.md) | Comprehensive test plan |
+| [stellar-focus/](./stellar-focus/README.md) | Browser extension documentation |
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -110,10 +134,3 @@ npm run preview
 
 See [stellar-focus/README.md](./stellar-focus/README.md) for details.
 
----
-
-## Documentation
-
-- [FRAMEWORKS.md](./FRAMEWORKS.md) - Guide to frameworks and dependencies
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - System design, sync engine, conflict resolution
-- [TESTING.md](./TESTING.md) - Comprehensive test plan

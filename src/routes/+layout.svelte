@@ -23,12 +23,16 @@
 
   let { children, data }: Props = $props();
 
-  // Toast state for auth kicked notification
-  let showAuthKickedToast = $state(false);
-  let authKickedMessage = $state('');
+  // Toast state for notifications
+  let showToast = $state(false);
+  let toastMessage = $state('');
+  let toastType = $state<'info' | 'error'>('info');
 
   // Signing out state - used to hide navbar immediately during sign out
   let isSigningOut = $state(false);
+
+  // Reference for cleanup
+  let chunkErrorHandler: ((event: PromiseRejectionEvent) => void) | null = null;
 
   // Initialize auth state from layout data
   $effect(() => {
@@ -64,10 +68,11 @@
         console.log('[Auth] Could not restore Supabase session - redirecting to login');
         await clearOfflineSession();
         authState.setNoAuth('Your session expired while offline. Please sign in again.');
-        showAuthKickedToast = true;
-        authKickedMessage = 'Your session expired while offline. Please sign in again.';
+        toastMessage = 'Your session expired while offline. Please sign in again.';
+        toastType = 'error';
+        showToast = true;
         setTimeout(() => {
-          showAuthKickedToast = false;
+          showToast = false;
           goto('/login');
         }, 3000);
       }
@@ -80,6 +85,31 @@
   let authChannel: BroadcastChannel | null = null;
 
   onMount(() => {
+    // Handle chunk loading failures during offline navigation
+    // When navigating offline to a page whose JS chunks aren't cached,
+    // the dynamic import fails and shows a cryptic error. Catch and show a friendly message.
+    chunkErrorHandler = (event: PromiseRejectionEvent) => {
+      const error = event.reason;
+      // Check if this is a chunk loading error (fetch failed or syntax error from 503 response)
+      const isChunkError =
+        error?.message?.includes('Failed to fetch dynamically imported module') ||
+        error?.message?.includes('error loading dynamically imported module') ||
+        error?.message?.includes('Importing a module script failed') ||
+        (error?.name === 'ChunkLoadError') ||
+        (error?.message?.includes('Loading chunk') && error?.message?.includes('failed'));
+
+      if (isChunkError && !navigator.onLine) {
+        event.preventDefault(); // Prevent default error handling
+        // Show offline navigation toast
+        toastMessage = "This page isn't available offline. Please reconnect or go back.";
+        toastType = 'info';
+        showToast = true;
+        setTimeout(() => { showToast = false; }, 5000);
+      }
+    };
+
+    window.addEventListener('unhandledrejection', chunkErrorHandler);
+
     // Register reconnect handler
     setReconnectHandler(handleReconnectAuthCheck);
 
@@ -109,12 +139,12 @@
       };
     }
 
-    // Proactively cache app shell for offline support
-    // This ensures all JS/CSS assets are cached after first load
+    // Proactively cache all app chunks for full offline support
+    // This runs in the background after page load, so it doesn't affect Lighthouse scores
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      // Give the page time to load all assets, then cache what we have
+      // Give the page time to fully load, then trigger background precaching
       setTimeout(() => {
-        // Find all script and link tags and cache their URLs
+        // First, cache current page's assets
         const scripts = Array.from(document.querySelectorAll('script[src]'))
           .map((el) => (el as HTMLScriptElement).src)
           .filter((src) => src.startsWith(location.origin));
@@ -131,11 +161,21 @@
             urls
           });
         }
-      }, 2000);
+
+        // Then trigger full background precaching for all app chunks
+        // This ensures offline support for all pages, not just visited ones
+        navigator.serviceWorker.controller.postMessage({
+          type: 'PRECACHE_ALL'
+        });
+      }, 3000); // Wait 3 seconds after page load for better UX
     }
   });
 
   onDestroy(() => {
+    // Cleanup chunk error handler
+    if (chunkErrorHandler) {
+      window.removeEventListener('unhandledrejection', chunkErrorHandler);
+    }
     // Cleanup reconnect handler
     setReconnectHandler(null);
     // Cleanup auth channel
@@ -212,8 +252,8 @@
     return $page.url.pathname.startsWith(href);
   }
 
-  function dismissAuthKickedToast() {
-    showAuthKickedToast = false;
+  function dismissToast() {
+    showToast = false;
   }
 </script>
 
@@ -243,17 +283,25 @@
     </div>
   {/if}
 
-  <!-- Auth Kicked Toast Notification -->
-  {#if showAuthKickedToast}
-    <div class="auth-kicked-toast">
+  <!-- Toast Notification -->
+  {#if showToast}
+    <div class="app-toast" class:toast-error={toastType === 'error'}>
       <div class="toast-content">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-        </svg>
-        <span>{authKickedMessage}</span>
-        <button class="toast-dismiss" onclick={dismissAuthKickedToast} aria-label="Dismiss notification">
+        {#if toastType === 'error'}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        {:else}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        {/if}
+        <span>{toastMessage}</span>
+        <button class="toast-dismiss" onclick={dismissToast} aria-label="Dismiss notification">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -1330,10 +1378,10 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     AUTH KICKED TOAST - Space themed notification
+     APP TOAST - Space themed notification
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
-  .auth-kicked-toast {
+  .app-toast {
     position: fixed;
     top: calc(env(safe-area-inset-top, 0px) + 1rem);
     left: 50%;
@@ -1359,15 +1407,15 @@
     gap: 0.75rem;
     padding: 0.875rem 1.25rem;
     background: linear-gradient(135deg,
-      rgba(255, 121, 198, 0.15) 0%,
+      rgba(108, 92, 231, 0.15) 0%,
       rgba(108, 92, 231, 0.2) 100%);
-    border: 1px solid rgba(255, 121, 198, 0.3);
+    border: 1px solid rgba(108, 92, 231, 0.3);
     border-radius: var(--radius-xl);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     box-shadow:
       0 8px 32px rgba(0, 0, 0, 0.4),
-      0 0 40px rgba(255, 121, 198, 0.15),
+      0 0 40px rgba(108, 92, 231, 0.15),
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
     color: var(--color-text);
     font-size: 0.875rem;
@@ -1375,9 +1423,24 @@
     max-width: calc(100vw - 2rem);
   }
 
+  .app-toast.toast-error .toast-content {
+    background: linear-gradient(135deg,
+      rgba(255, 121, 198, 0.15) 0%,
+      rgba(108, 92, 231, 0.2) 100%);
+    border-color: rgba(255, 121, 198, 0.3);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.4),
+      0 0 40px rgba(255, 121, 198, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
   .toast-content svg {
-    color: var(--color-accent);
+    color: var(--color-primary);
     flex-shrink: 0;
+  }
+
+  .app-toast.toast-error .toast-content svg {
+    color: var(--color-accent);
   }
 
   .toast-dismiss {

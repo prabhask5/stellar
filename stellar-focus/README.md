@@ -4,6 +4,30 @@ Browser extension that blocks distracting websites during focus sessions managed
 
 ---
 
+## Table of Contents
+
+1. [Documentation](#documentation)
+2. [Tech Stack](#tech-stack)
+3. [Features](#features)
+4. [Blocking Logic](#blocking-logic)
+5. [Installation](#installation)
+6. [Configuration](#configuration)
+7. [Permissions](#permissions)
+8. [Privacy](#privacy)
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [FRAMEWORKS.md](./FRAMEWORKS.md) | Extension development dependencies |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Extension system design |
+| [TESTING.md](./TESTING.md) | Test plan |
+| [Main App README](../README.md) | Stellar main application |
+
+---
+
 ## Tech Stack
 
 | Component | Technology |
@@ -135,11 +159,3 @@ This extension:
 
 All data is cleared on logout.
 
----
-
-## Documentation
-
-- [FRAMEWORKS.md](./FRAMEWORKS.md) - Extension development dependencies
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Extension system design
-- [TESTING.md](./TESTING.md) - Test plan
-- [Stellar README](../README.md) - Main application

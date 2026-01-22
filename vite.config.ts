@@ -1,9 +1,24 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import { readFileSync, writeFileSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'fs';
+import { resolve, join } from 'path';
 
-// Plugin to inject build version into service worker
+// Recursively get all files in a directory
+function getAllFiles(dir: string, files: string[] = []): string[] {
+  if (!existsSync(dir)) return files;
+  const entries = readdirSync(dir);
+  for (const entry of entries) {
+    const fullPath = join(dir, entry);
+    if (statSync(fullPath).isDirectory()) {
+      getAllFiles(fullPath, files);
+    } else {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+// Plugin to inject build version and generate asset manifest
 function serviceWorkerVersion() {
   return {
     name: 'service-worker-version',
@@ -23,6 +38,34 @@ function serviceWorkerVersion() {
         console.log(`[SW] Updated service worker version to: ${version}`);
       } catch (e) {
         console.warn('[SW] Could not update service worker version:', e);
+      }
+    },
+    closeBundle() {
+      // After build, generate manifest of all immutable assets for precaching
+      const buildDir = resolve('.svelte-kit/output/client/_app/immutable');
+      if (!existsSync(buildDir)) {
+        console.warn('[SW] Build directory not found, skipping manifest generation');
+        return;
+      }
+
+      try {
+        const allFiles = getAllFiles(buildDir);
+        const assets = allFiles
+          .map(f => f.replace(resolve('.svelte-kit/output/client'), ''))
+          .filter(f => f.endsWith('.js') || f.endsWith('.css'));
+
+        // Write manifest to static folder
+        const manifest = {
+          version: Date.now().toString(36),
+          assets
+        };
+        writeFileSync(
+          resolve('static/asset-manifest.json'),
+          JSON.stringify(manifest, null, 2)
+        );
+        console.log(`[SW] Generated asset manifest with ${assets.length} files`);
+      } catch (e) {
+        console.warn('[SW] Could not generate asset manifest:', e);
       }
     }
   };

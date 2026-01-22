@@ -1,9 +1,8 @@
 // Version is updated automatically on each build by vite.config.ts
-const APP_VERSION = 'mkoowpi4';
+const APP_VERSION = 'mkopqdys';
 const CACHE_NAME = `stellar-${APP_VERSION}`;
 
-// Core app shell assets to precache on install
-// These are the minimum needed for offline functionality
+// Core app shell assets to precache on install (minimal for fast install)
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.json',
@@ -12,25 +11,26 @@ const PRECACHE_ASSETS = [
   '/icon-512.png'
 ];
 
-// Install event - precache app shell
+// Track if background precaching is complete
+let backgroundPrecacheComplete = false;
+
+// Install event - only precache minimal shell for fast install (good Lighthouse score)
 self.addEventListener('install', (event) => {
   console.log(`[SW] Installing version: ${APP_VERSION}`);
 
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      // Add precache assets, but don't fail if some are missing
-      const results = await Promise.allSettled(
+      // Only add minimal assets - don't block on all chunks
+      await Promise.allSettled(
         PRECACHE_ASSETS.map(url => cache.add(url).catch(err => {
           console.warn(`[SW] Failed to precache ${url}:`, err);
         }))
       );
-      console.log('[SW] Precache complete');
+      console.log('[SW] Minimal precache complete');
     })
   );
 
   // Don't skipWaiting() here - let the UpdatePrompt control the transition
-  // This prevents visual glitches from hot-swapping content mid-page
-  // The app will call skipWaiting via postMessage when user clicks "Refresh"
 });
 
 // Activate event - clean old caches and take control
@@ -318,6 +318,64 @@ async function handleOtherRequest(request) {
   }
 }
 
+// Background precache all app chunks for full offline support
+// This runs after the page is loaded, so it doesn't affect Lighthouse scores
+async function backgroundPrecache() {
+  if (backgroundPrecacheComplete) return;
+
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const manifestResponse = await fetch('/asset-manifest.json');
+
+    if (!manifestResponse.ok) {
+      console.warn('[SW] Asset manifest not found, offline support may be limited');
+      return;
+    }
+
+    const manifest = await manifestResponse.json();
+    const assets = manifest.assets || [];
+
+    console.log(`[SW] Background precaching ${assets.length} chunks...`);
+
+    // Check which assets are already cached
+    const uncachedAssets = [];
+    for (const url of assets) {
+      const cached = await cache.match(url);
+      if (!cached) {
+        uncachedAssets.push(url);
+      }
+    }
+
+    if (uncachedAssets.length === 0) {
+      console.log('[SW] All chunks already cached');
+      backgroundPrecacheComplete = true;
+      return;
+    }
+
+    console.log(`[SW] Caching ${uncachedAssets.length} new chunks...`);
+
+    // Cache in small batches with delays to avoid impacting performance
+    const batchSize = 5;
+    for (let i = 0; i < uncachedAssets.length; i += batchSize) {
+      const batch = uncachedAssets.slice(i, i + batchSize);
+      await Promise.allSettled(
+        batch.map(url => cache.add(url).catch(err => {
+          console.warn(`[SW] Failed to cache chunk ${url}:`, err);
+        }))
+      );
+      // Small delay between batches to avoid network congestion
+      if (i + batchSize < uncachedAssets.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    backgroundPrecacheComplete = true;
+    console.log('[SW] Background precache complete - full offline support ready');
+  } catch (e) {
+    console.warn('[SW] Background precache failed:', e);
+  }
+}
+
 // Handle messages from the app
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
@@ -326,6 +384,11 @@ self.addEventListener('message', (event) => {
 
   if (event.data?.type === 'GET_VERSION') {
     event.ports[0]?.postMessage({ version: APP_VERSION });
+  }
+
+  // Trigger background precaching after page load (doesn't affect Lighthouse)
+  if (event.data?.type === 'PRECACHE_ALL') {
+    backgroundPrecache();
   }
 
   // Allow app to request cache of specific URLs

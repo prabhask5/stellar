@@ -15,19 +15,30 @@ export interface ProtectedLayoutData {
 
 export const load: LayoutLoad = async ({ url }): Promise<ProtectedLayoutData> => {
   if (browser) {
-    // 1. Try Supabase session first
-    const session = await getSession();
-    if (session) {
-      return { session, authMode: 'supabase', offlineProfile: null };
+    const isOffline = !navigator.onLine;
+
+    // 1. Try Supabase session first (skip if obviously offline to avoid network errors)
+    if (!isOffline) {
+      try {
+        const session = await getSession();
+        if (session) {
+          return { session, authMode: 'supabase', offlineProfile: null };
+        }
+      } catch (e) {
+        // Network error during session check - continue to offline fallback
+        console.warn('[Auth] Session check failed, trying offline fallback:', e);
+      }
     }
 
-    // 2. If offline, check for valid offline session
-    if (!navigator.onLine) {
+    // 2. Check for valid offline session (works both when offline and when online session fails)
+    try {
       const offlineSession = await getValidOfflineSession();
       if (offlineSession) {
         const profile = await getOfflineCredentials();
         return { session: null, authMode: 'offline', offlineProfile: profile };
       }
+    } catch (e) {
+      console.warn('[Auth] Offline session check failed:', e);
     }
 
     // 3. No valid session - redirect to login with return URL

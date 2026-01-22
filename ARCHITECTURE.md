@@ -431,7 +431,7 @@ When BroadcastChannel is unavailable (older browsers):
 
 ## PWA Caching Strategies
 
-The service worker implements multiple caching strategies based on resource type.
+The service worker implements multiple caching strategies based on resource type, with background precaching for full offline support.
 
 ### Strategy Matrix
 
@@ -441,6 +441,40 @@ The service worker implements multiple caching strategies based on resource type
 | Immutable assets (`/_app/immutable/*`) | Cache-first | Hashed filenames guarantee freshness |
 | Static assets (JS, CSS, images) | Stale-while-revalidate | Fast loads, background updates |
 | Supabase API calls | Passthrough (no cache) | Dynamic data, handled by sync engine |
+
+### Full Offline Navigation
+
+SvelteKit uses code-splitting, loading JavaScript chunks on-demand for each route. Without special handling, navigating to an unvisited page while offline would fail. The solution uses background precaching:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  BACKGROUND PRECACHING                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Build Time (vite.config.ts):                                    │
+│  • Generate /static/asset-manifest.json                         │
+│  • Lists all 78+ JS/CSS chunks under /_app/immutable/           │
+│                                                                  │
+│  Service Worker Install:                                         │
+│  • Cache only minimal shell (/, manifest, icons)                │
+│  • Fast install = good Lighthouse score                         │
+│                                                                  │
+│  After Page Load (+layout.svelte):                               │
+│  • Wait 3 seconds for page to stabilize                         │
+│  • Send PRECACHE_ALL message to service worker                  │
+│                                                                  │
+│  Background Precache (sw.js):                                    │
+│  • Fetch asset-manifest.json                                    │
+│  • Check which chunks are not yet cached                        │
+│  • Cache in batches of 5 with 100ms delays                      │
+│  • Doesn't block user interaction                               │
+│                                                                  │
+│  Result:                                                         │
+│  • All pages work offline after background caching completes    │
+│  • Initial load performance unaffected                          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ### Cache Lifecycle
 
@@ -467,8 +501,22 @@ The service worker implements multiple caching strategies based on resource type
 │  • Sends SKIP_WAITING message                                   │
 │  • Service worker takes control, page reloads                   │
 │                                                                  │
+│  Background Precache (post-load):                                │
+│  • App sends PRECACHE_ALL after 3s                              │
+│  • SW fetches manifest and caches all chunks                    │
+│  • Enables full offline navigation                              │
+│                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### Offline Navigation Error Handling
+
+If a user navigates before background caching completes:
+
+1. **Chunk Loading Failure**: Dynamic import fails with network error
+2. **Global Handler**: `unhandledrejection` listener in `+layout.svelte` catches it
+3. **User Feedback**: Toast notification explains the page isn't available offline
+4. **Fallback**: `+error.svelte` provides a styled error page with retry options
 
 ---
 
