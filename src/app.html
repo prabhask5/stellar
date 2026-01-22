@@ -39,6 +39,222 @@
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
+    <!-- Landscape blocker for phones -->
+    <div id="landscape-blocker">
+      <!-- Star field background -->
+      <div class="lb-stars"></div>
+      <div class="lb-stars lb-stars-2"></div>
+
+      <!-- Nebula effects -->
+      <div class="lb-nebula lb-nebula-1"></div>
+      <div class="lb-nebula lb-nebula-2"></div>
+
+      <!-- Orbital ring -->
+      <div class="lb-orbit"></div>
+      <div class="lb-orbit-particle"></div>
+
+      <!-- Content -->
+      <div class="lb-content">
+        <div class="lb-icon-glow"></div>
+        <svg class="lb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+          <line x1="12" y1="18" x2="12.01" y2="18"/>
+        </svg>
+        <p class="lb-message">Please rotate to portrait</p>
+        <div class="lb-hint">
+          <span class="lb-star"></span>
+          <span class="lb-star"></span>
+          <span class="lb-star"></span>
+        </div>
+      </div>
+    </div>
+    <style>
+      #landscape-blocker {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: radial-gradient(ellipse at center, rgba(15, 15, 35, 1) 0%, rgba(5, 5, 16, 1) 50%, rgba(0, 0, 5, 1) 100%);
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        /* Safe area insets for iPhone 16 Pro landscape (62pt left/right, 21pt bottom) */
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 21px);
+        padding-left: env(safe-area-inset-left, 62px);
+        padding-right: env(safe-area-inset-right, 62px);
+        box-sizing: border-box;
+      }
+
+      /* Stars */
+      .lb-stars {
+        position: absolute;
+        inset: 0;
+        background-image:
+          radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.8) 0%, transparent 100%),
+          radial-gradient(1px 1px at 30% 70%, rgba(255,255,255,0.6) 0%, transparent 100%),
+          radial-gradient(1px 1px at 50% 10%, rgba(255,255,255,0.7) 0%, transparent 100%),
+          radial-gradient(1px 1px at 70% 50%, rgba(255,255,255,0.5) 0%, transparent 100%),
+          radial-gradient(1px 1px at 90% 80%, rgba(255,255,255,0.6) 0%, transparent 100%),
+          radial-gradient(1.5px 1.5px at 25% 35%, rgba(108,92,231,0.9) 0%, transparent 100%),
+          radial-gradient(1.5px 1.5px at 75% 65%, rgba(255,121,198,0.8) 0%, transparent 100%);
+        background-size: 200px 200px;
+        animation: lbStarsDrift 80s linear infinite;
+      }
+      .lb-stars-2 {
+        background-size: 300px 300px;
+        animation: lbStarsDrift 120s linear infinite reverse;
+        opacity: 0.7;
+      }
+      @keyframes lbStarsDrift {
+        from { transform: translateY(0) translateX(0); }
+        to { transform: translateY(-50px) translateX(-25px); }
+      }
+
+      /* Nebula - positioned within safe area bounds */
+      .lb-nebula {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(60px);
+        opacity: 0.4;
+        pointer-events: none;
+      }
+      .lb-nebula-1 {
+        width: 200px;
+        height: 200px;
+        top: -50px;
+        right: calc(env(safe-area-inset-right, 62px) - 40px);
+        background: radial-gradient(ellipse, rgba(108,92,231,0.5) 0%, transparent 70%);
+        animation: lbNebulaPulse 8s ease-in-out infinite;
+      }
+      .lb-nebula-2 {
+        width: 180px;
+        height: 180px;
+        bottom: calc(env(safe-area-inset-bottom, 21px) - 40px);
+        left: calc(env(safe-area-inset-left, 62px) - 40px);
+        background: radial-gradient(ellipse, rgba(255,121,198,0.4) 0%, transparent 70%);
+        animation: lbNebulaPulse 10s ease-in-out infinite 2s;
+      }
+      @keyframes lbNebulaPulse {
+        0%, 100% { opacity: 0.3; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.1); }
+      }
+
+      /* Orbit - sized for landscape viewport (max ~380pt height available) */
+      .lb-orbit {
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        border: 1px solid rgba(108,92,231,0.15);
+        border-radius: 50%;
+        animation: lbOrbitRotate 30s linear infinite;
+      }
+      .lb-orbit-particle {
+        position: absolute;
+        width: 5px;
+        height: 5px;
+        background: #6c5ce7;
+        border-radius: 50%;
+        box-shadow: 0 0 12px rgba(108,92,231,0.6), 0 0 24px rgba(108,92,231,0.4);
+        animation: lbParticleOrbit 30s linear infinite;
+      }
+      @keyframes lbOrbitRotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @keyframes lbParticleOrbit {
+        from { transform: rotate(0deg) translateX(110px) rotate(0deg); }
+        to { transform: rotate(360deg) translateX(110px) rotate(-360deg); }
+      }
+
+      /* Content - compact layout for landscape viewport */
+      .lb-content {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.875rem;
+        text-align: center;
+        /* Ensure content stays within safe area */
+        max-width: calc(100% - 2rem);
+      }
+      .lb-icon-glow {
+        position: absolute;
+        top: -16px;
+        width: 100px;
+        height: 100px;
+        background: radial-gradient(ellipse, rgba(108,92,231,0.3) 0%, rgba(255,121,198,0.1) 50%, transparent 70%);
+        filter: blur(25px);
+        animation: lbIconGlow 4s ease-in-out infinite;
+      }
+      @keyframes lbIconGlow {
+        0%, 100% { opacity: 0.6; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+      .lb-icon {
+        position: relative;
+        color: #f0f0ff;
+        filter: drop-shadow(0 0 16px rgba(108,92,231,0.5));
+        animation: lbIconRotate 3s ease-in-out infinite;
+        /* Slightly smaller for landscape */
+        width: 48px;
+        height: 48px;
+      }
+      @keyframes lbIconRotate {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(-15deg); }
+        75% { transform: rotate(15deg); }
+      }
+      .lb-message {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 1.125rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0;
+        background: linear-gradient(135deg, #f0f0ff 0%, #8b7cf0 50%, #f0f0ff 100%);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: lbTextShimmer 6s linear infinite;
+      }
+      @keyframes lbTextShimmer {
+        0% { background-position: 0% center; }
+        100% { background-position: 200% center; }
+      }
+      .lb-hint {
+        display: flex;
+        gap: 6px;
+        margin-top: 0.25rem;
+      }
+      .lb-star {
+        width: 3px;
+        height: 3px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 5px rgba(255,255,255,0.8);
+        animation: lbStarPulse 2s ease-in-out infinite;
+      }
+      .lb-star:nth-child(2) { animation-delay: 0.3s; }
+      .lb-star:nth-child(3) { animation-delay: 0.6s; }
+      @keyframes lbStarPulse {
+        0%, 100% { opacity: 0.4; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.4); }
+      }
+
+      /* Show on phones in landscape */
+      @media (max-height: 500px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
+        #landscape-blocker { display: flex; }
+      }
+
+      /* Reduced motion */
+      @media (prefers-reduced-motion: reduce) {
+        .lb-stars, .lb-nebula, .lb-orbit, .lb-orbit-particle,
+        .lb-icon, .lb-icon-glow, .lb-star { animation: none; }
+        .lb-message { animation: none; background-position: 0% center; }
+      }
+    </style>
     <div style="display: contents">%sveltekit.body%</div>
 
     <!-- Register service worker (deferred to reduce main-thread work) -->

@@ -368,10 +368,13 @@
     50% { opacity: 0.5; }
   }
 
-  /* Responsive */
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MOBILE RESPONSIVE — iPhone 16 Pro Optimized
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   @media (max-width: 640px) {
     .page-header {
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
     }
 
     .page-title {
@@ -379,11 +382,84 @@
     }
 
     .timer-section {
-      padding: 1rem 0;
+      padding: 0.75rem 0;
     }
 
     .stats-row {
-      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .stat-card {
+      padding: 0.875rem;
+    }
+
+    .stat-label {
+      font-size: 0.6875rem;
+    }
+
+    .stat-value {
+      font-size: 0.9375rem;
+    }
+
+    .timer-skeleton {
+      width: 280px;
+      height: 280px;
+    }
+
+    .time-skeleton {
+      width: 140px;
+      height: 40px;
+    }
+  }
+
+  /* iPhone SE */
+  @media (max-width: 375px) {
+    .page-title {
+      font-size: 1.375rem;
+    }
+
+    .timer-skeleton {
+      width: 240px;
+      height: 240px;
+    }
+
+    .stat-label {
+      font-size: 0.625rem;
+    }
+
+    .stat-value {
+      font-size: 0.875rem;
+    }
+  }
+
+  /* iPhone 16 Pro (402px) */
+  @media (min-width: 400px) and (max-width: 430px) {
+    .page-title {
+      font-size: 1.625rem;
+    }
+
+    .timer-skeleton {
+      width: 300px;
+      height: 300px;
+    }
+
+    .stat-card {
+      padding: 1rem;
+    }
+  }
+
+  /* iPhone Pro Max (430px+) */
+  @media (min-width: 430px) and (max-width: 640px) {
+    .page-title {
+      font-size: 1.75rem;
+    }
+
+    .stats-row {
+      flex-direction: row;
+    }
+
+    .timer-section {
+      padding: 1.25rem 0;
     }
   }
 </style>

@@ -155,24 +155,39 @@
 }
 
 html {
+  /* Fill entire viewport including safe areas */
   height: 100%;
+  height: 100dvh; /* Dynamic viewport height for mobile */
+  width: 100%;
+  width: 100dvw; /* Dynamic viewport width */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Allow content to extend into safe areas while respecting them */
+  background: var(--color-void);
 }
 
 html, body {
   height: 100%;
+  height: 100dvh;
+  width: 100%;
+  width: 100dvw;
 }
 
 body {
   min-height: 100%;
+  min-height: 100dvh;
+  width: 100%;
+  width: 100dvw;
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.6;
   color: var(--color-text);
   background: var(--color-void);
   overflow-x: hidden;
+  /* Ensure body fills behind safe areas */
+  margin: 0;
+  padding: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -612,6 +627,144 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
+   CINEMATIC PAGE TRANSITIONS — Like drifting through space
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.99);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes pageEnterMobile {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pageExit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.99);
+  }
+}
+
+/* Page content entrance animation */
+.page-content-enter {
+  animation: pageEnter 0.4s var(--ease-out) forwards;
+}
+
+@media (max-width: 640px) {
+  .page-content-enter {
+    animation: pageEnterMobile 0.35s var(--ease-out) forwards;
+  }
+}
+
+/* Staggered content animation for lists and cards */
+@keyframes staggerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-item {
+  animation: staggerFadeIn 0.4s var(--ease-out) backwards;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0.05s; }
+.stagger-item:nth-child(2) { animation-delay: 0.1s; }
+.stagger-item:nth-child(3) { animation-delay: 0.15s; }
+.stagger-item:nth-child(4) { animation-delay: 0.2s; }
+.stagger-item:nth-child(5) { animation-delay: 0.25s; }
+.stagger-item:nth-child(6) { animation-delay: 0.3s; }
+.stagger-item:nth-child(7) { animation-delay: 0.35s; }
+.stagger-item:nth-child(8) { animation-delay: 0.4s; }
+
+/* Modal/Sheet cinematic enter */
+@keyframes modalEnterCinematic {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(30px);
+    filter: blur(4px);
+  }
+  50% {
+    filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes modalExitCinematic {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(16px);
+  }
+}
+
+/* Mobile sheet slide-up animation */
+@keyframes sheetSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheetSlideDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+/* Backdrop fade with blur */
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(16px);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════
    OVERFLOW CELEBRATION ANIMATIONS — For goals exceeding 100%
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
@@ -720,33 +873,40 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   MOBILE & IPHONE OPTIMIZATIONS
+   MOBILE & IPHONE OPTIMIZATIONS — iPhone 16 Pro Optimized
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
 /* iOS Safe Areas - Critical for iPhone X+ devices with notch/Dynamic Island */
 @supports (padding: env(safe-area-inset-top)) {
   html {
-    /* Enable safe area insets */
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-    padding: 0; /* Reset, let specific elements handle this */
+    /* Don't add padding to html - let components handle safe areas individually */
+    /* This ensures content can extend edge-to-edge while respecting safe areas */
   }
 }
 
-/* Prevent iOS rubber-band scrolling on body */
+/* Full viewport handling for iOS PWA */
 html {
   position: fixed;
   width: 100%;
+  width: 100dvw;
   height: 100%;
+  height: 100dvh;
   overflow: hidden;
+  /* Extend behind status bar/Dynamic Island */
+  background: var(--color-void);
 }
 
 body {
   position: fixed;
   width: 100%;
+  width: 100dvw;
   height: 100%;
+  height: 100dvh;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: none;
+  /* Ensure background extends to all edges */
+  background: var(--color-void);
 }
 
 /* Better touch targets for mobile - minimum 44px per Apple HIG */
@@ -891,21 +1051,7 @@ a, button, img {
   }
 }
 
-/* Landscape mode on phones */
-@media (max-height: 500px) and (orientation: landscape) {
-  .container {
-    padding: 0.75rem 1.5rem;
-  }
-
-  h1 {
-    font-size: 1.5rem;
-  }
-
-  /* Reduce vertical spacing in landscape */
-  .card {
-    padding: 1rem;
-  }
-}
+/* Landscape mode placeholder - handled in app.html */
 
 /* Dark mode optimizations for OLED screens */
 @media (prefers-color-scheme: dark) {

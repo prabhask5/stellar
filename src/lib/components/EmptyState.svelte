@@ -139,4 +139,86 @@
     position: relative;
     z-index: 1;
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MOBILE RESPONSIVE — iPhone 16 Pro Optimized
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  @media (max-width: 640px) {
+    .empty-state {
+      padding: 3rem 1.5rem;
+    }
+
+    .empty-state::before {
+      width: 200px;
+      height: 200px;
+    }
+
+    .empty-state::after {
+      width: 140px;
+      height: 140px;
+    }
+
+    .empty-icon {
+      font-size: 3.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .empty-title {
+      font-size: 1.375rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .empty-description {
+      font-size: 0.9375rem;
+      max-width: 300px;
+      margin-bottom: 2rem;
+      line-height: 1.7;
+    }
+
+    .empty-actions {
+      flex-direction: column;
+      width: 100%;
+      max-width: 280px;
+    }
+
+    .empty-actions :global(.btn) {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  /* iPhone SE */
+  @media (max-width: 375px) {
+    .empty-state {
+      padding: 2.5rem 1rem;
+    }
+
+    .empty-icon {
+      font-size: 3rem;
+    }
+
+    .empty-title {
+      font-size: 1.25rem;
+    }
+
+    .empty-description {
+      font-size: 0.875rem;
+    }
+  }
+
+  /* iPhone Pro Max (430px+) */
+  @media (min-width: 430px) and (max-width: 640px) {
+    .empty-state {
+      padding: 4rem 2rem;
+    }
+
+    .empty-icon {
+      font-size: 4rem;
+    }
+
+    .empty-title {
+      font-size: 1.5rem;
+    }
+  }
 </style>

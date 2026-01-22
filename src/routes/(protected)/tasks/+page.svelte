@@ -480,7 +480,28 @@
     transition: none; /* Appear instantly */
   }
   .section {
-    margin-bottom: 3rem;
+    margin-bottom: 2.5rem;
+    /* Staggered animation for sections */
+    animation: sectionFadeIn 0.5s var(--ease-out) backwards;
+  }
+
+  .section:first-of-type {
+    animation-delay: 0.1s;
+  }
+
+  .section:last-of-type {
+    animation-delay: 0.2s;
+  }
+
+  @keyframes sectionFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .section-header {
@@ -488,7 +509,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
   }
 
   .section-title {
@@ -514,13 +535,13 @@
   .daily-tasks-section {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.875rem;
   }
 
   .long-term-section {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.25rem;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -770,7 +791,10 @@
     }
   }
 
-  /* Mobile responsive */
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MOBILE RESPONSIVE — iPhone 16 Pro Optimized
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   @media (max-width: 640px) {
     .section {
       margin-bottom: 2rem;
@@ -779,7 +803,7 @@
     .section-header {
       flex-direction: column;
       align-items: stretch;
-      gap: 0.75rem;
+      gap: 0.625rem;
     }
 
     .section-title {
@@ -789,6 +813,65 @@
 
     .section-actions {
       justify-content: center;
+      gap: 0.625rem;
+    }
+
+    .section-actions .btn {
+      flex: 1;
+      max-width: 160px;
+      justify-content: center;
+    }
+
+    .daily-tasks-section {
+      gap: 0.75rem;
+    }
+
+    .long-term-section {
+      gap: 1rem;
+    }
+
+    .empty-inline {
+      padding: 1.5rem 1rem;
+      font-size: 0.875rem;
+    }
+  }
+
+  /* iPhone SE and smaller */
+  @media (max-width: 375px) {
+    .section-title {
+      font-size: 1.125rem;
+    }
+
+    .section-actions .btn {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+    }
+  }
+
+  /* iPhone 16 Pro and similar (402px) */
+  @media (min-width: 400px) and (max-width: 430px) {
+    .section-title {
+      font-size: 1.375rem;
+    }
+
+    .section-actions .btn {
+      padding: 0.5rem 1rem;
+    }
+  }
+
+  /* iPhone Pro Max (430px+) */
+  @media (min-width: 430px) and (max-width: 640px) {
+    .section-title {
+      font-size: 1.375rem;
+    }
+
+    .section-header {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .section-actions {
+      justify-content: flex-end;
     }
   }
 </style>

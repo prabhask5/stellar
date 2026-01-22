@@ -536,16 +536,23 @@
     {@render children?.()}
   </main>
 
-  <!-- Mobile Bottom Tab Bar (iOS-style) -->
+  <!-- Mobile Bottom Tab Bar (iOS-style) - Redesigned for iPhone 16 Pro -->
   {#if isAuthenticated}
     <nav class="nav-mobile">
+      <!-- Floating glass effect background -->
+      <div class="nav-mobile-bg"></div>
+
       <div class="tab-bar">
-        {#each navItems as item}
+        {#each navItems as item, index}
           <a
             href={item.href}
             class="tab-item"
             class:active={isActive(item.href)}
+            style="--tab-index: {index};"
           >
+            <!-- Animated background glow for active state -->
+            <span class="tab-glow"></span>
+
             <span class="tab-icon">
               {#if item.icon === 'tasks'}
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -575,23 +582,19 @@
             </span>
             <span class="tab-label">{item.mobileLabel}</span>
             {#if isActive(item.href)}
-              <span class="tab-active-dot"></span>
+              <span class="tab-active-indicator"></span>
             {/if}
           </a>
         {/each}
 
-        <!-- Sync indicator in mobile nav -->
-        <div class="tab-item tab-sync">
-          <SyncStatus />
-        </div>
-
-        <!-- Profile/Logout -->
-        <button class="tab-item tab-profile" onclick={handleSignOut}>
+        <!-- Profile/Logout - Simplified, no sync status here -->
+        <a href="/profile" class="tab-item tab-profile">
+          <span class="tab-glow"></span>
           <span class="tab-icon">
             <span class="mobile-avatar">{greeting().charAt(0).toUpperCase()}</span>
           </span>
-          <span class="tab-label">Logout</span>
-        </button>
+          <span class="tab-label">Profile</span>
+        </a>
       </div>
     </nav>
   {/if}
@@ -613,7 +616,7 @@
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
      IPHONE PRO DYNAMIC ISLAND HEADER (Mobile Only)
-     Creates a split header that respects the Dynamic Island and status bar
+     Cinematic redesign for iPhone 16 Pro - respects Dynamic Island and status bar
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .island-header {
@@ -623,13 +626,30 @@
     left: 0;
     right: 0;
     z-index: 150;
-    height: calc(env(safe-area-inset-top, 47px) + 8px);
+    /* Dynamic height based on safe area + extra padding for content */
+    height: calc(env(safe-area-inset-top, 47px) + 16px);
     padding-top: env(safe-area-inset-top, 47px);
+    /* Cinematic gradient that fades into content */
     background: linear-gradient(180deg,
-      rgba(10, 10, 18, 0.98) 0%,
-      rgba(10, 10, 18, 0.85) 60%,
+      rgba(8, 8, 16, 1) 0%,
+      rgba(8, 8, 16, 0.95) 30%,
+      rgba(8, 8, 16, 0.8) 60%,
+      rgba(8, 8, 16, 0.4) 85%,
       transparent 100%);
     pointer-events: none;
+    /* Entry animation */
+    animation: islandFadeIn 0.6s var(--ease-out) 0.1s backwards;
+  }
+
+  @keyframes islandFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .island-header > * {
@@ -641,74 +661,118 @@
     flex-direction: row;
     align-items: flex-start;
     justify-content: space-between;
-    padding-left: env(safe-area-inset-left, 16px);
-    padding-right: env(safe-area-inset-right, 16px);
-    padding-bottom: 8px;
+    padding-left: max(12px, env(safe-area-inset-left, 12px));
+    padding-right: max(12px, env(safe-area-inset-right, 12px));
+    padding-bottom: 12px;
   }
 
   /* Left side - Brand and current section */
   .island-left {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding-left: 8px;
-    max-width: 110px; /* Keep away from Dynamic Island */
+    gap: 0.625rem;
+    padding-left: 4px;
+    max-width: 120px; /* Keep away from Dynamic Island */
+    /* Staggered fade in */
+    animation: islandItemFadeIn 0.5s var(--ease-out) 0.2s backwards;
+  }
+
+  @keyframes islandItemFadeIn {
+    from {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
   .island-brand {
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.9;
+    /* Subtle float animation for the brand */
+    animation: brandFloatMobile 4s ease-in-out infinite;
+  }
+
+  @keyframes brandFloatMobile {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
   }
 
   .island-title {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: var(--color-text);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    opacity: 0.8;
+    letter-spacing: 0.05em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    /* Gradient text effect */
+    background: linear-gradient(135deg,
+      var(--color-text) 0%,
+      var(--color-primary-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   /* Center gap - Reserved space for Dynamic Island */
   .island-center {
-    /* This creates the gap around the Dynamic Island */
     /* Dynamic Island is ~126px wide on iPhone 14/15/16 Pro */
-    flex: 0 0 140px;
-    min-width: 140px;
+    /* Add extra margin for visual comfort */
+    flex: 0 0 145px;
+    min-width: 145px;
     height: 100%;
   }
 
-  /* Right side - Sync status */
+  /* Right side - Sync status (ONLY place for sync on mobile) */
   .island-right {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    padding-right: 8px;
-    max-width: 110px; /* Keep away from Dynamic Island */
+    padding-right: 4px;
+    max-width: 120px; /* Keep away from Dynamic Island */
+    /* Staggered fade in from right */
+    animation: islandItemFadeInRight 0.5s var(--ease-out) 0.3s backwards;
   }
 
-  /* Scale down sync indicator for the island header */
+  @keyframes islandItemFadeInRight {
+    from {
+      opacity: 0;
+      transform: translateX(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Sync indicator sizing for island header */
   .island-right :global(.sync-indicator) {
-    width: 32px;
-    height: 32px;
-    border-width: 1px;
+    width: 36px;
+    height: 36px;
+    border-width: 1.5px;
   }
 
   .island-right :global(.sync-indicator svg) {
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
   }
 
   .island-right :global(.pending-badge) {
-    min-width: 14px;
-    height: 14px;
+    min-width: 15px;
+    height: 15px;
     font-size: 9px;
-    padding: 0 3px;
+    padding: 0 4px;
+  }
+
+  /* Position tooltip below and to the left on mobile */
+  .island-right :global(.tooltip) {
+    right: 0;
+    top: calc(100% + 8px);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -1067,7 +1131,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     MOBILE BOTTOM TAB BAR
+     MOBILE BOTTOM TAB BAR — Cinematic Redesign for iPhone 16 Pro
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .nav-mobile {
@@ -1077,40 +1141,75 @@
     left: 0;
     right: 0;
     z-index: 100;
-    background: linear-gradient(180deg,
-      rgba(15, 15, 26, 0.95) 0%,
-      rgba(10, 10, 18, 0.98) 100%);
-    backdrop-filter: blur(40px) saturate(180%);
-    -webkit-backdrop-filter: blur(40px) saturate(180%);
-    border-top: 1px solid rgba(108, 92, 231, 0.2);
-    /* iPhone safe area for home indicator */
+    /* iPhone safe area for home indicator - critical for iPhone 16 Pro */
     padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
   }
 
-  /* Glow line at top of mobile nav */
-  .nav-mobile::before {
+  /* Glass morphism background with cosmic gradient */
+  .nav-mobile-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+      rgba(12, 12, 24, 0.85) 0%,
+      rgba(8, 8, 16, 0.95) 100%);
+    backdrop-filter: blur(40px) saturate(200%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%);
+    border-top: 1px solid rgba(108, 92, 231, 0.15);
+    /* Subtle inner glow */
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 -10px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Animated cosmic glow line at top */
+  .nav-mobile-bg::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 10%;
-    right: 10%;
+    left: 5%;
+    right: 5%;
     height: 1px;
     background: linear-gradient(90deg,
-      transparent,
-      rgba(108, 92, 231, 0.5),
-      rgba(255, 121, 198, 0.4),
-      rgba(108, 92, 231, 0.5),
-      transparent);
+      transparent 0%,
+      rgba(108, 92, 231, 0.3) 20%,
+      rgba(255, 121, 198, 0.5) 40%,
+      rgba(38, 222, 129, 0.3) 60%,
+      rgba(108, 92, 231, 0.3) 80%,
+      transparent 100%);
+    animation: navGlowShift 6s ease-in-out infinite;
+  }
+
+  @keyframes navGlowShift {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  /* Subtle nebula accent at top */
+  .nav-mobile-bg::after {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: 20%;
+    right: 20%;
+    height: 40px;
+    background: radial-gradient(ellipse at center,
+      rgba(108, 92, 231, 0.15) 0%,
+      transparent 70%);
+    pointer-events: none;
   }
 
   .tab-bar {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: space-around;
-    height: 60px;
-    max-width: 500px;
+    height: 64px;
+    max-width: 420px;
     margin: 0 auto;
-    padding: 0 0.5rem;
+    padding: 0 0.75rem;
+    z-index: 1;
   }
 
   .tab-item {
@@ -1119,60 +1218,126 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.25rem;
-    padding: 0.5rem 1rem;
+    gap: 0.375rem;
+    padding: 0.625rem 0.875rem;
     color: var(--color-text-muted);
     text-decoration: none;
-    font-size: 0.6875rem;
+    font-size: 0.625rem;
     font-weight: 600;
-    letter-spacing: 0.02em;
-    transition: all 0.3s var(--ease-spring);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
     border: none;
     background: none;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    min-width: 64px;
+    min-width: 56px;
+    /* Staggered entry animation */
+    animation: tabItemEnter 0.5s var(--ease-spring) backwards;
+    animation-delay: calc(var(--tab-index, 0) * 0.05s);
+  }
+
+  @keyframes tabItemEnter {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Animated glow background for tabs */
+  .tab-glow {
+    position: absolute;
+    inset: 4px;
+    border-radius: var(--radius-xl);
+    background: transparent;
+    transition: all 0.4s var(--ease-spring);
+    z-index: -1;
+  }
+
+  .tab-item.active .tab-glow {
+    background: linear-gradient(145deg,
+      rgba(108, 92, 231, 0.2) 0%,
+      rgba(108, 92, 231, 0.05) 100%);
+    box-shadow: 0 0 20px rgba(108, 92, 231, 0.3);
   }
 
   .tab-item:active {
-    transform: scale(0.92);
+    transform: scale(0.9);
+    transition: transform 0.1s var(--ease-out);
+  }
+
+  .tab-item:active .tab-glow {
+    background: rgba(108, 92, 231, 0.15);
   }
 
   .tab-item.active {
-    color: var(--color-primary-light);
+    color: var(--color-text);
   }
 
   .tab-icon {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s var(--ease-spring);
+    width: 28px;
+    height: 28px;
+    transition: all 0.4s var(--ease-spring);
+  }
+
+  .tab-icon svg {
+    transition: all 0.4s var(--ease-spring);
   }
 
   .tab-item.active .tab-icon {
     color: var(--color-primary-light);
-    filter: drop-shadow(0 0 8px var(--color-primary-glow));
-    transform: scale(1.1);
+    transform: translateY(-2px);
+  }
+
+  .tab-item.active .tab-icon svg {
+    filter: drop-shadow(0 0 10px var(--color-primary-glow));
   }
 
   .tab-label {
-    transition: color 0.3s;
+    transition: all 0.3s var(--ease-out);
   }
 
-  .tab-active-dot {
+  .tab-item.active .tab-label {
+    color: var(--color-primary-light);
+    text-shadow: 0 0 10px var(--color-primary-glow);
+  }
+
+  /* Active indicator - orbital dot effect */
+  .tab-active-indicator {
     position: absolute;
-    top: 4px;
+    top: 0px;
     left: 50%;
-    transform: translateX(-50%);
-    width: 4px;
-    height: 4px;
-    background: var(--color-primary);
+    width: 6px;
+    height: 6px;
+    background: var(--gradient-primary);
     border-radius: 50%;
-    box-shadow: 0 0 8px var(--color-primary-glow);
+    transform: translateX(-50%);
+    box-shadow:
+      0 0 12px var(--color-primary-glow),
+      0 0 24px rgba(108, 92, 231, 0.3);
+    animation: activeIndicatorPulse 2s ease-in-out infinite;
   }
 
-  .tab-sync {
-    padding: 0.25rem;
+  @keyframes activeIndicatorPulse {
+    0%, 100% {
+      transform: translateX(-50%) scale(1);
+      box-shadow:
+        0 0 12px var(--color-primary-glow),
+        0 0 24px rgba(108, 92, 231, 0.3);
+    }
+    50% {
+      transform: translateX(-50%) scale(1.2);
+      box-shadow:
+        0 0 16px var(--color-primary-glow),
+        0 0 32px rgba(108, 92, 231, 0.4);
+    }
   }
 
   .tab-profile {
@@ -1185,16 +1350,29 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.3) 0%, rgba(108, 92, 231, 0.1) 100%);
+    background: linear-gradient(135deg,
+      rgba(108, 92, 231, 0.3) 0%,
+      rgba(255, 121, 198, 0.2) 100%);
     border: 1.5px solid rgba(108, 92, 231, 0.4);
-    color: var(--color-primary-light);
+    color: var(--color-text);
     font-weight: 700;
     font-size: 0.75rem;
     border-radius: 50%;
+    transition: all 0.4s var(--ease-spring);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .tab-item.active .mobile-avatar,
+  .tab-profile:hover .mobile-avatar {
+    border-color: rgba(108, 92, 231, 0.6);
+    box-shadow:
+      0 0 15px var(--color-primary-glow),
+      0 4px 12px rgba(0, 0, 0, 0.4);
+    transform: scale(1.05);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     RESPONSIVE BREAKPOINTS
+     RESPONSIVE BREAKPOINTS — Optimized for iPhone 16 Pro and all modern phones
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   /* Wide tablet - start hiding user greeting earlier to prevent overlap */
@@ -1248,85 +1426,126 @@
     }
 
     .main {
-      padding: 1.25rem;
-      /* Add top padding for the island header fade area */
-      padding-top: calc(env(safe-area-inset-top, 47px) + 20px);
+      padding: 1rem;
+      padding-left: max(1rem, env(safe-area-inset-left, 1rem));
+      padding-right: max(1rem, env(safe-area-inset-right, 1rem));
+      /* Add top padding for the island header + breathing room */
+      padding-top: calc(env(safe-area-inset-top, 47px) + 24px);
+      /* Smooth page transition */
+      animation: pageContentFadeIn 0.4s var(--ease-out);
+    }
+
+    @keyframes pageContentFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .main.with-bottom-nav {
-      padding-bottom: calc(80px + env(safe-area-inset-bottom, 0));
+      /* Bottom nav height (64px) + safe area + breathing room */
+      padding-bottom: calc(72px + env(safe-area-inset-bottom, 0) + 16px);
     }
   }
 
-  /* iPhone SE and smaller - No Dynamic Island, use notch layout */
+  /* iPhone SE and smaller (375px) - No Dynamic Island, uses notch */
   @media (max-width: 375px) {
+    .tab-bar {
+      padding: 0 0.25rem;
+    }
+
     .tab-item {
-      padding: 0.5rem 0.5rem;
-      min-width: 56px;
+      padding: 0.5rem 0.375rem;
+      min-width: 48px;
     }
 
     .tab-label {
-      font-size: 0.625rem;
+      font-size: 0.5625rem;
+    }
+
+    .tab-icon svg {
+      width: 22px;
+      height: 22px;
     }
 
     .main {
-      padding: 1rem;
+      padding: 0.875rem;
       padding-top: calc(env(safe-area-inset-top, 20px) + 16px);
     }
 
     /* Smaller center gap for notch devices (no Dynamic Island) */
     .island-center {
-      flex: 0 0 100px;
-      min-width: 100px;
+      flex: 0 0 95px;
+      min-width: 95px;
     }
 
     .island-left,
     .island-right {
-      max-width: 100px;
+      max-width: 95px;
     }
 
     .island-title {
       font-size: 0.625rem;
     }
+
+    .island-brand svg {
+      width: 16px;
+      height: 16px;
+    }
   }
 
-  /* iPhone 14/15/16 Pro (393px width, has Dynamic Island) */
-  @media (min-width: 390px) and (max-width: 429px) and (max-height: 900px) {
+  /* Small phones (376px - 389px) */
+  @media (min-width: 376px) and (max-width: 389px) {
     .island-center {
-      flex: 0 0 130px;
-      min-width: 130px;
+      flex: 0 0 110px;
+      min-width: 110px;
+    }
+
+    .tab-bar {
+      padding: 0 0.5rem;
+    }
+  }
+
+  /* iPhone 14/15/16 Pro (390px - 402px width) - Dynamic Island */
+  @media (min-width: 390px) and (max-width: 402px) {
+    .island-center {
+      flex: 0 0 135px;
+      min-width: 135px;
     }
 
     .island-left,
     .island-right {
-      max-width: 115px;
+      max-width: 118px;
     }
 
     .island-title {
       font-size: 0.6875rem;
     }
-  }
 
-  /* iPhone 14/15/16 Pro Max and larger phones (430px+, has Dynamic Island) */
-  @media (min-width: 430px) and (max-width: 640px) {
     .tab-bar {
-      max-width: 100%;
-      padding: 0 1rem;
+      padding: 0 0.5rem;
     }
 
     .tab-item {
-      padding: 0.5rem 1.25rem;
+      padding: 0.625rem 0.625rem;
+      min-width: 52px;
     }
+  }
 
-    /* Larger center gap for Pro Max - more screen real estate */
+  /* iPhone 16 Pro (402px logical width) - Primary target */
+  @media (min-width: 400px) and (max-width: 415px) {
     .island-center {
-      flex: 0 0 145px;
-      min-width: 145px;
+      flex: 0 0 140px;
+      min-width: 140px;
     }
 
     .island-left,
     .island-right {
-      max-width: 130px;
+      max-width: 120px;
     }
 
     .island-title {
@@ -1334,38 +1553,87 @@
     }
 
     .island-brand svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .tab-bar {
+      padding: 0 0.75rem;
+    }
+
+    .tab-item {
+      padding: 0.625rem 0.75rem;
+      min-width: 56px;
+    }
+
+    .tab-label {
+      font-size: 0.625rem;
+    }
+  }
+
+  /* iPhone 14/15/16 Pro Max (430px+, has Dynamic Island) */
+  @media (min-width: 430px) and (max-width: 640px) {
+    .tab-bar {
+      max-width: 450px;
+      padding: 0 1rem;
+    }
+
+    .tab-item {
+      padding: 0.625rem 1rem;
+      min-width: 64px;
+    }
+
+    .tab-label {
+      font-size: 0.6875rem;
+    }
+
+    .tab-icon svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    /* Larger center gap for Pro Max - more screen real estate */
+    .island-center {
+      flex: 0 0 150px;
+      min-width: 150px;
+    }
+
+    .island-left,
+    .island-right {
+      max-width: 135px;
+    }
+
+    .island-title {
+      font-size: 0.8125rem;
+    }
+
+    .island-brand svg {
       width: 20px;
       height: 20px;
     }
-  }
 
-  /* Extra: Detect iPhone Pro via safe-area (Dynamic Island has larger inset ~59px vs ~47px notch) */
-  @supports (padding-top: env(safe-area-inset-top)) {
-    @media (max-width: 640px) {
-      /* Adjust header for proper Dynamic Island clearance */
-      .island-header {
-        /* The gradient fades below the Dynamic Island area */
-        background: linear-gradient(180deg,
-          rgba(10, 10, 18, 1) 0%,
-          rgba(10, 10, 18, 0.95) 40%,
-          rgba(10, 10, 18, 0.7) 70%,
-          transparent 100%);
-      }
-    }
-  }
-
-  /* Landscape mobile */
-  @media (max-height: 500px) and (max-width: 900px) {
-    .nav-mobile {
-      display: none;
-    }
-
-    .nav-center {
-      display: flex;
+    .main {
+      padding: 1.25rem;
+      padding-top: calc(env(safe-area-inset-top, 59px) + 28px);
     }
 
     .main.with-bottom-nav {
-      padding-bottom: 2rem;
+      padding-bottom: calc(80px + env(safe-area-inset-bottom, 0) + 20px);
+    }
+  }
+
+  /* Landscape mobile - hide ALL navigation (landscape blocker in app.html handles display) */
+  @media (max-height: 500px) and (max-width: 900px) and (orientation: landscape) {
+    .nav-mobile,
+    .island-header,
+    .nav-desktop {
+      display: none !important;
+    }
+
+    .main {
+      /* Content hidden behind landscape blocker anyway */
+      padding-top: 1rem;
+      padding-bottom: 1rem;
     }
   }
 

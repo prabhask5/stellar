@@ -759,13 +759,17 @@
      RESPONSIVE
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MOBILE RESPONSIVE — iPhone 16 Pro Optimized
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   @media (max-width: 640px) {
     .profile-page {
-      padding: 0 0.5rem 2rem;
+      padding: 0 0.25rem 2rem;
     }
 
     .profile-header {
-      padding: 0 0.5rem 1rem;
+      padding: 0 0.25rem 1rem;
     }
 
     .form-row {
@@ -773,8 +777,16 @@
     }
 
     .profile-card {
-      padding: 1.5rem;
+      padding: 1.25rem;
       border-radius: var(--radius-xl);
+    }
+
+    .card-title {
+      font-size: 1rem;
+    }
+
+    .card-subtitle {
+      font-size: 0.75rem;
     }
 
     .avatar {
@@ -794,6 +806,102 @@
     @keyframes orbitParticle {
       from { transform: rotate(var(--angle)) translateX(55px); }
       to { transform: rotate(calc(var(--angle) + 360deg)) translateX(55px); }
+    }
+
+    input {
+      padding: 0.75rem 0.875rem;
+      font-size: 16px; /* Prevents iOS zoom */
+    }
+
+    .btn {
+      padding: 0.875rem 1.25rem;
+      font-size: 0.9375rem;
+    }
+  }
+
+  /* iPhone SE */
+  @media (max-width: 375px) {
+    .profile-title {
+      font-size: 1.125rem;
+    }
+
+    .profile-card {
+      padding: 1rem;
+    }
+
+    .avatar {
+      width: 70px;
+      height: 70px;
+      font-size: 1.75rem;
+    }
+
+    .avatar-particles .particle {
+      transform: rotate(var(--angle)) translateX(48px);
+    }
+
+    @keyframes orbitParticle {
+      from { transform: rotate(var(--angle)) translateX(48px); }
+      to { transform: rotate(calc(var(--angle) + 360deg)) translateX(48px); }
+    }
+  }
+
+  /* iPhone 16 Pro (402px) */
+  @media (min-width: 400px) and (max-width: 430px) {
+    .profile-page {
+      padding: 0 0.5rem 2rem;
+    }
+
+    .profile-card {
+      padding: 1.5rem;
+    }
+
+    .avatar {
+      width: 88px;
+      height: 88px;
+      font-size: 2.25rem;
+    }
+
+    .avatar-particles .particle {
+      transform: rotate(var(--angle)) translateX(60px);
+    }
+
+    @keyframes orbitParticle {
+      from { transform: rotate(var(--angle)) translateX(60px); }
+      to { transform: rotate(calc(var(--angle) + 360deg)) translateX(60px); }
+    }
+  }
+
+  /* iPhone Pro Max (430px+) */
+  @media (min-width: 430px) and (max-width: 640px) {
+    .profile-page {
+      padding: 0 0.75rem 2rem;
+    }
+
+    .profile-card {
+      padding: 1.75rem;
+    }
+
+    .form-row {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .avatar {
+      width: 100px;
+      height: 100px;
+      font-size: 2.5rem;
+    }
+
+    .avatar-ring {
+      inset: -8px;
+    }
+
+    .avatar-particles .particle {
+      transform: rotate(var(--angle)) translateX(70px);
+    }
+
+    @keyframes orbitParticle {
+      from { transform: rotate(var(--angle)) translateX(70px); }
+      to { transform: rotate(calc(var(--angle) + 360deg)) translateX(70px); }
     }
   }
 
