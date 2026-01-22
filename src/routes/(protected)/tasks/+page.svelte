@@ -162,6 +162,12 @@
 
   async function handleDeleteCategory(id: string) {
     await taskCategoriesStore.delete(id);
+    // Immediately update tasks in UI to remove the deleted category reference
+    longTermTasks = longTermTasks.map(task =>
+      task.category_id === id
+        ? { ...task, category_id: null, category: undefined }
+        : task
+    );
   }
 
   // Modal swapping for category creation

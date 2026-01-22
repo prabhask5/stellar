@@ -133,7 +133,7 @@
           <span class="banner-title">Browser Extension Required</span>
           <span class="banner-desc">Website blocking requires the Stellar Focus extension</span>
         </div>
-        <a href="https://github.com/stellar-focus/extension/releases" target="_blank" rel="noopener" class="banner-btn">
+        <a href="https://github.com/prabhask5/stellar/tree/main/stellar-focus" target="_blank" rel="noopener" class="banner-btn">
           Get Extension
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>

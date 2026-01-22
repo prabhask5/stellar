@@ -24,6 +24,12 @@
   let dueDate = $state('');
   let categoryId = $state<string | null>(null);
   let completed = $state(false);
+  let dropdownOpen = $state(false);
+
+  // Derive selected category from local state for immediate UI feedback
+  const selectedCategory = $derived(
+    categoryId ? categories.find(c => c.id === categoryId) : null
+  );
 
   $effect(() => {
     if (task) {
@@ -31,8 +37,24 @@
       dueDate = task.due_date;
       categoryId = task.category_id;
       completed = task.completed;
+      dropdownOpen = false;
     }
   });
+
+  function selectCategory(id: string | null) {
+    categoryId = id;
+    dropdownOpen = false;
+    if (task && id !== task.category_id) {
+      onUpdate(task.id, { category_id: id });
+    }
+  }
+
+  function handleClickOutside(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.category-dropdown')) {
+      dropdownOpen = false;
+    }
+  }
 
   function handleNameSubmit() {
     if (task && name.trim() && name !== task.name) {
@@ -44,12 +66,6 @@
   function handleDueDateChange() {
     if (task && dueDate !== task.due_date) {
       onUpdate(task.id, { due_date: dueDate });
-    }
-  }
-
-  function handleCategoryChange() {
-    if (task && categoryId !== task.category_id) {
-      onUpdate(task.id, { category_id: categoryId });
     }
   }
 
@@ -90,6 +106,8 @@
   }
 </script>
 
+<svelte:window onclick={handleClickOutside} />
+
 <Modal {open} title="Task Details" onClose={onClose}>
   {#if task}
     <div class="task-details">
@@ -128,22 +146,65 @@
 
       <div class="field">
         <label class="field-label">Tag</label>
-        <select
-          bind:value={categoryId}
-          class="field-input"
-          onchange={handleCategoryChange}
-        >
-          <option value={null}>No tag</option>
-          {#each categories as cat}
-            <option value={cat.id}>{cat.name}</option>
-          {/each}
-        </select>
-        {#if task.category}
-          <div class="category-preview" style="--cat-color: {task.category.color}">
-            <span class="category-dot"></span>
-            {task.category.name}
-          </div>
-        {/if}
+        <div class="category-dropdown">
+          <button
+            type="button"
+            class="dropdown-trigger"
+            onclick={() => dropdownOpen = !dropdownOpen}
+          >
+            {#if selectedCategory}
+              <span class="selected-category">
+                <span class="cat-dot" style="--cat-color: {selectedCategory.color}"></span>
+                {selectedCategory.name}
+              </span>
+            {:else}
+              <span class="no-tag">
+                <span class="cat-dot none"></span>
+                No tag
+              </span>
+            {/if}
+            <svg
+              class="chevron"
+              class:open={dropdownOpen}
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          {#if dropdownOpen}
+            <div class="dropdown-menu">
+              <button
+                type="button"
+                class="dropdown-item"
+                class:selected={categoryId === null}
+                onclick={() => selectCategory(null)}
+              >
+                <span class="cat-dot none"></span>
+                No tag
+              </button>
+
+              {#each categories as cat (cat.id)}
+                <button
+                  type="button"
+                  class="dropdown-item"
+                  class:selected={categoryId === cat.id}
+                  onclick={() => selectCategory(cat.id)}
+                >
+                  <span class="cat-dot" style="--cat-color: {cat.color}"></span>
+                  {cat.name}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
       </div>
 
       <div class="field">
@@ -273,25 +334,117 @@
     width: fit-content;
   }
 
-  .category-preview {
+  /* Custom Category Dropdown */
+  .category-dropdown {
+    position: relative;
+  }
+
+  .dropdown-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(15, 15, 30, 0.8);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-radius: var(--radius-lg);
+    color: var(--color-text);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s var(--ease-out);
+  }
+
+  .dropdown-trigger:hover {
+    border-color: rgba(108, 92, 231, 0.4);
+  }
+
+  .dropdown-trigger:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 20px var(--color-primary-glow);
+  }
+
+  .selected-category,
+  .no-tag {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    background: rgba(var(--cat-color), 0.1);
-    border-radius: var(--radius-md);
-    font-size: 0.875rem;
-    color: var(--color-text);
-    margin-top: 0.25rem;
-    width: fit-content;
   }
 
-  .category-dot {
+  .no-tag {
+    color: var(--color-text-muted);
+  }
+
+  .chevron {
+    transition: transform 0.2s var(--ease-out);
+    color: var(--color-text-muted);
+  }
+
+  .chevron.open {
+    transform: rotate(180deg);
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: rgba(15, 15, 28, 0.98);
+    border: 1px solid rgba(108, 92, 231, 0.25);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    max-height: 250px;
+    overflow-y: auto;
+    animation: dropdownFadeIn 0.2s var(--ease-out);
+  }
+
+  @keyframes dropdownFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: none;
+    border: none;
+    color: var(--color-text);
+    font-size: 0.9375rem;
+    cursor: pointer;
+    transition: all 0.2s var(--ease-out);
+    text-align: left;
+  }
+
+  .dropdown-item:hover {
+    background: rgba(108, 92, 231, 0.15);
+  }
+
+  .dropdown-item.selected {
+    background: rgba(108, 92, 231, 0.2);
+    color: var(--color-primary-light);
+  }
+
+  .cat-dot {
     width: 10px;
     height: 10px;
     border-radius: 50%;
     background: var(--cat-color);
-    box-shadow: 0 0 8px var(--cat-color);
+    flex-shrink: 0;
+  }
+
+  .cat-dot.none {
+    background: var(--color-text-muted);
+    opacity: 0.3;
   }
 
   .status-toggle {

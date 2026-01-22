@@ -498,7 +498,7 @@
 
   .category-section {
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    /* Note: no overflow:hidden here to allow color picker dropdown to be visible */
   }
 
   .category-header {
