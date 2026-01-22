@@ -391,7 +391,7 @@
         <!-- Brand matches desktop: logo + "Stellar" text -->
         <a href="/" class="island-brand-link">
           <span class="island-brand">
-            <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
+            <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
               <circle cx="50" cy="50" r="45" stroke="url(#islandGrad)" stroke-width="6" fill="none"/>
               <path d="M30 52 L45 67 L72 35" stroke="url(#islandCheck)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
               <defs>
@@ -716,7 +716,7 @@
 
   /* Brand text - matches desktop brand-text style */
   .island-brand-text {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
     font-weight: 700;
     letter-spacing: -0.02em;
     /* Gradient text effect matching desktop */

@@ -945,29 +945,11 @@ html {
   text-size-adjust: 100%;
 }
 
-/* iOS PWA - Prevent ALL unwanted gestures (zoom, bounce, drag) */
+/* Prevent overscroll bounce */
 html, body {
-  /* Prevent overscroll/bounce */
   overscroll-behavior: none;
-  overscroll-behavior-y: none;
-  overscroll-behavior-x: none;
-  /* Prevent pull-to-refresh browser default */
-  overflow: hidden;
-  /* Prevent text size adjustment */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  /* Disable touch manipulation except for specific elements */
-  touch-action: none;
-}
-
-/* Allow vertical scrolling only on main content */
-body {
-  touch-action: pan-y;
-}
-
-/* Prevent zoom on double-tap and pinch */
-* {
-  touch-action: manipulation;
 }
 
 /* Prevent callout on long-press for iOS */

@@ -302,12 +302,10 @@
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .home-container {
+    display: none;
     position: fixed;
-    /* Fill entire screen edge-to-edge including safe areas */
     inset: 0;
-    /* Extend into top safe area */
-    min-height: calc(100% + env(safe-area-inset-top, 0px));
-    display: flex;
+    z-index: 99999;
     align-items: center;
     justify-content: center;
     overflow: hidden;
