@@ -60,6 +60,8 @@
     if (result.error) {
       profileError = result.error;
     } else {
+      // Update auth state to immediately reflect changes in navbar
+      authState.updateUserProfile(firstName.trim(), lastName.trim());
       profileSuccess = 'Profile updated successfully';
       setTimeout(() => profileSuccess = null, 3000);
     }

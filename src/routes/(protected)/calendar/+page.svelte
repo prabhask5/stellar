@@ -235,7 +235,7 @@
   {/if}
 
   <!-- Routines Section -->
-  <section class="routines-section">
+  <section id="manage-routines" class="routines-section">
     <h2>Manage Routines</h2>
 
     {#if routinesLoading}

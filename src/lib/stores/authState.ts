@@ -105,6 +105,42 @@ function createAuthStateStore() {
     },
 
     /**
+     * Update user profile info in the session
+     * Used when profile is updated to immediately reflect changes in UI
+     */
+    updateUserProfile(firstName: string, lastName: string): void {
+      update(state => {
+        if (state.mode === 'supabase' && state.session) {
+          return {
+            ...state,
+            session: {
+              ...state.session,
+              user: {
+                ...state.session.user,
+                user_metadata: {
+                  ...state.session.user.user_metadata,
+                  first_name: firstName,
+                  last_name: lastName
+                }
+              }
+            }
+          };
+        }
+        if (state.mode === 'offline' && state.offlineProfile) {
+          return {
+            ...state,
+            offlineProfile: {
+              ...state.offlineProfile,
+              firstName,
+              lastName
+            }
+          };
+        }
+        return state;
+      });
+    },
+
+    /**
      * Reset to initial state
      */
     reset(): void {
