@@ -37,34 +37,25 @@
   });
 
   async function handleUpdateRoutine(data: {
-    name?: string;
-    type?: GoalType;
-    targetValue?: number | null;
-    startDate?: string;
-    endDate?: string | null;
-    activeDays?: DayOfWeek[] | null;
+    name: string;
+    type: GoalType;
+    targetValue: number | null;
+    startDate: string;
+    endDate: string | null;
+    activeDays: DayOfWeek[] | null;
   }) {
     if (!routine || saving) return;
 
-    // Field-level updates: only include fields that were actually modified
-    const updates: Partial<DailyRoutineGoal> = {};
-
-    if (data.name !== undefined) updates.name = data.name;
-    if (data.type !== undefined) updates.type = data.type;
-    if (data.targetValue !== undefined) updates.target_value = data.targetValue;
-    if (data.startDate !== undefined) updates.start_date = data.startDate;
-    if (data.endDate !== undefined) updates.end_date = data.endDate;
-    if (data.activeDays !== undefined) updates.active_days = data.activeDays;
-
-    // Only update if there are actual changes
-    if (Object.keys(updates).length === 0) {
-      goto('/calendar#manage-routines');
-      return;
-    }
-
     try {
       saving = true;
-      await dailyRoutinesStore.update(routine.id, updates);
+      await dailyRoutinesStore.update(routine.id, {
+        name: data.name,
+        type: data.type,
+        target_value: data.targetValue,
+        start_date: data.startDate,
+        end_date: data.endDate,
+        active_days: data.activeDays
+      });
       goto('/calendar#manage-routines');
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to update routine';
@@ -164,7 +155,6 @@
         endDate={routine.end_date}
         activeDays={routine.active_days}
         submitLabel={saving ? 'Saving...' : 'Save Changes'}
-        trackDirtyFields={true}
         onSubmit={handleUpdateRoutine}
         onCancel={() => goto('/calendar#manage-routines')}
       />

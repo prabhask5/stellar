@@ -1,5 +1,5 @@
 import { db } from '$lib/db/client';
-import type { SyncQueueItem, SyncOperationType, SyncQueueTable } from '$lib/types';
+import type { SyncQueueItem, SyncOperation } from '$lib/types';
 
 // Max retries before giving up on a sync item
 const MAX_SYNC_RETRIES = 5;
@@ -7,19 +7,9 @@ const MAX_SYNC_RETRIES = 5;
 // Max queue size to prevent memory issues on low-end devices
 const MAX_QUEUE_SIZE = 1000;
 
-/**
- * Operation-aware coalescing for the sync queue.
- *
- * Coalescing rules:
- * - increment + increment → sum deltas
- * - decrement + decrement → sum deltas
- * - increment + decrement → net delta (may cancel out)
- * - toggle + toggle → cancel out (remove both)
- * - update + update → merge fields (later wins per field)
- * - create + update → merge into create
- * - create + delete → remove both (entity never existed server-side)
- * - update + delete → keep delete only
- */
+// Coalesce multiple updates to the same entity into a single update
+// This dramatically reduces the number of server requests when user rapidly
+// increments a goal (e.g., 50 rapid clicks = 1 request instead of 50)
 export async function coalescePendingOps(): Promise<number> {
   const allItems = await db.syncQueue.toArray();
   if (allItems.length <= 1) return 0;
@@ -34,135 +24,14 @@ export async function coalescePendingOps(): Promise<number> {
 
   let coalesced = 0;
 
-  for (const [key, items] of grouped) {
+  // For each group with multiple items of the same operation type, merge them
+  for (const [, items] of grouped) {
     if (items.length <= 1) continue;
 
-    // Sort by timestamp (oldest first)
-    items.sort((a, b) =>
-      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
+    // Separate by operation type - we can only merge same-type operations
+    const updateItems = items.filter(i => i.operation === 'update');
 
-    // Check for create + delete cancellation
-    const hasCreate = items.some(o => o.operation === 'create');
-    const hasDelete = items.some(o => o.operation === 'delete');
-
-    if (hasCreate && hasDelete) {
-      // Entity was created then deleted - never existed server-side
-      // Remove all operations for this entity
-      for (const item of items) {
-        if (item.id) {
-          await db.syncQueue.delete(item.id);
-          coalesced++;
-        }
-      }
-      // Don't subtract 1 for the "kept" item since we're removing everything
-      coalesced--; // Adjust since we want count of "removed" items
-      continue;
-    }
-
-    // Handle increment operations - sum deltas
-    const incrementOps = items.filter(o =>
-      o.operation === 'increment' || o.operation === 'decrement'
-    );
-    if (incrementOps.length > 1) {
-      // Group by field
-      const byField = new Map<string, SyncQueueItem[]>();
-      for (const op of incrementOps) {
-        const field = op.payload.field as string;
-        if (!byField.has(field)) byField.set(field, []);
-        byField.get(field)!.push(op);
-      }
-
-      for (const [field, ops] of byField) {
-        if (ops.length <= 1) continue;
-
-        // Sum all deltas
-        let totalDelta = 0;
-        for (const op of ops) {
-          const delta = (op.payload.delta as number) || 0;
-          if (op.operation === 'decrement') {
-            totalDelta -= delta;
-          } else {
-            totalDelta += delta;
-          }
-        }
-
-        if (totalDelta === 0) {
-          // Deltas cancelled out - remove all
-          for (const op of ops) {
-            if (op.id) {
-              await db.syncQueue.delete(op.id);
-              coalesced++;
-            }
-          }
-        } else {
-          // Keep oldest, update with total delta
-          const oldest = ops[0];
-          const newOperation: SyncOperationType = totalDelta > 0 ? 'increment' : 'decrement';
-
-          if (oldest.id) {
-            await db.syncQueue.update(oldest.id, {
-              operation: newOperation,
-              payload: {
-                ...oldest.payload,
-                field,
-                delta: Math.abs(totalDelta)
-              }
-            });
-          }
-
-          // Delete the rest
-          for (let i = 1; i < ops.length; i++) {
-            if (ops[i].id) {
-              await db.syncQueue.delete(ops[i].id);
-              coalesced++;
-            }
-          }
-        }
-      }
-    }
-
-    // Handle toggle operations - cancel out pairs
-    const toggleOps = items.filter(o => o.operation === 'toggle');
-    if (toggleOps.length > 1) {
-      // Group by field
-      const byField = new Map<string, SyncQueueItem[]>();
-      for (const op of toggleOps) {
-        const field = op.payload.field as string;
-        if (!byField.has(field)) byField.set(field, []);
-        byField.get(field)!.push(op);
-      }
-
-      for (const [, ops] of byField) {
-        if (ops.length <= 1) continue;
-
-        if (ops.length % 2 === 0) {
-          // Even number of toggles = no-op, remove all
-          for (const op of ops) {
-            if (op.id) {
-              await db.syncQueue.delete(op.id);
-              coalesced++;
-            }
-          }
-        } else {
-          // Odd number of toggles = single toggle, keep oldest
-          for (let i = 1; i < ops.length; i++) {
-            if (ops[i].id) {
-              await db.syncQueue.delete(ops[i].id);
-              coalesced++;
-            }
-          }
-        }
-      }
-    }
-
-    // Handle update operations - merge payloads
-    // Re-fetch items since some may have been deleted
-    const remainingItems = (await db.syncQueue.toArray())
-      .filter(i => `${i.table}:${i.entityId}` === key);
-
-    const updateItems = remainingItems.filter(i => i.operation === 'update');
-
+    // Coalesce multiple updates to the same entity
     if (updateItems.length > 1) {
       // Sort by timestamp (oldest first)
       updateItems.sort((a, b) =>
@@ -179,10 +48,11 @@ export async function coalescePendingOps(): Promise<number> {
       const oldestItem = updateItems[0];
       const itemsToDelete = updateItems.slice(1);
 
-      // Update the oldest item with merged payload
+      // Update the oldest item with merged payload (keeps original timestamp for backoff)
       if (oldestItem.id) {
         await db.syncQueue.update(oldestItem.id, {
           payload: mergedPayload,
+          // Keep original retries and timestamp so it's still eligible for processing
         });
       }
 
@@ -190,50 +60,6 @@ export async function coalescePendingOps(): Promise<number> {
       for (const item of itemsToDelete) {
         if (item.id) {
           await db.syncQueue.delete(item.id);
-          coalesced++;
-        }
-      }
-    }
-
-    // Handle create + update = merge into create
-    const refetchedItems = (await db.syncQueue.toArray())
-      .filter(i => `${i.table}:${i.entityId}` === key);
-
-    const createOp = refetchedItems.find(i => i.operation === 'create');
-    const updateOpsAfterCreate = refetchedItems.filter(i => i.operation === 'update');
-
-    if (createOp && updateOpsAfterCreate.length > 0) {
-      // Merge updates into create
-      let mergedPayload = { ...createOp.payload };
-      for (const updateOp of updateOpsAfterCreate) {
-        mergedPayload = { ...mergedPayload, ...updateOp.payload };
-      }
-
-      if (createOp.id) {
-        await db.syncQueue.update(createOp.id, { payload: mergedPayload });
-      }
-
-      // Delete the update operations
-      for (const updateOp of updateOpsAfterCreate) {
-        if (updateOp.id) {
-          await db.syncQueue.delete(updateOp.id);
-          coalesced++;
-        }
-      }
-    }
-
-    // Handle update + delete = keep delete only
-    const finalItems = (await db.syncQueue.toArray())
-      .filter(i => `${i.table}:${i.entityId}` === key);
-
-    const deleteOp = finalItems.find(i => i.operation === 'delete');
-    const nonDeleteOps = finalItems.filter(i => i.operation !== 'delete');
-
-    if (deleteOp && nonDeleteOps.length > 0) {
-      // Remove non-delete operations (they're superseded by delete)
-      for (const op of nonDeleteOps) {
-        if (op.id) {
-          await db.syncQueue.delete(op.id);
           coalesced++;
         }
       }
@@ -316,11 +142,10 @@ export async function getPendingEntityIds(): Promise<Set<string>> {
 // between local DB writes and sync queue entries - preventing race conditions
 // where a sync pull could overwrite local changes before they're queued
 export async function queueSyncDirect(
-  table: SyncQueueTable,
-  operation: SyncOperationType,
+  table: SyncQueueItem['table'],
+  operation: SyncOperation,
   entityId: string,
-  payload: Record<string, unknown>,
-  baseVersion?: string
+  payload: Record<string, unknown>
 ): Promise<void> {
   // Note: We intentionally skip MAX_QUEUE_SIZE check here because:
   // 1. This is called within Dexie transactions for atomicity
@@ -333,66 +158,9 @@ export async function queueSyncDirect(
     operation,
     entityId,
     payload,
-    baseVersion,
     timestamp: new Date().toISOString(),
     retries: 0
   };
 
   await db.syncQueue.add(item);
-}
-
-/**
- * Queue an increment operation.
- * This is a helper function for cleaner repository code.
- */
-export async function queueIncrement(
-  table: SyncQueueTable,
-  entityId: string,
-  field: string,
-  delta: number,
-  baseVersion?: string,
-  sideEffects?: Record<string, unknown>
-): Promise<void> {
-  await queueSyncDirect(table, 'increment', entityId, {
-    field,
-    delta,
-    sideEffects,
-    updated_at: new Date().toISOString()
-  }, baseVersion);
-}
-
-/**
- * Queue a decrement operation.
- * This is a helper function for cleaner repository code.
- */
-export async function queueDecrement(
-  table: SyncQueueTable,
-  entityId: string,
-  field: string,
-  delta: number,
-  baseVersion?: string,
-  sideEffects?: Record<string, unknown>
-): Promise<void> {
-  await queueSyncDirect(table, 'decrement', entityId, {
-    field,
-    delta,
-    sideEffects,
-    updated_at: new Date().toISOString()
-  }, baseVersion);
-}
-
-/**
- * Queue a toggle operation.
- * This is a helper function for cleaner repository code.
- */
-export async function queueToggle(
-  table: SyncQueueTable,
-  entityId: string,
-  field: string,
-  baseVersion?: string
-): Promise<void> {
-  await queueSyncDirect(table, 'toggle', entityId, {
-    field,
-    updated_at: new Date().toISOString()
-  }, baseVersion);
 }

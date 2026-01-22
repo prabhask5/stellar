@@ -1,8 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { DailyTask } from '$lib/types';
-import { queueSyncDirect, queueToggle } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
-import { notifyLocalWrite } from '$lib/sync/tabCoordinator';
 
 export async function createDailyTask(name: string, userId: string): Promise<DailyTask> {
   const timestamp = now();
@@ -70,7 +69,6 @@ export async function toggleDailyTaskComplete(id: string): Promise<DailyTask | u
 
   const timestamp = now();
   const newCompleted = !task.completed;
-  const baseVersion = task.updated_at;
 
   // Use transaction to ensure atomicity
   let updated: DailyTask | undefined;
@@ -78,15 +76,12 @@ export async function toggleDailyTaskComplete(id: string): Promise<DailyTask | u
     await db.dailyTasks.update(id, { completed: newCompleted, updated_at: timestamp });
     updated = await db.dailyTasks.get(id);
     if (updated) {
-      // Use toggle operation for proper multi-device handling
-      // Toggle pairs will cancel out during coalescing
-      await queueToggle('daily_tasks', id, 'completed', baseVersion);
+      await queueSyncDirect('daily_tasks', 'update', id, { completed: newCompleted, updated_at: timestamp });
     }
   });
 
   if (updated) {
     scheduleSyncPush();
-    notifyLocalWrite('daily_tasks', id);
   }
 
   return updated;

@@ -1,8 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { DailyGoalProgress } from '$lib/types';
-import { queueSyncDirect, queueIncrement } from '$lib/sync/queue';
+import { queueSyncDirect } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
-import { notifyLocalWrite } from '$lib/sync/tabCoordinator';
 
 async function getProgressForRoutineAndDate(
   routineId: string,
@@ -96,8 +95,6 @@ export async function incrementDailyProgress(
   const completed = newValue >= targetValue;
 
   if (existing) {
-    const baseVersion = existing.updated_at;
-
     // Use transaction to ensure atomicity - prevents sync pull from overwriting during rapid clicks
     let updated: DailyGoalProgress | undefined;
     await db.transaction('rw', [db.dailyGoalProgress, db.syncQueue], async () => {
@@ -108,14 +105,16 @@ export async function incrementDailyProgress(
       });
       updated = await db.dailyGoalProgress.get(existing.id);
       if (updated) {
-        // Use increment operation for proper multi-device conflict resolution
-        await queueIncrement('daily_goal_progress', existing.id, 'current_value', amount, baseVersion, { completed });
+        await queueSyncDirect('daily_goal_progress', 'update', existing.id, {
+          current_value: newValue,
+          completed,
+          updated_at: timestamp
+        });
       }
     });
 
     if (updated) {
       scheduleSyncPush();
-      notifyLocalWrite('daily_goal_progress', existing.id);
       return updated;
     }
   }
@@ -142,7 +141,6 @@ export async function incrementDailyProgress(
     });
   });
   scheduleSyncPush();
-  notifyLocalWrite('daily_goal_progress', newProgress.id);
 
   return newProgress;
 }

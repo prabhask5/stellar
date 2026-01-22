@@ -1,13 +1,10 @@
 import { supabase } from '$lib/supabase/client';
 import { db } from '$lib/db/client';
 import { getPendingSync, removeSyncItem, incrementRetry, getPendingEntityIds, cleanupFailedItems, coalescePendingOps } from './queue';
-import type { SyncQueueItem, Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, GoalListWithProgress, TaskCategory, Commitment, DailyTask, LongTermTask, LongTermTaskWithCategory, FocusSettings, FocusSession, BlockList, BlockedWebsite, SyncQueueTable } from '$lib/types';
+import type { SyncQueueItem, Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, GoalListWithProgress, TaskCategory, Commitment, DailyTask, LongTermTask, LongTermTaskWithCategory, FocusSettings, FocusSession, BlockList, BlockedWebsite } from '$lib/types';
 import { syncStatusStore } from '$lib/stores/sync';
 import { calculateGoalProgress } from '$lib/utils/colors';
 import { isRoutineActiveOnDate } from '$lib/utils/dates';
-import { initAdaptivePolling, stopAdaptivePolling, updateSyncCursor, skipNextScheduledPoll, POLLING_INTERVALS } from './polling';
-import { initTabCoordinator, stopTabCoordinator, isLeaderTab, notifySyncStarted, notifySyncComplete as notifyTabsSyncComplete, notifyLocalWrite } from './tabCoordinator';
-import { isBeingEdited, deferUpdate, startEditProtection, stopEditProtection, setApplyDeferredCallback } from './editProtection';
 
 // ============================================================
 // LOCAL-FIRST SYNC ENGINE
@@ -818,90 +815,140 @@ async function pullRemoteChanges(minCursor?: string): Promise<{ bytes: number; r
   pullBytes += blockedWebsitesEgress.bytes;
   pullRecords += blockedWebsitesEgress.records;
 
-  // Apply changes to local DB with conflict handling and edit protection
+  // Apply changes to local DB with conflict handling
   await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks, db.focusSettings, db.focusSessions, db.blockLists, db.blockedWebsites], async () => {
-    // Helper to apply remote record with edit protection
-    async function applyRemoteRecord<T extends { id: string; updated_at: string }>(
-      table: SyncQueueTable,
-      dexieTable: { get: (id: string) => Promise<T | undefined>; put: (item: T) => Promise<unknown> },
-      remote: T
-    ): Promise<void> {
+    // Apply goal_lists
+    for (const remote of (remoteLists || [])) {
       // Skip if we have pending ops for this entity (local takes precedence)
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) return;
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
 
-      // Skip if entity is being actively edited - defer the update
-      if (isBeingEdited(table, remote.id)) {
-        deferUpdate(table, remote.id, remote, remote.updated_at);
-        if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-        return;
-      }
-
-      const local = await dexieTable.get(remote.id);
+      const local = await db.goalLists.get(remote.id);
       // Accept remote if no local or remote is newer
       if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await dexieTable.put(remote);
+        await db.goalLists.put(remote);
       }
       if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
 
-    // Apply goal_lists
-    for (const remote of (remoteLists || [])) {
-      await applyRemoteRecord('goal_lists', db.goalLists, remote);
-    }
-
     // Apply goals
     for (const remote of (remoteGoals || [])) {
-      await applyRemoteRecord('goals', db.goals, remote);
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
+
+      const local = await db.goals.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.goals.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
 
     // Apply daily_routine_goals
     for (const remote of (remoteRoutines || [])) {
-      await applyRemoteRecord('daily_routine_goals', db.dailyRoutineGoals, remote);
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
+
+      const local = await db.dailyRoutineGoals.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.dailyRoutineGoals.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
 
     // Apply daily_goal_progress
     for (const remote of (remoteProgress || [])) {
-      await applyRemoteRecord('daily_goal_progress', db.dailyGoalProgress, remote);
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
+
+      const local = await db.dailyGoalProgress.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.dailyGoalProgress.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
 
     // Apply task_categories
     for (const remote of (remoteCategories || [])) {
-      await applyRemoteRecord('task_categories', db.taskCategories, remote);
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
+
+      const local = await db.taskCategories.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.taskCategories.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
 
     // Apply commitments
     for (const remote of (remoteCommitments || [])) {
-      await applyRemoteRecord('commitments', db.commitments, remote);
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
+
+      const local = await db.commitments.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.commitments.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
 
     // Apply daily_tasks
     for (const remote of (remoteDailyTasks || [])) {
-      await applyRemoteRecord('daily_tasks', db.dailyTasks, remote);
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
+
+      const local = await db.dailyTasks.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.dailyTasks.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
 
     // Apply long_term_tasks
     for (const remote of (remoteLongTermTasks || [])) {
-      await applyRemoteRecord('long_term_tasks', db.longTermTasks, remote);
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
+
+      const local = await db.longTermTasks.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.longTermTasks.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
 
     // Apply focus_settings
     for (const remote of (remoteFocusSettings || [])) {
-      await applyRemoteRecord('focus_settings', db.focusSettings, remote);
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
+
+      const local = await db.focusSettings.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.focusSettings.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
 
     // Apply focus_sessions
     for (const remote of (remoteFocusSessions || [])) {
-      await applyRemoteRecord('focus_sessions', db.focusSessions, remote);
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
+
+      const local = await db.focusSessions.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.focusSessions.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
 
     // Apply block_lists
     for (const remote of (remoteBlockLists || [])) {
-      await applyRemoteRecord('block_lists', db.blockLists, remote);
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
+
+      const local = await db.blockLists.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.blockLists.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
 
     // Apply blocked_websites
     for (const remote of (remoteBlockedWebsites || [])) {
-      await applyRemoteRecord('blocked_websites', db.blockedWebsites, remote);
+      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
+
+      const local = await db.blockedWebsites.get(remote.id);
+      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
+        await db.blockedWebsites.put(remote);
+      }
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
     }
   });
 
@@ -1101,162 +1148,6 @@ async function processSyncItem(item: SyncQueueItem): Promise<void> {
       // Ignore "not found" errors - item may already be deleted by another device
       if (error && !isNotFoundError(error)) {
         throw error;
-      }
-      break;
-    }
-    case 'increment': {
-      // Use atomic increment RPC for true multi-device conflict resolution
-      const { data, error } = await supabase.rpc('apply_increment', {
-        p_table: table,
-        p_id: entityId,
-        p_field: payload.field as string,
-        p_delta: payload.delta as number
-      });
-
-      if (error) {
-        // If RPC doesn't exist, fall back to regular update
-        // This allows gradual migration without breaking existing users
-        if (error.message?.includes('function') || error.code === '42883') {
-          console.log('[SYNC] apply_increment not available, falling back to regular update');
-          // Fall back: read current value and update
-          const { data: current, error: readError } = await supabase
-            .from(table)
-            .select('*')
-            .eq('id', entityId)
-            .single();
-
-          if (readError) throw readError;
-
-          const field = payload.field as string;
-          const delta = payload.delta as number;
-          const newValue = ((current as Record<string, unknown>)[field] as number || 0) + delta;
-
-          const updatePayload: Record<string, unknown> = {
-            [field]: newValue,
-            updated_at: new Date().toISOString()
-          };
-
-          // Apply side effects (e.g., completed flag)
-          if (payload.sideEffects) {
-            Object.assign(updatePayload, payload.sideEffects);
-          }
-
-          const { error: updateError } = await supabase
-            .from(table)
-            .update(updatePayload)
-            .eq('id', entityId);
-
-          if (updateError) throw updateError;
-        } else {
-          throw error;
-        }
-      }
-
-      // Apply side effects if they exist and weren't handled by the RPC
-      if (payload.sideEffects && data) {
-        const { error: sideEffectError } = await supabase
-          .from(table)
-          .update(payload.sideEffects as Record<string, unknown>)
-          .eq('id', entityId);
-
-        if (sideEffectError) {
-          console.warn('[SYNC] Failed to apply side effects:', sideEffectError);
-        }
-      }
-      break;
-    }
-    case 'decrement': {
-      // Use atomic increment RPC with negative delta
-      const { data, error } = await supabase.rpc('apply_increment', {
-        p_table: table,
-        p_id: entityId,
-        p_field: payload.field as string,
-        p_delta: -(payload.delta as number)
-      });
-
-      if (error) {
-        // Fall back to regular update if RPC doesn't exist
-        if (error.message?.includes('function') || error.code === '42883') {
-          console.log('[SYNC] apply_increment not available, falling back to regular update');
-          const { data: current, error: readError } = await supabase
-            .from(table)
-            .select('*')
-            .eq('id', entityId)
-            .single();
-
-          if (readError) throw readError;
-
-          const field = payload.field as string;
-          const delta = payload.delta as number;
-          const newValue = Math.max(0, ((current as Record<string, unknown>)[field] as number || 0) - delta);
-
-          const updatePayload: Record<string, unknown> = {
-            [field]: newValue,
-            updated_at: new Date().toISOString()
-          };
-
-          if (payload.sideEffects) {
-            Object.assign(updatePayload, payload.sideEffects);
-          }
-
-          const { error: updateError } = await supabase
-            .from(table)
-            .update(updatePayload)
-            .eq('id', entityId);
-
-          if (updateError) throw updateError;
-        } else {
-          throw error;
-        }
-      }
-
-      if (payload.sideEffects && data) {
-        const { error: sideEffectError } = await supabase
-          .from(table)
-          .update(payload.sideEffects as Record<string, unknown>)
-          .eq('id', entityId);
-
-        if (sideEffectError) {
-          console.warn('[SYNC] Failed to apply side effects:', sideEffectError);
-        }
-      }
-      break;
-    }
-    case 'toggle': {
-      // Use atomic toggle RPC
-      const { error } = await supabase.rpc('apply_toggle', {
-        p_table: table,
-        p_id: entityId,
-        p_field: payload.field as string
-      });
-
-      if (error) {
-        // Fall back to regular update if RPC doesn't exist
-        if (error.message?.includes('function') || error.code === '42883') {
-          console.log('[SYNC] apply_toggle not available, falling back to regular update');
-          const { data: current, error: readError } = await supabase
-            .from(table)
-            .select('*')
-            .eq('id', entityId)
-            .single();
-
-          if (readError) throw readError;
-
-          const field = payload.field as string;
-          const currentValue = (current as Record<string, unknown>)[field] as boolean;
-
-          const { error: updateError } = await supabase
-            .from(table)
-            .update({
-              [field]: !currentValue,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', entityId);
-
-          if (updateError) throw updateError;
-        } else {
-          throw error;
-        }
       }
       break;
     }
@@ -1485,13 +1376,6 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
 
     // Notify stores that sync is complete so they can refresh from local
     notifySyncComplete();
-
-    // Update the adaptive polling cursor
-    const syncUserId = await getCurrentUserId();
-    if (syncUserId) {
-      const cursor = getLastSyncCursor(syncUserId);
-      updateSyncCursor(cursor);
-    }
   } catch (error) {
     console.error('Sync failed:', error);
 
@@ -1997,67 +1881,6 @@ export function startSyncEngine(): void {
     document.removeEventListener('visibilitychange', handleVisibilityChangeRef);
   }
 
-  // Initialize edit protection system
-  startEditProtection();
-
-  // Set up deferred update callback
-  setApplyDeferredCallback(async (update) => {
-    // Apply deferred update to local database
-    const dexieTable = getLocalTable(update.table as SyncQueueTable);
-    if (dexieTable) {
-      await dexieTable.put(update.data);
-      notifySyncComplete();
-    }
-  });
-
-  // Initialize tab coordinator
-  initTabCoordinator({
-    onSyncStarted: () => {
-      // Another tab started syncing, skip our next poll
-      skipNextScheduledPoll();
-    },
-    onSyncComplete: () => {
-      // Another tab finished syncing, refresh our stores
-      notifySyncComplete();
-    },
-    onLocalWrite: (table, entityId) => {
-      // Another tab wrote data, we could refresh specific entities
-      // For now, just log it - stores will refresh on next sync
-      console.log(`[SYNC] Another tab wrote to ${table}:${entityId}`);
-    },
-    onBecameLeader: () => {
-      console.log('[SYNC] This tab is now the leader for polling');
-    },
-    onLostLeadership: () => {
-      console.log('[SYNC] This tab lost leadership, another tab will poll');
-    }
-  });
-
-  // Initialize adaptive polling (only leader tab will actually poll)
-  initAdaptivePolling(
-    async (quiet: boolean) => {
-      // Only run sync if we're the leader tab
-      if (!isLeaderTab()) {
-        return;
-      }
-
-      // Notify other tabs that we're starting sync
-      notifySyncStarted();
-
-      await runFullSync(quiet);
-
-      // Notify other tabs that sync is complete
-      notifyTabsSyncComplete();
-    },
-    {
-      getCursor: () => {
-        const userId = localStorage.getItem('currentUserId');
-        if (!userId) return '1970-01-01T00:00:00.000Z';
-        return localStorage.getItem(`lastSyncCursor_${userId}`) || '1970-01-01T00:00:00.000Z';
-      }
-    }
-  );
-
   // Handle online event - run sync when connection restored (show indicator)
   handleOnlineRef = () => {
     runFullSync(false);
@@ -2073,7 +1896,6 @@ export function startSyncEngine(): void {
   window.addEventListener('offline', handleOfflineRef);
 
   // Track visibility and sync when returning to tab (with smart timing)
-  // Note: Adaptive polling also handles visibility, but this provides immediate sync on return
   handleVisibilityChangeRef = () => {
     const wasHidden = !isTabVisible;
     isTabVisible = !document.hidden;
@@ -2103,9 +1925,7 @@ export function startSyncEngine(): void {
       // Debounce to prevent rapid syncs when user quickly switches tabs
       visibilityDebounceTimeout = setTimeout(() => {
         visibilityDebounceTimeout = null;
-        if (isLeaderTab()) {
-          runFullSync(true); // Quiet - no error shown if it fails
-        }
+        runFullSync(true); // Quiet - no error shown if it fails
       }, VISIBILITY_SYNC_DEBOUNCE_MS);
     }
   };
@@ -2115,9 +1935,13 @@ export function startSyncEngine(): void {
   isTabVisible = !document.hidden;
   syncStatusStore.setTabVisible(isTabVisible);
 
-  // Start periodic cleanup (separate from adaptive polling)
-  // Adaptive polling handles sync frequency, this just handles cleanup
+  // Start periodic sync (quiet mode - don't show indicator unless needed)
   syncInterval = setInterval(async () => {
+    // Only run periodic sync if tab is visible and online
+    if (navigator.onLine && isTabVisible) {
+      runFullSync(true); // Quiet background sync
+    }
+
     // Cleanup old tombstones, failed sync items, and recently modified cache
     await cleanupOldTombstones();
     cleanupRecentlyModified();
@@ -2152,36 +1976,8 @@ export function startSyncEngine(): void {
   });
 }
 
-// Helper to get the local Dexie table for a given table name
-function getLocalTable(table: SyncQueueTable) {
-  const tableMap: Record<SyncQueueTable, typeof db.goalLists | typeof db.goals | typeof db.dailyRoutineGoals | typeof db.dailyGoalProgress | typeof db.taskCategories | typeof db.commitments | typeof db.dailyTasks | typeof db.longTermTasks | typeof db.focusSettings | typeof db.focusSessions | typeof db.blockLists | typeof db.blockedWebsites> = {
-    goal_lists: db.goalLists,
-    goals: db.goals,
-    daily_routine_goals: db.dailyRoutineGoals,
-    daily_goal_progress: db.dailyGoalProgress,
-    task_categories: db.taskCategories,
-    commitments: db.commitments,
-    daily_tasks: db.dailyTasks,
-    long_term_tasks: db.longTermTasks,
-    focus_settings: db.focusSettings,
-    focus_sessions: db.focusSessions,
-    block_lists: db.blockLists,
-    blocked_websites: db.blockedWebsites
-  };
-  return tableMap[table];
-}
-
 export function stopSyncEngine(): void {
   if (typeof window === 'undefined') return;
-
-  // Stop adaptive polling
-  stopAdaptivePolling();
-
-  // Stop tab coordination
-  stopTabCoordinator();
-
-  // Stop edit protection
-  stopEditProtection();
 
   // Remove event listeners to prevent memory leaks
   if (handleOnlineRef) {

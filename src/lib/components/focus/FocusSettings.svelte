@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { FocusSettings } from '$lib/types';
-  import { createDirtyTracker } from '$lib/utils/dirtyFields';
 
   interface Props {
     settings: FocusSettings | null;
@@ -11,13 +10,6 @@
 
   let { settings, isOpen, onClose, onSave }: Props = $props();
 
-  // Track which fields user has modified (for edit mode)
-  const dirty = createDirtyTracker();
-
-  function markDirty(field: string) {
-    dirty.mark(field);
-  }
-
   // Local state for form
   let focusDuration = $state(settings?.focus_duration || 25);
   let breakDuration = $state(settings?.break_duration || 5);
@@ -26,7 +18,7 @@
   let autoStartBreaks = $state(settings?.auto_start_breaks || false);
   let autoStartFocus = $state(settings?.auto_start_focus || false);
 
-  // Update local state when settings change and reset dirty tracking
+  // Update local state when settings change
   $effect(() => {
     if (settings) {
       focusDuration = settings.focus_duration;
@@ -35,37 +27,18 @@
       cyclesBeforeLongBreak = settings.cycles_before_long_break;
       autoStartBreaks = settings.auto_start_breaks;
       autoStartFocus = settings.auto_start_focus;
-      dirty.reset();
     }
   });
 
   function handleSave() {
-    // Build current and initial values for comparison
-    const currentValues = {
+    onSave({
       focus_duration: focusDuration,
       break_duration: breakDuration,
       long_break_duration: longBreakDuration,
       cycles_before_long_break: cyclesBeforeLongBreak,
       auto_start_breaks: autoStartBreaks,
       auto_start_focus: autoStartFocus
-    };
-
-    const initialValues = {
-      focus_duration: settings?.focus_duration || 25,
-      break_duration: settings?.break_duration || 5,
-      long_break_duration: settings?.long_break_duration || 15,
-      cycles_before_long_break: settings?.cycles_before_long_break || 4,
-      auto_start_breaks: settings?.auto_start_breaks || false,
-      auto_start_focus: settings?.auto_start_focus || false
-    };
-
-    // Only send fields that were actually modified
-    const changes = dirty.getChanges(currentValues, initialValues);
-
-    // Only save if there are actual changes
-    if (Object.keys(changes).length > 0) {
-      onSave(changes);
-    }
+    });
     onClose();
   }
 
@@ -104,7 +77,6 @@
             max="240"
             step="15"
             bind:value={focusDuration}
-            oninput={() => markDirty('focus_duration')}
             class="slider"
           />
         </div>
@@ -122,7 +94,6 @@
             max="20"
             step="1"
             bind:value={breakDuration}
-            oninput={() => markDirty('break_duration')}
             class="slider break"
           />
         </div>
@@ -140,7 +111,6 @@
             max="60"
             step="5"
             bind:value={longBreakDuration}
-            oninput={() => markDirty('long_break_duration')}
             class="slider long-break"
           />
         </div>
@@ -158,7 +128,6 @@
             max="6"
             step="1"
             bind:value={cyclesBeforeLongBreak}
-            oninput={() => markDirty('cycles_before_long_break')}
             class="slider"
           />
         </div>
@@ -174,7 +143,7 @@
           <button
             class="toggle-btn"
             class:active={autoStartBreaks}
-            onclick={() => { autoStartBreaks = !autoStartBreaks; markDirty('auto_start_breaks'); }}
+            onclick={() => autoStartBreaks = !autoStartBreaks}
             aria-pressed={autoStartBreaks}
             aria-labelledby="auto-start-breaks-label"
             role="switch"
@@ -191,7 +160,7 @@
           <button
             class="toggle-btn"
             class:active={autoStartFocus}
-            onclick={() => { autoStartFocus = !autoStartFocus; markDirty('auto_start_focus'); }}
+            onclick={() => autoStartFocus = !autoStartFocus}
             aria-pressed={autoStartFocus}
             aria-labelledby="auto-start-focus-label"
             role="switch"

@@ -1,14 +1,11 @@
 <script lang="ts">
   import type { DayOfWeek } from '$lib/types';
-  import { createDirtyTracker } from '$lib/utils/dirtyFields';
 
   interface Props {
     name?: string;
     activeDays?: DayOfWeek[] | null;
     submitLabel?: string;
-    /** When true, only sends fields the user actually modified (for edit mode) */
-    trackDirtyFields?: boolean;
-    onSubmit: (data: { name?: string; activeDays?: DayOfWeek[] | null }) => void;
+    onSubmit: (data: { name: string; activeDays: DayOfWeek[] | null }) => void;
     onCancel?: () => void;
   }
 
@@ -16,17 +13,9 @@
     name: initialName = '',
     activeDays: initialActiveDays = null,
     submitLabel = 'Create',
-    trackDirtyFields = false,
     onSubmit,
     onCancel
   }: Props = $props();
-
-  // Track which fields user has modified (for edit mode)
-  const dirty = createDirtyTracker();
-
-  function markDirty(field: string) {
-    dirty.mark(field);
-  }
 
   // Day labels for the selector
   const dayLabels: { short: string; full: string; value: DayOfWeek }[] = [
@@ -61,22 +50,18 @@
       newSet.add(day);
     }
     selectedDays = newSet;
-    markDirty('activeDays');
   }
 
   function selectAllDays() {
     selectedDays = new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[]);
-    markDirty('activeDays');
   }
 
   function selectWeekdays() {
     selectedDays = new Set([1, 2, 3, 4, 5] as DayOfWeek[]);
-    markDirty('activeDays');
   }
 
   function selectWeekends() {
     selectedDays = new Set([0, 6] as DayOfWeek[]);
-    markDirty('activeDays');
   }
 
   // Helper to get active days description
@@ -102,30 +87,10 @@
       ? null
       : (Array.from(selectedDays).sort((a, b) => a - b) as DayOfWeek[]);
 
-    const currentValues = {
+    onSubmit({
       name: name.trim(),
       activeDays: activeDaysResult
-    };
-
-    // If tracking dirty fields (edit mode), only send fields that were actually modified
-    if (trackDirtyFields) {
-      const initialValues = {
-        name: initialName,
-        activeDays: initialActiveDays
-      };
-      const changes = dirty.getChanges(currentValues, initialValues);
-
-      // Only submit if there are actual changes
-      if (Object.keys(changes).length > 0) {
-        onSubmit(changes);
-      } else {
-        // No changes, just close
-        onCancel?.();
-      }
-    } else {
-      // Create mode: send all fields
-      onSubmit(currentValues);
-    }
+    });
   }
 </script>
 
@@ -136,7 +101,6 @@
       id="block-list-name"
       type="text"
       bind:value={name}
-      oninput={() => markDirty('name')}
       placeholder="Enter block list name..."
       required
     />
