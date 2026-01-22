@@ -1,20 +1,53 @@
 <script lang="ts">
   import { browser } from '$app/environment';
+  import { onMount } from 'svelte';
 
   let showPrompt = $state(false);
 
-  if (browser) {
-    // Check for waiting service worker on load
-    navigator.serviceWorker?.ready.then((registration) => {
+  onMount(() => {
+    if (!browser || !navigator.serviceWorker) return;
+
+    // Function to check for waiting worker
+    function checkForWaitingWorker() {
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        if (registration?.waiting) {
+          console.log('[UpdatePrompt] Found waiting service worker');
+          showPrompt = true;
+        }
+      });
+    }
+
+    // Check immediately on mount
+    checkForWaitingWorker();
+
+    // Also check after a short delay (iOS PWA sometimes needs this)
+    setTimeout(checkForWaitingWorker, 1000);
+    setTimeout(checkForWaitingWorker, 3000);
+
+    // Listen for messages from service worker
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'SW_INSTALLED') {
+        console.log('[UpdatePrompt] Received SW_INSTALLED message');
+        // Small delay to ensure the worker is in waiting state
+        setTimeout(checkForWaitingWorker, 500);
+      }
+    });
+
+    // Listen for new service worker becoming available
+    navigator.serviceWorker.ready.then((registration) => {
+      // Check if there's already a waiting worker
       if (registration.waiting) {
+        console.log('[UpdatePrompt] Waiting worker found on ready');
         showPrompt = true;
       }
 
-      // Listen for new service worker becoming available
+      // Listen for update found
       registration.addEventListener('updatefound', () => {
+        console.log('[UpdatePrompt] Update found');
         const newWorker = registration.installing;
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
+            console.log('[UpdatePrompt] New worker state:', newWorker.state);
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               // New service worker is ready but waiting
               showPrompt = true;
@@ -24,19 +57,36 @@
       });
     });
 
-    // Check for updates periodically (every 5 minutes)
+    // Check for updates when app becomes visible (critical for iOS PWA)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[UpdatePrompt] App became visible, checking for updates');
+        navigator.serviceWorker.ready.then((registration) => {
+          registration.update();
+        });
+        // Also check for waiting worker
+        setTimeout(checkForWaitingWorker, 1000);
+      }
+    });
+
+    // Check for updates periodically (every 2 minutes)
     setInterval(() => {
-      navigator.serviceWorker?.ready.then((registration) => {
+      navigator.serviceWorker.ready.then((registration) => {
         registration.update();
       });
-    }, 5 * 60 * 1000);
-  }
+    }, 2 * 60 * 1000);
+
+    // Force an update check on page load
+    navigator.serviceWorker.ready.then((registration) => {
+      registration.update();
+    });
+  });
 
   async function handleRefresh() {
     showPrompt = false;
 
     // Tell the waiting service worker to take over
-    const registration = await navigator.serviceWorker?.ready;
+    const registration = await navigator.serviceWorker?.getRegistration();
     if (registration?.waiting) {
       // Listen for the new SW to take control, then reload
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -55,6 +105,7 @@
   }
 </script>
 
+<!-- Update prompt is now mostly automatic, but keep UI as fallback -->
 {#if showPrompt}
   <div class="update-prompt">
     <div class="update-content">

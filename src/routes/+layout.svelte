@@ -783,12 +783,12 @@
     height: 24px;
   }
 
-  /* Other icons are 20px */
+  /* Other icons are 16px */
   .island-right :global(.sync-indicator .icon-offline),
   .island-right :global(.sync-indicator .icon-error),
   .island-right :global(.sync-indicator .icon-pending) {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
   }
 
   .island-right :global(.pending-badge) {

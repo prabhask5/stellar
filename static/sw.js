@@ -27,10 +27,17 @@ self.addEventListener('install', (event) => {
         }))
       );
       console.log('[SW] Minimal precache complete');
+
+      // Notify clients that a new version is available (for iOS PWA)
+      self.clients.matchAll({ type: 'window' }).then(clients => {
+        clients.forEach(client => {
+          client.postMessage({ type: 'SW_INSTALLED', version: APP_VERSION });
+        });
+      });
     })
   );
 
-  // Don't skipWaiting() here - let the UpdatePrompt control the transition
+  // Don't skipWaiting() - let the UpdatePrompt control the transition
 });
 
 // Activate event - clean old caches and take control
