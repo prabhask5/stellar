@@ -17,6 +17,52 @@ import { isRoutineActiveOnDate } from '$lib/utils/dates';
 // 5. On refresh, load local state instantly, then run background sync
 // ============================================================
 
+// Track if we were recently offline (for auth validation on reconnect)
+let wasOffline = false;
+let authValidatedAfterReconnect = true; // Start as true (no validation needed initially)
+
+/**
+ * Clear all pending sync operations (used when auth is invalid)
+ * SECURITY: Called when offline credentials are found to be invalid
+ * to prevent unauthorized data from being synced to the server
+ */
+export async function clearPendingSyncQueue(): Promise<number> {
+  try {
+    const count = await db.syncQueue.count();
+    await db.syncQueue.clear();
+    console.log(`[SYNC] Cleared ${count} pending sync operations (auth invalid)`);
+    return count;
+  } catch (e) {
+    console.error('[SYNC] Failed to clear sync queue:', e);
+    return 0;
+  }
+}
+
+/**
+ * Mark that we need auth validation before next sync
+ * Called when going offline
+ */
+export function markOffline(): void {
+  wasOffline = true;
+  authValidatedAfterReconnect = false;
+}
+
+/**
+ * Mark auth as validated (safe to sync)
+ * Called after successful credential validation on reconnect
+ */
+export function markAuthValidated(): void {
+  authValidatedAfterReconnect = true;
+  wasOffline = false;
+}
+
+/**
+ * Check if auth needs validation before syncing
+ */
+export function needsAuthValidation(): boolean {
+  return wasOffline && !authValidatedAfterReconnect;
+}
+
 // ============================================================
 // EGRESS MONITORING - Track sync cycles for debugging
 // ============================================================
@@ -985,6 +1031,17 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
     return;
   }
 
+  // SECURITY: If we were offline and came back online, auth must be validated first
+  // This prevents syncing potentially unauthorized data from an invalid offline session
+  if (needsAuthValidation()) {
+    console.log('[SYNC] Waiting for auth validation before syncing (was offline)');
+    if (!quiet) {
+      syncStatusStore.setStatus('idle');
+      syncStatusStore.setSyncMessage('Validating credentials...');
+    }
+    return;
+  }
+
   // Atomically acquire sync lock to prevent concurrent syncs
   const acquired = await acquireSyncLock();
   if (!acquired) return;
@@ -1398,8 +1455,9 @@ export function startSyncEngine(): void {
   };
   window.addEventListener('online', handleOnlineRef);
 
-  // Handle offline event - immediately update status indicator
+  // Handle offline event - immediately update status indicator and mark for auth validation
   handleOfflineRef = () => {
+    markOffline(); // Mark that auth needs validation when we come back online
     syncStatusStore.setStatus('offline');
     syncStatusStore.setSyncMessage('You\'re offline. Changes will sync when reconnected.');
   };

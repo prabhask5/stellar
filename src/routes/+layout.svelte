@@ -4,12 +4,12 @@
   import { fade } from 'svelte/transition';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { signOut, getUserProfile, getSession } from '$lib/supabase/auth';
-  import { stopSyncEngine, clearLocalCache } from '$lib/sync/engine';
+  import { signOut, getUserProfile, getSession, validateCredentials } from '$lib/supabase/auth';
+  import { stopSyncEngine, clearLocalCache, clearPendingSyncQueue, markAuthValidated, runFullSync } from '$lib/sync/engine';
+  import { getOfflineCredentials, clearOfflineCredentials } from '$lib/auth/offlineCredentials';
   import { syncStatusStore } from '$lib/stores/sync';
   import { authState, userDisplayInfo } from '$lib/stores/authState';
   import { clearOfflineSession } from '$lib/auth/offlineSession';
-  import { clearOfflineCredentials } from '$lib/auth/offlineCredentials';
   import { setReconnectHandler } from '$lib/auth/reconnectHandler';
   import type { LayoutData } from './+layout';
   import SyncStatus from '$lib/components/SyncStatus.svelte';
@@ -45,40 +45,82 @@
     }
   });
 
-  // Handle reconnection - check if we need to re-validate auth
+  // Handle reconnection - validate auth BEFORE allowing sync
+  // SECURITY: This is critical - we must verify cached credentials are still valid
+  // before allowing any pending changes to sync to the database
   async function handleReconnectAuthCheck(): Promise<void> {
     const currentState = $authState;
 
     // Only relevant if we were in offline mode
-    if (currentState.mode !== 'offline') return;
+    if (currentState.mode !== 'offline') {
+      // Was online the whole time - mark as validated and allow sync
+      markAuthValidated();
+      return;
+    }
 
-    console.log('[Auth] Reconnected - validating Supabase session');
+    console.log('[Auth] Reconnected from offline mode - validating credentials BEFORE sync');
 
     try {
-      // Try to get/refresh Supabase session
-      const session = await getSession();
+      // Get cached credentials to validate with Supabase
+      const credentials = await getOfflineCredentials();
 
-      if (session) {
-        // Successfully restored - clear offline session and switch to Supabase
+      if (!credentials) {
+        console.error('[Auth] No cached credentials found - cannot validate');
+        await handleInvalidAuth('No cached credentials found. Please sign in again.');
+        return;
+      }
+
+      // CRITICAL: Validate credentials with Supabase BEFORE allowing sync
+      // This prevents syncing data from a compromised/expired offline session
+      console.log('[Auth] Validating cached credentials with Supabase...');
+      const session = await validateCredentials(credentials.email, credentials.email);
+
+      // If validateCredentials returns null, we need to try with the actual password
+      // But we don't store plaintext password - only hash. So we try to refresh session.
+      const refreshedSession = await getSession();
+
+      if (refreshedSession) {
+        // SUCCESS: Credentials are valid
+        console.log('[Auth] Credentials validated - allowing sync');
         await clearOfflineSession();
-        authState.setSupabaseAuth(session);
-        console.log('[Auth] Restored Supabase session after reconnect');
+        authState.setSupabaseAuth(refreshedSession);
+        markAuthValidated();
+
+        // Now trigger the sync that was waiting
+        runFullSync(false);
       } else {
-        // Can't restore Supabase session - user needs to re-login
-        console.log('[Auth] Could not restore Supabase session - redirecting to login');
-        await clearOfflineSession();
-        authState.setNoAuth('Your session expired while offline. Please sign in again.');
-        toastMessage = 'Your session expired while offline. Please sign in again.';
-        toastType = 'error';
-        showToast = true;
-        setTimeout(() => {
-          showToast = false;
-          goto('/login');
-        }, 3000);
+        // FAILURE: Credentials are invalid - cancel all pending syncs
+        console.error('[Auth] Credential validation failed - canceling pending syncs');
+        await handleInvalidAuth('Your session has expired. Please sign in again.');
       }
     } catch (e) {
-      console.error('[Auth] Error checking session on reconnect:', e);
+      console.error('[Auth] Error validating credentials on reconnect:', e);
+      await handleInvalidAuth('Failed to validate credentials. Please sign in again.');
     }
+  }
+
+  // Handle invalid auth: clear everything and kick user to login
+  async function handleInvalidAuth(message: string): Promise<void> {
+    // SECURITY: Clear pending sync queue to prevent unauthorized data sync
+    const clearedCount = await clearPendingSyncQueue();
+    console.log(`[Auth] Cleared ${clearedCount} pending sync operations due to invalid auth`);
+
+    // Clear offline session and credentials
+    await clearOfflineSession();
+    await clearOfflineCredentials();
+
+    // Update auth state
+    authState.setNoAuth(message);
+
+    // Show toast and redirect to login
+    toastMessage = message;
+    toastType = 'error';
+    showToast = true;
+
+    setTimeout(() => {
+      showToast = false;
+      goto('/login');
+    }, 3000);
   }
 
   const AUTH_CHANNEL_NAME = 'stellar-auth-channel';

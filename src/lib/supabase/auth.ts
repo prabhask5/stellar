@@ -74,27 +74,114 @@ export async function signOut(): Promise<{ error: string | null }> {
   return { error: error?.message || null };
 }
 
+/**
+ * Get current Supabase session
+ * When offline, returns the cached session from localStorage even if expired
+ * (the caller should handle offline mode appropriately)
+ */
 export async function getSession(): Promise<Session | null> {
+  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
   try {
     const { data, error } = await supabase.auth.getSession();
+
     if (error) {
       console.error('[Auth] getSession error:', error.message);
-      // If session retrieval fails, it might be corrupted - try to sign out to clear it
+
+      // If offline and we got an error, don't clear session - it might just be a network issue
+      if (isOffline) {
+        console.warn('[Auth] Offline - keeping session despite error');
+        // Try to get session from localStorage directly
+        return getSessionFromStorage();
+      }
+
+      // If session retrieval fails online, it might be corrupted - try to sign out to clear it
       if (error.message?.includes('hash') || error.message?.includes('undefined')) {
         console.warn('[Auth] Detected corrupted session, attempting to clear');
         await supabase.auth.signOut();
       }
       return null;
     }
+
     return data.session;
   } catch (e) {
     console.error('[Auth] Unexpected error getting session:', e);
-    // Attempt to clear any corrupted state
+
+    // If offline, don't clear anything - try to get from storage
+    if (isOffline) {
+      console.warn('[Auth] Offline - attempting to get session from storage');
+      return getSessionFromStorage();
+    }
+
+    // Attempt to clear any corrupted state when online
     try {
       await supabase.auth.signOut();
     } catch {
       // Ignore signOut errors
     }
+    return null;
+  }
+}
+
+/**
+ * Get session directly from localStorage (for offline scenarios)
+ * This bypasses Supabase's token refresh logic
+ */
+function getSessionFromStorage(): Session | null {
+  try {
+    // Supabase stores session in localStorage with key pattern: sb-{project-ref}-auth-token
+    const keys = Object.keys(localStorage);
+    const sessionKey = keys.find(k => k.includes('-auth-token'));
+    if (!sessionKey) return null;
+
+    const stored = localStorage.getItem(sessionKey);
+    if (!stored) return null;
+
+    const parsed = JSON.parse(stored);
+    if (parsed?.currentSession) {
+      return parsed.currentSession as Session;
+    }
+    // Newer Supabase versions use different structure
+    if (parsed?.session) {
+      return parsed.session as Session;
+    }
+    return null;
+  } catch (e) {
+    console.error('[Auth] Failed to get session from storage:', e);
+    return null;
+  }
+}
+
+/**
+ * Check if a session's access token is expired
+ */
+export function isSessionExpired(session: Session | null): boolean {
+  if (!session) return true;
+  // expires_at is in seconds
+  const expiresAt = session.expires_at;
+  if (!expiresAt) return true;
+  return Date.now() / 1000 > expiresAt;
+}
+
+/**
+ * Validate credentials against Supabase (for reconnection auth check)
+ * Returns the new session if valid, null if invalid
+ */
+export async function validateCredentials(email: string, password: string): Promise<Session | null> {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error || !data.session) {
+      console.error('[Auth] Credential validation failed:', error?.message);
+      return null;
+    }
+
+    return data.session;
+  } catch (e) {
+    console.error('[Auth] Credential validation error:', e);
     return null;
   }
 }
