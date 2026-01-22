@@ -12,9 +12,19 @@
     onSkip: () => void;
   }
 
-  let { session, isRunning, remainingMs: _remainingMs, onStart, onPause, onResume, onStop, onSkip }: Props = $props();
+  let { session, isRunning, remainingMs, onStart, onPause, onResume, onStop, onSkip }: Props = $props();
+
+  // Can go back only in first 30 seconds of a phase
+  const canGoBack = $derived(
+    session &&
+    session.status === 'running' &&
+    remainingMs > (session.phase === 'focus'
+      ? session.focus_duration * 60 * 1000 - 30000
+      : session.break_duration * 60 * 1000 - 30000)
+  );
 
   const hasSession = $derived(!!session && session.status !== 'stopped');
+  const isPaused = $derived(session?.status === 'paused');
 </script>
 
 <div class="controls">

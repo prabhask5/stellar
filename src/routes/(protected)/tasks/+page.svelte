@@ -9,6 +9,7 @@
   } from '$lib/stores/data';
   import type { TaskCategory, Commitment, DailyTask, LongTermTaskWithCategory, CommitmentSection } from '$lib/types';
   import { formatDate } from '$lib/utils/dates';
+  import { calculateNewOrder } from '$lib/utils/reorder';
 
   import TaskItem from '$lib/components/TaskItem.svelte';
   import DailyTaskForm from '$lib/components/DailyTaskForm.svelte';
@@ -28,8 +29,8 @@
   let dailyTasks = $state<DailyTask[]>([]);
   let longTermTasks = $state<LongTermTaskWithCategory[]>([]);
 
-  let _categoriesLoading = $state(true);
-  let _commitmentsLoading = $state(true);
+  let categoriesLoading = $state(true);
+  let commitmentsLoading = $state(true);
   let dailyTasksLoading = $state(true);
   let longTermTasksLoading = $state(true);
 
@@ -56,9 +57,9 @@
   $effect(() => {
     const unsubs = [
       taskCategoriesStore.subscribe(v => categories = v),
-      taskCategoriesStore.loading.subscribe(v => _categoriesLoading = v),
+      taskCategoriesStore.loading.subscribe(v => categoriesLoading = v),
       commitmentsStore.subscribe(v => commitments = v),
-      commitmentsStore.loading.subscribe(v => _commitmentsLoading = v),
+      commitmentsStore.loading.subscribe(v => commitmentsLoading = v),
       dailyTasksStore.subscribe(v => dailyTasks = v),
       dailyTasksStore.loading.subscribe(v => dailyTasksLoading = v),
       longTermTasksStore.subscribe(v => longTermTasks = v),

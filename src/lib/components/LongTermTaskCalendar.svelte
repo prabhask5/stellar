@@ -85,7 +85,7 @@
   </div>
 
   <div class="calendar-grid">
-    {#each Array(firstDayOffset) as _}
+    {#each Array(firstDayOffset) as _, i}
       <div class="day-cell empty" aria-hidden="true"></div>
     {/each}
 

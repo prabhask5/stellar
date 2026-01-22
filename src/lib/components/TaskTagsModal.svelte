@@ -65,6 +65,12 @@
     return grouped;
   });
 
+  // Get category by ID
+  function getCategory(id: string | null): TaskCategory | undefined {
+    if (!id) return undefined;
+    return categories.find(c => c.id === id);
+  }
+
   function formatDate(dateStr: string): string {
     const date = parseDateString(dateStr);
     const today = new Date();

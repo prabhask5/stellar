@@ -1082,7 +1082,9 @@
     }
 
     .icon-synced.morph-in,
-    .icon-error.morph-in {
+    .icon-error.morph-in,
+    .icon-pending.morph-in,
+    .icon-syncing.morph-in.active {
       animation: none;
     }
 

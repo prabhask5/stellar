@@ -100,10 +100,10 @@ function handleMessage(event: MessageEvent<TabMessage>): void {
 }
 
 // Broadcast a message to other tabs
-function broadcast(message: TabMessage): void {
+function broadcast(message: Omit<TabMessage, 'tabId'> & { tabId?: string }): void {
   if (!channel) return;
   try {
-    channel.postMessage(message);
+    channel.postMessage({ ...message, tabId } as TabMessage);
   } catch (e) {
     console.error('[TabCoordinator] Failed to broadcast:', e);
   }
@@ -244,7 +244,7 @@ export function notifyLocalWrite(table: SyncQueueTable, entityId: string): void 
 }
 
 // Get coordinator state for debugging
-function getCoordinatorState(): {
+export function getCoordinatorState(): {
   tabId: string;
   isLeader: boolean;
   leaderId: string | null;

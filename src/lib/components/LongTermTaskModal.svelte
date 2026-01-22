@@ -125,6 +125,11 @@
     const taskDueDate = parseDateString(task.due_date);
     return taskDueDate.getTime() === today.getTime() && !completed;
   }
+
+  function formatDisplayDate(dateStr: string): string {
+    const date = parseDateString(dateStr);
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
 </script>
 
 <svelte:window onclick={handleClickOutside} />

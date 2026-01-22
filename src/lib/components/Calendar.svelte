@@ -127,7 +127,7 @@
     class:slide-left={transitionDirection === 'left'}
     class:slide-right={transitionDirection === 'right'}
   >
-    {#each Array(firstDayOffset) as _}
+    {#each Array(firstDayOffset) as _, i}
       <div class="day-cell empty" aria-hidden="true"></div>
     {/each}
 

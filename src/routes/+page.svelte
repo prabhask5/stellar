@@ -242,7 +242,7 @@
 
     <!-- Floating Particles -->
     <div class="particles">
-      {#each Array(20) as _}
+      {#each Array(20) as _, i}
         <span
           class="particle"
           style="
