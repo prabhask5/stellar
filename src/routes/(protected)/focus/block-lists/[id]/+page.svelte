@@ -50,17 +50,25 @@
   });
 
   async function handleUpdateBlockList(data: {
-    name: string;
-    activeDays: DayOfWeek[] | null;
+    name?: string;
+    activeDays?: DayOfWeek[] | null;
   }) {
     if (!blockList || saving) return;
 
+    // Field-level updates: only include fields that were actually modified
+    const updates: Partial<BlockList> = {};
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.activeDays !== undefined) updates.active_days = data.activeDays;
+
+    // Only update if there are actual changes
+    if (Object.keys(updates).length === 0) {
+      goto('/focus');
+      return;
+    }
+
     try {
       saving = true;
-      await singleBlockListStore.update(blockList.id, {
-        name: data.name,
-        active_days: data.activeDays
-      });
+      await singleBlockListStore.update(blockList.id, updates);
       goto('/focus');
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to update block list';
@@ -170,6 +178,7 @@
         name={blockList.name}
         activeDays={blockList.active_days}
         submitLabel={saving ? 'Saving...' : 'Save Changes'}
+        trackDirtyFields={true}
         onSubmit={handleUpdateBlockList}
         onCancel={() => goto('/focus')}
       />

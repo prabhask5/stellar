@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getProgressColor, calculateGoalProgress, getOverflowColor } from '$lib/utils/colors';
+  import { markEditing, clearEditing, updateEditActivity } from '$lib/sync/editProtection';
   import type { Goal, DailyRoutineGoal, DailyGoalProgress } from '$lib/types';
 
   interface Props {
@@ -49,10 +50,23 @@
     progress <= 100 ? 0 : Math.min(1, (progress - 100) / 100)
   );
 
+  // Get table and entity ID for edit protection
+  function getEditProtectionInfo(): { table: string; entityId: string } {
+    if (isRegularGoal) {
+      return { table: 'goals', entityId: goal.id };
+    } else {
+      // For DailyRoutineGoal, protect the progress record
+      const progressId = (goal as DailyRoutineGoal & { progress?: DailyGoalProgress }).progress?.id;
+      return { table: 'daily_goal_progress', entityId: progressId || goal.id };
+    }
+  }
+
   function startEditing() {
     if (!onSetValue) return;
     inputValue = String(currentValue);
     editing = true;
+    const { table, entityId } = getEditProtectionInfo();
+    markEditing(table, entityId, 'current_value');
   }
 
   function handleInputKeydown(e: KeyboardEvent) {
@@ -60,11 +74,20 @@
       commitValue();
     } else if (e.key === 'Escape') {
       editing = false;
+      const { table, entityId } = getEditProtectionInfo();
+      clearEditing(table, entityId);
     }
+  }
+
+  function handleInputChange() {
+    const { table, entityId } = getEditProtectionInfo();
+    updateEditActivity(table, entityId);
   }
 
   function commitValue() {
     editing = false;
+    const { table, entityId } = getEditProtectionInfo();
+    clearEditing(table, entityId);
     const parsed = parseInt(inputValue, 10);
     if (!isNaN(parsed) && parsed !== currentValue && onSetValue) {
       // Only prevent negative values - allow overflow above target
@@ -101,6 +124,7 @@
             class="value-input"
             bind:value={inputValue}
             onkeydown={handleInputKeydown}
+            oninput={handleInputChange}
             onblur={commitValue}
             min="0"
             use:focus

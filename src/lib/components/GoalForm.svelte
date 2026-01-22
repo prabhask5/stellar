@@ -1,12 +1,15 @@
 <script lang="ts">
   import type { GoalType } from '$lib/types';
+  import { createDirtyTracker } from '$lib/utils/dirtyFields';
 
   interface Props {
     name?: string;
     type?: GoalType;
     targetValue?: number | null;
     submitLabel?: string;
-    onSubmit: (data: { name: string; type: GoalType; targetValue: number | null }) => void;
+    /** When true, only sends fields the user actually modified (for edit mode) */
+    trackDirtyFields?: boolean;
+    onSubmit: (data: { name?: string; type?: GoalType; targetValue?: number | null }) => void;
     onCancel?: () => void;
   }
 
@@ -15,6 +18,7 @@
     type: initialType = 'completion',
     targetValue: initialTargetValue = 10,
     submitLabel = 'Create',
+    trackDirtyFields = false,
     onSubmit,
     onCancel
   }: Props = $props();
@@ -23,15 +27,48 @@
   let type = $state<GoalType>(initialType);
   let targetValue = $state(initialTargetValue ?? 10);
 
+  // Track which fields user has modified (for edit mode)
+  const dirty = createDirtyTracker();
+
+  function markDirty(field: string) {
+    dirty.mark(field);
+  }
+
   function handleSubmit(event: Event) {
     event.preventDefault();
     if (!name.trim()) return;
 
-    onSubmit({
-      name: name.trim(),
-      type,
-      targetValue: type === 'incremental' ? targetValue : null
-    });
+    const currentTargetValue = type === 'incremental' ? targetValue : null;
+
+    // If tracking dirty fields (edit mode), only send fields that were actually modified
+    if (trackDirtyFields) {
+      const initialValues = {
+        name: initialName,
+        type: initialType,
+        targetValue: initialTargetValue
+      };
+      const currentValues = {
+        name: name.trim(),
+        type,
+        targetValue: currentTargetValue
+      };
+      const changes = dirty.getChanges(currentValues, initialValues);
+
+      // Only submit if there are actual changes
+      if (Object.keys(changes).length > 0) {
+        onSubmit(changes);
+      } else {
+        // No changes, just close
+        onCancel?.();
+      }
+    } else {
+      // Create mode: send all fields
+      onSubmit({
+        name: name.trim(),
+        type,
+        targetValue: currentTargetValue
+      });
+    }
   }
 </script>
 
@@ -42,6 +79,7 @@
       id="goal-name"
       type="text"
       bind:value={name}
+      oninput={() => markDirty('name')}
       placeholder="Enter goal name..."
       required
     />
@@ -54,7 +92,7 @@
         type="button"
         class="type-btn"
         class:active={type === 'completion'}
-        onclick={() => (type = 'completion')}
+        onclick={() => { type = 'completion'; markDirty('type'); }}
       >
         <span class="type-icon">✓</span>
         <span>Completion</span>
@@ -63,7 +101,7 @@
         type="button"
         class="type-btn"
         class:active={type === 'incremental'}
-        onclick={() => (type = 'incremental')}
+        onclick={() => { type = 'incremental'; markDirty('type'); }}
       >
         <span class="type-icon">↑</span>
         <span>Incremental</span>
@@ -78,6 +116,7 @@
         id="target-value"
         type="number"
         bind:value={targetValue}
+        oninput={() => markDirty('targetValue')}
         min="1"
         required
       />

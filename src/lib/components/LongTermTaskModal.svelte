@@ -2,6 +2,7 @@
   import Modal from './Modal.svelte';
   import type { LongTermTaskWithCategory, TaskCategory } from '$lib/types';
   import { parseDateString } from '$lib/utils/dates';
+  import { markEditing, clearEditing, updateEditActivity } from '$lib/sync/editProtection';
 
   interface Props {
     open: boolean;
@@ -57,9 +58,33 @@
     }
   }
 
+  function startNameEdit() {
+    if (task) {
+      editingName = true;
+      markEditing('long_term_tasks', task.id, 'name');
+    }
+  }
+
+  function handleNameInput() {
+    if (task) {
+      updateEditActivity('long_term_tasks', task.id);
+    }
+  }
+
   function handleNameSubmit() {
     if (task && name.trim() && name !== task.name) {
       onUpdate(task.id, { name: name.trim() });
+    }
+    if (task) {
+      clearEditing('long_term_tasks', task.id);
+    }
+    editingName = false;
+  }
+
+  function cancelNameEdit() {
+    if (task) {
+      clearEditing('long_term_tasks', task.id);
+      name = task.name; // Reset to original
     }
     editingName = false;
   }
@@ -120,11 +145,15 @@
             bind:value={name}
             class="field-input"
             onblur={handleNameSubmit}
-            onkeydown={(e) => e.key === 'Enter' && handleNameSubmit()}
+            oninput={handleNameInput}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') handleNameSubmit();
+              else if (e.key === 'Escape') cancelNameEdit();
+            }}
             use:focus
           />
         {:else}
-          <button class="field-value editable" onclick={() => editingName = true}>
+          <button class="field-value editable" onclick={startNameEdit}>
             {task.name}
           </button>
         {/if}

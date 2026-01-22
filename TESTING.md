@@ -659,24 +659,33 @@ Comprehensive test plan covering features, edge cases, offline behavior, synchro
 | Delete entity online | Delete goal online | Tombstone synced |
 | Multiple rapid changes | Make 10 changes quickly | All eventually sync |
 | Sync indicator | Make change | Indicator shows syncing → synced |
+| Increment operation | Click + on incremental goal | Increment sent, not snapshot |
+| Toggle operation | Toggle daily task complete | Toggle sent, not update |
 
 ### 13.2 Pull Sync
 
 | Test Case | Steps | Expected Result |
 |-----------|-------|-----------------|
-| Changes from other device | Make change on device B | Device A sees change after sync |
-| Periodic sync | Wait 5 minutes idle | Sync occurs automatically |
-| Tab visibility sync | Switch away and back | Sync triggered on return |
+| Changes from other device | Make change on device B | Device A sees change within 10s |
+| Active polling | Stay active on page | Sync every ~5 seconds |
+| Idle polling | Go idle for 30s | Sync slows to ~15 seconds |
+| Tab not focused | Click away to another tab | Polling stops |
+| Tab hidden | Hide tab completely | No polling occurs |
+| Tab visibility sync | Switch away and back | Sync triggered immediately on return |
 | Reconnect sync | Go offline, come online | Sync triggered immediately |
+| Lightweight check | No remote changes | Full pull skipped (check only) |
 
 ### 13.3 Conflict Resolution
 
 | Test Case | Steps | Expected Result |
 |-----------|-------|-----------------|
 | Same entity both devices | Edit same goal on A and B | Last write wins |
-| Delete on A, update on B | Delete on A, update on B | Depends on timing |
+| Different fields both devices | Edit name on A, target on B | Both fields merged |
+| Delete on A, update on B | Delete on A, update on B | Delete wins |
 | Pending local change | Make change offline, then sync pulls | Local change protected |
 | Recently modified | Make change, immediate pull | Local change protected (5s) |
+| Increment conflict | Increment on A (+3) and B (+2) offline | Sum correctly (base + 3 + 2) |
+| Toggle conflict | Toggle on A and B while both offline | Last toggle wins |
 
 ### 13.4 Sync Queue
 
@@ -686,6 +695,9 @@ Comprehensive test plan covering features, edge cases, offline behavior, synchro
 | Queue processing order | Make multiple changes | FIFO order maintained |
 | Retry with backoff | Cause sync failure | Retries with exponential backoff |
 | Max retry exhaustion | Fail 5+ times | Item removed, error shown |
+| Increment coalescing | Click + 10 times rapidly | Coalesced to single +10 |
+| Toggle coalescing | Toggle 4 times rapidly | Coalesced to nothing (cancel out) |
+| Create + delete coalescing | Create then delete same entity | Both removed from queue |
 
 ### 13.5 Cursor-Based Sync
 
@@ -694,6 +706,76 @@ Comprehensive test plan covering features, edge cases, offline behavior, synchro
 | Incremental pull | Sync, make remote change, sync again | Only new changes pulled |
 | Large initial sync | New device with lots of data | All data pulled efficiently |
 | Cursor persistence | Sync, restart app, sync | Only new changes pulled |
+
+### 13.6 Adaptive Polling
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Active state interval | Move mouse, observe polling | Polls every ~5 seconds |
+| Idle state transition | Stop activity for 30s | Polling slows to ~15 seconds |
+| Tab loses focus | Click away to another tab | Polling stops completely |
+| Hidden state | Minimize browser | Polling stops completely |
+| Offline state | Disconnect network | Polling stops |
+| Resume from hidden | Show hidden tab | Immediate sync, then polling resumes |
+| Resume from blur | Focus tab again | Immediate sync, then polling resumes |
+| Activity resets idle | Go idle, then move mouse | Returns to active interval |
+
+### 13.7 Multi-Tab Coordination
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Leader election | Open first tab | Tab becomes leader |
+| Second tab joins | Open second tab | First tab remains leader |
+| Leader tab closes | Close leader tab | Second tab becomes leader |
+| Only leader polls | Open 3 tabs, observe network | Only 1 tab makes polling requests |
+| Sync broadcast | Make change in tab A | Tabs B and C see change |
+| Local write notification | Edit in tab A | Other tabs refresh that entity |
+
+### 13.8 Edit Protection
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Edit protects entity | Focus input, make remote change | Remote change deferred |
+| Deferred update applies | Focus, blur, had remote change | Remote change applied after blur |
+| Typing extends protection | Type in field, remote change arrives | Change deferred until 5s after typing |
+| Multiple edits | Edit entity A, entity B simultaneously | Both protected independently |
+| Protection expires | Focus, wait 5s without typing | Protection expires, updates apply |
+| GoalItem inline edit | Edit goal value, remote sync arrives | Value not overwritten during edit |
+| LongTermTask name edit | Edit task name, remote sync | Name not overwritten during edit |
+| Commitment name edit | Edit commitment, remote sync | Name not overwritten during edit |
+| Escape cancels edit | Press Escape while editing | Edit cancelled, protection cleared |
+
+### 13.9 Field-Level Updates (Dirty Field Tracking)
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Single field change | Edit name only, save | Only `name` sent to server |
+| Multiple field changes | Edit name and target, save | Both fields sent, others omitted |
+| No actual change | Open form, don't change, save | No update sent, form closes |
+| Server field preserved | Edit name, server changes target | Target preserved after save |
+| Reset on new data | External update while editing | Dirty tracking reset |
+
+**Component-Specific Tests:**
+
+| Component | Test | Expected |
+|-----------|------|----------|
+| GoalForm | Edit only name | Only `name` in update payload |
+| GoalForm | Edit only type | `type` + `current_value`/`completed` reset |
+| RoutineForm | Edit only activeDays | Only `active_days` in payload |
+| BlockListForm | Edit only name | Only `name` in payload |
+| FocusSettings | Change one slider | Only that setting in payload |
+| FocusSettings | Change toggle | Only that toggle in payload |
+
+### 13.10 Operation-Based Sync (Increment/Toggle)
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Server increment | Increment goal, check server | Server received delta, not snapshot |
+| Server toggle | Toggle task, check server | Server received toggle, not update |
+| Increment fallback | Increment with old server (no RPC) | Falls back to read-then-update |
+| Toggle fallback | Toggle with old server (no RPC) | Falls back to read-then-update |
+| Side effects sync | Increment goal past target | Completed flag also synced |
+| Decrement operation | Decrement goal value | Negative delta applied correctly |
 
 ---
 

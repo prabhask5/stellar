@@ -11,16 +11,20 @@ Technical reference for Stellar's system architecture covering data flow, synchr
 3. [Data Flow Patterns](#data-flow-patterns)
 4. [Local Database Schema](#local-database-schema)
 5. [Sync Engine](#sync-engine)
-6. [Outbox Pattern](#outbox-pattern)
-7. [Conflict Resolution](#conflict-resolution)
-8. [Offline Authentication](#offline-authentication)
-9. [Inter-Tab Communication](#inter-tab-communication)
-10. [PWA Caching Strategies](#pwa-caching-strategies)
-11. [Focus Timer State Machine](#focus-timer-state-machine)
-12. [Egress Optimization](#egress-optimization)
-13. [Failure Modes and Recovery](#failure-modes-and-recovery)
-14. [Tombstone Cleanup](#tombstone-cleanup)
-15. [Debug Tools](#debug-tools)
+6. [Adaptive Polling System](#adaptive-polling-system)
+7. [Operation-Based Sync](#operation-based-sync)
+8. [Outbox Pattern](#outbox-pattern)
+9. [Conflict Resolution](#conflict-resolution)
+10. [Edit Protection System](#edit-protection-system)
+11. [Field-Level Updates](#field-level-updates-dirty-field-tracking)
+12. [Multi-Tab Coordination](#multi-tab-coordination)
+13. [Offline Authentication](#offline-authentication)
+14. [PWA Caching Strategies](#pwa-caching-strategies)
+15. [Focus Timer State Machine](#focus-timer-state-machine)
+16. [Egress Optimization](#egress-optimization)
+17. [Failure Modes and Recovery](#failure-modes-and-recovery)
+18. [Tombstone Cleanup](#tombstone-cleanup)
+19. [Debug Tools](#debug-tools)
 
 ---
 
@@ -160,13 +164,16 @@ This guarantees that no local change can exist without a queued sync operation.
 
 ### Sync Triggers
 
-| Trigger | Debounce | Purpose |
-|---------|----------|---------|
+| Trigger | Interval | Condition |
+|---------|----------|-----------|
 | After local write | 2 seconds | Batch rapid changes |
-| Periodic interval | 15 minutes | Catch missed updates (optimized for egress) |
-| Tab becomes visible | 1 second (only if away >5 min) | Sync after background |
+| Active polling | 5 seconds | Tab focused + user active |
+| Idle polling | 15 seconds | Tab focused + idle 30s |
+| Tab gains focus/visible | Immediate | Sync on return |
 | Network reconnect | Immediate | Recover from offline |
 | Manual pull-to-refresh | None | User-initiated sync |
+
+**Note:** Only the leader tab performs polling to prevent redundant requests across multiple tabs.
 
 ### Sync Cycle
 
@@ -205,27 +212,161 @@ Each user has a sync cursor stored in localStorage (`lastSyncCursor_{userId}`). 
 
 ---
 
+## Adaptive Polling System
+
+The sync engine uses adaptive smart polling to achieve near-real-time cross-device synchronization while minimizing egress.
+
+### Polling Intervals
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    POLLING INTERVALS                        │
+├─────────────────────────────────────────────────────────────┤
+│ State                          │  Interval                  │
+├────────────────────────────────┼────────────────────────────┤
+│ Tab Focused + Online + Active  │  5 seconds                 │
+│ Tab Focused + Online + Idle    │ 15 seconds (after 30s)     │
+│ Tab Hidden or Not Focused      │ No polling (sync on return)│
+│ Offline                        │ No polling                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+When a hidden/unfocused tab becomes visible/focused again, an immediate sync is triggered. This eliminates wasteful background polling while ensuring fresh data on return.
+
+### Activity Detection
+
+User activity is tracked via mouse, keyboard, touch, and scroll events (throttled to 1s). After 30 seconds without activity, the user is considered idle and polling slows down.
+
+### Lightweight Update Check
+
+Before performing a full 12-table pull, the system calls `check_updates_since(cursor)` on the server:
+
+```sql
+-- Returns boolean: true if any updates exist
+SELECT EXISTS (
+  SELECT 1 FROM goal_lists WHERE user_id = $1 AND updated_at > $2
+  UNION ALL
+  SELECT 1 FROM goals g JOIN goal_lists gl ON ... WHERE updated_at > $2
+  -- ... other tables
+  LIMIT 1
+)
+```
+
+If no updates exist, the full pull is skipped entirely, saving ~90% of polling egress.
+
+### File Location
+
+`src/lib/sync/polling.ts` - Contains all adaptive polling logic.
+
+---
+
+## Operation-Based Sync
+
+The sync system uses operation-based synchronization for proper multi-device conflict resolution. Instead of sending final values, the system sends deltas and operations that can be correctly merged.
+
+### Operation Types
+
+| Operation | Use Case | Server Handling |
+|-----------|----------|-----------------|
+| `create` | New entity | INSERT |
+| `update` | Field changes | UPDATE (last-write-wins) |
+| `delete` | Remove entity | Soft delete (tombstone) |
+| `increment` | Counter increase | Atomic `SET field = field + delta` |
+| `decrement` | Counter decrease | Atomic `SET field = field - delta` |
+| `toggle` | Boolean flip | Atomic `SET field = NOT field` |
+
+### Why Operation-Based?
+
+**Problem with Snapshot Sync:**
+```
+Device A (offline): goal.current_value = 10 → 13 (user clicks +3)
+Device B (online):  goal.current_value = 10 → 12 (user clicks +2)
+
+With snapshots: A sends {current_value: 13}, B sent {current_value: 12}
+Result: One overwrites the other → 13 or 12, NOT 15
+```
+
+**Solution with Operations:**
+```
+Device A (offline): queues increment(+3)
+Device B (online):  queues increment(+2)
+
+A reconnects, pushes: server executes SET current_value = current_value + 3
+Result: 10 + 2 + 3 = 15 ✓
+```
+
+### Server-Side Atomic Functions
+
+PostgreSQL functions handle operations atomically:
+
+```sql
+-- apply_increment(table, id, field, delta) → JSONB
+UPDATE goals SET current_value = current_value + $delta WHERE id = $id
+
+-- apply_toggle(table, id, field) → JSONB
+UPDATE daily_tasks SET completed = NOT completed WHERE id = $id
+```
+
+### Coalescing Rules
+
+Before pushing, operations are coalesced to reduce requests:
+
+| Operations | Result |
+|------------|--------|
+| increment(+3) + increment(+2) | increment(+5) |
+| toggle + toggle | Cancelled out (removed) |
+| update + update | Fields merged (later wins per field) |
+| create + update | Merged into enhanced create |
+| create + delete | Both removed (never existed server-side) |
+| update + delete | Keep delete only |
+
+### File Locations
+
+- `src/lib/types.ts` - `SyncOperationType`, `SyncQueueItem`
+- `src/lib/sync/queue.ts` - Coalescing logic, `queueIncrement`, `queueToggle`
+- `src/lib/sync/conflicts.ts` - Conflict detection and resolution
+- `supabase/migrations/20260122_sync_operations.sql` - Server functions
+
+---
+
 ## Outbox Pattern
 
 The sync queue implements the transactional outbox pattern, ensuring reliable delivery of local changes to the server.
 
 ### Queue Item Structure
 
-```
+```typescript
 {
-  id: auto-increment
-  table: target table name
-  operation: 'create' | 'update' | 'delete'
-  entityId: UUID of the entity
-  payload: full entity data
-  timestamp: ISO timestamp (for backoff calculation)
-  retries: attempt count
+  id: auto-increment           // Dexie primary key
+  table: SyncQueueTable        // Target table name
+  operation: SyncOperationType // 'create' | 'update' | 'delete' | 'increment' | 'decrement' | 'toggle'
+  entityId: UUID               // UUID of the entity
+  payload: {                   // Operation-specific payload
+    // For increment/decrement: { field, delta, sideEffects? }
+    // For toggle: { field }
+    // For update: { field1: value1, ... }
+    // For create/delete: full entity data
+  }
+  baseVersion?: string         // Entity's updated_at when operation was created
+  timestamp: string            // ISO timestamp (for backoff calculation)
+  retries: number              // Attempt count
 }
 ```
 
 ### Queue Coalescing
 
-Before pushing, the sync engine coalesces pending operations to reduce network requests. Multiple updates to the same entity are merged into a single operation, keeping only the latest payload. This optimization is transparent and maintains data integrity.
+Before pushing, the sync engine coalesces pending operations using operation-aware rules:
+
+| Operations | Coalescing Result |
+|------------|-------------------|
+| Multiple updates (same entity) | Merged into single update (later fields win) |
+| increment + increment | Sum deltas into single increment |
+| toggle + toggle (same field) | Cancel out (remove both) |
+| create + update | Merge into enhanced create |
+| create + delete | Remove both (entity never existed server-side) |
+| any + delete | Keep only the delete |
+
+This optimization dramatically reduces requests during rapid interactions (e.g., 50 rapid increments → 1 sync request).
 
 ### Exponential Backoff
 
@@ -252,6 +393,24 @@ Before pushing, the sync engine coalesces pending operations to reduce network r
 
 ## Conflict Resolution
 
+### Resolution Strategy Matrix
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 CONFLICT RESOLUTION MATRIX                  │
+├─────────────────────────────────────────────────────────────┤
+│ Scenario                         │ Resolution              │
+├──────────────────────────────────┼─────────────────────────┤
+│ Different entities               │ Auto-merge (no conflict)│
+│ Same entity, different fields    │ Auto-merge fields       │
+│ Same entity, same field (text)   │ Last-write-wins         │
+│ Same entity, increment + inc.    │ Sum deltas (server-side)│
+│ Edit + Delete                    │ Delete wins             │
+│ Create + Delete (same device)    │ Cancel out              │
+│ Entity being edited              │ Defer remote update     │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ### Decision Flow
 
 ```
@@ -260,6 +419,11 @@ Remote Change Received
          ▼
 ┌────────────────────────┐
 │ Entity in sync queue?  │──Yes──▶ REJECT (local wins)
+└───────────┬────────────┘
+            │ No
+            ▼
+┌────────────────────────┐
+│ Entity being edited?   │──Yes──▶ DEFER (apply after edit)
 └───────────┬────────────┘
             │ No
             ▼
@@ -281,9 +445,266 @@ Remote Change Received
 
 1. **Pending Queue Protection**: Entities with unsynced local changes are never overwritten by pulls. The sync queue acts as a "lock" on those entities.
 
-2. **Recently Modified Protection**: A 5-second TTL window after local writes prevents race conditions where a pull arrives between a local write and its sync.
+2. **Edit Protection**: Entities currently being edited (user typing) have remote updates deferred until editing completes. This prevents jarring mid-type overwrites.
 
-3. **Timestamp Comparison**: Even without the above protections, older remote data never overwrites newer local data.
+3. **Recently Modified Protection**: A 5-second TTL window after local writes prevents race conditions where a pull arrives between a local write and its sync.
+
+4. **Timestamp Comparison**: Even without the above protections, older remote data never overwrites newer local data.
+
+### Operation-Based Conflict Resolution
+
+For increment/toggle operations, true conflict resolution happens server-side:
+
+```
+Device A (offline): increment('goal-1', +3)
+Device B (online):  increment('goal-1', +2)
+Server state: current_value = 10
+
+When A reconnects:
+1. B's push already applied: 10 + 2 = 12
+2. A pushes increment(+3): 12 + 3 = 15
+3. Both devices pull: see 15
+
+Result: Correct sum of all increments
+```
+
+### File Location
+
+`src/lib/sync/conflicts.ts` - Conflict detection, resolution logic, coalescing rules.
+
+---
+
+## Edit Protection System
+
+The edit protection system prevents remote updates from overwriting data while a user is actively editing.
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    EDIT PROTECTION FLOW                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  User focuses input field                                   │
+│         │                                                   │
+│         ▼                                                   │
+│  markEditing(table, entityId, field?)                       │
+│         │                                                   │
+│         │◄─── User types (updateEditActivity on each key)  │
+│         │                                                   │
+│  ┌──────▼────────────────────────────────────────────────┐ │
+│  │  Protection Window (5 seconds after last activity)     │ │
+│  │                                                         │ │
+│  │  During this window:                                    │ │
+│  │  • isBeingEdited(table, entityId) returns true         │ │
+│  │  • Remote updates are deferred, not applied            │ │
+│  │  • Deferred updates stored in deferredUpdates Map      │ │
+│  └────────────────────────────────────────────────────────┘ │
+│         │                                                   │
+│         ▼                                                   │
+│  User blurs input OR 5s timeout                             │
+│         │                                                   │
+│         ▼                                                   │
+│  clearEditing(table, entityId)                              │
+│         │                                                   │
+│         ▼                                                   │
+│  Apply any deferred updates                                 │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### API
+
+| Function | Purpose |
+|----------|---------|
+| `markEditing(table, entityId, field?)` | Start protection (call on focus) |
+| `updateEditActivity(table, entityId)` | Extend protection (call on input) |
+| `clearEditing(table, entityId)` | End protection (call on blur) |
+| `isBeingEdited(table, entityId)` | Check if protected (sync uses this) |
+| `deferUpdate(table, entityId, data)` | Queue update for later |
+
+### Configuration
+
+- **Protection Duration**: 5 seconds after last activity
+- **Cleanup Interval**: 10 seconds (removes expired entries)
+- **Max Deferred Age**: 60 seconds (stale updates discarded)
+
+### File Location
+
+`src/lib/sync/editProtection.ts`
+
+---
+
+## Field-Level Updates (Dirty Field Tracking)
+
+For forms with Save buttons, we implement field-level updates to prevent local changes from overwriting server changes to fields the user didn't modify.
+
+### The Problem
+
+Without field-level tracking, save button forms send ALL fields to the server:
+
+```
+User edits: name = "My Goal" → "Updated Goal"
+Server has: target_value changed from 10 → 15 (by another device)
+
+Old behavior:
+- Save sends: { name: "Updated Goal", target_value: 10, ... }
+- Server change to target_value is lost!
+
+New behavior:
+- Save sends only: { name: "Updated Goal" }
+- Server's target_value: 15 is preserved
+```
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 DIRTY FIELD TRACKING FLOW                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Form opens                                                  │
+│         │                                                   │
+│         ▼                                                   │
+│  createDirtyTracker() - initialize empty set                │
+│         │                                                   │
+│  User changes a field                                        │
+│         │                                                   │
+│         ▼                                                   │
+│  markDirty('fieldName') - add field to dirty set            │
+│         │                                                   │
+│  User clicks Save                                            │
+│         │                                                   │
+│         ▼                                                   │
+│  getChanges(currentValues, initialValues)                    │
+│         │                                                   │
+│         │ Returns only fields that:                         │
+│         │ 1. Are in the dirty set                           │
+│         │ 2. Have actually changed value                    │
+│         │                                                   │
+│         ▼                                                   │
+│  onSubmit(partialChanges) - only send modified fields       │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### API (`src/lib/utils/dirtyFields.ts`)
+
+| Function | Purpose |
+|----------|---------|
+| `createDirtyTracker()` | Create a new tracker instance |
+| `dirty.mark(field)` | Mark a field as modified by user |
+| `dirty.isDirty(field)` | Check if a field was modified |
+| `dirty.hasChanges()` | Check if any fields were modified |
+| `dirty.reset()` | Clear all dirty tracking (on form reset) |
+| `dirty.getChanges(current, initial)` | Get only the actually changed dirty fields |
+
+### Components Using Field-Level Updates
+
+| Component | Location | Fields Tracked |
+|-----------|----------|----------------|
+| GoalForm | `src/lib/components/GoalForm.svelte` | name, type, targetValue |
+| RoutineForm | `src/lib/components/RoutineForm.svelte` | name, targetValue, activeDays |
+| BlockListForm | `src/lib/components/focus/BlockListForm.svelte` | name, activeDays |
+| FocusSettings | `src/lib/components/focus/FocusSettings.svelte` | All 6 settings fields |
+
+### Implementation Pattern
+
+```typescript
+// 1. Import the tracker
+import { createDirtyTracker } from '$lib/utils/dirtyFields';
+
+// 2. Create instance in component
+const dirty = createDirtyTracker();
+
+// 3. Mark dirty on input events
+<input oninput={() => dirty.mark('fieldName')} ... />
+
+// 4. On submit, get only changed fields
+function handleSubmit() {
+  if (trackDirtyFields) {
+    const changes = dirty.getChanges(currentValues, initialValues);
+    if (Object.keys(changes).length > 0) {
+      onSubmit(changes); // Partial update
+    }
+  } else {
+    onSubmit(currentValues); // Full create
+  }
+}
+```
+
+### Edit Protection vs Field-Level Updates
+
+These are complementary systems for different scenarios:
+
+| Aspect | Edit Protection | Field-Level Updates |
+|--------|-----------------|---------------------|
+| Form type | Auto-save (no save button) | Manual save (save button) |
+| When active | While user is editing | Only at save time |
+| Mechanism | Defer remote updates | Track which fields changed |
+| Goal | Prevent mid-edit overwrites | Prevent unintended overwrites |
+
+---
+
+## Multi-Tab Coordination
+
+The multi-tab coordination system ensures efficient sync across browser tabs using the BroadcastChannel API.
+
+### Leader Election
+
+Only one tab (the "leader") performs polling to prevent redundant server requests:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    LEADER ELECTION                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Tab Opens                                                   │
+│         │                                                   │
+│         ▼                                                   │
+│  Broadcast LEADER_QUERY                                      │
+│         │                                                   │
+│         ├─── Leader exists ───▶ Receive LEADER_HEARTBEAT    │
+│         │                       Accept existing leader       │
+│         │                                                   │
+│         └─── No response (500ms) ───▶ Claim leadership      │
+│                                        Broadcast LEADER_CLAIM│
+│                                        Start heartbeat (5s) │
+│                                                              │
+│  If leader tab closes:                                       │
+│  • Other tabs detect missing heartbeats (15s timeout)       │
+│  • First to detect claims leadership                        │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Message Types
+
+| Message | Purpose |
+|---------|---------|
+| `SYNC_STARTED` | Leader notifies: "I'm syncing, skip your poll" |
+| `SYNC_COMPLETE` | Leader notifies: "Sync done, refresh your stores" |
+| `LOCAL_WRITE` | Any tab notifies: "I wrote to table X" |
+| `LEADER_CLAIM` | Tab claims leadership |
+| `LEADER_HEARTBEAT` | Leader proves it's alive |
+| `LEADER_QUERY` | New tab asks "who's the leader?" |
+
+### Benefits
+
+1. **Reduced Egress**: Only 1 tab polls, not N tabs
+2. **Instant Updates**: All tabs see changes from any tab
+3. **Consistency**: All tabs share same sync state
+
+### Graceful Degradation
+
+If BroadcastChannel is unavailable (older browsers):
+- Tab runs in standalone mode
+- Acts as its own leader
+- Works normally, just no cross-tab coordination
+
+### File Location
+
+`src/lib/sync/tabCoordinator.ts`
 
 ---
 
@@ -411,9 +832,9 @@ This prevents a compromised offline session from syncing malicious data to the s
 
 ---
 
-## Inter-Tab Communication
+## Inter-Tab Communication (Email Confirmation)
 
-The BroadcastChannel API enables secure communication between browser tabs, primarily for the email confirmation flow.
+In addition to the multi-tab sync coordination above, the BroadcastChannel API is also used for the email confirmation flow.
 
 ### Email Confirmation Flow
 
@@ -709,10 +1130,25 @@ const COLUMNS = {
 
 | Component | Interval | Condition |
 |-----------|----------|-----------|
-| Main app periodic sync | 15 minutes | Tab visible AND online |
-| Tab visibility sync | On visible | Only if away >5 minutes |
+| Main app (active) | 5 seconds | Tab focused, user active |
+| Main app (idle) | 15 seconds | Tab focused, user idle 30s |
+| Tab gains focus/visible | Immediate | Sync on return (no background polling) |
 | Extension service worker | 30 seconds | Only when realtime unhealthy |
 | Extension popup | 30 seconds | Only when realtime unhealthy |
+
+### Lightweight Update Check
+
+Before performing a full pull, the app calls `check_updates_since(cursor)`:
+
+```
+Full Pull Cost:    ~500 bytes × 12 tables = 6KB per poll
+Update Check Cost: ~50 bytes (single boolean)
+
+If no updates: 50 bytes vs 6KB = 99% savings
+If updates exist: 50 bytes + 6KB = ~1% overhead
+```
+
+At 5-second active polling, this reduces hourly egress from ~4.3MB to ~36KB when no changes exist.
 
 ### Realtime-First Architecture
 
@@ -736,17 +1172,25 @@ The browser extension uses Supabase Realtime as the primary data channel:
 
 ### Queue Coalescing
 
-Multiple rapid updates to the same entity are merged before pushing:
+Multiple rapid operations to the same entity are merged before pushing:
 
 ```
 User clicks increment 10 times rapidly:
-  Queue: 10 separate update operations
+  Queue: 10 separate increment operations (+1 each)
 
 Before push, coalesce runs:
-  Merged: 1 update operation with final value
+  Merged: 1 increment operation (+10)
 
 Result: 10x reduction in push requests
+
+User toggles task complete 4 times:
+  Queue: 4 toggle operations
+
+Before push, coalesce runs:
+  Result: All 4 cancelled out (even number of toggles = no-op)
 ```
+
+Operation-aware coalescing enables smarter merging than snapshot-based sync.
 
 ### Egress Monitoring
 
@@ -1140,6 +1584,65 @@ window.__stellarTombstones({ cleanup: true, force: true })
 - Per-table tombstone counts (local and server)
 - Eligible for cleanup counts
 - Oldest tombstone date per table
+
+#### Polling Status
+
+```javascript
+window.__stellarPolling()
+```
+
+**Output:**
+```
+=== STELLAR POLLING STATE ===
+Current interval: 5000ms
+Online: true
+Tab visible: true
+Tab focused: true
+User idle: false
+Last activity: 3s ago
+```
+
+#### Tab Coordinator Status
+
+```javascript
+window.__stellarTabs()
+```
+
+**Output:**
+```
+=== STELLAR TAB COORDINATOR ===
+Tab ID: tab_1705934567890_abc123
+Is Leader: true
+Leader ID: tab_1705934567890_abc123
+Leader last heartbeat: 2s ago
+Channel active: true
+```
+
+#### Edit Protection Status
+
+```javascript
+window.__stellarEditProtection()
+```
+
+**Output:**
+```
+=== STELLAR EDIT PROTECTION ===
+Active edits:
+  goals:abc123 (name) - 2s ago
+  daily_tasks:def456 - 4s ago
+
+Deferred updates:
+  (none)
+```
+
+#### Conflict Resolution Utilities
+
+```javascript
+// Access conflict resolution functions for testing
+window.__stellarConflicts.detectConflict(...)
+window.__stellarConflicts.canCoalesce(...)
+window.__stellarConflicts.coalesceOperations(...)
+```
 
 #### PWA Cache Status
 

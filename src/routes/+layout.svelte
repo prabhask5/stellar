@@ -612,7 +612,7 @@
 
   .app {
     min-height: 100vh;
-    min-height: 100dvh; /* Dynamic viewport height for mobile */
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
   }

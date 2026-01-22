@@ -268,7 +268,11 @@
 
   .loading-screen {
     position: fixed;
-    inset: 0;
+    /* Extend into safe area */
+    top: calc(-1 * env(safe-area-inset-top, 0px));
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -303,14 +307,11 @@
 
   .home-container {
     position: fixed;
-    /* Fill entire screen */
-    top: 0;
+    /* Extend into top safe area */
+    top: calc(-1 * env(safe-area-inset-top, 0px));
     left: 0;
     right: 0;
     bottom: 0;
-    /* Extend into safe areas */
-    height: calc(100vh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
-    margin-top: calc(-1 * env(safe-area-inset-top, 0px));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -328,13 +329,21 @@
 
   .starfield {
     position: absolute;
-    inset: 0;
+    /* Extend beyond parent into safe area */
+    top: calc(-1 * env(safe-area-inset-top, 0px));
+    left: 0;
+    right: 0;
+    bottom: 0;
     pointer-events: none;
   }
 
   .stars {
     position: absolute;
-    inset: 0;
+    /* Extend into safe area */
+    top: calc(-1 * env(safe-area-inset-top, 0px));
+    left: 0;
+    right: 0;
+    bottom: 0;
     background-repeat: repeat;
   }
 

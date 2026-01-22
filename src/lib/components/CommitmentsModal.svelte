@@ -1,6 +1,7 @@
 <script lang="ts">
   import Modal from './Modal.svelte';
   import type { Commitment, CommitmentSection } from '$lib/types';
+  import { markEditing, clearEditing, updateEditActivity } from '$lib/sync/editProtection';
 
   interface Props {
     open: boolean;
@@ -65,11 +66,29 @@
   function startEditing(commitment: Commitment) {
     editingId = commitment.id;
     editingName = commitment.name;
+    markEditing('commitments', commitment.id, 'name');
+  }
+
+  function handleEditInput() {
+    if (editingId) {
+      updateEditActivity('commitments', editingId);
+    }
   }
 
   function handleEditSubmit() {
     if (editingId && editingName.trim()) {
       onUpdate(editingId, editingName.trim());
+    }
+    if (editingId) {
+      clearEditing('commitments', editingId);
+    }
+    editingId = null;
+    editingName = '';
+  }
+
+  function cancelEdit() {
+    if (editingId) {
+      clearEditing('commitments', editingId);
     }
     editingId = null;
     editingName = '';
@@ -79,8 +98,7 @@
     if (e.key === 'Enter') {
       handleEditSubmit();
     } else if (e.key === 'Escape') {
-      editingId = null;
-      editingName = '';
+      cancelEdit();
     }
   }
 
@@ -192,6 +210,7 @@
                   bind:value={editingName}
                   class="edit-input"
                   onkeydown={handleEditKeydown}
+                  oninput={handleEditInput}
                   onblur={handleEditSubmit}
                   use:focus
                 />

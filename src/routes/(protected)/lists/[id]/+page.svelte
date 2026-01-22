@@ -70,32 +70,42 @@
     }
   }
 
-  async function handleUpdateGoal(data: { name: string; type: GoalType; targetValue: number | null }) {
+  async function handleUpdateGoal(data: { name?: string; type?: GoalType; targetValue?: number | null }) {
     if (!editingGoal || !list) return;
 
     try {
-      const typeChanged = editingGoal.type !== data.type;
+      // Field-level updates: only include fields that were actually modified
+      const updates: Partial<Goal> = {};
 
-      // Calculate updates
-      const updates: Partial<Goal> = {
-        name: data.name,
-        type: data.type,
-        target_value: data.targetValue
-      };
+      if (data.name !== undefined) {
+        updates.name = data.name;
+      }
 
-      if (typeChanged) {
+      if (data.type !== undefined) {
+        updates.type = data.type;
         // Reset progress when changing type
-        updates.current_value = 0;
-        updates.completed = false;
-      } else if (data.type === 'incremental' && data.targetValue !== null) {
-        // Cap current_value if new target is lower
-        if (editingGoal.current_value > data.targetValue) {
-          updates.current_value = data.targetValue;
-          updates.completed = true;
+        if (data.type !== editingGoal.type) {
+          updates.current_value = 0;
+          updates.completed = false;
         }
       }
 
-      await goalListStore.updateGoal(editingGoal.id, updates);
+      if (data.targetValue !== undefined) {
+        updates.target_value = data.targetValue;
+        // Cap current_value if new target is lower (only for incremental goals)
+        const effectiveType = data.type ?? editingGoal.type;
+        if (effectiveType === 'incremental' && data.targetValue !== null) {
+          if (editingGoal.current_value > data.targetValue) {
+            updates.current_value = data.targetValue;
+            updates.completed = true;
+          }
+        }
+      }
+
+      // Only update if there are actual changes
+      if (Object.keys(updates).length > 0) {
+        await goalListStore.updateGoal(editingGoal.id, updates);
+      }
       editingGoal = null;
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to update goal';
@@ -296,6 +306,7 @@
       type={editingGoal.type}
       targetValue={editingGoal.target_value}
       submitLabel="Save Changes"
+      trackDirtyFields={true}
       onSubmit={handleUpdateGoal}
       onCancel={() => (editingGoal = null)}
     />

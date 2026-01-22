@@ -1,7 +1,8 @@
 import { db, generateId, now } from '../client';
 import type { Goal, GoalType } from '$lib/types';
-import { queueSyncDirect } from '$lib/sync/queue';
+import { queueSyncDirect, queueIncrement } from '$lib/sync/queue';
 import { scheduleSyncPush } from '$lib/sync/engine';
+import { notifyLocalWrite } from '$lib/sync/tabCoordinator';
 
 export async function createGoal(
   goalListId: string,
@@ -101,6 +102,7 @@ export async function incrementGoal(id: string, amount: number = 1): Promise<Goa
   const timestamp = now();
   const newValue = goal.current_value + amount;
   const completed = goal.target_value ? newValue >= goal.target_value : false;
+  const baseVersion = goal.updated_at;
 
   // Use transaction to ensure atomicity - prevents sync pull from overwriting during rapid clicks
   let updated: Goal | undefined;
@@ -108,16 +110,15 @@ export async function incrementGoal(id: string, amount: number = 1): Promise<Goa
     await db.goals.update(id, { current_value: newValue, completed, updated_at: timestamp });
     updated = await db.goals.get(id);
     if (updated) {
-      await queueSyncDirect('goals', 'update', id, {
-        current_value: newValue,
-        completed,
-        updated_at: timestamp
-      });
+      // Use increment operation for proper multi-device conflict resolution
+      // The delta will be summed server-side, enabling true merge of concurrent increments
+      await queueIncrement('goals', id, 'current_value', amount, baseVersion, { completed });
     }
   });
 
   if (updated) {
     scheduleSyncPush();
+    notifyLocalWrite('goals', id);
   }
 
   return updated;

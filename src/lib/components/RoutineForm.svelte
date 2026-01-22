@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GoalType, DayOfWeek } from '$lib/types';
   import { formatDate } from '$lib/utils/dates';
+  import { createDirtyTracker } from '$lib/utils/dirtyFields';
 
   interface Props {
     name?: string;
@@ -10,13 +11,15 @@
     endDate?: string | null;
     activeDays?: DayOfWeek[] | null;
     submitLabel?: string;
+    /** When true, only sends fields the user actually modified (for edit mode) */
+    trackDirtyFields?: boolean;
     onSubmit: (data: {
-      name: string;
-      type: GoalType;
-      targetValue: number | null;
-      startDate: string;
-      endDate: string | null;
-      activeDays: DayOfWeek[] | null;
+      name?: string;
+      type?: GoalType;
+      targetValue?: number | null;
+      startDate?: string;
+      endDate?: string | null;
+      activeDays?: DayOfWeek[] | null;
     }) => void;
     onCancel?: () => void;
   }
@@ -29,9 +32,17 @@
     endDate: initialEndDate = null,
     activeDays: initialActiveDays = null,
     submitLabel = 'Create',
+    trackDirtyFields = false,
     onSubmit,
     onCancel
   }: Props = $props();
+
+  // Track which fields user has modified (for edit mode)
+  const dirty = createDirtyTracker();
+
+  function markDirty(field: string) {
+    dirty.mark(field);
+  }
 
   // Day labels for the selector
   const dayLabels: { short: string; full: string; value: DayOfWeek }[] = [
@@ -71,18 +82,22 @@
       newSet.add(day);
     }
     selectedDays = newSet;
+    markDirty('activeDays');
   }
 
   function selectAllDays() {
     selectedDays = new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[]);
+    markDirty('activeDays');
   }
 
   function selectWeekdays() {
     selectedDays = new Set([1, 2, 3, 4, 5] as DayOfWeek[]);
+    markDirty('activeDays');
   }
 
   function selectWeekends() {
     selectedDays = new Set([0, 6] as DayOfWeek[]);
+    markDirty('activeDays');
   }
 
   // Helper to get active days description
@@ -108,14 +123,38 @@
       ? null
       : (Array.from(selectedDays).sort((a, b) => a - b) as DayOfWeek[]);
 
-    onSubmit({
+    const currentValues = {
       name: name.trim(),
       type,
       targetValue: type === 'incremental' ? targetValue : null,
       startDate,
       endDate: hasEndDate ? endDate : null,
       activeDays: activeDaysResult
-    });
+    };
+
+    // If tracking dirty fields (edit mode), only send fields that were actually modified
+    if (trackDirtyFields) {
+      const initialValues = {
+        name: initialName,
+        type: initialType,
+        targetValue: initialTargetValue,
+        startDate: initialStartDate,
+        endDate: initialEndDate,
+        activeDays: initialActiveDays
+      };
+      const changes = dirty.getChanges(currentValues, initialValues);
+
+      // Only submit if there are actual changes
+      if (Object.keys(changes).length > 0) {
+        onSubmit(changes);
+      } else {
+        // No changes, just close
+        onCancel?.();
+      }
+    } else {
+      // Create mode: send all fields
+      onSubmit(currentValues);
+    }
   }
 </script>
 
@@ -126,6 +165,7 @@
       id="routine-name"
       type="text"
       bind:value={name}
+      oninput={() => markDirty('name')}
       placeholder="Enter routine name..."
       required
     />
@@ -138,7 +178,7 @@
         type="button"
         class="type-btn"
         class:active={type === 'completion'}
-        onclick={() => (type = 'completion')}
+        onclick={() => { type = 'completion'; markDirty('type'); }}
       >
         <span class="type-icon">✓</span>
         <span>Completion</span>
@@ -147,7 +187,7 @@
         type="button"
         class="type-btn"
         class:active={type === 'incremental'}
-        onclick={() => (type = 'incremental')}
+        onclick={() => { type = 'incremental'; markDirty('type'); }}
       >
         <span class="type-icon">↑</span>
         <span>Incremental</span>
@@ -162,6 +202,7 @@
         id="target-value"
         type="number"
         bind:value={targetValue}
+        oninput={() => markDirty('targetValue')}
         min="1"
         required
       />
@@ -218,16 +259,16 @@
   <div class="form-row">
     <div class="form-group">
       <label for="start-date">Start Date</label>
-      <input id="start-date" type="date" bind:value={startDate} required />
+      <input id="start-date" type="date" bind:value={startDate} onchange={() => markDirty('startDate')} required />
     </div>
 
     <div class="form-group">
       <label for="end-date-toggle" class="checkbox-label">
-        <input id="end-date-toggle" type="checkbox" bind:checked={hasEndDate} />
+        <input id="end-date-toggle" type="checkbox" bind:checked={hasEndDate} onchange={() => markDirty('endDate')} />
         <span>Has End Date</span>
       </label>
       {#if hasEndDate}
-        <input id="end-date" type="date" bind:value={endDate} min={startDate} required />
+        <input id="end-date" type="date" bind:value={endDate} onchange={() => markDirty('endDate')} min={startDate} required />
       {/if}
     </div>
   </div>

@@ -197,15 +197,11 @@ body {
 body::before {
   content: '';
   position: fixed;
-  /* Cover entire screen including safe areas */
-  top: 0;
+  /* Extend into top safe area (Dynamic Island) */
+  top: calc(-1 * env(safe-area-inset-top, 0px));
   left: 0;
   right: 0;
   bottom: 0;
-  /* Use 100vh + safe area to extend into notch/Dynamic Island area */
-  height: calc(100vh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
-  /* Pull up into the safe area */
-  margin-top: calc(-1 * env(safe-area-inset-top, 0px));
   background:
     /* Distant star clusters */
     radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.8) 0%, transparent 100%),
@@ -947,11 +943,21 @@ html {
   text-size-adjust: 100%;
 }
 
-/* Prevent overscroll bounce */
-html, body {
+/* iOS PWA - extend into safe areas */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html {
+  /* Prevent overscroll bounce */
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+
+body {
+  overscroll-behavior: none;
 }
 
 /* Prevent callout on long-press for iOS */
