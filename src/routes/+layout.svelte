@@ -760,6 +760,7 @@
     max-width: 1400px;
     margin: 0 auto;
     gap: 1.5rem;
+    position: relative;
   }
 
   /* Brand */
@@ -811,7 +812,10 @@
     background: rgba(15, 15, 26, 0.6);
     border: 1px solid rgba(108, 92, 231, 0.15);
     border-radius: var(--radius-xl);
-    position: relative;
+    /* Absolutely center the nav regardless of brand/actions widths */
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
   }
 
   .nav-link {
