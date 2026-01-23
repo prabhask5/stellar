@@ -1,14 +1,12 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { getSession, getUserProfile } from '$lib/supabase/auth';
+  import { getSession } from '$lib/supabase/auth';
   import { getValidOfflineSession } from '$lib/auth/offlineSession';
   import { onSyncComplete } from '$lib/sync/engine';
   import { browser } from '$app/environment';
-  import type { Session } from '@supabase/supabase-js';
+  import { userDisplayInfo } from '$lib/stores/authState';
   import PWAInstallModal from '$lib/components/PWAInstallModal.svelte';
-
-  let session = $state<Session | null>(null);
   let isLoading = $state(true);
   let selectedCompliment = $state('');
   let timeGreeting = $state('Good day');
@@ -120,8 +118,8 @@
     return { message: getRandomCompliment(), isPWAMessage: false, isFirstVisit: false };
   }
 
-  const profile = $derived(getUserProfile(session?.user ?? null));
-  const firstName = $derived(profile.firstName || 'Explorer');
+  // Use the auth store for user info - works for both online and offline modes
+  const firstName = $derived($userDisplayInfo?.firstName || 'Explorer');
 
   onMount(async () => {
     // Initialize greeting based on current time
@@ -137,8 +135,6 @@
     if (!userSession && !offlineSession) {
       goto('/login');
     } else {
-      session = userSession;
-
       // Get message after confirming user is authenticated
       const messageResult = getMessageForDisplay();
       selectedCompliment = messageResult.message;

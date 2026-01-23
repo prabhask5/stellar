@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import { signIn, signUp, getSession, resendConfirmationEmail } from '$lib/supabase/auth';
   import { getOfflineCredentials, verifyOfflinePassword } from '$lib/auth/offlineCredentials';
-  import { createOfflineSession } from '$lib/auth/offlineSession';
+  import { createOfflineSession, getValidOfflineSession } from '$lib/auth/offlineSession';
   import { isOnline } from '$lib/stores/network';
   import type { OfflineCredentials } from '$lib/types';
 
@@ -41,10 +41,19 @@
     const cached = await getOfflineCredentials();
     cachedCredentials = cached;
 
-    // Check if user is already authenticated (e.g., from email confirmation in another tab)
+    // Check if user is already authenticated (Supabase session or offline session)
     const session = await getSession();
     if (session) {
-      goto(redirectUrl);
+      // Use hard navigation to ensure full page reload with proper auth state
+      window.location.href = redirectUrl;
+      return;
+    }
+
+    // Also check for valid offline session - user might already be logged in offline
+    const offlineSession = await getValidOfflineSession();
+    if (offlineSession) {
+      // Already authenticated offline - redirect to intended destination
+      window.location.href = redirectUrl;
       return;
     }
 
@@ -508,22 +517,15 @@
     position: fixed;
     inset: 0;
     z-index: 200; /* Above navbar to prevent any flickering */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    display: grid;
+    place-items: center;
     overflow-x: hidden;
     overflow-y: auto;
+    padding: max(2rem, env(safe-area-inset-top, 0px)) 0 max(2rem, env(safe-area-inset-bottom, 0px));
     background: radial-gradient(ellipse at center,
       rgba(15, 15, 35, 1) 0%,
       rgba(5, 5, 16, 1) 50%,
       rgba(0, 0, 5, 1) 100%);
-  }
-
-  /* Pseudo-elements for vertical centering that works with overflow */
-  .login-page::before,
-  .login-page::after {
-    content: '';
-    flex: 1;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -807,12 +809,9 @@
     flex-direction: column;
     align-items: center;
     gap: 2rem;
-    padding: 2rem;
-    padding-top: max(2rem, env(safe-area-inset-top, 0px));
-    padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+    padding: 0 2rem;
     width: 100%;
     max-width: 440px;
-    min-height: min-content;
     animation: contentReveal 1s ease-out forwards;
   }
 
@@ -1186,7 +1185,7 @@
 
   @media (max-width: 767px) {
     .login-content {
-      padding: 1.5rem;
+      padding: 0 1.5rem;
       gap: 1.5rem;
     }
 
@@ -1238,14 +1237,8 @@
 
   /* iPhone 16 Pro / 15 Pro / 14 Pro (393px width) */
   @media (min-width: 390px) and (max-width: 429px) {
-    .login-page {
-      /* Account for safe areas */
-      padding-top: env(safe-area-inset-top, 0);
-      padding-bottom: env(safe-area-inset-bottom, 0);
-    }
-
     .login-content {
-      padding: 1.25rem;
+      padding: 0 1.25rem;
       gap: 1.75rem;
     }
 
@@ -1299,7 +1292,7 @@
   /* iPhone 16 Pro Max / 15 Pro Max (430px width) */
   @media (min-width: 430px) and (max-width: 480px) {
     .login-content {
-      padding: 1.5rem;
+      padding: 0 1.5rem;
       gap: 2rem;
     }
 
@@ -1330,7 +1323,7 @@
   /* Small devices (iPhone SE, older phones) */
   @media (max-width: 389px) {
     .login-content {
-      padding: 1rem;
+      padding: 0 1rem;
       gap: 1.25rem;
     }
 
