@@ -188,47 +188,50 @@
 </svelte:head>
 
 <div class="login-page">
-  <!-- Animated Star Field -->
-  <div class="starfield">
-    <div class="stars stars-small"></div>
-    <div class="stars stars-medium"></div>
-    <div class="stars stars-large"></div>
-  </div>
+  <!-- Background Effects (clipped separately to allow content to grow) -->
+  <div class="background-effects">
+    <!-- Animated Star Field -->
+    <div class="starfield">
+      <div class="stars stars-small"></div>
+      <div class="stars stars-medium"></div>
+      <div class="stars stars-large"></div>
+    </div>
 
-  <!-- Nebula Effects -->
-  <div class="nebula nebula-1"></div>
-  <div class="nebula nebula-2"></div>
-  <div class="nebula nebula-3"></div>
+    <!-- Nebula Effects -->
+    <div class="nebula nebula-1"></div>
+    <div class="nebula nebula-2"></div>
+    <div class="nebula nebula-3"></div>
 
-  <!-- Orbital Rings -->
-  <div class="orbital-system">
-    <div class="orbit orbit-1"></div>
-    <div class="orbit orbit-2"></div>
-    <div class="orbit orbit-3"></div>
-    <div class="orbit-particle particle-1"></div>
-    <div class="orbit-particle particle-2"></div>
-    <div class="orbit-particle particle-3"></div>
-  </div>
+    <!-- Orbital Rings -->
+    <div class="orbital-system">
+      <div class="orbit orbit-1"></div>
+      <div class="orbit orbit-2"></div>
+      <div class="orbit orbit-3"></div>
+      <div class="orbit-particle particle-1"></div>
+      <div class="orbit-particle particle-2"></div>
+      <div class="orbit-particle particle-3"></div>
+    </div>
 
-  <!-- Shooting Stars -->
-  <div class="shooting-star shooting-star-1"></div>
-  <div class="shooting-star shooting-star-2"></div>
+    <!-- Shooting Stars -->
+    <div class="shooting-star shooting-star-1"></div>
+    <div class="shooting-star shooting-star-2"></div>
 
-  <!-- Floating Particles -->
-  <div class="particles">
-    {#each Array(15) as _, i}
-      <span
-        class="particle"
-        style="
-          --delay: {Math.random() * 5}s;
-          --duration: {5 + Math.random() * 10}s;
-          --x-start: {Math.random() * 100}%;
-          --y-start: {Math.random() * 100}%;
-          --size: {2 + Math.random() * 3}px;
-          --opacity: {0.2 + Math.random() * 0.4};
-        "
-      ></span>
-    {/each}
+    <!-- Floating Particles -->
+    <div class="particles">
+      {#each Array(15) as _, i}
+        <span
+          class="particle"
+          style="
+            --delay: {Math.random() * 5}s;
+            --duration: {5 + Math.random() * 10}s;
+            --x-start: {Math.random() * 100}%;
+            --y-start: {Math.random() * 100}%;
+            --size: {2 + Math.random() * 3}px;
+            --opacity: {0.2 + Math.random() * 0.4};
+          "
+        ></span>
+      {/each}
+    </div>
   </div>
 
   <!-- Login Content -->
@@ -514,16 +517,28 @@
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .login-page {
-    position: fixed;
     inset: 0;
     z-index: 200; /* Above navbar to prevent any flickering */
+    position: fixed;
+    /* Extend into safe areas */
+    height: calc(100vh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+    margin-top: calc(-1 * env(safe-area-inset-top, 0px));
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow-y: auto; /* Allow scrolling when content is larger than viewport */
     background: radial-gradient(ellipse at center,
       rgba(15, 15, 35, 1) 0%,
       rgba(5, 5, 16, 1) 50%,
       rgba(0, 0, 5, 1) 100%);
+  }
+
+  /* Background effects container - clips decorative elements without affecting content */
+  .background-effects {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
