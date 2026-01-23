@@ -517,6 +517,8 @@
     position: fixed;
     inset: 0;
     z-index: 200; /* Above navbar to prevent any flickering */
+    display: flex;
+    flex-direction: column;
     overflow-x: hidden;
     overflow-y: auto;
     background: radial-gradient(ellipse at center,
@@ -805,14 +807,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: 2rem;
-    padding: max(2rem, env(safe-area-inset-top, 0px)) 2rem max(2rem, env(safe-area-inset-bottom, 0px));
+    padding: 2rem;
     width: 100%;
     max-width: 440px;
-    min-height: 100%; /* Fill the viewport */
-    margin: 0 auto; /* Center horizontally */
-    box-sizing: border-box;
+    margin: auto; /* Centers in flex parent - equal space top/bottom/left/right */
     animation: contentReveal 1s ease-out forwards;
   }
 
@@ -1186,7 +1185,7 @@
 
   @media (max-width: 767px) {
     .login-content {
-      padding: max(1.5rem, env(safe-area-inset-top, 0px)) 1.5rem max(1.5rem, env(safe-area-inset-bottom, 0px));
+      padding: 1.5rem;
       gap: 1.5rem;
     }
 
@@ -1239,7 +1238,7 @@
   /* iPhone 16 Pro / 15 Pro / 14 Pro (393px width) */
   @media (min-width: 390px) and (max-width: 429px) {
     .login-content {
-      padding: max(1.25rem, env(safe-area-inset-top, 0px)) 1.25rem max(1.25rem, env(safe-area-inset-bottom, 0px));
+      padding: 1.25rem;
       gap: 1.75rem;
     }
 
@@ -1293,7 +1292,7 @@
   /* iPhone 16 Pro Max / 15 Pro Max (430px width) */
   @media (min-width: 430px) and (max-width: 480px) {
     .login-content {
-      padding: max(1.5rem, env(safe-area-inset-top, 0px)) 1.5rem max(1.5rem, env(safe-area-inset-bottom, 0px));
+      padding: 1.5rem;
       gap: 2rem;
     }
 
@@ -1324,7 +1323,7 @@
   /* Small devices (iPhone SE, older phones) */
   @media (max-width: 389px) {
     .login-content {
-      padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
+      padding: 1rem;
       gap: 1.25rem;
     }
 
