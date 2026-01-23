@@ -157,7 +157,10 @@
 
     // Create offline session
     await createOfflineSession(cachedCredentials.userId);
-    goto(redirectUrl);
+
+    // Use hard navigation to ensure layout load functions re-run
+    // (goto() may not properly re-evaluate auth state after offline session creation)
+    window.location.href = redirectUrl;
   }
 
   function toggleMode() {
@@ -506,9 +509,11 @@
     inset: 0;
     z-index: 200; /* Above navbar to prevent any flickering */
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    overflow: hidden;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    overflow-y: auto;
     background: radial-gradient(ellipse at center,
       rgba(15, 15, 35, 1) 0%,
       rgba(5, 5, 16, 1) 50%,
@@ -797,8 +802,12 @@
     align-items: center;
     gap: 2rem;
     padding: 2rem;
+    padding-top: max(2rem, env(safe-area-inset-top, 0px));
+    padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
     width: 100%;
     max-width: 440px;
+    margin: auto; /* Center vertically when content fits, push to edges when scrolling */
+    min-height: min-content;
     animation: contentReveal 1s ease-out forwards;
   }
 
