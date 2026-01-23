@@ -518,10 +518,9 @@
     inset: 0;
     z-index: 200; /* Above navbar to prevent any flickering */
     display: flex;
-    flex-direction: column;
-    overflow-x: hidden;
-    overflow-y: scroll; /* Always show scrollbar to prevent layout oscillation */
-    scrollbar-gutter: stable; /* Reserve space for scrollbar */
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
     background: radial-gradient(ellipse at center,
       rgba(15, 15, 35, 1) 0%,
       rgba(5, 5, 16, 1) 50%,
