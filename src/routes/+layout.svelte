@@ -105,12 +105,12 @@
     const clearedCount = await clearPendingSyncQueue();
     console.log(`[Auth] Cleared ${clearedCount} pending sync operations due to invalid auth`);
 
-    // Clear offline session and credentials
+    // Clear offline session (credentials cleared by signOut below)
     await clearOfflineSession();
-    await clearOfflineCredentials();
 
-    // Sign out from Supabase (clears any existing session)
-    await signOut();
+    // Sign out from Supabase and clear stale offline credentials
+    // (credentials are invalid, so don't preserve them)
+    await signOut({ preserveOfflineCredentials: false });
 
     // Also clear Supabase localStorage as backup (in case signOut fails)
     try {
@@ -313,12 +313,17 @@
     localStorage.removeItem('lastSyncTimestamp');
     syncStatusStore.reset();
 
-    // Clear offline auth data
-    await clearOfflineCredentials();
+    // Clear offline session (user must re-authenticate)
     await clearOfflineSession();
 
-    // Sign out from Supabase
-    await signOut();
+    // Only clear offline credentials if ONLINE
+    // When offline, keep credentials so user can sign back in with password
+    if (navigator.onLine) {
+      await clearOfflineCredentials();
+    }
+
+    // Sign out from Supabase (pass flag to preserve credentials if offline)
+    await signOut({ preserveOfflineCredentials: !navigator.onLine });
 
     // IMPORTANT: When offline, supabase.auth.signOut() doesn't clear localStorage
     // Manually clear Supabase session storage to prevent stale session being found

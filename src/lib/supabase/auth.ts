@@ -61,10 +61,13 @@ export async function signUp(
   };
 }
 
-export async function signOut(): Promise<{ error: string | null }> {
-  // Clear offline credentials and session first
+export async function signOut(options?: { preserveOfflineCredentials?: boolean }): Promise<{ error: string | null }> {
+  // Clear offline data
   try {
-    await clearOfflineCredentials();
+    // Only clear credentials if not preserving them (e.g., when offline, keep for re-auth)
+    if (!options?.preserveOfflineCredentials) {
+      await clearOfflineCredentials();
+    }
     await clearOfflineSession();
   } catch (e) {
     console.error('[Auth] Failed to clear offline data:', e);
