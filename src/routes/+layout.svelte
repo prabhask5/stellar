@@ -5,7 +5,7 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { signOut, getUserProfile, getSession, signIn } from '$lib/supabase/auth';
-  import { stopSyncEngine, clearLocalCache, clearPendingSyncQueue, markAuthValidated, runFullSync } from '$lib/sync/engine';
+  import { stopSyncEngine, clearLocalCache, clearPendingSyncQueue, markAuthValidated, runFullSync, needsAuthValidation } from '$lib/sync/engine';
   import { getOfflineCredentials, clearOfflineCredentials } from '$lib/auth/offlineCredentials';
   import { syncStatusStore } from '$lib/stores/sync';
   import { authState, userDisplayInfo } from '$lib/stores/authState';
@@ -49,10 +49,8 @@
   // SECURITY: This is critical - we must verify cached credentials (email AND password)
   // are still valid with Supabase before allowing any pending changes to sync to the database
   async function handleReconnectAuthCheck(): Promise<void> {
-    const currentState = $authState;
-
-    // Only relevant if we were in offline mode
-    if (currentState.mode !== 'offline') {
+    // Check if the sync engine needs auth validation (was offline at some point)
+    if (!needsAuthValidation()) {
       // Was online the whole time - mark as validated and allow sync
       markAuthValidated();
       return;
