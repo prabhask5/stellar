@@ -1272,6 +1272,23 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
     return;
   }
 
+  // CRITICAL: Validate auth before attempting any sync operations
+  // Without valid auth, Supabase RLS silently blocks writes (returns no error but 0 rows affected)
+  // This causes the "sync succeeded but nothing synced" bug
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    console.warn('[SYNC] No authenticated user - cannot sync. RLS would silently block all writes.');
+    if (!quiet) {
+      syncStatusStore.setStatus('error');
+      syncStatusStore.setError(
+        'Not signed in',
+        'Please sign in to sync your data.'
+      );
+      syncStatusStore.setSyncMessage('Sign in required to sync');
+    }
+    return;
+  }
+
   // Atomically acquire sync lock to prevent concurrent syncs
   const acquired = await acquireSyncLock();
   if (!acquired) return;
