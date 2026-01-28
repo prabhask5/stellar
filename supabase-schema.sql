@@ -782,48 +782,7 @@ create policy "Users can delete their own sync operations"
   on sync_operations for delete
   using ((select auth.uid()) = user_id);
 
--- ============================================================
--- TOMBSTONES: Track deleted entities for resurrection prevention
--- This enables proper multi-device delete synchronization
--- ============================================================
-
-create table if not exists tombstones (
-  id uuid default uuid_generate_v4() primary key,
-  entity_id uuid not null,                         -- UUID of the deleted entity
-  entity_type text not null,                       -- 'goals', 'daily_tasks', etc.
-  deleted_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  deleted_by text not null,                        -- Device ID that deleted the entity
-  version integer,                                  -- Version at time of deletion
-  last_known_state jsonb,                           -- Snapshot for potential restore
-  user_id uuid references auth.users(id) on delete cascade not null,
-  unique(entity_id, entity_type)                   -- One tombstone per entity
-);
-
--- Indexes for efficient querying
-create index if not exists idx_tombstones_user_id on tombstones(user_id);
-create index if not exists idx_tombstones_entity on tombstones(entity_type, entity_id);
-create index if not exists idx_tombstones_deleted_at on tombstones(deleted_at);
-
--- RLS for tombstones
-alter table tombstones enable row level security;
-
-create policy "Users can view their own tombstones"
-  on tombstones for select
-  using ((select auth.uid()) = user_id);
-
-create policy "Users can create their own tombstones"
-  on tombstones for insert
-  with check ((select auth.uid()) = user_id);
-
-create policy "Users can delete their own tombstones"
-  on tombstones for delete
-  using ((select auth.uid()) = user_id);
-
--- Trigger to auto-set user_id
+-- Trigger to auto-set user_id for sync_operations
 create trigger set_sync_operations_user_id
   before insert on sync_operations
-  for each row execute function set_user_id();
-
-create trigger set_tombstones_user_id
-  before insert on tombstones
   for each row execute function set_user_id();
