@@ -199,7 +199,7 @@ This guarantees that no local change can exist without a queued sync operation.
 │  3. Pull Phase (Remote → Local)                                  │
 │     • Query all tables where updated_at > cursor                 │
 │     • Filter out entities with pending local changes             │
-│     • Filter out recently modified entities (5s window)          │
+│     • Filter out recently modified entities (2s window)          │
 │     • Apply remaining changes to IndexedDB                       │
 │     • Update cursor to max timestamp                             │
 │                                                                  │
@@ -315,38 +315,86 @@ This optimization is transparent, maintains data integrity, and can dramatically
 
 ## Conflict Resolution
 
-### Decision Flow
+### Three-Tier Detection
+
+The conflict resolution engine uses a three-tier approach to maximize automatic merging:
 
 ```
 Remote Change Received
          │
          ▼
 ┌────────────────────────┐
-│ Entity in sync queue?  │──Yes──▶ REJECT (local wins)
+│ Recently modified?     │──Yes──▶ SKIP (protect in-flight changes)
+│ (within 2 seconds)     │
 └───────────┬────────────┘
             │ No
             ▼
 ┌────────────────────────┐
-│ Modified in last 5s?   │──Yes──▶ REJECT (local wins)
-└───────────┬────────────┘
-            │ No
-            ▼
-┌────────────────────────┐
-│ Remote updated_at >    │──No───▶ REJECT (local wins)
-│ Local updated_at?      │
+│ Remote newer than      │──No───▶ SKIP (local is current)
+│ local updated_at?      │
 └───────────┬────────────┘
             │ Yes
             ▼
-       ACCEPT REMOTE
+┌────────────────────────┐
+│ Entity has pending     │──No───▶ ACCEPT REMOTE (simple case)
+│ local operations?      │
+└───────────┬────────────┘
+            │ Yes
+            ▼
+┌────────────────────────┐
+│ FIELD-LEVEL CONFLICT   │
+│ RESOLUTION             │
+└─────────────────────────┘
 ```
+
+### Field-Level Resolution
+
+When both local and remote have changes, the engine applies field-level conflict resolution:
+
+| Tier | Condition | Resolution |
+|------|-----------|------------|
+| **1: Non-overlapping** | Different entities | Auto-merge (no conflict) |
+| **2: Different fields** | Same entity, different fields | Auto-merge all fields |
+| **3: Same field** | Same entity and field | Apply resolution strategy |
+
+### Tier 3 Resolution Strategies
+
+| Strategy | When Applied | Behavior |
+|----------|--------------|----------|
+| **local_pending** | Field has pending local operation | Local value wins (preserves intent) |
+| **delete_wins** | One side has delete operation | Delete takes precedence |
+| **last_write** | All other cases | Newer timestamp wins; deviceId tiebreaker |
+
+### Conflict History
+
+All conflict resolutions are logged to the `conflictHistory` table in IndexedDB:
+
+```typescript
+interface ConflictHistoryEntry {
+  id?: number;
+  entityId: string;
+  entityType: string;
+  field: string;
+  localValue: unknown;
+  remoteValue: unknown;
+  resolvedValue: unknown;
+  winner: 'local' | 'remote' | 'merged';
+  strategy: string;
+  timestamp: string;
+}
+```
+
+History entries are automatically cleaned up after 30 days.
 
 ### Protection Mechanisms
 
-1. **Pending Queue Protection**: Entities with unsynced local changes are never overwritten by pulls. The sync queue acts as a "lock" on those entities.
+1. **Recently Modified Protection**: A 2-second TTL window after local writes prevents race conditions where a pull arrives between a local write and its sync.
 
-2. **Recently Modified Protection**: A 5-second TTL window after local writes prevents race conditions where a pull arrives between a local write and its sync.
+2. **Field-Level Pending Protection**: Fields with pending local operations are always resolved in favor of local (preserves user intent).
 
-3. **Timestamp Comparison**: Even without the above protections, older remote data never overwrites newer local data.
+3. **Version Tracking**: Each entity has a `_version` field that increments on conflict resolution, enabling future optimistic concurrency control.
+
+4. **Device ID**: Each device has a stable UUID for deterministic tiebreaking when timestamps are identical.
 
 ---
 

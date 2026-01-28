@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { TaskCategory } from '$lib/types';
 import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function createTaskCategory(name: string, color: string, userId: string): Promise<TaskCategory> {
   const timestamp = now();
@@ -32,6 +32,7 @@ export async function createTaskCategory(name: string, color: string, userId: st
       updated_at: timestamp
     });
   });
+  markEntityModified(newCategory.id);
   scheduleSyncPush();
 
   return newCategory;
@@ -56,6 +57,7 @@ export async function updateTaskCategory(id: string, updates: Partial<Pick<TaskC
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -87,6 +89,11 @@ export async function deleteTaskCategory(id: string): Promise<void> {
     }
   });
 
+  // Mark all modified entities
+  markEntityModified(id);
+  for (const task of tasks) {
+    markEntityModified(task.id);
+  }
   scheduleSyncPush();
 }
 
@@ -110,6 +117,7 @@ export async function reorderTaskCategory(id: string, newOrder: number): Promise
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 

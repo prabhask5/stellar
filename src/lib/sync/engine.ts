@@ -6,6 +6,7 @@ import type { SyncOperationItem } from './types';
 import { syncStatusStore } from '$lib/stores/sync';
 import { calculateGoalProgressCapped } from '$lib/utils/colors';
 import { isRoutineActiveOnDate } from '$lib/utils/dates';
+import { resolveConflicts, storeConflictHistory, cleanupConflictHistory, getPendingOpsForEntity } from './conflicts';
 
 // ============================================================
 // LOCAL-FIRST SYNC ENGINE
@@ -235,7 +236,8 @@ const SYNC_DEBOUNCE_MS = 2000; // 2 seconds debounce after writes
 const SYNC_INTERVAL_MS = 900000; // 15 minutes periodic sync (optimized for single user egress)
 const VISIBILITY_SYNC_DEBOUNCE_MS = 1000; // Debounce for visibility change syncs
 const VISIBILITY_SYNC_MIN_AWAY_MS = 300000; // Only sync on tab return if away > 5 minutes
-const RECENTLY_MODIFIED_TTL_MS = 5000; // Protect recently modified entities for 5 seconds
+const RECENTLY_MODIFIED_TTL_MS = 2000; // Protect recently modified entities for 2 seconds
+// Industry standard: 500ms-2000ms. 2s covers sync debounce (1s) + network latency with margin.
 
 // Track recently modified entity IDs to prevent pull from overwriting fresh local changes
 // This provides an additional layer of protection beyond the pending queue check
@@ -816,141 +818,76 @@ async function pullRemoteChanges(minCursor?: string): Promise<{ bytes: number; r
   pullBytes += blockedWebsitesEgress.bytes;
   pullRecords += blockedWebsitesEgress.records;
 
+  // Helper function to apply remote changes with field-level conflict resolution
+  async function applyRemoteWithConflictResolution<T extends { id: string; updated_at: string }>(
+    entityType: string,
+    remoteRecords: T[] | null,
+    table: { get: (id: string) => Promise<T | undefined>; put: (entity: T) => Promise<unknown> }
+  ): Promise<void> {
+    for (const remote of (remoteRecords || [])) {
+      // Skip recently modified entities (protects against race conditions)
+      // Note: We no longer skip entities with pending ops - conflict resolution handles them
+      if (isRecentlyModified(remote.id)) continue;
+
+      const local = await table.get(remote.id);
+
+      // Track newest update for cursor
+      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
+
+      // If no local entity, just accept remote
+      if (!local) {
+        await table.put(remote);
+        continue;
+      }
+
+      // If remote is not newer than local, skip (no conflict possible)
+      if (new Date(remote.updated_at) <= new Date(local.updated_at)) {
+        continue;
+      }
+
+      // Check if we have pending operations for this entity
+      const hasPendingOps = pendingEntityIds.has(remote.id);
+
+      if (!hasPendingOps) {
+        // No pending ops and remote is newer - simple case, accept remote
+        await table.put(remote);
+      } else {
+        // Entity has pending operations - apply field-level conflict resolution
+        const pendingOps = await getPendingOpsForEntity(remote.id);
+        const resolution = await resolveConflicts(
+          entityType,
+          remote.id,
+          local as unknown as Record<string, unknown>,
+          remote as unknown as Record<string, unknown>,
+          pendingOps
+        );
+
+        // Store the merged entity
+        await table.put(resolution.mergedEntity as unknown as T);
+
+        // Store conflict history if there were conflicts
+        if (resolution.hasConflicts) {
+          await storeConflictHistory(resolution);
+        }
+      }
+    }
+  }
+
   // Apply changes to local DB with conflict handling
-  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks, db.focusSettings, db.focusSessions, db.blockLists, db.blockedWebsites], async () => {
-    // Apply goal_lists
-    for (const remote of (remoteLists || [])) {
-      // Skip if we have pending ops for this entity (local takes precedence)
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.goalLists.get(remote.id);
-      // Accept remote if no local or remote is newer
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.goalLists.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
-
-    // Apply goals
-    for (const remote of (remoteGoals || [])) {
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.goals.get(remote.id);
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.goals.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
-
-    // Apply daily_routine_goals
-    for (const remote of (remoteRoutines || [])) {
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.dailyRoutineGoals.get(remote.id);
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.dailyRoutineGoals.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
-
-    // Apply daily_goal_progress
-    for (const remote of (remoteProgress || [])) {
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.dailyGoalProgress.get(remote.id);
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.dailyGoalProgress.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
-
-    // Apply task_categories
-    for (const remote of (remoteCategories || [])) {
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.taskCategories.get(remote.id);
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.taskCategories.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
-
-    // Apply commitments
-    for (const remote of (remoteCommitments || [])) {
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.commitments.get(remote.id);
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.commitments.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
-
-    // Apply daily_tasks
-    for (const remote of (remoteDailyTasks || [])) {
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.dailyTasks.get(remote.id);
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.dailyTasks.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
-
-    // Apply long_term_tasks
-    for (const remote of (remoteLongTermTasks || [])) {
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.longTermTasks.get(remote.id);
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.longTermTasks.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
-
-    // Apply focus_settings
-    for (const remote of (remoteFocusSettings || [])) {
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.focusSettings.get(remote.id);
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.focusSettings.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
-
-    // Apply focus_sessions
-    for (const remote of (remoteFocusSessions || [])) {
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.focusSessions.get(remote.id);
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.focusSessions.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
-
-    // Apply block_lists
-    for (const remote of (remoteBlockLists || [])) {
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.blockLists.get(remote.id);
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.blockLists.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
-
-    // Apply blocked_websites
-    for (const remote of (remoteBlockedWebsites || [])) {
-      if (pendingEntityIds.has(remote.id) || isRecentlyModified(remote.id)) continue;
-
-      const local = await db.blockedWebsites.get(remote.id);
-      if (!local || new Date(remote.updated_at) > new Date(local.updated_at)) {
-        await db.blockedWebsites.put(remote);
-      }
-      if (remote.updated_at > newestUpdate) newestUpdate = remote.updated_at;
-    }
+  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks, db.focusSettings, db.focusSessions, db.blockLists, db.blockedWebsites, db.conflictHistory], async () => {
+    // Apply all tables with conflict resolution
+    await applyRemoteWithConflictResolution('goal_lists', remoteLists, db.goalLists);
+    await applyRemoteWithConflictResolution('goals', remoteGoals, db.goals);
+    await applyRemoteWithConflictResolution('daily_routine_goals', remoteRoutines, db.dailyRoutineGoals);
+    await applyRemoteWithConflictResolution('daily_goal_progress', remoteProgress, db.dailyGoalProgress);
+    await applyRemoteWithConflictResolution('task_categories', remoteCategories, db.taskCategories);
+    await applyRemoteWithConflictResolution('commitments', remoteCommitments, db.commitments);
+    await applyRemoteWithConflictResolution('daily_tasks', remoteDailyTasks, db.dailyTasks);
+    await applyRemoteWithConflictResolution('long_term_tasks', remoteLongTermTasks, db.longTermTasks);
+    await applyRemoteWithConflictResolution('focus_settings', remoteFocusSettings, db.focusSettings);
+    await applyRemoteWithConflictResolution('focus_sessions', remoteFocusSessions, db.focusSessions);
+    await applyRemoteWithConflictResolution('block_lists', remoteBlockLists, db.blockLists);
+    await applyRemoteWithConflictResolution('blocked_websites', remoteBlockedWebsites, db.blockedWebsites);
   });
 
   // Update sync cursor (per-user)
@@ -2025,8 +1962,9 @@ export function startSyncEngine(): void {
       runFullSync(true); // Quiet background sync
     }
 
-    // Cleanup old tombstones, failed sync items, and recently modified cache
+    // Cleanup old tombstones, conflict history, failed sync items, and recently modified cache
     await cleanupOldTombstones();
+    await cleanupConflictHistory();
     cleanupRecentlyModified();
     const failedResult = await cleanupFailedItems();
 
@@ -2048,6 +1986,7 @@ export function startSyncEngine(): void {
 
   // Run initial cleanup
   cleanupOldTombstones();
+  cleanupConflictHistory();
   cleanupFailedItems().then(failedResult => {
     if (failedResult.count > 0) {
       syncStatusStore.setStatus('error');
@@ -2097,7 +2036,7 @@ export async function clearLocalCache(): Promise<void> {
   // Get user ID before clearing to remove their sync cursor
   const userId = await getCurrentUserId();
 
-  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.syncQueue, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks, db.focusSettings, db.focusSessions, db.blockLists, db.blockedWebsites], async () => {
+  await db.transaction('rw', [db.goalLists, db.goals, db.dailyRoutineGoals, db.dailyGoalProgress, db.syncQueue, db.taskCategories, db.commitments, db.dailyTasks, db.longTermTasks, db.focusSettings, db.focusSessions, db.blockLists, db.blockedWebsites, db.conflictHistory], async () => {
     await db.goalLists.clear();
     await db.goals.clear();
     await db.dailyRoutineGoals.clear();
@@ -2111,6 +2050,7 @@ export async function clearLocalCache(): Promise<void> {
     await db.blockLists.clear();
     await db.blockedWebsites.clear();
     await db.syncQueue.clear();
+    await db.conflictHistory.clear();
   });
   // Reset sync cursor (user-specific) and hydration flag
   if (typeof localStorage !== 'undefined') {

@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { GoalList } from '$lib/types';
 import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function createGoalList(name: string, userId: string): Promise<GoalList> {
   const timestamp = now();
@@ -23,6 +23,7 @@ export async function createGoalList(name: string, userId: string): Promise<Goal
       updated_at: timestamp
     });
   });
+  markEntityModified(newList.id);
   scheduleSyncPush();
 
   return newList;
@@ -48,6 +49,7 @@ export async function updateGoalList(id: string, name: string): Promise<GoalList
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -73,5 +75,10 @@ export async function deleteGoalList(id: string): Promise<void> {
     await queueDeleteOperation('goal_lists', id);
   });
 
+  // Mark all deleted entities as modified
+  for (const goal of goals) {
+    markEntityModified(goal.id);
+  }
+  markEntityModified(id);
   scheduleSyncPush();
 }

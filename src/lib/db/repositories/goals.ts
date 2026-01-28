@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { Goal, GoalType } from '$lib/types';
 import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function createGoal(
   goalListId: string,
@@ -53,6 +53,7 @@ export async function createGoal(
       updated_at: timestamp
     });
   });
+  markEntityModified(newGoal.id);
   scheduleSyncPush();
 
   return newGoal;
@@ -80,6 +81,7 @@ export async function updateGoal(
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -96,6 +98,7 @@ export async function deleteGoal(id: string): Promise<void> {
     await queueDeleteOperation('goals', id);
   });
 
+  markEntityModified(id);
   scheduleSyncPush();
 }
 
@@ -125,6 +128,7 @@ export async function incrementGoal(id: string, amount: number = 1): Promise<Goa
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -151,6 +155,7 @@ export async function reorderGoal(id: string, newOrder: number): Promise<Goal | 
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 

@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { FocusSession, FocusPhase } from '$lib/types';
 import { queueCreateOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function getActiveSession(userId: string): Promise<FocusSession | null> {
   const sessions = await db.focusSessions
@@ -66,6 +66,7 @@ export async function createFocusSession(
       updated_at: timestamp
     });
   });
+  markEntityModified(newSession.id);
   scheduleSyncPush();
 
   return newSession;
@@ -93,6 +94,7 @@ export async function updateFocusSession(
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -155,6 +157,7 @@ export async function stopFocusSession(id: string, currentFocusElapsedMinutes?: 
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 

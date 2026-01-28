@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { Commitment, CommitmentSection } from '$lib/types';
 import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function createCommitment(name: string, section: CommitmentSection, userId: string): Promise<Commitment> {
   const timestamp = now();
@@ -33,6 +33,7 @@ export async function createCommitment(name: string, section: CommitmentSection,
       updated_at: timestamp
     });
   });
+  markEntityModified(newCommitment.id);
   scheduleSyncPush();
 
   return newCommitment;
@@ -57,6 +58,7 @@ export async function updateCommitment(id: string, updates: Partial<Pick<Commitm
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -72,6 +74,7 @@ export async function deleteCommitment(id: string): Promise<void> {
     await db.commitments.update(id, { deleted: true, updated_at: timestamp });
     await queueDeleteOperation('commitments', id);
   });
+  markEntityModified(id);
   scheduleSyncPush();
 }
 
@@ -95,6 +98,7 @@ export async function reorderCommitment(id: string, newOrder: number): Promise<C
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 

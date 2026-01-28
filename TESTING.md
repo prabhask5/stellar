@@ -673,10 +673,14 @@ Comprehensive test plan covering features, edge cases, offline behavior, synchro
 
 | Test Case | Steps | Expected Result |
 |-----------|-------|-----------------|
-| Same entity both devices | Edit same goal on A and B | Last write wins |
-| Delete on A, update on B | Delete on A, update on B | Depends on timing |
-| Pending local change | Make change offline, then sync pulls | Local change protected |
-| Recently modified | Make change, immediate pull | Local change protected (5s) |
+| Non-overlapping entities | Edit goal A on device 1, goal B on device 2 | Both changes auto-merged |
+| Different fields same entity | Edit `name` on device A, `target_value` on device B | Both fields merged into entity |
+| Same field both devices | Edit `name` on A and B | Last write wins (timestamp comparison) |
+| Delete wins over edit | Delete on A, update field on B | Entity deleted (delete wins) |
+| Pending local field | Edit `name` offline, remote changes `target_value` | `name` kept local, `target_value` from remote |
+| Recently modified | Make change, immediate pull | Local change protected (2s window) |
+| Conflict history | Trigger field conflict | Entry added to conflictHistory table |
+| Version increment | Resolve conflict | Entity `_version` incremented |
 
 ### 13.4 Sync Queue
 

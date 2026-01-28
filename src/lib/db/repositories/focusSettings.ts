@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { FocusSettings } from '$lib/types';
 import { queueCreateOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 // Default focus settings
 const DEFAULT_FOCUS_SETTINGS = {
@@ -50,6 +50,7 @@ async function createFocusSettings(userId: string): Promise<FocusSettings> {
       updated_at: timestamp
     });
   });
+  markEntityModified(newSettings.id);
   scheduleSyncPush();
 
   return newSettings;
@@ -77,6 +78,7 @@ export async function updateFocusSettings(
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 

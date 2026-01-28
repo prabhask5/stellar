@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { DailyTask } from '$lib/types';
 import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function createDailyTask(name: string, userId: string): Promise<DailyTask> {
   const timestamp = now();
@@ -38,6 +38,7 @@ export async function createDailyTask(name: string, userId: string): Promise<Dai
       updated_at: timestamp
     });
   });
+  markEntityModified(newTask.id);
   scheduleSyncPush();
 
   return newTask;
@@ -62,6 +63,7 @@ export async function updateDailyTask(id: string, updates: Partial<Pick<DailyTas
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -92,6 +94,7 @@ export async function toggleDailyTaskComplete(id: string): Promise<DailyTask | u
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -107,6 +110,7 @@ export async function deleteDailyTask(id: string): Promise<void> {
     await db.dailyTasks.update(id, { deleted: true, updated_at: timestamp });
     await queueDeleteOperation('daily_tasks', id);
   });
+  markEntityModified(id);
   scheduleSyncPush();
 }
 
@@ -130,6 +134,7 @@ export async function reorderDailyTask(id: string, newOrder: number): Promise<Da
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -153,5 +158,9 @@ export async function clearCompletedDailyTasks(userId: string): Promise<void> {
     }
   });
 
+  // Mark all deleted entities as modified
+  for (const task of completedTasks) {
+    markEntityModified(task.id);
+  }
   scheduleSyncPush();
 }

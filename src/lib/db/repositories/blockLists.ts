@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { BlockList, DayOfWeek } from '$lib/types';
 import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function getBlockLists(userId: string): Promise<BlockList[]> {
   const lists = await db.blockLists
@@ -62,6 +62,7 @@ export async function createBlockList(
       updated_at: timestamp
     });
   });
+  markEntityModified(newList.id);
   scheduleSyncPush();
 
   return newList;
@@ -89,6 +90,7 @@ export async function updateBlockList(
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -123,6 +125,11 @@ export async function deleteBlockList(id: string): Promise<void> {
     await queueDeleteOperation('block_lists', id);
   });
 
+  // Mark all deleted entities as modified
+  for (const website of websites) {
+    markEntityModified(website.id);
+  }
+  markEntityModified(id);
   scheduleSyncPush();
 }
 
@@ -146,6 +153,7 @@ export async function reorderBlockList(id: string, newOrder: number): Promise<Bl
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 

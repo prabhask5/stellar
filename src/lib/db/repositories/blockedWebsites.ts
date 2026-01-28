@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { BlockedWebsite } from '$lib/types';
 import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function getBlockedWebsites(blockListId: string): Promise<BlockedWebsite[]> {
   const websites = await db.blockedWebsites
@@ -38,6 +38,7 @@ export async function createBlockedWebsite(
       updated_at: timestamp
     });
   });
+  markEntityModified(newWebsite.id);
   scheduleSyncPush();
 
   return newWebsite;
@@ -67,6 +68,7 @@ export async function updateBlockedWebsite(
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -81,6 +83,7 @@ export async function deleteBlockedWebsite(id: string): Promise<void> {
     await queueDeleteOperation('blocked_websites', id);
   });
 
+  markEntityModified(id);
   scheduleSyncPush();
 }
 

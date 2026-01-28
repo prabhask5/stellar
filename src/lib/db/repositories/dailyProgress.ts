@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { DailyGoalProgress } from '$lib/types';
 import { queueCreateOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 async function getProgressForRoutineAndDate(
   routineId: string,
@@ -53,6 +53,7 @@ export async function upsertDailyProgress(
     });
 
     if (updated) {
+      markEntityModified(existing.id);
       scheduleSyncPush();
       return updated;
     }
@@ -79,6 +80,7 @@ export async function upsertDailyProgress(
       updated_at: timestamp
     });
   });
+  markEntityModified(newProgress.id);
   scheduleSyncPush();
 
   return newProgress;
@@ -122,6 +124,7 @@ export async function incrementDailyProgress(
     });
 
     if (updated) {
+      markEntityModified(existing.id);
       scheduleSyncPush();
       return updated;
     }
@@ -148,6 +151,7 @@ export async function incrementDailyProgress(
       updated_at: timestamp
     });
   });
+  markEntityModified(newProgress.id);
   scheduleSyncPush();
 
   return newProgress;

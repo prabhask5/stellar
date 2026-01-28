@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { LongTermTask } from '$lib/types';
 import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function createLongTermTask(
   name: string,
@@ -35,6 +35,7 @@ export async function createLongTermTask(
       updated_at: timestamp
     });
   });
+  markEntityModified(newTask.id);
   scheduleSyncPush();
 
   return newTask;
@@ -62,6 +63,7 @@ export async function updateLongTermTask(
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -92,6 +94,7 @@ export async function toggleLongTermTaskComplete(id: string): Promise<LongTermTa
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -107,5 +110,6 @@ export async function deleteLongTermTask(id: string): Promise<void> {
     await db.longTermTasks.update(id, { deleted: true, updated_at: timestamp });
     await queueDeleteOperation('long_term_tasks', id);
   });
+  markEntityModified(id);
   scheduleSyncPush();
 }

@@ -62,6 +62,27 @@ export { isOperationItem } from './sync/types';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline';
 
+// ============================================================
+// CONFLICT RESOLUTION TYPES
+// ============================================================
+
+/**
+ * Conflict history entry (stored in IndexedDB)
+ * Records field-level conflict resolutions for review and potential undo
+ */
+export interface ConflictHistoryEntry {
+  id?: number;
+  entityId: string;
+  entityType: string;
+  field: string;
+  localValue: unknown;
+  remoteValue: unknown;
+  resolvedValue: unknown;
+  winner: 'local' | 'remote' | 'merged';
+  strategy: string;
+  timestamp: string;
+}
+
 export interface DayProgress {
   date: string;
   totalGoals: number;

@@ -1,7 +1,7 @@
 import { db, generateId, now } from '../client';
 import type { DailyRoutineGoal, GoalType, DayOfWeek } from '$lib/types';
 import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush } from '$lib/sync/engine';
+import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function createDailyRoutineGoal(
   name: string,
@@ -58,6 +58,7 @@ export async function createDailyRoutineGoal(
       updated_at: timestamp
     });
   });
+  markEntityModified(newRoutine.id);
   scheduleSyncPush();
 
   return newRoutine;
@@ -85,6 +86,7 @@ export async function updateDailyRoutineGoal(
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 
@@ -113,6 +115,11 @@ export async function deleteDailyRoutineGoal(id: string): Promise<void> {
     await queueDeleteOperation('daily_routine_goals', id);
   });
 
+  // Mark all deleted entities as modified
+  for (const progress of progressRecords) {
+    markEntityModified(progress.id);
+  }
+  markEntityModified(id);
   scheduleSyncPush();
 }
 
@@ -136,6 +143,7 @@ export async function reorderDailyRoutineGoal(id: string, newOrder: number): Pro
   });
 
   if (updated) {
+    markEntityModified(id);
     scheduleSyncPush();
   }
 

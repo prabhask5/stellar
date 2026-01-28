@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, SyncOperationItem, TaskCategory, Commitment, DailyTask, LongTermTask, OfflineCredentials, OfflineSession, FocusSettings, FocusSession, BlockList, BlockedWebsite } from '$lib/types';
+import type { Goal, GoalList, DailyRoutineGoal, DailyGoalProgress, SyncOperationItem, TaskCategory, Commitment, DailyTask, LongTermTask, OfflineCredentials, OfflineSession, FocusSettings, FocusSession, BlockList, BlockedWebsite, ConflictHistoryEntry } from '$lib/types';
 
 export class GoalPlannerDB extends Dexie {
   goalLists!: Table<GoalList, string>;
@@ -17,6 +17,7 @@ export class GoalPlannerDB extends Dexie {
   focusSessions!: Table<FocusSession, string>;
   blockLists!: Table<BlockList, string>;
   blockedWebsites!: Table<BlockedWebsite, string>;
+  conflictHistory!: Table<ConflictHistoryEntry, number>;
 
   constructor() {
     super('GoalPlannerDB');
@@ -144,6 +145,28 @@ export class GoalPlannerDB extends Dexie {
           }
         }
       }
+    });
+
+    // Version 9: Add conflictHistory table for tracking conflict resolutions
+    // This enables review of past conflicts and potential undo functionality
+    this.version(9).stores({
+      goalLists: 'id, user_id, created_at, updated_at',
+      goals: 'id, goal_list_id, order, created_at, updated_at',
+      dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+      dailyGoalProgress: 'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+      syncQueue: '++id, table, entityId, timestamp',
+      taskCategories: 'id, user_id, order, created_at, updated_at',
+      commitments: 'id, user_id, section, order, created_at, updated_at',
+      dailyTasks: 'id, user_id, order, created_at, updated_at',
+      longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+      offlineCredentials: 'id',
+      offlineSession: 'id',
+      focusSettings: 'id, user_id, updated_at',
+      focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+      blockLists: 'id, user_id, order, updated_at',
+      blockedWebsites: 'id, block_list_id, updated_at',
+      // Conflict history: auto-increment id, indexed by entityId for lookups, timestamp for cleanup
+      conflictHistory: '++id, entityId, entityType, timestamp'
     });
   }
 }
