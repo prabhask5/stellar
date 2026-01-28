@@ -745,8 +745,8 @@
 
   .live-indicator {
     position: absolute;
-    bottom: 0;
-    right: 0;
+    bottom: -3px;
+    right: -3px;
     width: 14px;
     height: 14px;
     display: flex;
