@@ -183,9 +183,14 @@
 <div class="container">
   <header class="page-header">
     <h1>Daily Routines</h1>
-    <button class="btn btn-primary" onclick={() => (showCreateModal = true)}>
-      + New Routine
-    </button>
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-sm" onclick={() => goto(`/calendar/${today}`)}>
+        Today's Goals
+      </button>
+      <button class="btn btn-primary btn-sm" onclick={() => (showCreateModal = true)}>
+        + New Routine
+      </button>
+    </div>
   </header>
 
   {#if error}
@@ -390,6 +395,12 @@
     margin-bottom: 2.5rem;
     flex-wrap: wrap;
     gap: 1rem;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .page-header h1 {
@@ -936,10 +947,15 @@
       text-align: center;
     }
 
-    .page-header .btn {
-      width: 100%;
+    .header-actions {
       justify-content: center;
-      padding: 1rem;
+      gap: 0.625rem;
+    }
+
+    .header-actions .btn {
+      flex: 1;
+      max-width: 160px;
+      justify-content: center;
     }
 
     .legend {
@@ -1022,10 +1038,26 @@
     }
   }
 
+  /* Medium phones (400-430px) */
+  @media (min-width: 400px) and (max-width: 430px) {
+    .header-actions .btn {
+      padding: 0.5rem 1rem;
+    }
+  }
+
   /* iPhone 14/15/16 Pro Max specific */
   @media (min-width: 430px) and (max-width: 640px) {
     .page-header h1 {
       font-size: 2rem;
+    }
+
+    .page-header {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .header-actions {
+      justify-content: flex-end;
     }
 
     .routine-card {
@@ -1037,6 +1069,11 @@
   @media (max-width: 375px) {
     .page-header h1 {
       font-size: 1.5rem;
+    }
+
+    .header-actions .btn {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
     }
 
     .routine-info h4 {
