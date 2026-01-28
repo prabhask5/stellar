@@ -209,14 +209,12 @@ export function createDeleteOperation(
 
 /**
  * Check if two operations can be coalesced together.
- * For Phase 1, this maintains existing coalescing behavior.
- * Phase 2 will add true intent-preserving coalescing.
  *
- * Current rules:
+ * Coalescing rules:
  * - Same table + entityId + operationType can be coalesced
- * - Increment operations: NOT coalesced in Phase 1 (Phase 2 will sum deltas)
- * - Set operations: keep the latest value
- * - Create/delete: cannot coalesce
+ * - Increment operations: can be coalesced if same field (sums deltas)
+ * - Set operations: can be coalesced (keeps merged/latest values)
+ * - Create/delete: cannot coalesce (would lose intent)
  */
 export function canCoalesce(a: SyncOperationItem, b: SyncOperationItem): boolean {
   if (a.table !== b.table || a.entityId !== b.entityId) {
@@ -225,19 +223,23 @@ export function canCoalesce(a: SyncOperationItem, b: SyncOperationItem): boolean
 
   // Same operation type on same field can be coalesced
   if (a.operationType === b.operationType) {
-    // For field-level operations, must be same field
-    if (a.field && b.field && a.field !== b.field) {
-      return false;
-    }
-
     // Create and delete cannot coalesce (would lose intent)
     if (a.operationType === 'create' || a.operationType === 'delete') {
       return false;
     }
 
-    // Increment operations are NOT coalesced in Phase 1
-    // Phase 2 will add increment summing
+    // For increment operations, must be same field
     if (a.operationType === 'increment') {
+      // Both must have a field specified
+      if (!a.field || !b.field) {
+        return false;
+      }
+      // Must be the same field
+      return a.field === b.field;
+    }
+
+    // For set operations with a specific field, must be same field
+    if (a.field && b.field && a.field !== b.field) {
       return false;
     }
 
@@ -249,8 +251,10 @@ export function canCoalesce(a: SyncOperationItem, b: SyncOperationItem): boolean
 
 /**
  * Coalesce two operations into one.
- * For Phase 1, this keeps the latest value.
- * Phase 2 will add increment summing.
+ *
+ * Coalescing strategy by operation type:
+ * - Increment: sum the deltas (e.g., +1 and +1 = +2)
+ * - Set: keep the newer value (last-write-wins)
  *
  * @param older The older operation
  * @param newer The newer operation
@@ -260,8 +264,20 @@ export function coalesceOperations(
   older: SyncOperationItem,
   newer: SyncOperationItem
 ): SyncOperationItem {
-  // For Phase 1: keep the newer operation's value
-  // but preserve the older operation's id for queue management
+  // For increment operations: sum the deltas
+  if (older.operationType === 'increment' && newer.operationType === 'increment') {
+    const olderDelta = typeof older.value === 'number' ? older.value : 0;
+    const newerDelta = typeof newer.value === 'number' ? newer.value : 0;
+    const summedDelta = olderDelta + newerDelta;
+
+    return {
+      ...older,
+      // Keep older's id and timestamp for queue management and backoff
+      value: summedDelta,
+    };
+  }
+
+  // For set operations: keep the newer value but preserve older's id/timestamp
   return {
     ...newer,
     id: older.id,

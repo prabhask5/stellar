@@ -696,8 +696,50 @@ Comprehensive test plan covering features, edge cases, offline behavior, synchro
 | Create operation queued | Create new goal | Queue item has `operationType: 'create'`, full payload in value |
 | Delete operation queued | Delete a goal | Queue item has `operationType: 'delete'`, no payload needed |
 | Increment sync | Increment goal, let sync | Server receives correct incremented value |
-| Multiple increments coalesce | Click + 10 times rapidly | Set operations merge; increment operations stay separate |
-| Set operations coalesce | Change name twice quickly | Single merged set operation in queue |
+
+### 13.6 Aggressive Coalescing
+
+#### Same-Type Coalescing
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Multiple increments coalesce | Click + 10 times rapidly | Single increment with `value: 10` |
+| Multiple sets coalesce | Change name, then change again | Single set with final name |
+| Multi-field sets merge | Change name, then change target | Single set with both fields |
+
+#### Cross-Operation Coalescing
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Create then delete | Create goal offline, delete before sync | Queue is empty (both cancelled) |
+| Create, update, delete | Create goal, edit it, delete it | Queue is empty (all cancelled) |
+| Updates then delete | Edit goal offline, then delete | Only delete in queue (updates removed) |
+| Create then updates | Create goal offline, edit 5 times | Single create with merged payload |
+| Create then increments | Create goal offline, increment 10 times | Single create with `current_value: 10` |
+
+#### Same-Field Increment/Set Interactions
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Increments then set | Increment 5 times, then set value to 100 | Single set with `value: 100` (increments dropped) |
+| Set then increments | Set value to 50, then increment 3 times | Single set with `value: 53` |
+| Mixed sequence | Increment, set to 10, increment twice | Single set with `value: 12` |
+
+#### No-Op Removal
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Zero-delta increment | Increment +5 then -5 | Queue is empty (net zero removed) |
+| Empty set payload | Trigger set with no fields | Queue is empty (no-op removed) |
+| Timestamp-only set | Set only `updated_at` field | Queue is empty (server auto-updates) |
+
+#### Coalescing Performance
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Single DB fetch | Add 100 items, coalesce | Only 1 `toArray()` call (check devtools) |
+| Batch deletes | Add 50 duplicate increments | Single `bulkDelete()` call |
+| Batch updates | Add items needing updates | Updates batched in single transaction |
 
 #### Debug: Inspect Queue in Browser Console
 

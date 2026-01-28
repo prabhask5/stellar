@@ -239,13 +239,45 @@ interface SyncOperationItem {
 
 ### Queue Coalescing
 
-Before pushing, the sync engine coalesces pending operations to reduce network requests:
+Before pushing, the sync engine aggressively coalesces pending operations to minimize network requests and data transfer:
 
-- **Set operations**: Multiple sets to the same entity are merged, keeping the combined payload
-- **Increment operations**: Not coalesced in the current phase (future phases will sum deltas)
-- **Create/delete operations**: Never coalesced (would lose intent)
+#### Cross-Operation Coalescing
 
-This optimization is transparent and maintains data integrity.
+| Pattern | Result | Rationale |
+|---------|--------|-----------|
+| `CREATE` → `DELETE` | Cancel both | Entity never needs to exist on server |
+| `CREATE` → `UPDATE(s)` → `DELETE` | Cancel all | Net effect is nothing |
+| `UPDATE(s)` → `DELETE` | Keep only `DELETE` | No point updating before delete |
+| `CREATE` → `UPDATE(s)` | Merge into `CREATE` | Single insert with final state |
+| `CREATE` → `SET(s)` | Merge into `CREATE` | Single insert with final state |
+
+#### Same-Field Coalescing
+
+| Pattern | Result | Rationale |
+|---------|--------|-----------|
+| `INCREMENT(s)` → `SET` | Keep only `SET` | Set overwrites increment values |
+| `SET` → `INCREMENT(s)` | Single `SET` with final value | Combine set + increments |
+| Multiple `INCREMENT`s | Sum deltas | e.g., 50 +1s → single +50 |
+| Multiple `SET`s | Merge values | Later values override earlier |
+
+#### No-Op Removal
+
+| Pattern | Result | Rationale |
+|---------|--------|-----------|
+| Increment with delta = 0 | Remove | No effect (e.g., +5 then -5) |
+| Set with empty payload | Remove | No data to update |
+| Set with only `updated_at` | Remove | Server auto-updates timestamps |
+
+#### Performance Optimizations
+
+| Optimization | Before | After |
+|--------------|--------|-------|
+| DB fetches | 4 `toArray()` calls (one per phase) | 1 `toArray()` call (single-pass) |
+| Deletes | Individual `delete()` calls | Single `bulkDelete()` call |
+| Updates | Individual `update()` calls | Batched in single transaction |
+| Processing | Sequential with DB round-trips | In-memory with batch commit |
+
+This optimization is transparent, maintains data integrity, and can dramatically reduce sync operations (e.g., create + 50 increments + delete = 0 server requests).
 
 ### Exponential Backoff
 

@@ -1,14 +1,15 @@
 /**
  * Intent-Based Sync Operation Types
  *
- * Phase 1 of multi-device sync improvements.
  * These types enable preserving operation intent (e.g., "increment by 1")
  * rather than just final state (e.g., "current_value: 50").
  *
- * This allows proper conflict resolution in future phases:
- * - Device A increments 50 times → intent preserved as +50
- * - Device B increments 30 times → intent preserved as +30
- * - Merge result: +80 (not overwrite with one device's value)
+ * Benefits:
+ * - Rapid increments are coalesced (50 +1s → single +50)
+ * - Proper conflict resolution in future phases:
+ *   - Device A increments 50 times → intent preserved as +50
+ *   - Device B increments 30 times → intent preserved as +30
+ *   - Merge result: +80 (not overwrite with one device's value)
  */
 
 /**

@@ -4,75 +4,342 @@ import type { SyncOperationItem, SyncEntityType } from './types';
 // Max retries before giving up on a sync item
 const MAX_SYNC_RETRIES = 5;
 
-// Coalesce multiple operations to the same entity into fewer operations
-// This dramatically reduces the number of server requests when user rapidly
-// increments a goal (e.g., 50 rapid clicks = 1 request instead of 50)
+/**
+ * Coalesce multiple operations to the same entity into fewer operations.
+ * This dramatically reduces the number of server requests and data transfer.
+ *
+ * PERFORMANCE OPTIMIZED:
+ * - Single DB fetch at start (no re-fetching between phases)
+ * - All processing done in memory
+ * - Batch deletes and updates at the end
+ *
+ * Coalescing strategies (applied in single pass):
+ *
+ * Cross-operation coalescing:
+ *   1. CREATE → DELETE: Cancel both (entity never needs to exist on server)
+ *   2. CREATE → UPDATE(s) → DELETE: Cancel all (net effect is nothing)
+ *   3. UPDATE(s) → DELETE: Remove updates, keep only delete
+ *   4. CREATE → UPDATE(s): Merge updates into create payload
+ *   5. CREATE → SET(s): Merge sets into create payload
+ *   6. INCREMENT(s) → SET (same field): Drop increments, keep set
+ *   7. SET → INCREMENT(s) (same field): Combine into single set
+ *
+ * Same-type coalescing:
+ *   8. Multiple INCREMENT(s): Sum deltas into single increment
+ *   9. Multiple SET(s): Merge values into single set
+ *
+ * No-op removal:
+ *   10. Zero-delta increments: Remove (no effect)
+ *   11. Empty/timestamp-only sets: Remove (no data change)
+ */
 export async function coalescePendingOps(): Promise<number> {
   const allItems = await db.syncQueue.toArray() as unknown as SyncOperationItem[];
   if (allItems.length <= 1) return 0;
 
-  // Group by table + entityId
-  const grouped = new Map<string, SyncOperationItem[]>();
+  // Track changes in memory - apply in batch at the end
+  const idsToDelete = new Set<number>();
+  const itemUpdates = new Map<number, Partial<SyncOperationItem>>();
+
+  // Track which items are still "alive" (not marked for deletion)
+  const isAlive = (item: SyncOperationItem) => item.id !== undefined && !idsToDelete.has(item.id);
+
+  // Helper to mark item for deletion
+  const markDeleted = (item: SyncOperationItem) => {
+    if (item.id !== undefined) idsToDelete.add(item.id);
+  };
+
+  // Helper to mark item for update
+  const markUpdated = (item: SyncOperationItem, updates: Partial<SyncOperationItem>) => {
+    if (item.id !== undefined) {
+      const existing = itemUpdates.get(item.id) || {};
+      itemUpdates.set(item.id, { ...existing, ...updates });
+    }
+  };
+
+  // Helper to get effective value (considering pending updates)
+  const getEffectiveValue = (item: SyncOperationItem): unknown => {
+    if (item.id !== undefined && itemUpdates.has(item.id)) {
+      return itemUpdates.get(item.id)!.value ?? item.value;
+    }
+    return item.value;
+  };
+
+  // === STEP 1: Group all operations by entity ===
+  const entityGroups = new Map<string, SyncOperationItem[]>();
   for (const item of allItems) {
     const key = `${item.table}:${item.entityId}`;
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key)!.push(item);
+    if (!entityGroups.has(key)) entityGroups.set(key, []);
+    entityGroups.get(key)!.push(item);
   }
 
-  let coalesced = 0;
+  // === STEP 2: Process each entity group ===
+  for (const [, items] of entityGroups) {
+    // Sort by timestamp to understand the sequence
+    items.sort((a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
 
-  // For each group with multiple items, merge compatible operations
-  for (const [, items] of grouped) {
-    if (items.length <= 1) continue;
+    const hasCreate = items.some(i => i.operationType === 'create');
+    const hasDelete = items.some(i => i.operationType === 'delete');
 
-    // Separate by operation type - we can only merge same-type operations
-    const setItems = items.filter(i => i.operationType === 'set');
+    // Case 1: CREATE followed eventually by DELETE → cancel everything for this entity
+    if (hasCreate && hasDelete) {
+      for (const item of items) {
+        markDeleted(item);
+      }
+      continue;
+    }
 
-    // Coalesce multiple set operations to the same entity
-    if (setItems.length > 1) {
-      // Sort by timestamp (oldest first)
-      setItems.sort((a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-
-      // Merge all values into the latest item (later values override earlier)
-      let mergedValue: Record<string, unknown> = {};
-      for (const item of setItems) {
-        if (item.field) {
-          // Single field set
-          mergedValue[item.field] = item.value;
-        } else if (typeof item.value === 'object' && item.value !== null) {
-          // Multi-field set
-          mergedValue = { ...mergedValue, ...(item.value as Record<string, unknown>) };
+    // Case 2: No CREATE but has DELETE → remove all non-delete operations
+    if (!hasCreate && hasDelete) {
+      for (const item of items) {
+        if (item.operationType !== 'delete') {
+          markDeleted(item);
         }
       }
+      continue;
+    }
 
-      // Keep the OLDEST item (so it passes the backoff check) but with merged value
-      const oldestItem = setItems[0];
-      const itemsToDelete = setItems.slice(1);
+    // Case 3: Has CREATE but no DELETE → merge all updates/sets into create
+    if (hasCreate && !hasDelete) {
+      const createItem = items.find(i => i.operationType === 'create');
+      const otherItems = items.filter(i => i.operationType !== 'create');
 
-      // Update the oldest item with merged value (keeps original timestamp for backoff)
-      if (oldestItem.id) {
-        await db.syncQueue.update(oldestItem.id, {
-          value: mergedValue,
-          field: undefined, // Clear single field since we now have merged payload
-        });
-      }
+      if (createItem && otherItems.length > 0) {
+        let mergedPayload = { ...(createItem.value as Record<string, unknown>) };
 
-      // Delete newer items (they've been merged into the oldest)
-      for (const item of itemsToDelete) {
-        if (item.id) {
-          await db.syncQueue.delete(item.id);
-          coalesced++;
+        for (const item of otherItems) {
+          if (item.operationType === 'set') {
+            if (item.field) {
+              mergedPayload[item.field] = item.value;
+            } else if (typeof item.value === 'object' && item.value !== null) {
+              mergedPayload = { ...mergedPayload, ...(item.value as Record<string, unknown>) };
+            }
+          } else if (item.operationType === 'increment' && item.field) {
+            const currentVal = typeof mergedPayload[item.field] === 'number'
+              ? mergedPayload[item.field] as number
+              : 0;
+            const delta = typeof item.value === 'number' ? item.value : 0;
+            mergedPayload[item.field] = currentVal + delta;
+          }
         }
+
+        markUpdated(createItem, { value: mergedPayload });
+
+        for (const item of otherItems) {
+          markDeleted(item);
+        }
+      }
+      continue;
+    }
+
+    // Case 4: No create, no delete - handle increment/set interactions and same-type coalescing
+    processFieldOperations(items, markDeleted, markUpdated);
+  }
+
+  // === STEP 3: Coalesce remaining INCREMENT operations (not yet deleted) ===
+  const incrementGroups = new Map<string, SyncOperationItem[]>();
+  for (const item of allItems) {
+    if (item.operationType === 'increment' && item.field && isAlive(item)) {
+      const key = `${item.table}:${item.entityId}:${item.field}`;
+      if (!incrementGroups.has(key)) incrementGroups.set(key, []);
+      incrementGroups.get(key)!.push(item);
+    }
+  }
+
+  for (const [, items] of incrementGroups) {
+    const aliveItems = items.filter(isAlive);
+    if (aliveItems.length <= 1) continue;
+
+    aliveItems.sort((a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    let totalDelta = 0;
+    for (const item of aliveItems) {
+      const effectiveValue = getEffectiveValue(item);
+      const delta = typeof effectiveValue === 'number' ? effectiveValue : 0;
+      totalDelta += delta;
+    }
+
+    const oldestItem = aliveItems[0];
+    markUpdated(oldestItem, { value: totalDelta });
+
+    for (let i = 1; i < aliveItems.length; i++) {
+      markDeleted(aliveItems[i]);
+    }
+  }
+
+  // === STEP 4: Coalesce remaining SET operations (not yet deleted) ===
+  const setGroups = new Map<string, SyncOperationItem[]>();
+  for (const item of allItems) {
+    if (item.operationType === 'set' && isAlive(item)) {
+      const key = `${item.table}:${item.entityId}`;
+      if (!setGroups.has(key)) setGroups.set(key, []);
+      setGroups.get(key)!.push(item);
+    }
+  }
+
+  for (const [, items] of setGroups) {
+    const aliveItems = items.filter(isAlive);
+    if (aliveItems.length <= 1) continue;
+
+    aliveItems.sort((a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    let mergedValue: Record<string, unknown> = {};
+    for (const item of aliveItems) {
+      const effectiveValue = getEffectiveValue(item);
+      if (item.field) {
+        mergedValue[item.field] = effectiveValue;
+      } else if (typeof effectiveValue === 'object' && effectiveValue !== null) {
+        mergedValue = { ...mergedValue, ...(effectiveValue as Record<string, unknown>) };
       }
     }
 
-    // Note: increment operations are NOT coalesced in Phase 1
-    // Phase 2 will add true intent-preserving coalescing that sums increments
+    const oldestItem = aliveItems[0];
+    markUpdated(oldestItem, { value: mergedValue, field: undefined });
+
+    for (let i = 1; i < aliveItems.length; i++) {
+      markDeleted(aliveItems[i]);
+    }
   }
 
-  return coalesced;
+  // === STEP 5: Remove no-op operations ===
+  for (const item of allItems) {
+    if (!isAlive(item)) continue;
+
+    let shouldDelete = false;
+    const effectiveValue = getEffectiveValue(item);
+
+    // Zero-delta increments are no-ops
+    if (item.operationType === 'increment') {
+      const delta = typeof effectiveValue === 'number' ? effectiveValue : 0;
+      if (delta === 0) {
+        shouldDelete = true;
+      }
+    }
+
+    // Empty sets or sets with only updated_at are no-ops
+    if (item.operationType === 'set') {
+      const pendingUpdate = item.id !== undefined ? itemUpdates.get(item.id) : undefined;
+      const effectiveField = pendingUpdate?.field !== undefined ? pendingUpdate.field : item.field;
+
+      if (effectiveField) {
+        if (effectiveField === 'updated_at') {
+          shouldDelete = true;
+        }
+      } else if (typeof effectiveValue === 'object' && effectiveValue !== null) {
+        const payload = effectiveValue as Record<string, unknown>;
+        const keys = Object.keys(payload).filter(k => k !== 'updated_at');
+        if (keys.length === 0) {
+          shouldDelete = true;
+        }
+      } else if (effectiveValue === undefined || effectiveValue === null) {
+        shouldDelete = true;
+      }
+    }
+
+    if (shouldDelete) {
+      markDeleted(item);
+    }
+  }
+
+  // === STEP 6: Apply all changes in batch ===
+  const deleteIds = Array.from(idsToDelete);
+
+  // Filter out updates for items we're deleting
+  const finalUpdates: Array<{ id: number; changes: Partial<SyncOperationItem> }> = [];
+  for (const [id, changes] of itemUpdates) {
+    if (!idsToDelete.has(id)) {
+      finalUpdates.push({ id, changes });
+    }
+  }
+
+  // Batch delete
+  if (deleteIds.length > 0) {
+    await db.syncQueue.bulkDelete(deleteIds);
+  }
+
+  // Batch update (Dexie doesn't have bulkUpdate, so we use a transaction)
+  if (finalUpdates.length > 0) {
+    await db.transaction('rw', db.syncQueue, async () => {
+      for (const { id, changes } of finalUpdates) {
+        await db.syncQueue.update(id, changes);
+      }
+    });
+  }
+
+  return deleteIds.length;
+}
+
+/**
+ * Process increment/set interactions for the same field within an entity (in-memory).
+ * - INCREMENT(s) followed by SET on same field: drop increments (set overwrites)
+ * - SET followed by INCREMENT(s) on same field: convert to single set with final value
+ */
+function processFieldOperations(
+  items: SyncOperationItem[],
+  markDeleted: (item: SyncOperationItem) => void,
+  markUpdated: (item: SyncOperationItem, updates: Partial<SyncOperationItem>) => void
+): void {
+  // Group by field
+  const fieldGroups = new Map<string, SyncOperationItem[]>();
+
+  for (const item of items) {
+    if (item.field && (item.operationType === 'increment' || item.operationType === 'set')) {
+      const key = item.field;
+      if (!fieldGroups.has(key)) fieldGroups.set(key, []);
+      fieldGroups.get(key)!.push(item);
+    }
+  }
+
+  for (const [, fieldItems] of fieldGroups) {
+    if (fieldItems.length <= 1) continue;
+
+    // Sort by timestamp
+    fieldItems.sort((a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    const hasIncrement = fieldItems.some(i => i.operationType === 'increment');
+    const hasSet = fieldItems.some(i => i.operationType === 'set');
+
+    if (hasIncrement && hasSet) {
+      // Find the last set operation
+      const lastSetIndex = fieldItems.map(i => i.operationType).lastIndexOf('set');
+      const lastSet = fieldItems[lastSetIndex];
+
+      // Check if there are increments AFTER the last set
+      const incrementsAfterSet = fieldItems.slice(lastSetIndex + 1)
+        .filter(i => i.operationType === 'increment');
+
+      if (incrementsAfterSet.length > 0) {
+        // SET followed by INCREMENT(s): sum increments and add to set value
+        let totalDelta = 0;
+        for (const inc of incrementsAfterSet) {
+          totalDelta += typeof inc.value === 'number' ? inc.value : 0;
+        }
+
+        const baseValue = typeof lastSet.value === 'number' ? lastSet.value : 0;
+        const finalValue = baseValue + totalDelta;
+
+        markUpdated(lastSet, { value: finalValue });
+
+        // Delete all increments after the set
+        for (const inc of incrementsAfterSet) {
+          markDeleted(inc);
+        }
+      }
+
+      // Delete all operations BEFORE the last set (they're overwritten anyway)
+      const itemsBeforeLastSet = fieldItems.slice(0, lastSetIndex);
+      for (const item of itemsBeforeLastSet) {
+        markDeleted(item);
+      }
+    }
+  }
 }
 
 // Exponential backoff: check if item should be retried based on retry count
