@@ -7,6 +7,16 @@ import { syncStatusStore } from '$lib/stores/sync';
 import { calculateGoalProgressCapped } from '$lib/utils/colors';
 import { isRoutineActiveOnDate } from '$lib/utils/dates';
 import { resolveConflicts, storeConflictHistory, cleanupConflictHistory, getPendingOpsForEntity } from './conflicts';
+import {
+  startRealtimeSubscriptions,
+  stopRealtimeSubscriptions,
+  onRealtimeDataUpdate,
+  onConnectionStateChange,
+  cleanupRealtimeTracking,
+  isRealtimeHealthy,
+  pauseRealtime,
+  type RealtimeConnectionState
+} from './realtime';
 
 // ============================================================
 // LOCAL-FIRST SYNC ENGINE
@@ -1864,7 +1874,11 @@ if (typeof window !== 'undefined') {
 // LIFECYCLE
 // ============================================================
 
-export function startSyncEngine(): void {
+// Store cleanup functions for realtime subscriptions
+let realtimeDataUnsubscribe: (() => void) | null = null;
+let realtimeConnectionUnsubscribe: (() => void) | null = null;
+
+export async function startSyncEngine(): Promise<void> {
   if (typeof window === 'undefined') return;
 
   // Clean up any existing listeners and intervals first (prevents duplicates if called multiple times)
@@ -1889,6 +1903,14 @@ export function startSyncEngine(): void {
     clearTimeout(visibilityDebounceTimeout);
     visibilityDebounceTimeout = null;
   }
+  if (realtimeDataUnsubscribe) {
+    realtimeDataUnsubscribe();
+    realtimeDataUnsubscribe = null;
+  }
+  if (realtimeConnectionUnsubscribe) {
+    realtimeConnectionUnsubscribe();
+    realtimeConnectionUnsubscribe = null;
+  }
 
   // Reset sync status to clean state (clears any stale error from previous session)
   // This prevents error flash when navigating back after a previous sync failure
@@ -1901,9 +1923,14 @@ export function startSyncEngine(): void {
     markOffline();
   }
 
-  // Handle online event - run sync when connection restored (show indicator)
-  handleOnlineRef = () => {
+  // Handle online event - run sync and start realtime when connection restored
+  handleOnlineRef = async () => {
     runFullSync(false);
+    // Start realtime subscriptions when coming online
+    const userId = await getCurrentUserId();
+    if (userId) {
+      startRealtimeSubscriptions(userId);
+    }
   };
   window.addEventListener('online', handleOnlineRef);
 
@@ -1912,6 +1939,8 @@ export function startSyncEngine(): void {
     markOffline(); // Mark that auth needs validation when we come back online
     syncStatusStore.setStatus('offline');
     syncStatusStore.setSyncMessage('You\'re offline. Changes will sync when reconnected.');
+    // Pause realtime - stops reconnection attempts until we come back online
+    pauseRealtime();
   };
   window.addEventListener('offline', handleOfflineRef);
 
@@ -1929,12 +1958,18 @@ export function startSyncEngine(): void {
 
     // If tab just became visible, check if we should sync
     if (wasHidden && isTabVisible && navigator.onLine) {
-      // Only sync if user was away for > 5 minutes (reduces egress for quick tab switches)
+      // Only sync if user was away for > 5 minutes AND realtime is not healthy
+      // If realtime is connected, we're already up-to-date
       const awayDuration = tabHiddenAt ? Date.now() - tabHiddenAt : 0;
       tabHiddenAt = null;
 
       if (awayDuration < VISIBILITY_SYNC_MIN_AWAY_MS) {
         // User was only away briefly, skip sync
+        return;
+      }
+
+      // Skip sync if realtime is healthy (we're already up-to-date)
+      if (isRealtimeHealthy()) {
         return;
       }
 
@@ -1955,10 +1990,37 @@ export function startSyncEngine(): void {
   isTabVisible = !document.hidden;
   syncStatusStore.setTabVisible(isTabVisible);
 
+  // Setup realtime subscriptions
+  const userId = await getCurrentUserId();
+  if (userId && navigator.onLine) {
+    // Subscribe to realtime data updates - refresh stores when remote changes arrive
+    realtimeDataUnsubscribe = onRealtimeDataUpdate(() => {
+      // Notify stores to refresh from local DB
+      notifySyncComplete();
+    });
+
+    // Subscribe to realtime connection state changes
+    realtimeConnectionUnsubscribe = onConnectionStateChange((connectionState: RealtimeConnectionState) => {
+      // Update sync store with realtime connection state
+      syncStatusStore.setRealtimeState(connectionState);
+
+      // Update sync status based on realtime connection
+      if (connectionState === 'error' && navigator.onLine) {
+        // Realtime failed but we're online - will fall back to polling
+        console.log('[SYNC] Realtime connection failed, falling back to polling');
+      }
+    });
+
+    // Start realtime subscriptions
+    startRealtimeSubscriptions(userId);
+  }
+
   // Start periodic sync (quiet mode - don't show indicator unless needed)
+  // Reduced frequency when realtime is healthy
   syncInterval = setInterval(async () => {
     // Only run periodic sync if tab is visible and online
-    if (navigator.onLine && isTabVisible) {
+    // Skip if realtime is healthy (reduces egress significantly)
+    if (navigator.onLine && isTabVisible && !isRealtimeHealthy()) {
       runFullSync(true); // Quiet background sync
     }
 
@@ -1966,6 +2028,7 @@ export function startSyncEngine(): void {
     await cleanupOldTombstones();
     await cleanupConflictHistory();
     cleanupRecentlyModified();
+    cleanupRealtimeTracking();
     const failedResult = await cleanupFailedItems();
 
     // Notify user if items permanently failed
@@ -1987,6 +2050,7 @@ export function startSyncEngine(): void {
   // Run initial cleanup
   cleanupOldTombstones();
   cleanupConflictHistory();
+  cleanupRealtimeTracking();
   cleanupFailedItems().then(failedResult => {
     if (failedResult.count > 0) {
       syncStatusStore.setStatus('error');
@@ -1998,7 +2062,7 @@ export function startSyncEngine(): void {
   });
 }
 
-export function stopSyncEngine(): void {
+export async function stopSyncEngine(): Promise<void> {
   if (typeof window === 'undefined') return;
 
   // Remove event listeners to prevent memory leaks
@@ -2014,6 +2078,19 @@ export function stopSyncEngine(): void {
     document.removeEventListener('visibilitychange', handleVisibilityChangeRef);
     handleVisibilityChangeRef = null;
   }
+
+  // Clean up realtime subscription callbacks
+  if (realtimeDataUnsubscribe) {
+    realtimeDataUnsubscribe();
+    realtimeDataUnsubscribe = null;
+  }
+  if (realtimeConnectionUnsubscribe) {
+    realtimeConnectionUnsubscribe();
+    realtimeConnectionUnsubscribe = null;
+  }
+
+  // Stop realtime subscriptions
+  await stopRealtimeSubscriptions();
 
   if (syncTimeout) {
     clearTimeout(syncTimeout);

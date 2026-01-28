@@ -1067,30 +1067,45 @@ const COLUMNS = {
 
 | Component | Interval | Condition |
 |-----------|----------|-----------|
-| Main app periodic sync | 15 minutes | Tab visible AND online |
-| Tab visibility sync | On visible | Only if away >5 minutes |
+| Main app periodic sync | 15 minutes | Tab visible AND online AND realtime unhealthy |
+| Tab visibility sync | On visible | Only if away >5 min AND realtime unhealthy |
 | Extension service worker | 30 seconds | Only when realtime unhealthy |
 | Extension popup | 30 seconds | Only when realtime unhealthy |
 
 ### Realtime-First Architecture
 
-The browser extension uses Supabase Realtime as the primary data channel:
+Both the main web app and browser extension use Supabase Realtime as the primary data channel:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    REALTIME-FIRST PATTERN                        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  1. Subscribe to Realtime channel                                │
-│  2. On SUBSCRIBED status: disable polling                        │
+│  1. Subscribe to Realtime channel on app start                   │
+│  2. On SUBSCRIBED status: skip periodic polling                  │
 │  3. Receive instant updates via WebSocket                        │
-│  4. If realtime fails: enable polling fallback (30s)            │
-│  5. On reconnect: re-subscribe, disable polling                  │
+│  4. Apply changes through conflict resolution engine             │
+│  5. Notify stores to refresh from local DB                       │
+│  6. If realtime fails: enable polling fallback (15 min)         │
+│  7. On reconnect: re-subscribe, disable polling                  │
 │                                                                  │
 │  Result: Near-zero egress when realtime is healthy              │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### Realtime Connection States
+
+The sync system tracks realtime connection status:
+
+| State | Description | Sync Behavior |
+|-------|-------------|---------------|
+| `disconnected` | No active subscription | Polling enabled |
+| `connecting` | Subscription in progress | Polling enabled |
+| `connected` | WebSocket active, receiving updates | Polling disabled |
+| `error` | Connection failed after retries | Polling enabled (fallback) |
+
+Automatic reconnection uses exponential backoff (1s, 2s, 4s, 8s, 16s) with max 5 attempts before falling back to polling.
 
 ### Queue Coalescing
 

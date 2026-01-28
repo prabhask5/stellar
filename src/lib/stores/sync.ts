@@ -10,6 +10,9 @@ export interface SyncError {
   timestamp: string;
 }
 
+// Realtime connection state
+export type RealtimeState = 'disconnected' | 'connecting' | 'connected' | 'error';
+
 interface SyncState {
   status: SyncStatus;
   pendingCount: number;
@@ -19,6 +22,7 @@ interface SyncState {
   lastSyncTime: string | null;
   syncMessage: string | null; // Human-readable status message
   isTabVisible: boolean; // Track if tab is visible
+  realtimeState: RealtimeState; // Track realtime connection
 }
 
 // Minimum time to show 'syncing' state to prevent flickering (ms)
@@ -36,7 +40,8 @@ function createSyncStatusStore() {
     syncErrors: [],
     lastSyncTime: null,
     syncMessage: null,
-    isTabVisible: true
+    isTabVisible: true,
+    realtimeState: 'disconnected'
   });
 
   let currentStatus: SyncStatus = 'idle';
@@ -102,6 +107,7 @@ function createSyncStatusStore() {
     setLastSyncTime: (time: string) => update(state => ({ ...state, lastSyncTime: time })),
     setSyncMessage: (message: string | null) => update(state => ({ ...state, syncMessage: message })),
     setTabVisible: (visible: boolean) => update(state => ({ ...state, isTabVisible: visible })),
+    setRealtimeState: (realtimeState: RealtimeState) => update(state => ({ ...state, realtimeState })),
     reset: () => {
       if (pendingStatusChange) {
         clearTimeout(pendingStatusChange.timeout);
@@ -109,7 +115,7 @@ function createSyncStatusStore() {
       }
       syncingStartTime = null;
       currentStatus = 'idle';
-      set({ status: 'idle', pendingCount: 0, lastError: null, lastErrorDetails: null, syncErrors: [], lastSyncTime: null, syncMessage: null, isTabVisible: true });
+      set({ status: 'idle', pendingCount: 0, lastError: null, lastErrorDetails: null, syncErrors: [], lastSyncTime: null, syncMessage: null, isTabVisible: true, realtimeState: 'disconnected' });
     }
   };
 }

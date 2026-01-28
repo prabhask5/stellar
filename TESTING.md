@@ -883,7 +883,40 @@ console.log(items);
 
 ## 16. Real-time Tests
 
-### 16.1 Focus Session Updates
+### 16.1 Web App Real-time Subscriptions
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Initial connection | Sign in to web app | Realtime channel connects, status shows 'connected' |
+| Receive remote change | Change data on another device | Change appears instantly (~100ms) without manual refresh |
+| Conflict resolution | Edit same entity on two devices | Conflict resolved via existing rules (latest wins, pending ops protected) |
+| Skip own changes | Make local change | Own change not echoed back (no duplicate processing) |
+| Recently modified protection | Make rapid local changes | Remote changes during 2s window are ignored |
+| Disconnect/reconnect | Lose network briefly | Auto-reconnects with exponential backoff |
+| Max reconnect attempts | Network down for extended time | Falls back to polling after 5 attempts |
+| Sign out cleanup | Sign out of app | Realtime subscription removed, channel closed |
+
+### 16.2 Multi-Device Sync
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Create on device A | Create goal list on phone | Appears on desktop instantly |
+| Edit on device A | Edit goal on tablet | Desktop shows updated value |
+| Delete on device A | Delete routine on desktop | Phone shows deletion |
+| Offline then sync | Make changes offline, reconnect | Changes sync, no duplicates |
+| Conflicting edits | Edit same field on 2 devices simultaneously | Later timestamp wins, both devices converge |
+| Pending ops protection | Edit on phone, before sync edit same entity on desktop | Phone's pending ops preserved |
+
+### 16.3 Polling Fallback
+
+| Test Case | Steps | Expected Result |
+|-----------|-------|-----------------|
+| Realtime healthy | Check periodic sync | Polling skipped when realtime connected |
+| Realtime unhealthy | Realtime fails, wait 15 min | Polling sync runs |
+| Tab visibility sync | Return to tab after 5+ min | Sync skipped if realtime healthy |
+| Tab visibility sync fallback | Realtime failed, return to tab | Sync runs (fallback mode) |
+
+### 16.4 Focus Session Updates (Extension)
 
 | Test Case | Steps | Expected Result |
 |-----------|-------|-----------------|
@@ -892,7 +925,7 @@ console.log(items);
 | Stop on web | Stop in web app | Extension sees idle state |
 | Phase transition | Focus → break | Extension updates phase |
 
-### 16.2 Block List Updates
+### 16.5 Block List Updates (Extension)
 
 | Test Case | Steps | Expected Result |
 |-----------|-------|-----------------|
@@ -900,12 +933,13 @@ console.log(items);
 | Remove domain | Remove domain | Extension stops blocking |
 | Toggle list | Disable block list | Extension respects disabled state |
 
-### 16.3 Subscription Recovery
+### 16.6 Subscription Recovery
 
 | Test Case | Steps | Expected Result |
 |-----------|-------|-----------------|
-| Connection drop | Websocket disconnects | Automatic reconnect |
+| Connection drop | Websocket disconnects | Automatic reconnect with backoff |
 | Token refresh | Token expires | Subscription re-established |
+| Network flap | Network on/off rapidly | Handles gracefully, no duplicate subscriptions |
 
 ---
 

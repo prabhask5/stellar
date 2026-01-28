@@ -82,7 +82,7 @@ export const load: LayoutLoad = async (): Promise<LayoutData> => {
 
         if (session && !isSessionExpired(session)) {
           // Valid Supabase session - use it
-          startSyncEngine();
+          await startSyncEngine();
           return { session, authMode: 'supabase', offlineProfile: null };
         }
 
@@ -97,7 +97,7 @@ export const load: LayoutLoad = async (): Promise<LayoutData> => {
       if (session && !isSessionExpired(session)) {
         // Supabase session still valid in localStorage - use it
         // Start sync engine even when offline - it will queue operations and sync when online
-        startSyncEngine();
+        await startSyncEngine();
         return { session, authMode: 'supabase', offlineProfile: null };
       }
 
@@ -113,7 +113,7 @@ export const load: LayoutLoad = async (): Promise<LayoutData> => {
           // 1. Queue operations locally
           // 2. Register event listeners for 'online' event
           // 3. Sync automatically when connection is restored
-          startSyncEngine();
+          await startSyncEngine();
           return { session: null, authMode: 'offline', offlineProfile: profile };
         }
         // Mismatch: credentials changed after session created (e.g., different user logged in)

@@ -325,7 +325,7 @@
     await new Promise((resolve) => setTimeout(resolve, 250));
 
     // Do cleanup in background (user sees overlay)
-    stopSyncEngine();
+    await stopSyncEngine();
     await clearPendingSyncQueue(); // Clear any pending sync operations
     await clearLocalCache();
     localStorage.removeItem('lastSyncTimestamp');
