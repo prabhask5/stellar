@@ -2711,7 +2711,38 @@ if (typeof window !== 'undefined') {
     realtimeStatus: () => ({
       state: getConnectionState(),
       healthy: isRealtimeHealthy()
-    })
+    }),
+    // Test realtime subscription directly
+    testRealtime: async () => {
+      console.log('[TEST] Setting up test realtime subscription...');
+      const channel = supabase.channel('debug-test-channel')
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'goal_lists' },
+          (payload) => {
+            console.log('🔴 REALTIME TEST - Raw event received:', payload);
+          }
+        )
+        .subscribe((status, err) => {
+          console.log('🔴 REALTIME TEST - Subscription status:', status, err || '');
+        });
+
+      console.log('[TEST] Subscription created. Make a change on another device.');
+      console.log('[TEST] To cleanup: window.stellarSync.cleanupTestRealtime()');
+
+      // Store for cleanup
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any)._testRealtimeChannel = channel;
+      return 'Listening for events on goal_lists...';
+    },
+    // Cleanup test subscription
+    cleanupTestRealtime: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const channel = (window as any)._testRealtimeChannel;
+      if (channel) {
+        await supabase.removeChannel(channel);
+        console.log('[TEST] Test channel removed');
+      }
+    }
   };
   console.log('[SYNC] Debug utilities available at window.stellarSync');
 }
