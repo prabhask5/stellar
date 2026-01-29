@@ -323,7 +323,7 @@
     border-bottom: none;
     border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
     width: 100%;
-    max-height: calc(100dvh - env(safe-area-inset-top, 60px) - 20px);
+    max-height: calc(100dvh - env(safe-area-inset-top, 60px) - 60px);
     overflow: hidden;
     display: flex;
     flex-direction: column;

@@ -1228,12 +1228,18 @@ textarea {
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
 @media (max-width: 640px) {
-  /* Larger form elements on mobile for better touch */
+  /* Prevent iOS auto-zoom on input focus - requires minimum 16px font-size */
   input,
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='number'],
+  input[type='search'],
+  input[type='tel'],
+  input[type='url'],
   textarea,
   select {
-    font-size: 16px; /* Prevents iOS zoom on focus */
-    padding: 1rem;
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
   }
 
   /* Stacking form buttons on mobile */

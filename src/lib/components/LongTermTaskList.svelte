@@ -289,16 +289,6 @@
       gap: 0.625rem;
     }
 
-    .checkbox {
-      width: 18px;
-      height: 18px;
-    }
-
-    .checkbox svg {
-      width: 12px;
-      height: 12px;
-    }
-
     .task-name {
       font-size: 0.875rem;
     }
@@ -313,8 +303,6 @@
     }
 
     .delete-btn {
-      width: 24px;
-      height: 24px;
       opacity: 0.3;
     }
   }

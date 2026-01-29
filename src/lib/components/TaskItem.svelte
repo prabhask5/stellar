@@ -216,22 +216,11 @@
       gap: 0.625rem;
     }
 
-    .checkbox {
-      width: 18px;
-      height: 18px;
-    }
-
-    .checkmark {
-      font-size: 0.75rem;
-    }
-
     .task-name {
       font-size: 0.875rem;
     }
 
     .delete-btn {
-      width: 24px;
-      height: 24px;
       opacity: 0.3;
     }
 

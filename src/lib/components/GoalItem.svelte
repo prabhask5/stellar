@@ -879,22 +879,13 @@
       gap: 0.75rem;
     }
 
-    .checkbox {
-      width: 22px;
-      height: 22px;
-    }
-
-    .checkmark {
-      font-size: 0.8125rem;
-    }
-
     .increment-controls {
       gap: 0.375rem;
     }
 
     .increment-btn {
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 30px;
       font-size: 1.125rem;
     }
 
@@ -919,9 +910,9 @@
     }
 
     .action-btn {
-      width: 28px;
-      height: 28px;
-      font-size: 0.9375rem;
+      width: 30px;
+      height: 30px;
+      font-size: 1rem;
     }
 
     .mini-progress-wrapper {
