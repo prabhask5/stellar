@@ -866,10 +866,25 @@ export async function forceFullSync(): Promise<void> {
 
   console.log('[SYNC] Local data cleared, pulling from server...');
 
-  // Run full sync
-  await runFullSync(false);
+  // Pull directly without using runFullSync (which passes a minCursor that overrides our reset)
+  try {
+    syncStatusStore.setStatus('syncing');
+    syncStatusStore.setSyncMessage('Downloading all data...');
 
-  console.log('[SYNC] Force full sync complete');
+    // Pull with NO minCursor so it uses the reset cursor (1970)
+    await pullRemoteChanges();
+
+    syncStatusStore.setStatus('idle');
+    syncStatusStore.setSyncMessage('Full sync complete');
+    notifySyncComplete();
+
+    console.log('[SYNC] Force full sync complete');
+  } catch (error) {
+    console.error('[SYNC] Force full sync failed:', error);
+    syncStatusStore.setStatus('error');
+    syncStatusStore.setError('Full sync failed', String(error));
+    throw error;
+  }
 }
 
 // PULL: Fetch changes from remote since last sync
@@ -1657,16 +1672,13 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
     pushedItems = pushStats.actualPushed;
     pushSucceeded = true;
 
-    // Capture timestamp AFTER push completes - this prevents re-fetching
-    // records we just pushed (their server updated_at will be <= this time)
-    const postPushCursor = new Date().toISOString();
-
     if (!quiet) {
       syncStatusStore.setSyncMessage('Downloading latest data...');
     }
 
-    // Then pull remote changes - retry up to 3 times if push succeeded
-    // Pass postPushCursor to avoid fetching records we just pushed
+    // Pull remote changes - retry up to 3 times if push succeeded
+    // Uses stored cursor to get all changes since last sync
+    // Conflict resolution handles our own pushed changes via device_id check
     let pullAttempts = 0;
     const maxPullAttempts = 3;
     let lastPullError: unknown = null;
@@ -1674,7 +1686,9 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
 
     while (pullAttempts < maxPullAttempts && !pullSucceeded) {
       try {
-        pullEgress = await pullRemoteChanges(postPushCursor);
+        // Don't pass postPushCursor - we want ALL changes since stored cursor
+        // The conflict resolution handles our own pushed changes via device_id check
+        pullEgress = await pullRemoteChanges();
         pullSucceeded = true;
       } catch (pullError) {
         lastPullError = pullError;
