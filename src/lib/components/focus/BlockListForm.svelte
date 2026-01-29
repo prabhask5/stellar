@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { DayOfWeek } from '$lib/types';
   import { trackEditing } from '$lib/actions/remoteChange';
+  import DeferredChangesBanner from '../DeferredChangesBanner.svelte';
 
   interface Props {
     name?: string;
@@ -8,6 +9,7 @@
     submitLabel?: string;
     // For trackEditing - existing entity being edited
     entityId?: string | null;
+    remoteData?: Record<string, unknown> | null;
     onSubmit: (data: { name: string; activeDays: DayOfWeek[] | null }) => void;
     onCancel?: () => void;
   }
@@ -17,6 +19,7 @@
     activeDays: initialActiveDays = null,
     submitLabel = 'Create',
     entityId = null,
+    remoteData = null,
     onSubmit,
     onCancel
   }: Props = $props();
@@ -81,6 +84,21 @@
     return days.map((d) => dayLabels[d].full).join(', ');
   });
 
+  const blockListFieldLabels: Record<string, string> = {
+    name: 'Name',
+    active_days: 'Active Days'
+  };
+
+  function loadRemoteData() {
+    if (remoteData) {
+      name = (remoteData.name as string) ?? name;
+      const remoteDays = remoteData.active_days as DayOfWeek[] | null;
+      selectedDays = remoteDays === null
+        ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
+        : new Set(remoteDays);
+    }
+  }
+
   function handleSubmit(event: Event) {
     event.preventDefault();
     if (!name.trim()) return;
@@ -107,6 +125,21 @@
     formType: 'manual-save'
   }}
 >
+  {#if entityId}
+    <DeferredChangesBanner
+      entityId={entityId}
+      entityType="block_lists"
+      {remoteData}
+      localData={{
+        name,
+        active_days: allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
+      }}
+      fieldLabels={blockListFieldLabels}
+      onLoadRemote={loadRemoteData}
+      onDismiss={() => {}}
+    />
+  {/if}
+
   <div class="form-group">
     <label for="block-list-name">Block List Name</label>
     <input

@@ -1411,11 +1411,34 @@ async function processSyncItem(item: SyncOperationItem): Promise<void> {
         .select('id')
         .maybeSingle();
       // Ignore duplicate key errors (item already synced from another device)
-      if (error && !isDuplicateKeyError(error)) {
+      if (error && isDuplicateKeyError(error)) {
+        // For singleton tables (focus_settings), reconcile local ID with server
+        if (table === 'focus_settings' && payload.user_id) {
+          const { data: existing } = await supabase
+            .from(table)
+            .select('*')
+            .eq('user_id', payload.user_id as string)
+            .maybeSingle();
+
+          if (existing) {
+            // Replace local entry: delete old ID, add with server ID
+            const dexieTable = SUPABASE_TO_DEXIE_TABLE[table] || table;
+            await db.table(dexieTable).delete(entityId);
+            await db.table(dexieTable).put(existing);
+            // Purge any queued operations referencing the old ID
+            await db.syncQueue
+              .where('entityId')
+              .equals(entityId)
+              .delete();
+          }
+        }
+        break;
+      }
+      if (error) {
         throw error;
       }
       // If no error but also no data returned, RLS likely blocked the insert
-      if (!error && !data && !isDuplicateKeyError({ message: '' })) {
+      if (!data) {
         // Check if it already exists (could be a race condition)
         const { data: existing } = await supabase
           .from(table)

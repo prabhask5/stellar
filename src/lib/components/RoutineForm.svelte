@@ -2,6 +2,7 @@
   import type { GoalType, DayOfWeek } from '$lib/types';
   import { formatDate } from '$lib/utils/dates';
   import { trackEditing } from '$lib/actions/remoteChange';
+  import DeferredChangesBanner from './DeferredChangesBanner.svelte';
 
   interface Props {
     name?: string;
@@ -14,6 +15,7 @@
     // For trackEditing - existing entity being edited
     entityId?: string | null;
     entityType?: string;
+    remoteData?: Record<string, unknown> | null;
     onSubmit: (data: {
       name: string;
       type: GoalType;
@@ -35,6 +37,7 @@
     submitLabel = 'Create',
     entityId = null,
     entityType = 'routines',
+    remoteData = null,
     onSubmit,
     onCancel
   }: Props = $props();
@@ -104,6 +107,31 @@
     return days.map((d) => dayLabels[d].full).join(', ');
   });
 
+  const routineFieldLabels: Record<string, string> = {
+    name: 'Name',
+    type: 'Type',
+    target_value: 'Target',
+    start_date: 'Start Date',
+    end_date: 'End Date',
+    active_days: 'Active Days'
+  };
+
+  function loadRemoteData() {
+    if (remoteData) {
+      name = (remoteData.name as string) ?? name;
+      type = (remoteData.type as GoalType) ?? type;
+      targetValue = (remoteData.target_value as number) ?? targetValue;
+      startDate = (remoteData.start_date as string) ?? startDate;
+      const remoteEnd = remoteData.end_date as string | null;
+      hasEndDate = remoteEnd !== null;
+      endDate = remoteEnd ?? endDate;
+      const remoteDays = remoteData.active_days as DayOfWeek[] | null;
+      selectedDays = remoteDays === null
+        ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
+        : new Set(remoteDays);
+    }
+  }
+
   function handleSubmit(event: Event) {
     event.preventDefault();
     if (!name.trim()) return;
@@ -130,6 +158,25 @@
   onsubmit={handleSubmit}
   use:trackEditing={{ entityId: entityId ?? 'new', entityType, formType: 'manual-save' }}
 >
+  {#if entityId}
+    <DeferredChangesBanner
+      entityId={entityId}
+      {entityType}
+      {remoteData}
+      localData={{
+        name,
+        type,
+        target_value: targetValue,
+        start_date: startDate,
+        end_date: hasEndDate ? endDate : null,
+        active_days: allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
+      }}
+      fieldLabels={routineFieldLabels}
+      onLoadRemote={loadRemoteData}
+      onDismiss={() => {}}
+    />
+  {/if}
+
   <div class="form-group">
     <label for="routine-name">Routine Name</label>
     <input

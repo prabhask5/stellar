@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { FocusSettings } from '$lib/types';
+  import { trackEditing } from '$lib/actions/remoteChange';
+  import DeferredChangesBanner from '../DeferredChangesBanner.svelte';
 
   interface Props {
     settings: FocusSettings | null;
@@ -10,25 +12,164 @@
 
   let { settings, isOpen, onClose, onSave }: Props = $props();
 
-  // Local state for form
-  let focusDuration = $state(settings?.focus_duration || 25);
-  let breakDuration = $state(settings?.break_duration || 5);
-  let longBreakDuration = $state(settings?.long_break_duration || 15);
-  let cyclesBeforeLongBreak = $state(settings?.cycles_before_long_break || 4);
-  let autoStartBreaks = $state(settings?.auto_start_breaks || false);
-  let autoStartFocus = $state(settings?.auto_start_focus || false);
+  // Local state for form -- populated once on mount, not reactively
+  let focusDuration = $state(25);
+  let breakDuration = $state(5);
+  let longBreakDuration = $state(15);
+  let cyclesBeforeLongBreak = $state(4);
+  let autoStartBreaks = $state(false);
+  let autoStartFocus = $state(false);
+  let initialized = $state(false);
 
-  // Update local state when settings change
+  // Track which fields were recently animated for highlight effect
+  let highlightedFields = $state<Set<string>>(new Set());
+
+  // Remote data for the banner
+  let remoteData = $state<Record<string, unknown> | null>(null);
+
+  const fieldLabels: Record<string, string> = {
+    focus_duration: 'Focus Duration',
+    break_duration: 'Short Break',
+    long_break_duration: 'Long Break',
+    cycles_before_long_break: 'Cycles Before Long Break',
+    auto_start_breaks: 'Auto-start Breaks',
+    auto_start_focus: 'Auto-start Focus'
+  };
+
+  function formatValue(field: string, value: unknown): string {
+    if (typeof value === 'boolean') return value ? 'On' : 'Off';
+    if (
+      field === 'focus_duration' ||
+      field === 'break_duration' ||
+      field === 'long_break_duration'
+    ) {
+      return `${value} min`;
+    }
+    return String(value ?? 'None');
+  }
+
+  // Initialize form state when modal opens with settings
   $effect(() => {
-    if (settings) {
+    if (isOpen && settings && !initialized) {
       focusDuration = settings.focus_duration;
       breakDuration = settings.break_duration;
       longBreakDuration = settings.long_break_duration;
       cyclesBeforeLongBreak = settings.cycles_before_long_break;
       autoStartBreaks = settings.auto_start_breaks;
       autoStartFocus = settings.auto_start_focus;
+      initialized = true;
+    }
+    if (!isOpen) {
+      initialized = false;
+      remoteData = null;
+      highlightedFields = new Set();
     }
   });
+
+  // Store incoming settings as remote data for the banner when they change
+  // after initial load
+  $effect(() => {
+    if (isOpen && initialized && settings) {
+      // Check if any value differs from local state
+      const hasChanges =
+        settings.focus_duration !== focusDuration ||
+        settings.break_duration !== breakDuration ||
+        settings.long_break_duration !== longBreakDuration ||
+        settings.cycles_before_long_break !== cyclesBeforeLongBreak ||
+        settings.auto_start_breaks !== autoStartBreaks ||
+        settings.auto_start_focus !== autoStartFocus;
+
+      if (hasChanges) {
+        remoteData = {
+          focus_duration: settings.focus_duration,
+          break_duration: settings.break_duration,
+          long_break_duration: settings.long_break_duration,
+          cycles_before_long_break: settings.cycles_before_long_break,
+          auto_start_breaks: settings.auto_start_breaks,
+          auto_start_focus: settings.auto_start_focus
+        };
+      }
+    }
+  });
+
+  // Animate a slider value smoothly from current to target
+  function animateSliderTo(
+    getCurrentValue: () => number,
+    setValue: (v: number) => void,
+    targetValue: number,
+    step: number,
+    duration: number = 500
+  ) {
+    const startValue = getCurrentValue();
+    if (startValue === targetValue) return;
+
+    const startTime = performance.now();
+
+    function tick(now: number) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const rawValue = startValue + (targetValue - startValue) * eased;
+      // Snap to nearest step
+      const snapped = Math.round(rawValue / step) * step;
+      setValue(snapped);
+
+      if (progress < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        setValue(targetValue);
+      }
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  function loadRemoteData() {
+    if (!remoteData) return;
+
+    const fieldsToHighlight: string[] = [];
+
+    // Animate sliders
+    if (remoteData.focus_duration !== focusDuration) {
+      fieldsToHighlight.push('focus_duration');
+      animateSliderTo(() => focusDuration, (v) => (focusDuration = v), remoteData.focus_duration as number, 15);
+    }
+    if (remoteData.break_duration !== breakDuration) {
+      fieldsToHighlight.push('break_duration');
+      animateSliderTo(() => breakDuration, (v) => (breakDuration = v), remoteData.break_duration as number, 1);
+    }
+    if (remoteData.long_break_duration !== longBreakDuration) {
+      fieldsToHighlight.push('long_break_duration');
+      animateSliderTo(() => longBreakDuration, (v) => (longBreakDuration = v), remoteData.long_break_duration as number, 5);
+    }
+    if (remoteData.cycles_before_long_break !== cyclesBeforeLongBreak) {
+      fieldsToHighlight.push('cycles_before_long_break');
+      animateSliderTo(() => cyclesBeforeLongBreak, (v) => (cyclesBeforeLongBreak = v), remoteData.cycles_before_long_break as number, 1);
+    }
+
+    // Toggles update immediately (they have built-in CSS transitions)
+    if (remoteData.auto_start_breaks !== autoStartBreaks) {
+      fieldsToHighlight.push('auto_start_breaks');
+      autoStartBreaks = remoteData.auto_start_breaks as boolean;
+    }
+    if (remoteData.auto_start_focus !== autoStartFocus) {
+      fieldsToHighlight.push('auto_start_focus');
+      autoStartFocus = remoteData.auto_start_focus as boolean;
+    }
+
+    // Apply highlight shimmer
+    highlightedFields = new Set(fieldsToHighlight);
+    setTimeout(() => {
+      highlightedFields = new Set();
+    }, 1200);
+
+    remoteData = null;
+  }
+
+  function dismissBanner() {
+    remoteData = null;
+  }
 
   function handleSave() {
     onSave({
@@ -70,9 +211,36 @@
         </button>
       </div>
 
-      <div class="modal-body">
+      <div
+        class="modal-body"
+        use:trackEditing={{
+          entityId: settings?.id ?? 'new',
+          entityType: 'focus_settings',
+          formType: 'manual-save'
+        }}
+      >
+        {#if settings?.id}
+          <DeferredChangesBanner
+            entityId={settings.id}
+            entityType="focus_settings"
+            {remoteData}
+            localData={{
+              focus_duration: focusDuration,
+              break_duration: breakDuration,
+              long_break_duration: longBreakDuration,
+              cycles_before_long_break: cyclesBeforeLongBreak,
+              auto_start_breaks: autoStartBreaks,
+              auto_start_focus: autoStartFocus
+            }}
+            {fieldLabels}
+            {formatValue}
+            onLoadRemote={loadRemoteData}
+            onDismiss={dismissBanner}
+          />
+        {/if}
+
         <!-- Focus Duration -->
-        <div class="setting-group">
+        <div class="setting-group" class:field-changed={highlightedFields.has('focus_duration')}>
           <label class="setting-label" for="focus-duration">
             <span class="label-text">Focus Duration</span>
             <span class="label-value">{focusDuration} min</span>
@@ -89,7 +257,7 @@
         </div>
 
         <!-- Break Duration -->
-        <div class="setting-group">
+        <div class="setting-group" class:field-changed={highlightedFields.has('break_duration')}>
           <label class="setting-label" for="break-duration">
             <span class="label-text">Short Break</span>
             <span class="label-value">{breakDuration} min</span>
@@ -106,7 +274,7 @@
         </div>
 
         <!-- Long Break Duration -->
-        <div class="setting-group">
+        <div class="setting-group" class:field-changed={highlightedFields.has('long_break_duration')}>
           <label class="setting-label" for="long-break-duration">
             <span class="label-text">Long Break</span>
             <span class="label-value">{longBreakDuration} min</span>
@@ -123,7 +291,7 @@
         </div>
 
         <!-- Cycles Before Long Break -->
-        <div class="setting-group">
+        <div class="setting-group" class:field-changed={highlightedFields.has('cycles_before_long_break')}>
           <label class="setting-label" for="cycles-before-long-break">
             <span class="label-text">Cycles Before Long Break</span>
             <span class="label-value">{cyclesBeforeLongBreak}</span>
@@ -142,7 +310,7 @@
         <hr class="divider" />
 
         <!-- Auto-start toggles -->
-        <div class="setting-group toggle-group">
+        <div class="setting-group toggle-group" class:field-changed={highlightedFields.has('auto_start_breaks')}>
           <span class="toggle-label" id="auto-start-breaks-label">
             <span class="label-text">Auto-start Breaks</span>
             <span class="label-desc">Automatically start break timer after focus</span>
@@ -159,7 +327,7 @@
           </button>
         </div>
 
-        <div class="setting-group toggle-group">
+        <div class="setting-group toggle-group" class:field-changed={highlightedFields.has('auto_start_focus')}>
           <span class="toggle-label" id="auto-start-focus-label">
             <span class="label-text">Auto-start Focus</span>
             <span class="label-desc">Automatically start focus timer after break</span>
@@ -282,6 +450,24 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    padding: 0.375rem;
+    border-radius: var(--radius-md);
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  .setting-group.field-changed {
+    animation: fieldHighlight 1.2s var(--ease-out) forwards;
+  }
+
+  @keyframes fieldHighlight {
+    0% {
+      background: rgba(255, 165, 2, 0.15);
+      box-shadow: 0 0 12px rgba(255, 165, 2, 0.2);
+    }
+    100% {
+      background: transparent;
+      box-shadow: none;
+    }
   }
 
   .setting-label {

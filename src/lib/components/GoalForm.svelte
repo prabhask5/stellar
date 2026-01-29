@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GoalType } from '$lib/types';
   import { trackEditing } from '$lib/actions/remoteChange';
+  import DeferredChangesBanner from './DeferredChangesBanner.svelte';
 
   interface Props {
     name?: string;
@@ -10,6 +11,7 @@
     // For trackEditing - existing entity being edited
     entityId?: string | null;
     entityType?: string;
+    remoteData?: Record<string, unknown> | null;
     onSubmit: (data: { name: string; type: GoalType; targetValue: number | null }) => void;
     onCancel?: () => void;
   }
@@ -21,6 +23,7 @@
     submitLabel = 'Create',
     entityId = null,
     entityType = 'goals',
+    remoteData = null,
     onSubmit,
     onCancel
   }: Props = $props();
@@ -28,6 +31,20 @@
   let name = $state(initialName);
   let type = $state<GoalType>(initialType);
   let targetValue = $state(initialTargetValue ?? 10);
+
+  const fieldLabels: Record<string, string> = {
+    name: 'Name',
+    type: 'Type',
+    target_value: 'Target'
+  };
+
+  function loadRemoteData() {
+    if (remoteData) {
+      name = (remoteData.name as string) ?? name;
+      type = (remoteData.type as GoalType) ?? type;
+      targetValue = (remoteData.target_value as number) ?? targetValue;
+    }
+  }
 
   function handleSubmit(event: Event) {
     event.preventDefault();
@@ -46,6 +63,18 @@
   onsubmit={handleSubmit}
   use:trackEditing={{ entityId: entityId ?? 'new', entityType, formType: 'manual-save' }}
 >
+  {#if entityId}
+    <DeferredChangesBanner
+      entityId={entityId}
+      {entityType}
+      {remoteData}
+      localData={{ name, type, target_value: targetValue }}
+      {fieldLabels}
+      onLoadRemote={loadRemoteData}
+      onDismiss={() => {}}
+    />
+  {/if}
+
   <div class="form-group">
     <label for="goal-name">Goal Name</label>
     <input id="goal-name" type="text" bind:value={name} placeholder="Enter goal name..." required />
