@@ -21,7 +21,6 @@
   import type { LayoutData } from './+layout';
   import SyncStatus from '$lib/components/SyncStatus.svelte';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
-  import PullToRefresh from '$lib/components/PullToRefresh.svelte';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -479,11 +478,6 @@
         </button>
       </div>
     </div>
-  {/if}
-
-  <!-- Pull to Refresh for PWA -->
-  {#if isAuthenticated}
-    <PullToRefresh />
   {/if}
 
   <!-- iPhone Pro Dynamic Island Status Bar (Mobile Only) -->

@@ -141,7 +141,7 @@
       <input id="due-date" type="date" bind:value={dueDate} class="field-input date-input" />
     </div>
 
-    <div class="field">
+    <div class="field field-dropdown">
       <label class="field-label">Tag (optional)</label>
 
       <!-- Custom Dropdown -->
@@ -521,12 +521,17 @@
   /* Mobile adjustments for dropdown */
   @media (max-width: 640px) {
     .dropdown-menu {
-      max-height: 180px;
+      max-height: 140px;
     }
 
     .dropdown-item {
       padding: 0.625rem 1rem;
       font-size: 0.875rem;
+    }
+
+    /* Add significant space below dropdown field for the absolute dropdown to expand into */
+    .field-dropdown {
+      margin-bottom: 10rem;
     }
   }
 </style>

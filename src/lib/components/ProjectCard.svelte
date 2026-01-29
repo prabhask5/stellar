@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { ProjectWithDetails } from '$lib/types';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
-  import { remoteChangeAnimation } from '$lib/actions/remoteChange';
 
   interface Props {
     project: ProjectWithDetails;
@@ -46,7 +45,6 @@
   tabindex="0"
   onclick={() => project.goal_list_id && onNavigate(project.goal_list_id)}
   onkeypress={(e) => e.key === 'Enter' && project.goal_list_id && onNavigate(project.goal_list_id)}
-  use:remoteChangeAnimation={{ entityId: project.id, entityType: 'projects' }}
 >
   <div class="project-header">
     <div class="project-title">

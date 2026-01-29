@@ -2,9 +2,11 @@
   import { syncStatusStore, type SyncError, type RealtimeState } from '$lib/stores/sync';
   import { isOnline } from '$lib/stores/network';
   import { performSync } from '$lib/sync/engine';
+  import { invalidateAll } from '$app/navigation';
   import type { SyncStatus } from '$lib/types';
 
   let status = $state<SyncStatus>('idle');
+  let isRefreshing = $state(false);
   let pendingCount = $state(0);
   let online = $state(true);
   let lastError = $state<string | null>(null);
@@ -64,6 +66,24 @@
   function handleSyncClick() {
     if (online && status !== 'syncing') {
       performSync();
+    }
+  }
+
+  // Manual refresh for PWA - syncs data and reloads page data
+  async function handleRefresh() {
+    if (isRefreshing || !online) return;
+    isRefreshing = true;
+
+    try {
+      await performSync();
+      await invalidateAll();
+    } catch (error) {
+      console.error('Refresh failed:', error);
+    } finally {
+      // Keep refreshing state for animation to complete
+      setTimeout(() => {
+        isRefreshing = false;
+      }, 600);
     }
   }
 
@@ -218,13 +238,41 @@
   }
 </script>
 
-<!-- Sync indicator with tooltip -->
+<!-- Sync indicator with tooltip and mobile refresh button -->
 <div
-  class="sync-wrapper"
+  class="sync-container"
   role="status"
   onmouseenter={handleMouseEnter}
   onmouseleave={handleMouseLeave}
 >
+  <!-- Mobile Refresh Button -->
+  <button
+    class="refresh-btn"
+    class:refreshing={isRefreshing}
+    onclick={handleRefresh}
+    disabled={isRefreshing || !online}
+    aria-label="Refresh app"
+  >
+    <span class="refresh-glow"></span>
+    <svg
+      class="refresh-icon"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+      <path d="M21 21v-5h-5" />
+    </svg>
+  </button>
+
+  <div class="sync-wrapper">
   <button
     class="sync-indicator"
     class:offline={displayState() === 'offline'}
@@ -472,9 +520,111 @@
       </div>
     </div>
   {/if}
+  </div>
 </div>
 
 <style>
+  .sync-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MOBILE REFRESH BUTTON
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .refresh-btn {
+    display: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, rgba(20, 20, 40, 0.9) 0%, rgba(15, 15, 32, 0.95) 100%);
+    border: 1.5px solid rgba(108, 92, 231, 0.25);
+    color: var(--color-primary-light);
+    cursor: pointer;
+    transition: all 0.4s var(--ease-spring);
+    position: relative;
+    overflow: hidden;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .refresh-btn:not(:disabled):hover {
+    border-color: rgba(108, 92, 231, 0.5);
+    transform: scale(1.05);
+    box-shadow: 0 0 20px var(--color-primary-glow);
+  }
+
+  .refresh-btn:not(:disabled):active {
+    transform: scale(0.95);
+  }
+
+  .refresh-glow {
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(108, 92, 231, 0.3) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+
+  .refresh-btn:not(:disabled):hover .refresh-glow {
+    opacity: 1;
+  }
+
+  .refresh-btn.refreshing .refresh-glow {
+    opacity: 1;
+    animation: refreshGlowPulse 0.8s ease-in-out infinite;
+  }
+
+  @keyframes refreshGlowPulse {
+    0%, 100% {
+      opacity: 0.5;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.3);
+    }
+  }
+
+  .refresh-icon {
+    position: relative;
+    z-index: 1;
+    transition: transform 0.4s var(--ease-spring);
+  }
+
+  .refresh-btn:not(:disabled):hover .refresh-icon {
+    transform: rotate(-30deg);
+  }
+
+  .refresh-btn.refreshing .refresh-icon {
+    animation: refreshSpin 0.8s ease-in-out infinite;
+  }
+
+  @keyframes refreshSpin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(-360deg);
+    }
+  }
+
+  /* Show refresh button only on mobile */
+  @media (max-width: 640px) {
+    .refresh-btn {
+      display: flex;
+    }
+  }
+
   .sync-wrapper {
     position: relative;
     display: inline-flex;
