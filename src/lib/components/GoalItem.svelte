@@ -159,17 +159,8 @@
         {goal.name}
       </span>
 
-      <div class="goal-actions">
-        {#if onEdit}
-          <button class="action-btn" onclick={onEdit} aria-label="Edit goal">✎</button>
-        {/if}
-        {#if onDelete}
-          <button class="action-btn delete" onclick={onDelete} aria-label="Delete goal">×</button>
-        {/if}
-      </div>
-
       {#if goal.type === 'incremental'}
-        <!-- Progress bar (desktop only: inline after actions) -->
+        <!-- Progress bar (desktop only: after name, before actions) -->
         <div
           class="mini-progress-wrapper desktop-only"
           class:celebrating={isCelebrating}
@@ -230,6 +221,15 @@
           {/if}
         </div>
       {/if}
+
+      <div class="goal-actions">
+        {#if onEdit}
+          <button class="action-btn" onclick={onEdit} aria-label="Edit goal">✎</button>
+        {/if}
+        {#if onDelete}
+          <button class="action-btn delete" onclick={onDelete} aria-label="Delete goal">×</button>
+        {/if}
+      </div>
     </div>
 
     <!-- Row 2 (mobile only): Goal name -->
@@ -304,7 +304,7 @@
 
 <style>
   .goal-item {
-    padding: 1.125rem 1.5rem;
+    padding: 1.25rem 1.75rem;
     background: linear-gradient(135deg, rgba(15, 15, 30, 0.95) 0%, rgba(20, 20, 40, 0.9) 100%);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -930,16 +930,17 @@
   }
 
   .action-btn {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius-lg);
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-xl);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
-    opacity: 0.4;
+    opacity: 0.6;
     transition: all 0.3s var(--ease-spring);
-    border: 1px solid transparent;
+    border: 1px solid rgba(108, 92, 231, 0.25);
+    background: rgba(108, 92, 231, 0.1);
   }
 
   .action-btn:hover {
@@ -959,7 +960,7 @@
 
   @media (max-width: 480px) {
     .goal-item {
-      padding: 0.625rem 0.75rem;
+      padding: 1rem 1.125rem;
     }
 
     /* Toggle visibility for mobile */
@@ -978,70 +979,79 @@
 
     .mobile-name {
       display: block;
-      font-size: 0.875rem;
+      font-size: 0.9375rem;
+      text-align: left;
+      width: 100%;
     }
 
+    /* Row 1: controls left, actions right */
     .goal-row {
-      gap: 0.5rem;
+      gap: 0.75rem;
+      justify-content: space-between;
+      width: 100%;
     }
 
     .checkbox {
-      width: 16px !important;
-      height: 16px !important;
+      width: 28px !important;
+      height: 28px !important;
     }
 
     .checkmark {
-      font-size: 0.5rem !important;
+      font-size: 0.875rem !important;
     }
 
     .increment-controls {
-      gap: 0.25rem;
+      gap: 0.375rem;
       flex-shrink: 0;
     }
 
-    /* Smaller buttons */
+    /* Increment buttons */
     .increment-btn {
-      width: 22px;
-      height: 22px;
-      font-size: 0.875rem;
+      width: 32px;
+      height: 32px;
+      font-size: 1.125rem;
       border-radius: var(--radius-md);
     }
 
-    /* Larger numbers relative to buttons */
+    /* Value display */
     .current-value {
-      min-width: 3.25rem;
-      font-size: 0.8125rem;
-      padding: 0.25rem 0.375rem;
+      min-width: 3.5rem;
+      font-size: 0.9375rem;
+      padding: 0.375rem 0.5rem;
       font-weight: 700;
     }
 
     /* Input field sized for iPhone 16 Pro */
     .value-input {
-      width: 3.25rem;
+      width: 3.5rem;
       font-size: 16px !important; /* Prevents iOS zoom */
-      padding: 0.25rem 0.375rem;
+      padding: 0.375rem 0.5rem;
       font-weight: 700;
     }
 
     .goal-name {
-      font-size: 0.8125rem;
+      font-size: 0.9375rem;
     }
 
     .goal-actions {
-      gap: 0.375rem;
+      gap: 0.5rem;
+      flex-shrink: 0;
     }
 
+    /* MUCH bigger action buttons on mobile */
     .action-btn {
-      width: 32px;
-      height: 32px;
-      font-size: 1.125rem;
-      opacity: 0.5;
+      width: 48px;
+      height: 48px;
+      font-size: 1.625rem;
+      opacity: 0.7;
+      border-radius: var(--radius-lg);
     }
 
-    /* Progress bar on new line for mobile */
+    /* Multi-row layout for mobile */
     .goal-content {
       flex-direction: column;
-      gap: 0.625rem;
+      align-items: flex-start;
+      gap: 0.75rem;
     }
 
     .goal-item.is-incremental .goal-content {
@@ -1050,7 +1060,7 @@
 
     .mini-progress-wrapper {
       width: 100%;
-      height: 8px;
+      height: 10px;
       margin: 0;
     }
 
