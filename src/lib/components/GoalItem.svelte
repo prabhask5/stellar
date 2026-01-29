@@ -102,69 +102,79 @@
   bind:this={element}
   class="goal-item"
   class:celebrating={isCelebrating}
+  class:is-incremental={goal.type === 'incremental'}
   style="border-left-color: {progressColor}; --celebration-intensity: {celebrationIntensity}; --glow-color: {progressColor}"
   use:remoteChangeAnimation={{ entityId: goal.id, entityType }}
 >
-  <div class="goal-main">
-    {#if goal.type === 'completion'}
-      <button
-        class="checkbox"
-        class:checked={completed}
-        onclick={handleToggle}
-        style="border-color: {progressColor}; background-color: {completed
-          ? progressColor
-          : 'transparent'}"
-        aria-label={completed ? 'Mark as incomplete' : 'Mark as complete'}
-      >
-        {#if completed}
-          <span class="checkmark">✓</span>
+  <div class="goal-content">
+    <div class="goal-main">
+      {#if goal.type === 'completion'}
+        <button
+          class="checkbox"
+          class:checked={completed}
+          onclick={handleToggle}
+          style="border-color: {progressColor}; background-color: {completed
+            ? progressColor
+            : 'transparent'}"
+          aria-label={completed ? 'Mark as incomplete' : 'Mark as complete'}
+        >
+          {#if completed}
+            <span class="checkmark">✓</span>
+          {/if}
+        </button>
+      {:else}
+        <div class="increment-controls">
+          <button class="increment-btn" onclick={handleDecrement} aria-label="Decrement">−</button>
+          {#if editing}
+            <input
+              type="number"
+              class="value-input"
+              bind:value={inputValue}
+              onkeydown={handleInputKeydown}
+              onblur={commitValue}
+              min="0"
+              use:focus
+            />
+          {:else}
+            <button
+              class="current-value"
+              style="color: {progressColor}"
+              onclick={startEditing}
+              disabled={!onSetValue}
+              aria-label="Click to edit value"
+            >
+              {currentValue}/{goal.target_value}
+            </button>
+          {/if}
+          <button class="increment-btn" onclick={handleIncrement} aria-label="Increment">+</button>
+        </div>
+      {/if}
+
+      <span class="goal-name" class:completed={completed && goal.type === 'completion'}>
+        {goal.name}
+      </span>
+
+      <div class="goal-actions">
+        {#if onEdit}
+          <button class="action-btn" onclick={onEdit} aria-label="Edit goal">✎</button>
         {/if}
-      </button>
-    {:else}
-      <div class="increment-controls">
-        <button class="increment-btn" onclick={handleDecrement} aria-label="Decrement">−</button>
-        {#if editing}
-          <input
-            type="number"
-            class="value-input"
-            bind:value={inputValue}
-            onkeydown={handleInputKeydown}
-            onblur={commitValue}
-            min="0"
-            use:focus
-          />
-        {:else}
-          <button
-            class="current-value"
-            style="color: {progressColor}"
-            onclick={startEditing}
-            disabled={!onSetValue}
-            aria-label="Click to edit value"
-          >
-            {currentValue}/{goal.target_value}
-          </button>
+        {#if onDelete}
+          <button class="action-btn delete" onclick={onDelete} aria-label="Delete goal">×</button>
         {/if}
-        <button class="increment-btn" onclick={handleIncrement} aria-label="Increment">+</button>
       </div>
-    {/if}
+    </div>
 
-    <span class="goal-name" class:completed={completed && goal.type === 'completion'}>
-      {goal.name}
-    </span>
-  </div>
-
-  <div class="goal-actions">
     {#if goal.type === 'incremental'}
-      <!-- Desktop: Progress bar -->
+      <!-- Progress bar (shown on desktop inline, on mobile as new line) -->
       <div
-        class="mini-progress-wrapper desktop-only"
+        class="mini-progress-wrapper"
         class:celebrating={isCelebrating}
         style="--glow-color: {progressColor}; --celebration-intensity: {celebrationIntensity}"
       >
         {#if celebrationIntensity > 0.3}
-          <div class="pulse-ring pulse-ring-1 bar-ring"></div>
+          <div class="pulse-ring pulse-ring-1"></div>
           {#if celebrationIntensity > 0.6}
-            <div class="pulse-ring pulse-ring-2 bar-ring"></div>
+            <div class="pulse-ring pulse-ring-2"></div>
           {/if}
         {/if}
 
@@ -180,76 +190,9 @@
         </div>
 
         {#if celebrationIntensity > 0.1}
-          <div class="particle-burst bar-particles">
-            {#each Array(Math.floor(celebrationIntensity * 8)) as _, i}
-              <div class="particle" style="--angle: {i * 45}deg; --delay: {i * 0.15}s; --distance: {20 + (i % 3) * 10}px"></div>
-            {/each}
-          </div>
-        {/if}
-
-        {#if celebrationIntensity > 0.5}
-          <div class="orbit-spark orbit-1 bar-orbit"></div>
-          {#if celebrationIntensity > 0.75}
-            <div class="orbit-spark orbit-2 bar-orbit"></div>
-          {/if}
-        {/if}
-
-        {#if isCelebrating}
-          <span class="overflow-star star-1 bar-star">✦</span>
-          {#if celebrationIntensity > 0.4}
-            <span class="overflow-star star-2 bar-star">✦</span>
-          {/if}
-          {#if celebrationIntensity > 0.7}
-            <span class="overflow-star star-3 bar-star">✧</span>
-          {/if}
-        {/if}
-
-        {#if celebrationIntensity > 0.6}
-          <div class="energy-arc arc-1 bar-arc"></div>
-          {#if celebrationIntensity > 0.85}
-            <div class="energy-arc arc-2 bar-arc"></div>
-          {/if}
-        {/if}
-      </div>
-
-      <!-- Mobile: Star progress -->
-      <div
-        class="star-progress-wrapper mobile-only"
-        class:celebrating={isCelebrating}
-        style="--glow-color: {progressColor}; --celebration-intensity: {celebrationIntensity}"
-      >
-        {#if celebrationIntensity > 0.3}
-          <div class="pulse-ring pulse-ring-1"></div>
-          {#if celebrationIntensity > 0.6}
-            <div class="pulse-ring pulse-ring-2"></div>
-          {/if}
-        {/if}
-
-        <div class="star-container" class:celebrating={isCelebrating}>
-          <svg class="star-bg" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                  stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-          </svg>
-          <div class="star-fill-container">
-            <svg class="star-fill" viewBox="0 0 24 24" style="color: {progressColor}">
-              <defs>
-                <clipPath id="star-clip-{goal.id}">
-                  <rect x="0" y="{24 - (Math.min(100, progress) / 100) * 24}" width="24" height="{(Math.min(100, progress) / 100) * 24}"/>
-                </clipPath>
-              </defs>
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                    fill="currentColor" clip-path="url(#star-clip-{goal.id})"/>
-            </svg>
-          </div>
-          {#if isCelebrating}
-            <div class="star-shimmer"></div>
-          {/if}
-        </div>
-
-        {#if celebrationIntensity > 0.1}
           <div class="particle-burst">
             {#each Array(Math.floor(celebrationIntensity * 8)) as _, i}
-              <div class="particle" style="--angle: {i * 45}deg; --delay: {i * 0.15}s; --distance: {15 + (i % 3) * 8}px"></div>
+              <div class="particle" style="--angle: {i * 45}deg; --delay: {i * 0.15}s; --distance: {20 + (i % 3) * 10}px"></div>
             {/each}
           </div>
         {/if}
@@ -279,21 +222,11 @@
         {/if}
       </div>
     {/if}
-    {#if onEdit}
-      <button class="action-btn" onclick={onEdit} aria-label="Edit goal">✎</button>
-    {/if}
-    {#if onDelete}
-      <button class="action-btn delete" onclick={onDelete} aria-label="Delete goal">×</button>
-    {/if}
   </div>
 </div>
 
 <style>
   .goal-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1.25rem;
     padding: 1.125rem 1.5rem;
     background: linear-gradient(135deg, rgba(15, 15, 30, 0.95) 0%, rgba(20, 20, 40, 0.9) 100%);
     backdrop-filter: blur(16px);
@@ -304,6 +237,12 @@
     transition: all 0.35s var(--ease-out);
     position: relative;
     overflow: hidden;
+  }
+
+  .goal-content {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
   }
 
   /* Top shine line */
@@ -379,6 +318,15 @@
     gap: 1.125rem;
     flex: 1;
     min-width: 0;
+  }
+
+  /* Progress bar appears inline on desktop */
+  .mini-progress-wrapper {
+    position: relative;
+    width: 80px;
+    height: 10px;
+    margin: 0 15px;
+    flex-shrink: 0;
   }
 
   .checkbox {
@@ -565,22 +513,6 @@
     flex-shrink: 0;
   }
 
-  /* Desktop/Mobile visibility */
-  .desktop-only {
-    display: flex;
-  }
-
-  .mobile-only {
-    display: none;
-  }
-
-  /* Mini progress bar wrapper (desktop) */
-  .mini-progress-wrapper {
-    position: relative;
-    width: 80px;
-    height: 10px;
-    margin: 15px 25px 15px 10px;
-  }
 
   .mini-progress-wrapper.celebrating {
     filter: drop-shadow(0 0 calc(4px + var(--celebration-intensity, 0) * 12px) var(--glow-color));
@@ -674,152 +606,7 @@
     }
   }
 
-  /* Bar-specific effect positioning (right edge) */
-  .bar-ring {
-    top: 50%;
-    left: auto;
-    right: 0;
-    transform: translate(50%, -50%);
-  }
-
-  .bar-particles {
-    top: 50%;
-    left: auto;
-    right: 0;
-  }
-
-  .bar-orbit {
-    top: 50%;
-    left: auto;
-    right: 0;
-  }
-
-  .bar-star {
-    top: 50%;
-    left: auto;
-  }
-
-  .bar-star.star-1 {
-    right: -14px;
-  }
-
-  .bar-star.star-2 {
-    right: -8px;
-    top: -8px;
-  }
-
-  .bar-star.star-3 {
-    right: -6px;
-    top: auto;
-    bottom: -6px;
-  }
-
-  .bar-arc {
-    top: 50%;
-    left: auto;
-    right: 5px;
-  }
-
-  .bar-arc.arc-2 {
-    right: 15px;
-  }
-
-  /* Star progress wrapper (mobile) - display controlled by .mobile-only */
-  .star-progress-wrapper {
-    position: relative;
-    width: 28px;
-    height: 28px;
-    align-items: center;
-    justify-content: center;
-    margin: 4px 12px 4px 0;
-  }
-
-  .star-progress-wrapper.celebrating {
-    filter: drop-shadow(0 0 calc(4px + var(--celebration-intensity, 0) * 12px) var(--glow-color));
-    animation: wrapperPulse calc(1.5s - var(--celebration-intensity, 0) * 0.5s) ease-in-out infinite;
-  }
-
-  .star-container {
-    position: relative;
-    width: 24px;
-    height: 24px;
-  }
-
-  .star-bg {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    color: rgba(108, 92, 231, 0.3);
-  }
-
-  .star-fill-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  .star-fill {
-    width: 100%;
-    height: 100%;
-    filter: drop-shadow(0 0 4px currentColor);
-    transition: all 0.5s var(--ease-out);
-  }
-
-  .star-container.celebrating .star-fill {
-    animation: starFillPulse calc(0.8s - var(--celebration-intensity, 0) * 0.3s) ease-in-out infinite;
-  }
-
-  @keyframes starFillPulse {
-    0%,
-    100% {
-      filter: drop-shadow(0 0 4px currentColor) brightness(1);
-    }
-    50% {
-      filter: drop-shadow(0 0 12px currentColor) drop-shadow(0 0 20px currentColor) brightness(1.3);
-    }
-  }
-
-  .star-shimmer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-      180deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.6) 45%,
-      rgba(255, 255, 255, 0.9) 50%,
-      rgba(255, 255, 255, 0.6) 55%,
-      transparent 100%
-    );
-    animation: starShimmer calc(1.5s - var(--celebration-intensity, 0) * 0.7s) ease-in-out infinite;
-    pointer-events: none;
-    mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E");
-    -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E");
-    mask-size: contain;
-    -webkit-mask-size: contain;
-  }
-
-  @keyframes starShimmer {
-    0% {
-      transform: translateY(100%);
-      opacity: 0;
-    }
-    50% {
-      opacity: 1;
-    }
-    100% {
-      transform: translateY(-100%);
-      opacity: 0;
-    }
-  }
-
-  /* Pulse rings - centered for star */
+  /* Pulse rings */
   .pulse-ring {
     position: absolute;
     top: 50%;
@@ -1073,18 +860,8 @@
   }
 
   @media (max-width: 480px) {
-    /* Toggle visibility */
-    .desktop-only {
-      display: none !important;
-    }
-
-    .mobile-only {
-      display: flex !important;
-    }
-
     .goal-item {
       padding: 0.625rem 0.75rem;
-      gap: 0.5rem;
     }
 
     .goal-main {
@@ -1144,19 +921,23 @@
       opacity: 0.5;
     }
 
-    /* Star progress on mobile */
-    .star-progress-wrapper {
-      width: 20px;
-      height: 20px;
-      margin: 2px 4px 2px 0;
+    /* Progress bar on new line for mobile */
+    .goal-content {
+      flex-direction: column;
+      gap: 0.625rem;
     }
 
-    .star-container {
-      width: 18px;
-      height: 18px;
+    .goal-item.is-incremental .goal-content {
+      align-items: stretch;
     }
 
-    /* Scale down celebration effects for star */
+    .mini-progress-wrapper {
+      width: 100%;
+      height: 8px;
+      margin: 0;
+    }
+
+    /* Scale down celebration effects */
     .pulse-ring {
       width: 16px;
       height: 16px;
@@ -1164,22 +945,6 @@
 
     .overflow-star {
       font-size: 7px;
-    }
-
-    .star-1 {
-      top: -3px;
-      right: -3px;
-    }
-
-    .star-2 {
-      bottom: -1px;
-      left: -3px;
-      font-size: 5px;
-    }
-
-    .star-3 {
-      right: -6px;
-      font-size: 6px;
     }
 
     .orbit-spark {
@@ -1203,15 +968,6 @@
     .energy-arc {
       height: 7px;
       width: 1px;
-    }
-
-    .arc-1 {
-      top: -4px;
-    }
-
-    .arc-2 {
-      height: 5px;
-      bottom: -3px;
     }
   }
 
