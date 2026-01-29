@@ -11,7 +11,6 @@
     // For trackEditing - existing entity being edited
     entityId?: string | null;
     entityType?: string;
-    remoteData?: Record<string, unknown> | null;
     onSubmit: (data: { name: string; type: GoalType; targetValue: number | null }) => void;
     onCancel?: () => void;
   }
@@ -23,7 +22,6 @@
     submitLabel = 'Create',
     entityId = null,
     entityType = 'goals',
-    remoteData = null,
     onSubmit,
     onCancel
   }: Props = $props();
@@ -38,12 +36,23 @@
     target_value: 'Target'
   };
 
-  function loadRemoteData() {
-    if (remoteData) {
-      name = (remoteData.name as string) ?? name;
-      type = (remoteData.type as GoalType) ?? type;
-      targetValue = (remoteData.target_value as number) ?? targetValue;
+  // Derive remote data by comparing reactive props (DB state) to local form state.
+  // Props update when realtime writes to IndexedDB; local state holds user edits.
+  const remoteData = $derived.by(() => {
+    if (!entityId) return null;
+    const propName = initialName;
+    const propType = initialType;
+    const propTarget = initialTargetValue ?? 10;
+    if (propName !== name || propType !== type || propTarget !== targetValue) {
+      return { name: propName, type: propType, target_value: propTarget };
     }
+    return null;
+  });
+
+  function loadRemoteData() {
+    name = initialName;
+    type = initialType;
+    targetValue = initialTargetValue ?? 10;
   }
 
   function handleSubmit(event: Event) {

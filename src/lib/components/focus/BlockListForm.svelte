@@ -9,7 +9,6 @@
     submitLabel?: string;
     // For trackEditing - existing entity being edited
     entityId?: string | null;
-    remoteData?: Record<string, unknown> | null;
     onSubmit: (data: { name: string; activeDays: DayOfWeek[] | null }) => void;
     onCancel?: () => void;
   }
@@ -19,7 +18,6 @@
     activeDays: initialActiveDays = null,
     submitLabel = 'Create',
     entityId = null,
-    remoteData = null,
     onSubmit,
     onCancel
   }: Props = $props();
@@ -89,14 +87,28 @@
     active_days: 'Active Days'
   };
 
+  // Derive remote data by comparing reactive props (DB state) to local form state
+  const localActiveDays = $derived(
+    allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
+  );
+
+  const remoteData = $derived.by(() => {
+    if (!entityId) return null;
+    const hasDiff =
+      initialName !== name ||
+      JSON.stringify(initialActiveDays) !== JSON.stringify(localActiveDays);
+    if (!hasDiff) return null;
+    return {
+      name: initialName,
+      active_days: initialActiveDays
+    };
+  });
+
   function loadRemoteData() {
-    if (remoteData) {
-      name = (remoteData.name as string) ?? name;
-      const remoteDays = remoteData.active_days as DayOfWeek[] | null;
-      selectedDays = remoteDays === null
-        ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
-        : new Set(remoteDays);
-    }
+    name = initialName;
+    selectedDays = initialActiveDays === null
+      ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
+      : new Set(initialActiveDays);
   }
 
   function handleSubmit(event: Event) {

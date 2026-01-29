@@ -308,6 +308,18 @@ function createRemoteChangesStore() {
     },
 
     /**
+     * Clear deferred changes for an entity without stopping editing.
+     * Used when user dismisses or loads remote changes in the banner.
+     */
+    clearDeferredChanges(entityId: string, entityType: string): void {
+      update((state) => {
+        const key = `${entityType}:${entityId}`;
+        state.deferredChanges.delete(key);
+        return state;
+      });
+    },
+
+    /**
      * Check if an entity has deferred changes waiting.
      */
     hasDeferredChanges(entityId: string, entityType: string): boolean {

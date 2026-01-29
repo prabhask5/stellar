@@ -24,9 +24,8 @@
     onDismiss
   }: Props = $props();
 
-  let hasDeferred = $state(false);
+  let showBanner = $state(false);
   let showPreview = $state(false);
-  let visible = $state(false);
   let checkInterval: ReturnType<typeof setInterval> | null = null;
 
   interface FieldDiff {
@@ -58,21 +57,14 @@
   function defaultFormat(_field: string, value: unknown): string {
     if (typeof value === 'boolean') return value ? 'On' : 'Off';
     if (value === null || value === undefined) return 'None';
+    if (Array.isArray(value)) return value.join(', ');
     return String(value);
   }
 
   function checkDeferred() {
     const has = remoteChangesStore.hasDeferredChanges(entityId, entityType);
-    if (has && !hasDeferred) {
-      hasDeferred = true;
-      // Trigger slide-in after a frame
-      requestAnimationFrame(() => {
-        visible = true;
-      });
-    } else if (!has && hasDeferred) {
-      visible = false;
-      hasDeferred = false;
-      showPreview = false;
+    if (has && !showBanner) {
+      showBanner = true;
     }
   }
 
@@ -86,92 +78,99 @@
   });
 
   function handleLoadRemote() {
-    visible = false;
-    hasDeferred = false;
+    // Clear deferred changes from the store so polling doesn't re-show
+    remoteChangesStore.clearDeferredChanges(entityId, entityType);
+    showBanner = false;
     showPreview = false;
     onLoadRemote();
   }
 
   function handleDismiss() {
-    visible = false;
-    hasDeferred = false;
+    // Clear deferred changes from the store so polling doesn't re-show
+    remoteChangesStore.clearDeferredChanges(entityId, entityType);
+    showBanner = false;
     showPreview = false;
     onDismiss();
   }
 </script>
 
-{#if hasDeferred}
-  <div class="deferred-banner-wrapper" class:visible>
-    <div class="deferred-banner">
-      <div class="banner-content">
-        <div class="banner-message">
-          <span class="banner-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-          </span>
-          <span class="banner-text">Changes were made on another device</span>
-          {#if diffs.length > 0}
-            <button
-              class="toggle-preview"
-              onclick={() => (showPreview = !showPreview)}
-              type="button"
+<!-- Always rendered; CSS controls visibility via max-height transition -->
+<div class="deferred-banner-wrapper" class:show={showBanner}>
+  <div class="deferred-banner">
+    <div class="banner-content">
+      <div class="banner-message">
+        <span class="banner-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        </span>
+        <span class="banner-text">Changes were made on another device</span>
+        {#if diffs.length > 0}
+          <button
+            class="toggle-preview"
+            onclick={() => (showPreview = !showPreview)}
+            type="button"
+          >
+            {showPreview ? 'Hide' : 'Show'} changes
+            <svg
+              class="chevron"
+              class:expanded={showPreview}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              width="14"
+              height="14"
             >
-              {showPreview ? 'Hide' : 'Show'} changes
-              <svg
-                class="chevron"
-                class:expanded={showPreview}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                width="14"
-                height="14"
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-          {/if}
-        </div>
-        <div class="banner-actions">
-          <button class="banner-btn update-btn" onclick={handleLoadRemote} type="button">
-            Update
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
           </button>
-          <button class="banner-btn dismiss-btn" onclick={handleDismiss} type="button">
-            Dismiss
-          </button>
-        </div>
+        {/if}
       </div>
-
-      {#if showPreview && diffs.length > 0}
-        <div class="diff-preview">
-          {#each diffs as diff}
-            <div class="diff-row">
-              <span class="diff-label">{diff.label}:</span>
-              <span class="diff-old">{diff.oldValue}</span>
-              <span class="diff-arrow">→</span>
-              <span class="diff-new">{diff.newValue}</span>
-            </div>
-          {/each}
-        </div>
-      {/if}
+      <div class="banner-actions">
+        <button class="banner-btn update-btn" onclick={handleLoadRemote} type="button">
+          Update
+        </button>
+        <button class="banner-btn dismiss-btn" onclick={handleDismiss} type="button">
+          Dismiss
+        </button>
+      </div>
     </div>
+
+    {#if showPreview && diffs.length > 0}
+      <div class="diff-preview">
+        {#each diffs as diff}
+          <div class="diff-row">
+            <span class="diff-label">{diff.label}:</span>
+            <span class="diff-old">{diff.oldValue}</span>
+            <span class="diff-arrow">&rarr;</span>
+            <span class="diff-new">{diff.newValue}</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
   </div>
-{/if}
+</div>
 
 <style>
   .deferred-banner-wrapper {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.4s var(--ease-spring), opacity 0.3s var(--ease-out);
+    display: grid;
+    grid-template-rows: 0fr;
     opacity: 0;
+    transition:
+      grid-template-rows 0.4s var(--ease-spring),
+      opacity 0.3s var(--ease-out);
   }
 
-  .deferred-banner-wrapper.visible {
-    max-height: 300px;
+  .deferred-banner-wrapper.show {
+    grid-template-rows: 1fr;
     opacity: 1;
+  }
+
+  .deferred-banner-wrapper > .deferred-banner {
+    overflow: hidden;
   }
 
   @media (prefers-reduced-motion: reduce) {

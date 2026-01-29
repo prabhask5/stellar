@@ -24,9 +24,6 @@
   // Track which fields were recently animated for highlight effect
   let highlightedFields = $state<Set<string>>(new Set());
 
-  // Remote data for the banner
-  let remoteData = $state<Record<string, unknown> | null>(null);
-
   const fieldLabels: Record<string, string> = {
     focus_duration: 'Focus Duration',
     break_duration: 'Short Break',
@@ -61,35 +58,30 @@
     }
     if (!isOpen) {
       initialized = false;
-      remoteData = null;
       highlightedFields = new Set();
     }
   });
 
-  // Store incoming settings as remote data for the banner when they change
-  // after initial load
-  $effect(() => {
-    if (isOpen && initialized && settings) {
-      // Check if any value differs from local state
-      const hasChanges =
-        settings.focus_duration !== focusDuration ||
-        settings.break_duration !== breakDuration ||
-        settings.long_break_duration !== longBreakDuration ||
-        settings.cycles_before_long_break !== cyclesBeforeLongBreak ||
-        settings.auto_start_breaks !== autoStartBreaks ||
-        settings.auto_start_focus !== autoStartFocus;
-
-      if (hasChanges) {
-        remoteData = {
-          focus_duration: settings.focus_duration,
-          break_duration: settings.break_duration,
-          long_break_duration: settings.long_break_duration,
-          cycles_before_long_break: settings.cycles_before_long_break,
-          auto_start_breaks: settings.auto_start_breaks,
-          auto_start_focus: settings.auto_start_focus
-        };
-      }
-    }
+  // Derive remote data by comparing reactive settings prop (DB state) to local form state.
+  // The settings prop updates when realtime writes to IndexedDB; local state holds user edits.
+  const remoteData = $derived.by(() => {
+    if (!settings || !initialized) return null;
+    const hasDiff =
+      settings.focus_duration !== focusDuration ||
+      settings.break_duration !== breakDuration ||
+      settings.long_break_duration !== longBreakDuration ||
+      settings.cycles_before_long_break !== cyclesBeforeLongBreak ||
+      settings.auto_start_breaks !== autoStartBreaks ||
+      settings.auto_start_focus !== autoStartFocus;
+    if (!hasDiff) return null;
+    return {
+      focus_duration: settings.focus_duration,
+      break_duration: settings.break_duration,
+      long_break_duration: settings.long_break_duration,
+      cycles_before_long_break: settings.cycles_before_long_break,
+      auto_start_breaks: settings.auto_start_breaks,
+      auto_start_focus: settings.auto_start_focus
+    };
   });
 
   // Animate a slider value smoothly from current to target
@@ -126,36 +118,46 @@
   }
 
   function loadRemoteData() {
-    if (!remoteData) return;
+    if (!settings) return;
 
     const fieldsToHighlight: string[] = [];
 
+    // Capture target values before local state changes
+    const targets = {
+      focus_duration: settings.focus_duration,
+      break_duration: settings.break_duration,
+      long_break_duration: settings.long_break_duration,
+      cycles_before_long_break: settings.cycles_before_long_break,
+      auto_start_breaks: settings.auto_start_breaks,
+      auto_start_focus: settings.auto_start_focus
+    };
+
     // Animate sliders
-    if (remoteData.focus_duration !== focusDuration) {
+    if (targets.focus_duration !== focusDuration) {
       fieldsToHighlight.push('focus_duration');
-      animateSliderTo(() => focusDuration, (v) => (focusDuration = v), remoteData.focus_duration as number, 15);
+      animateSliderTo(() => focusDuration, (v) => (focusDuration = v), targets.focus_duration, 15);
     }
-    if (remoteData.break_duration !== breakDuration) {
+    if (targets.break_duration !== breakDuration) {
       fieldsToHighlight.push('break_duration');
-      animateSliderTo(() => breakDuration, (v) => (breakDuration = v), remoteData.break_duration as number, 1);
+      animateSliderTo(() => breakDuration, (v) => (breakDuration = v), targets.break_duration, 1);
     }
-    if (remoteData.long_break_duration !== longBreakDuration) {
+    if (targets.long_break_duration !== longBreakDuration) {
       fieldsToHighlight.push('long_break_duration');
-      animateSliderTo(() => longBreakDuration, (v) => (longBreakDuration = v), remoteData.long_break_duration as number, 5);
+      animateSliderTo(() => longBreakDuration, (v) => (longBreakDuration = v), targets.long_break_duration, 5);
     }
-    if (remoteData.cycles_before_long_break !== cyclesBeforeLongBreak) {
+    if (targets.cycles_before_long_break !== cyclesBeforeLongBreak) {
       fieldsToHighlight.push('cycles_before_long_break');
-      animateSliderTo(() => cyclesBeforeLongBreak, (v) => (cyclesBeforeLongBreak = v), remoteData.cycles_before_long_break as number, 1);
+      animateSliderTo(() => cyclesBeforeLongBreak, (v) => (cyclesBeforeLongBreak = v), targets.cycles_before_long_break, 1);
     }
 
     // Toggles update immediately (they have built-in CSS transitions)
-    if (remoteData.auto_start_breaks !== autoStartBreaks) {
+    if (targets.auto_start_breaks !== autoStartBreaks) {
       fieldsToHighlight.push('auto_start_breaks');
-      autoStartBreaks = remoteData.auto_start_breaks as boolean;
+      autoStartBreaks = targets.auto_start_breaks;
     }
-    if (remoteData.auto_start_focus !== autoStartFocus) {
+    if (targets.auto_start_focus !== autoStartFocus) {
       fieldsToHighlight.push('auto_start_focus');
-      autoStartFocus = remoteData.auto_start_focus as boolean;
+      autoStartFocus = targets.auto_start_focus;
     }
 
     // Apply highlight shimmer
@@ -163,12 +165,11 @@
     setTimeout(() => {
       highlightedFields = new Set();
     }, 1200);
-
-    remoteData = null;
   }
 
   function dismissBanner() {
-    remoteData = null;
+    // Do nothing -- keep local edits. The banner component clears the store's
+    // deferred changes so it won't re-show until a new remote change arrives.
   }
 
   function handleSave() {

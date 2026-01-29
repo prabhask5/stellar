@@ -15,7 +15,6 @@
     // For trackEditing - existing entity being edited
     entityId?: string | null;
     entityType?: string;
-    remoteData?: Record<string, unknown> | null;
     onSubmit: (data: {
       name: string;
       type: GoalType;
@@ -37,7 +36,6 @@
     submitLabel = 'Create',
     entityId = null,
     entityType = 'routines',
-    remoteData = null,
     onSubmit,
     onCancel
   }: Props = $props();
@@ -116,20 +114,44 @@
     active_days: 'Active Days'
   };
 
+  // Derive remote data by comparing reactive props (DB state) to local form state
+  const localActiveDays = $derived(
+    allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
+  );
+  const localEndDate = $derived(hasEndDate ? endDate : null);
+
+  const remoteData = $derived.by(() => {
+    if (!entityId) return null;
+    const propActiveDays = initialActiveDays;
+    const propEndDate = initialEndDate;
+    const hasDiff =
+      initialName !== name ||
+      initialType !== type ||
+      (initialTargetValue ?? 10) !== targetValue ||
+      initialStartDate !== startDate ||
+      JSON.stringify(propEndDate) !== JSON.stringify(localEndDate) ||
+      JSON.stringify(propActiveDays) !== JSON.stringify(localActiveDays);
+    if (!hasDiff) return null;
+    return {
+      name: initialName,
+      type: initialType,
+      target_value: initialTargetValue ?? 10,
+      start_date: initialStartDate,
+      end_date: propEndDate,
+      active_days: propActiveDays
+    };
+  });
+
   function loadRemoteData() {
-    if (remoteData) {
-      name = (remoteData.name as string) ?? name;
-      type = (remoteData.type as GoalType) ?? type;
-      targetValue = (remoteData.target_value as number) ?? targetValue;
-      startDate = (remoteData.start_date as string) ?? startDate;
-      const remoteEnd = remoteData.end_date as string | null;
-      hasEndDate = remoteEnd !== null;
-      endDate = remoteEnd ?? endDate;
-      const remoteDays = remoteData.active_days as DayOfWeek[] | null;
-      selectedDays = remoteDays === null
-        ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
-        : new Set(remoteDays);
-    }
+    name = initialName;
+    type = initialType;
+    targetValue = initialTargetValue ?? 10;
+    startDate = initialStartDate;
+    hasEndDate = initialEndDate !== null;
+    endDate = initialEndDate ?? formatDate(new Date());
+    selectedDays = initialActiveDays === null
+      ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
+      : new Set(initialActiveDays);
   }
 
   function handleSubmit(event: Event) {
