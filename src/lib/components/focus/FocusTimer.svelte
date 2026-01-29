@@ -461,7 +461,8 @@
       filter: drop-shadow(0 0 0 transparent);
     }
     50% {
-      filter: drop-shadow(0 0 30px var(--color-primary)) drop-shadow(0 0 60px var(--color-primary-glow));
+      filter: drop-shadow(0 0 30px var(--color-primary))
+        drop-shadow(0 0 60px var(--color-primary-glow));
     }
     100% {
       filter: none;
@@ -492,7 +493,8 @@
   }
 
   @keyframes timePulse {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 1;
     }
     50% {
@@ -529,7 +531,8 @@
       filter: none;
     }
     50% {
-      filter: drop-shadow(0 0 20px var(--color-primary)) drop-shadow(0 0 40px var(--color-primary-glow));
+      filter: drop-shadow(0 0 20px var(--color-primary))
+        drop-shadow(0 0 40px var(--color-primary-glow));
     }
     100% {
       filter: none;

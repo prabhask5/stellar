@@ -269,8 +269,10 @@ const COLUMNS = {
     'id,user_id,name,type,target_value,start_date,end_date,active_days,order,created_at,updated_at,deleted,_version,device_id',
   daily_goal_progress:
     'id,daily_routine_goal_id,date,current_value,completed,updated_at,deleted,_version,device_id',
-  task_categories: 'id,user_id,name,color,order,project_id,created_at,updated_at,deleted,_version,device_id',
-  commitments: 'id,user_id,name,section,order,project_id,created_at,updated_at,deleted,_version,device_id',
+  task_categories:
+    'id,user_id,name,color,order,project_id,created_at,updated_at,deleted,_version,device_id',
+  commitments:
+    'id,user_id,name,section,order,project_id,created_at,updated_at,deleted,_version,device_id',
   daily_tasks: 'id,user_id,name,order,completed,created_at,updated_at,deleted,_version,device_id',
   long_term_tasks:
     'id,user_id,name,due_date,category_id,completed,created_at,updated_at,deleted,_version,device_id',
@@ -371,7 +373,9 @@ export function onSyncComplete(callback: () => void): () => void {
   console.log(`[SYNC] Store registered for sync complete (total: ${syncCompleteCallbacks.size})`);
   return () => {
     syncCompleteCallbacks.delete(callback);
-    console.log(`[SYNC] Store unregistered from sync complete (total: ${syncCompleteCallbacks.size})`);
+    console.log(
+      `[SYNC] Store unregistered from sync complete (total: ${syncCompleteCallbacks.size})`
+    );
   };
 }
 
@@ -904,7 +908,9 @@ async function pullRemoteChanges(minCursor?: string): Promise<{ bytes: number; r
   const lastSync = minCursor && minCursor > storedCursor ? minCursor : storedCursor;
   const pendingEntityIds = await getPendingEntityIds();
 
-  console.log(`[SYNC] Pulling changes since: ${lastSync} (stored: ${storedCursor}, min: ${minCursor || 'none'})`);
+  console.log(
+    `[SYNC] Pulling changes since: ${lastSync} (stored: ${storedCursor}, min: ${minCursor || 'none'})`
+  );
 
   // Track the newest updated_at we see
   let newestUpdate = lastSync;
@@ -1277,7 +1283,10 @@ async function pushPendingOps(): Promise<PushStats> {
           console.log(`[SYNC] Success: ${item.operationType} ${item.table}/${item.entityId}`);
         }
       } catch (error) {
-        console.error(`[SYNC] Failed: ${item.operationType} ${item.table}/${item.entityId}:`, error);
+        console.error(
+          `[SYNC] Failed: ${item.operationType} ${item.table}/${item.entityId}:`,
+          error
+        );
 
         // Determine if this is a transient error that will likely succeed on retry
         const transient = isTransientError(error);
@@ -2682,12 +2691,13 @@ if (typeof window !== 'undefined') {
     resetSyncCursor,
     // Get current sync status
     getStatus: () => ({
-      cursor: typeof localStorage !== 'undefined'
-        ? localStorage.getItem('lastSyncCursor') ||
-          Object.entries(localStorage)
-            .filter(([k]) => k.startsWith('lastSyncCursor_'))
-            .map(([k, v]) => ({ [k]: v }))[0]
-        : 'N/A',
+      cursor:
+        typeof localStorage !== 'undefined'
+          ? localStorage.getItem('lastSyncCursor') ||
+            Object.entries(localStorage)
+              .filter(([k]) => k.startsWith('lastSyncCursor_'))
+              .map(([k, v]) => ({ [k]: v }))[0]
+          : 'N/A',
       pendingOps: getPendingSync().then((ops) => ops.length)
     }),
     // Check Supabase connection
@@ -2715,8 +2725,10 @@ if (typeof window !== 'undefined') {
     // Test realtime subscription directly
     testRealtime: async () => {
       console.log('[TEST] Setting up test realtime subscription...');
-      const channel = supabase.channel('debug-test-channel')
-        .on('postgres_changes',
+      const channel = supabase
+        .channel('debug-test-channel')
+        .on(
+          'postgres_changes',
           { event: '*', schema: 'public', table: 'goal_lists' },
           (payload) => {
             console.log('🔴 REALTIME TEST - Raw event received:', payload);

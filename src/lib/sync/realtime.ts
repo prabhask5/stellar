@@ -170,7 +170,9 @@ function setConnectionState(newState: RealtimeConnectionState, error?: string): 
  * Notify data update subscribers
  */
 function notifyDataUpdate(table: string, entityId: string): void {
-  console.log(`[Realtime] Notifying ${dataUpdateCallbacks.size} subscribers of update: ${table}/${entityId}`);
+  console.log(
+    `[Realtime] Notifying ${dataUpdateCallbacks.size} subscribers of update: ${table}/${entityId}`
+  );
   for (const callback of dataUpdateCallbacks) {
     try {
       callback(table, entityId);

@@ -81,8 +81,7 @@ clearCorruptedAuthData();
 const isIOSPWA =
   typeof window !== 'undefined' &&
   // @ts-expect-error - navigator.standalone is iOS-specific
-  (window.navigator.standalone === true ||
-    window.matchMedia('(display-mode: standalone)').matches);
+  (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches);
 
 if (isIOSPWA) {
   console.log('[Auth] Running as iOS PWA - using enhanced auth persistence');
@@ -116,7 +115,10 @@ export const supabase: SupabaseClient = createClient(
 // Set up auth state change listener to log auth events (helps debug PWA issues)
 if (typeof window !== 'undefined') {
   supabase.auth.onAuthStateChange((event, session) => {
-    console.log(`[Auth] State change: ${event}`, session ? `User: ${session.user?.id}` : 'No session');
+    console.log(
+      `[Auth] State change: ${event}`,
+      session ? `User: ${session.user?.id}` : 'No session'
+    );
 
     // If session is lost unexpectedly, this helps identify the issue
     if (event === 'SIGNED_OUT' && isIOSPWA) {

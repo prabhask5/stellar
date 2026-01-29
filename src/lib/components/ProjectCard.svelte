@@ -279,7 +279,8 @@
   }
 
   @keyframes starGlowPulse {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0.6;
       transform: scale(1);
     }

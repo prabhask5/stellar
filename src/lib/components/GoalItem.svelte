@@ -107,7 +107,8 @@
   use:remoteChangeAnimation={{ entityId: goal.id, entityType }}
 >
   <div class="goal-content">
-    <div class="goal-main">
+    <!-- Row 1: Controls and actions -->
+    <div class="goal-row">
       {#if goal.type === 'completion'}
         <button
           class="checkbox"
@@ -150,7 +151,11 @@
         </div>
       {/if}
 
-      <span class="goal-name" class:completed={completed && goal.type === 'completion'}>
+      <!-- Name shown inline on desktop -->
+      <span
+        class="goal-name desktop-name"
+        class:completed={completed && goal.type === 'completion'}
+      >
         {goal.name}
       </span>
 
@@ -162,12 +167,80 @@
           <button class="action-btn delete" onclick={onDelete} aria-label="Delete goal">×</button>
         {/if}
       </div>
+
+      {#if goal.type === 'incremental'}
+        <!-- Progress bar (desktop only: inline after actions) -->
+        <div
+          class="mini-progress-wrapper desktop-only"
+          class:celebrating={isCelebrating}
+          style="--glow-color: {progressColor}; --celebration-intensity: {celebrationIntensity}"
+        >
+          {#if celebrationIntensity > 0.3}
+            <div class="pulse-ring pulse-ring-1"></div>
+            {#if celebrationIntensity > 0.6}
+              <div class="pulse-ring pulse-ring-2"></div>
+            {/if}
+          {/if}
+
+          <div class="mini-progress" class:celebrating={isCelebrating}>
+            <div
+              class="mini-progress-fill"
+              class:celebrating={isCelebrating}
+              style="width: {Math.min(100, progress)}%; background-color: {progressColor}"
+            ></div>
+            {#if isCelebrating}
+              <div class="shimmer-overlay"></div>
+            {/if}
+          </div>
+
+          {#if celebrationIntensity > 0.1}
+            <div class="particle-burst">
+              {#each Array(Math.floor(celebrationIntensity * 8)) as _, i}
+                <div
+                  class="particle"
+                  style="--angle: {i * 45}deg; --delay: {i * 0.15}s; --distance: {20 +
+                    (i % 3) * 10}px"
+                ></div>
+              {/each}
+            </div>
+          {/if}
+
+          {#if celebrationIntensity > 0.5}
+            <div class="orbit-spark orbit-1"></div>
+            {#if celebrationIntensity > 0.75}
+              <div class="orbit-spark orbit-2"></div>
+            {/if}
+          {/if}
+
+          {#if isCelebrating}
+            <span class="overflow-star star-1">✦</span>
+            {#if celebrationIntensity > 0.4}
+              <span class="overflow-star star-2">✦</span>
+            {/if}
+            {#if celebrationIntensity > 0.7}
+              <span class="overflow-star star-3">✧</span>
+            {/if}
+          {/if}
+
+          {#if celebrationIntensity > 0.6}
+            <div class="energy-arc arc-1"></div>
+            {#if celebrationIntensity > 0.85}
+              <div class="energy-arc arc-2"></div>
+            {/if}
+          {/if}
+        </div>
+      {/if}
     </div>
 
+    <!-- Row 2 (mobile only): Goal name -->
+    <span class="goal-name mobile-name" class:completed={completed && goal.type === 'completion'}>
+      {goal.name}
+    </span>
+
     {#if goal.type === 'incremental'}
-      <!-- Progress bar (shown on desktop inline, on mobile as new line) -->
+      <!-- Row 3 (mobile only): Progress bar full width -->
       <div
-        class="mini-progress-wrapper"
+        class="mini-progress-wrapper mobile-only"
         class:celebrating={isCelebrating}
         style="--glow-color: {progressColor}; --celebration-intensity: {celebrationIntensity}"
       >
@@ -192,7 +265,11 @@
         {#if celebrationIntensity > 0.1}
           <div class="particle-burst">
             {#each Array(Math.floor(celebrationIntensity * 8)) as _, i}
-              <div class="particle" style="--angle: {i * 45}deg; --delay: {i * 0.15}s; --distance: {20 + (i % 3) * 10}px"></div>
+              <div
+                class="particle"
+                style="--angle: {i * 45}deg; --delay: {i * 0.15}s; --distance: {20 +
+                  (i % 3) * 10}px"
+              ></div>
             {/each}
           </div>
         {/if}
@@ -312,12 +389,31 @@
     );
   }
 
-  .goal-main {
+  .goal-row {
     display: flex;
     align-items: center;
     gap: 1.125rem;
     flex: 1;
     min-width: 0;
+  }
+
+  /* Desktop/Mobile visibility */
+  .desktop-only {
+    display: flex;
+  }
+
+  .mobile-only {
+    display: none;
+  }
+
+  /* Desktop name shown inline */
+  .desktop-name {
+    display: block;
+  }
+
+  /* Mobile name hidden on desktop */
+  .mobile-name {
+    display: none;
   }
 
   /* Progress bar appears inline on desktop */
@@ -513,7 +609,6 @@
     flex-shrink: 0;
   }
 
-
   .mini-progress-wrapper.celebrating {
     filter: drop-shadow(0 0 calc(4px + var(--celebration-intensity, 0) * 12px) var(--glow-color));
     animation: wrapperPulse calc(1.5s - var(--celebration-intensity, 0) * 0.5s) ease-in-out infinite;
@@ -576,7 +671,9 @@
     }
     50% {
       filter: brightness(1.3);
-      box-shadow: 0 0 25px currentColor, 0 0 40px currentColor;
+      box-shadow:
+        0 0 25px currentColor,
+        0 0 40px currentColor;
     }
   }
 
@@ -606,16 +703,16 @@
     }
   }
 
-  /* Pulse rings */
+  /* Pulse rings - positioned at right end of bar */
   .pulse-ring {
     position: absolute;
     top: 50%;
-    left: 50%;
+    right: 0;
     width: 20px;
     height: 20px;
     border: 2px solid var(--glow-color);
     border-radius: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(50%, -50%);
     opacity: 0;
     pointer-events: none;
   }
@@ -644,11 +741,11 @@
     }
   }
 
-  /* Particle burst - centered for star */
+  /* Particle burst - at right end of bar */
   .particle-burst {
     position: absolute;
     top: 50%;
-    left: 50%;
+    right: 0;
     width: 0;
     height: 0;
     pointer-events: none;
@@ -678,11 +775,11 @@
     }
   }
 
-  /* Orbiting sparks - centered for star */
+  /* Orbiting sparks - at right end of bar */
   .orbit-spark {
     position: absolute;
     top: 50%;
-    left: 50%;
+    right: 0;
     width: 4px;
     height: 4px;
     background: var(--glow-color);
@@ -691,6 +788,7 @@
       0 0 8px var(--glow-color),
       0 0 15px var(--glow-color);
     pointer-events: none;
+    transform-origin: center;
   }
 
   .orbit-1 {
@@ -713,7 +811,7 @@
     }
   }
 
-  /* Multiple overflow stars - positioned around star center */
+  /* Multiple overflow stars - positioned at right end of bar */
   .overflow-star {
     position: absolute;
     font-size: 10px;
@@ -725,14 +823,14 @@
   }
 
   .star-1 {
-    top: -4px;
-    right: -4px;
+    top: -8px;
+    right: -8px;
     animation: starPulse calc(1s - var(--celebration-intensity, 0) * 0.3s) ease-in-out infinite;
   }
 
   .star-2 {
-    bottom: -2px;
-    left: -4px;
+    bottom: -6px;
+    right: 8px;
     font-size: 7px;
     animation: starPulseAlt calc(1.2s - var(--celebration-intensity, 0) * 0.4s) ease-in-out infinite;
     animation-delay: -0.3s;
@@ -740,7 +838,7 @@
 
   .star-3 {
     top: 50%;
-    right: -8px;
+    right: -12px;
     font-size: 8px;
     transform: translateY(-50%);
     animation: starPulse calc(0.9s - var(--celebration-intensity, 0) * 0.3s) ease-in-out infinite;
@@ -783,7 +881,7 @@
     animation-name: starPulseAlt;
   }
 
-  /* Energy arcs - positioned around star */
+  /* Energy arcs - positioned at right end of bar */
   .energy-arc {
     position: absolute;
     width: 2px;
@@ -798,14 +896,14 @@
 
   .arc-1 {
     top: -6px;
-    left: 50%;
+    right: 0;
     animation: arcCrackle 0.3s steps(3) infinite;
-    transform: translateX(-50%) rotate(15deg);
+    transform: rotate(15deg);
   }
 
   .arc-2 {
     bottom: -4px;
-    right: 2px;
+    right: 8px;
     height: 8px;
     animation: arcCrackle 0.25s steps(3) infinite;
     animation-delay: -0.1s;
@@ -815,19 +913,19 @@
   @keyframes arcCrackle {
     0% {
       opacity: 0.3;
-      scaleY: 0.7;
+      scaley: 0.7;
     }
     33% {
       opacity: 1;
-      scaleY: 1.2;
+      scaley: 1.2;
     }
     66% {
       opacity: 0.5;
-      scaleY: 0.9;
+      scaley: 0.9;
     }
     100% {
       opacity: 0.3;
-      scaleY: 0.7;
+      scaley: 0.7;
     }
   }
 
@@ -864,7 +962,26 @@
       padding: 0.625rem 0.75rem;
     }
 
-    .goal-main {
+    /* Toggle visibility for mobile */
+    .desktop-only {
+      display: none !important;
+    }
+
+    .mobile-only {
+      display: flex !important;
+    }
+
+    /* Hide desktop name, show mobile name */
+    .desktop-name {
+      display: none;
+    }
+
+    .mobile-name {
+      display: block;
+      font-size: 0.875rem;
+    }
+
+    .goal-row {
       gap: 0.5rem;
     }
 

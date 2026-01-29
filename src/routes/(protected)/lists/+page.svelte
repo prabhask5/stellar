@@ -285,7 +285,11 @@
 </div>
 
 <!-- Create List Modal -->
-<Modal open={showCreateListModal} title="Create New List" onClose={() => (showCreateListModal = false)}>
+<Modal
+  open={showCreateListModal}
+  title="Create New List"
+  onClose={() => (showCreateListModal = false)}
+>
   <form class="create-form" onsubmit={handleCreateList}>
     <div class="form-group">
       <label for="list-name">List Name</label>
@@ -328,7 +332,8 @@
       />
     </div>
     <p class="form-hint">
-      Creating a project will also add a commitment and a long term task tag for you to manage associated tasks.
+      Creating a project will also add a commitment and a long term task tag for you to manage
+      associated tasks.
     </p>
     <div class="form-actions">
       <button

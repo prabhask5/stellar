@@ -886,9 +886,7 @@ function createProjectsStore() {
       const goalList = project.goal_list_id
         ? goalLists.find((gl) => gl.id === project.goal_list_id) || null
         : null;
-      const tag = project.tag_id
-        ? categories.find((c) => c.id === project.tag_id) || null
-        : null;
+      const tag = project.tag_id ? categories.find((c) => c.id === project.tag_id) || null : null;
 
       return {
         ...project,

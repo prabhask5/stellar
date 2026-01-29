@@ -349,11 +349,7 @@
     position: absolute;
     inset: -20px;
     border-radius: 50%;
-    background: radial-gradient(
-      circle at center,
-      rgba(108, 92, 231, 0.2) 0%,
-      transparent 70%
-    );
+    background: radial-gradient(circle at center, rgba(108, 92, 231, 0.2) 0%, transparent 70%);
     animation: controlsGlow 0.6s var(--ease-out);
     pointer-events: none;
   }

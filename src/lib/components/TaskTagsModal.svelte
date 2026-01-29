@@ -228,7 +228,9 @@
                   ></span>
                   <span class="project-icon" title="Managed by project">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      <path
+                        d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                      />
                     </svg>
                   </span>
                 {:else}
@@ -278,8 +280,7 @@
               {#if !projectOwned}
                 <button
                   class="delete-tag-btn"
-                  onclick={() =>
-                    handleDeleteTag(category.id, category.name, categoryTasks.length)}
+                  onclick={() => handleDeleteTag(category.id, category.name, categoryTasks.length)}
                   aria-label="Delete tag"
                 >
                   <svg

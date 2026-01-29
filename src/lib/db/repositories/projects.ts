@@ -253,7 +253,15 @@ export async function deleteProject(id: string): Promise<void> {
 
   await db.transaction(
     'rw',
-    [db.projects, db.taskCategories, db.commitments, db.goalLists, db.goals, db.longTermTasks, db.syncQueue],
+    [
+      db.projects,
+      db.taskCategories,
+      db.commitments,
+      db.goalLists,
+      db.goals,
+      db.longTermTasks,
+      db.syncQueue
+    ],
     async () => {
       // Delete goals in the goal list
       for (const goal of goals) {
@@ -287,7 +295,10 @@ export async function deleteProject(id: string): Promise<void> {
 
       // Delete the commitment
       if (project.commitment_id) {
-        await db.commitments.update(project.commitment_id, { deleted: true, updated_at: timestamp });
+        await db.commitments.update(project.commitment_id, {
+          deleted: true,
+          updated_at: timestamp
+        });
         await queueDeleteOperation('commitments', project.commitment_id);
       }
 

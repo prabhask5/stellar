@@ -266,253 +266,253 @@
   </button>
 
   <div class="sync-wrapper">
-  <button
-    class="sync-indicator"
-    class:offline={displayState() === 'offline'}
-    class:syncing={displayState() === 'syncing'}
-    class:error={displayState() === 'error'}
-    class:pending={displayState() === 'pending'}
-    class:synced={displayState() === 'synced'}
-    onclick={handleSyncClick}
-    disabled={!online || status === 'syncing'}
-    aria-label={statusLabel()}
-  >
-    <span class="indicator-ring"></span>
-
-    <!-- Morphing Icon Container -->
-    <span class="indicator-core" class:transitioning={isTransitioning}>
-      <!-- Offline Icon -->
-      <svg
-        class="icon icon-offline"
-        class:active={displayState() === 'offline'}
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <line x1="1" y1="1" x2="23" y2="23" />
-        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
-        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
-        <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
-        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
-        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-        <line x1="12" y1="20" x2="12.01" y2="20" />
-      </svg>
-
-      <!-- Syncing Spinner -->
-      <svg
-        class="icon icon-syncing"
-        class:active={displayState() === 'syncing'}
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-      >
-        <circle class="spinner-track" cx="12" cy="12" r="9" stroke-opacity="0.2" />
-        <path class="spinner-arc" d="M21 12a9 9 0 1 1-6.219-8.56" />
-      </svg>
-
-      <!-- Success Checkmark -->
-      <svg
-        class="icon icon-synced"
-        class:active={displayState() === 'synced'}
-        class:morph-in={isTransitioning && displayState() === 'synced'}
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <circle class="check-circle" cx="12" cy="12" r="9" />
-        <polyline class="check-mark" points="8 12 11 15 16 9" />
-      </svg>
-
-      <!-- Error Icon -->
-      <svg
-        class="icon icon-error"
-        class:active={displayState() === 'error'}
-        class:morph-in={isTransitioning && displayState() === 'error'}
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-      >
-        <circle class="error-circle" cx="12" cy="12" r="9" />
-        <line class="error-line" x1="12" y1="8" x2="12" y2="12" />
-        <line class="error-dot" x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
-
-      <!-- Pending Icon -->
-      <svg
-        class="icon icon-pending"
-        class:active={displayState() === 'pending'}
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-      >
-        <path
-          d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"
-        />
-      </svg>
-    </span>
-
-    {#if displayState() === 'pending'}
-      <span class="pending-badge">{pendingCount}</span>
-    {/if}
-
-    <!-- Live Indicator - Shows when realtime is connected -->
-    <span
-      class="live-indicator"
-      class:active={isRealtimeLive()}
-      class:connecting={online && realtimeState === 'connecting'}
-      class:transitioning={isRealtimeTransitioning}
-    >
-      <span class="live-dot"></span>
-      <span class="live-ring"></span>
-    </span>
-  </button>
-
-  <!-- Beautiful Tooltip -->
-  {#if showTooltip}
-    <div
-      class="tooltip"
+    <button
+      class="sync-indicator"
+      class:offline={displayState() === 'offline'}
+      class:syncing={displayState() === 'syncing'}
       class:error={displayState() === 'error'}
-      class:has-errors={syncErrors.length > 0}
+      class:pending={displayState() === 'pending'}
+      class:synced={displayState() === 'synced'}
+      onclick={handleSyncClick}
+      disabled={!online || status === 'syncing'}
+      aria-label={statusLabel()}
     >
-      <div class="tooltip-arrow"></div>
-      <div class="tooltip-content">
-        <!-- Status Header -->
-        <div class="tooltip-header">
-          <div
-            class="status-dot"
-            class:offline={displayState() === 'offline'}
-            class:syncing={displayState() === 'syncing'}
-            class:error={displayState() === 'error'}
-            class:pending={displayState() === 'pending'}
-            class:synced={displayState() === 'synced'}
-          ></div>
-          <span class="status-label">{statusLabel()}</span>
-          {#if realtimeLabel() && displayState() !== 'offline'}
-            <span
-              class="realtime-badge"
-              class:live={realtimeState === 'connected'}
-              class:connecting={realtimeState === 'connecting'}
+      <span class="indicator-ring"></span>
+
+      <!-- Morphing Icon Container -->
+      <span class="indicator-core" class:transitioning={isTransitioning}>
+        <!-- Offline Icon -->
+        <svg
+          class="icon icon-offline"
+          class:active={displayState() === 'offline'}
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="1" y1="1" x2="23" y2="23" />
+          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+          <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
+          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+          <line x1="12" y1="20" x2="12.01" y2="20" />
+        </svg>
+
+        <!-- Syncing Spinner -->
+        <svg
+          class="icon icon-syncing"
+          class:active={displayState() === 'syncing'}
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        >
+          <circle class="spinner-track" cx="12" cy="12" r="9" stroke-opacity="0.2" />
+          <path class="spinner-arc" d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+
+        <!-- Success Checkmark -->
+        <svg
+          class="icon icon-synced"
+          class:active={displayState() === 'synced'}
+          class:morph-in={isTransitioning && displayState() === 'synced'}
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle class="check-circle" cx="12" cy="12" r="9" />
+          <polyline class="check-mark" points="8 12 11 15 16 9" />
+        </svg>
+
+        <!-- Error Icon -->
+        <svg
+          class="icon icon-error"
+          class:active={displayState() === 'error'}
+          class:morph-in={isTransitioning && displayState() === 'error'}
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        >
+          <circle class="error-circle" cx="12" cy="12" r="9" />
+          <line class="error-line" x1="12" y1="8" x2="12" y2="12" />
+          <line class="error-dot" x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+
+        <!-- Pending Icon -->
+        <svg
+          class="icon icon-pending"
+          class:active={displayState() === 'pending'}
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        >
+          <path
+            d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"
+          />
+        </svg>
+      </span>
+
+      {#if displayState() === 'pending'}
+        <span class="pending-badge">{pendingCount}</span>
+      {/if}
+
+      <!-- Live Indicator - Shows when realtime is connected -->
+      <span
+        class="live-indicator"
+        class:active={isRealtimeLive()}
+        class:connecting={online && realtimeState === 'connecting'}
+        class:transitioning={isRealtimeTransitioning}
+      >
+        <span class="live-dot"></span>
+        <span class="live-ring"></span>
+      </span>
+    </button>
+
+    <!-- Beautiful Tooltip -->
+    {#if showTooltip}
+      <div
+        class="tooltip"
+        class:error={displayState() === 'error'}
+        class:has-errors={syncErrors.length > 0}
+      >
+        <div class="tooltip-arrow"></div>
+        <div class="tooltip-content">
+          <!-- Status Header -->
+          <div class="tooltip-header">
+            <div
+              class="status-dot"
+              class:offline={displayState() === 'offline'}
+              class:syncing={displayState() === 'syncing'}
+              class:error={displayState() === 'error'}
+              class:pending={displayState() === 'pending'}
+              class:synced={displayState() === 'synced'}
+            ></div>
+            <span class="status-label">{statusLabel()}</span>
+            {#if realtimeLabel() && displayState() !== 'offline'}
+              <span
+                class="realtime-badge"
+                class:live={realtimeState === 'connected'}
+                class:connecting={realtimeState === 'connecting'}
+              >
+                {#if realtimeState === 'connected'}
+                  <span class="realtime-dot"></span>
+                {/if}
+                {realtimeLabel()}
+              </span>
+            {/if}
+            {#if formattedLastSync() && displayState() !== 'syncing'}
+              <span class="last-sync">{formattedLastSync()}</span>
+            {/if}
+          </div>
+
+          <!-- Status Description -->
+          <p class="tooltip-description">{statusDescription()}</p>
+
+          <!-- Error Details Section -->
+          {#if displayState() === 'error' && (syncErrors.length > 0 || lastErrorDetails)}
+            <button
+              class="details-toggle"
+              onclick={(e) => {
+                e.stopPropagation();
+                showDetails = !showDetails;
+              }}
             >
-              {#if realtimeState === 'connected'}
-                <span class="realtime-dot"></span>
-              {/if}
-              {realtimeLabel()}
-            </span>
+              <span>{showDetails ? 'Hide' : 'Show'} error details</span>
+              <svg
+                class="chevron"
+                class:expanded={showDetails}
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {#if showDetails}
+              <div class="error-details-panel">
+                {#if syncErrors.length > 0}
+                  <div class="error-list">
+                    {#each syncErrors as error, i}
+                      <div class="error-item" style="animation-delay: {i * 50}ms">
+                        <div class="error-item-header">
+                          <span
+                            class="error-operation"
+                            style="color: {getOperationColor(error.operation)}"
+                          >
+                            {formatOperation(error.operation)}
+                          </span>
+                          <span class="error-table">{formatTableName(error.table)}</span>
+                        </div>
+                        <div class="error-message">
+                          <code>{error.message}</code>
+                        </div>
+                        <div class="error-meta">
+                          <span class="error-entity" title={error.entityId}>
+                            ID: {error.entityId.slice(0, 8)}...
+                          </span>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {:else if lastErrorDetails}
+                  <div class="error-fallback">
+                    <code>{lastErrorDetails}</code>
+                  </div>
+                {/if}
+              </div>
+            {/if}
           {/if}
-          {#if formattedLastSync() && displayState() !== 'syncing'}
-            <span class="last-sync">{formattedLastSync()}</span>
-          {/if}
-        </div>
 
-        <!-- Status Description -->
-        <p class="tooltip-description">{statusDescription()}</p>
-
-        <!-- Error Details Section -->
-        {#if displayState() === 'error' && (syncErrors.length > 0 || lastErrorDetails)}
-          <button
-            class="details-toggle"
-            onclick={(e) => {
-              e.stopPropagation();
-              showDetails = !showDetails;
-            }}
-          >
-            <span>{showDetails ? 'Hide' : 'Show'} error details</span>
-            <svg
-              class="chevron"
-              class:expanded={showDetails}
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-
-          {#if showDetails}
-            <div class="error-details-panel">
-              {#if syncErrors.length > 0}
-                <div class="error-list">
-                  {#each syncErrors as error, i}
-                    <div class="error-item" style="animation-delay: {i * 50}ms">
-                      <div class="error-item-header">
-                        <span
-                          class="error-operation"
-                          style="color: {getOperationColor(error.operation)}"
-                        >
-                          {formatOperation(error.operation)}
-                        </span>
-                        <span class="error-table">{formatTableName(error.table)}</span>
-                      </div>
-                      <div class="error-message">
-                        <code>{error.message}</code>
-                      </div>
-                      <div class="error-meta">
-                        <span class="error-entity" title={error.entityId}>
-                          ID: {error.entityId.slice(0, 8)}...
-                        </span>
-                      </div>
-                    </div>
-                  {/each}
-                </div>
-              {:else if lastErrorDetails}
-                <div class="error-fallback">
-                  <code>{lastErrorDetails}</code>
-                </div>
-              {/if}
+          <!-- Action hint -->
+          {#if displayState() === 'error' || displayState() === 'pending'}
+            <div class="tooltip-action">
+              <span class="action-hint">Tap to sync now</span>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"
+                />
+              </svg>
             </div>
           {/if}
-        {/if}
-
-        <!-- Action hint -->
-        {#if displayState() === 'error' || displayState() === 'pending'}
-          <div class="tooltip-action">
-            <span class="action-hint">Tap to sync now</span>
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path
-                d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"
-              />
-            </svg>
-          </div>
-        {/if}
+        </div>
       </div>
-    </div>
-  {/if}
+    {/if}
   </div>
 </div>
 
@@ -578,7 +578,8 @@
   }
 
   @keyframes refreshGlowPulse {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0.5;
       transform: scale(1);
     }
