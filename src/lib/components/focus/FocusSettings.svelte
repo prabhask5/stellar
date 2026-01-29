@@ -164,7 +164,7 @@
     highlightedFields = new Set(fieldsToHighlight);
     setTimeout(() => {
       highlightedFields = new Set();
-    }, 1200);
+    }, 1400);
   }
 
   function dismissBanner() {
@@ -456,14 +456,15 @@
     transition: background 0.3s, box-shadow 0.3s;
   }
 
+  /* Background glow while slider animates + cosmic shimmer via global .field-changed::after */
   .setting-group.field-changed {
-    animation: fieldHighlight 1.2s var(--ease-out) forwards;
+    animation: fieldHighlight 1.4s var(--ease-out) forwards;
   }
 
   @keyframes fieldHighlight {
     0% {
-      background: rgba(255, 165, 2, 0.15);
-      box-shadow: 0 0 12px rgba(255, 165, 2, 0.2);
+      background: rgba(108, 92, 231, 0.12);
+      box-shadow: 0 0 12px rgba(108, 92, 231, 0.2);
     }
     100% {
       background: transparent;

@@ -16,8 +16,13 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let showAddModal = $state(false);
-  let editingGoal = $state<Goal | null>(null);
+  let editingGoalId = $state<string | null>(null);
   let editingListName = $state(false);
+
+  // Derive editing goal reactively from the store so props update when remote changes arrive
+  const editingGoal = $derived(
+    editingGoalId && list ? list.goals.find((g) => g.id === editingGoalId) ?? null : null
+  );
   let newListName = $state('');
 
   // Focus action for accessibility (skip on mobile to avoid keyboard popup)
@@ -110,7 +115,7 @@
       }
 
       await goalListStore.updateGoal(editingGoal.id, updates);
-      editingGoal = null;
+      editingGoalId = null;
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to update goal';
     }
@@ -297,7 +302,7 @@
                 onIncrement={() => handleIncrement(goal, 1)}
                 onDecrement={() => handleIncrement(goal, -1)}
                 onSetValue={(value) => handleSetValue(goal, value)}
-                onEdit={() => (editingGoal = goal)}
+                onEdit={() => (editingGoalId = goal.id)}
                 onDelete={() => handleDeleteGoal(goal)}
               />
             </div>
@@ -312,7 +317,7 @@
   <GoalForm onSubmit={handleAddGoal} onCancel={() => (showAddModal = false)} />
 </Modal>
 
-<Modal open={editingGoal !== null} title="Edit Goal" onClose={() => (editingGoal = null)}>
+<Modal open={editingGoal !== null} title="Edit Goal" onClose={() => (editingGoalId = null)}>
   {#if editingGoal}
     <GoalForm
       name={editingGoal.name}
@@ -322,7 +327,7 @@
       entityId={editingGoal.id}
       entityType="goals"
       onSubmit={handleUpdateGoal}
-      onCancel={() => (editingGoal = null)}
+      onCancel={() => (editingGoalId = null)}
     />
   {/if}
 </Modal>

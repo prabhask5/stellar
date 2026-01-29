@@ -30,6 +30,9 @@
   let type = $state<GoalType>(initialType);
   let targetValue = $state(initialTargetValue ?? 10);
 
+  // Track which fields were recently animated for shimmer effect
+  let highlightedFields = $state<Set<string>>(new Set());
+
   const fieldLabels: Record<string, string> = {
     name: 'Name',
     type: 'Type',
@@ -50,9 +53,17 @@
   });
 
   function loadRemoteData() {
+    const fieldsToHighlight: string[] = [];
+    if (name !== initialName) fieldsToHighlight.push('name');
+    if (type !== initialType) fieldsToHighlight.push('type');
+    if (targetValue !== (initialTargetValue ?? 10)) fieldsToHighlight.push('target_value');
+
     name = initialName;
     type = initialType;
     targetValue = initialTargetValue ?? 10;
+
+    highlightedFields = new Set(fieldsToHighlight);
+    setTimeout(() => { highlightedFields = new Set(); }, 1400);
   }
 
   function handleSubmit(event: Event) {
@@ -84,12 +95,12 @@
     />
   {/if}
 
-  <div class="form-group">
+  <div class="form-group" class:field-changed={highlightedFields.has('name')}>
     <label for="goal-name">Goal Name</label>
     <input id="goal-name" type="text" bind:value={name} placeholder="Enter goal name..." required />
   </div>
 
-  <div class="form-group">
+  <div class="form-group" class:field-changed={highlightedFields.has('type')}>
     <label>Goal Type</label>
     <div class="type-toggle">
       <button
@@ -114,7 +125,7 @@
   </div>
 
   {#if type === 'incremental'}
-    <div class="form-group">
+    <div class="form-group" class:field-changed={highlightedFields.has('target_value')}>
       <label for="target-value">Target Value</label>
       <input id="target-value" type="number" bind:value={targetValue} min="1" required />
     </div>

@@ -35,6 +35,9 @@
 
   let name = $state(initialName);
 
+  // Track which fields were recently animated for shimmer effect
+  let highlightedFields = $state<Set<string>>(new Set());
+
   // Active days state - null means all days, empty array means no days (invalid)
   // Default to all days selected if null
   let selectedDays = $state<Set<DayOfWeek>>(
@@ -105,10 +108,18 @@
   });
 
   function loadRemoteData() {
+    const fieldsToHighlight: string[] = [];
+    if (name !== initialName) fieldsToHighlight.push('name');
+    const currentActiveDays = allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b);
+    if (JSON.stringify(currentActiveDays) !== JSON.stringify(initialActiveDays)) fieldsToHighlight.push('active_days');
+
     name = initialName;
     selectedDays = initialActiveDays === null
       ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
       : new Set(initialActiveDays);
+
+    highlightedFields = new Set(fieldsToHighlight);
+    setTimeout(() => { highlightedFields = new Set(); }, 1400);
   }
 
   function handleSubmit(event: Event) {
@@ -152,7 +163,7 @@
     />
   {/if}
 
-  <div class="form-group">
+  <div class="form-group" class:field-changed={highlightedFields.has('name')}>
     <label for="block-list-name">Block List Name</label>
     <input
       id="block-list-name"
@@ -164,7 +175,7 @@
   </div>
 
   <!-- Active Days Selector -->
-  <div class="form-group">
+  <div class="form-group" class:field-changed={highlightedFields.has('active_days')}>
     <label>Active Days</label>
     <div class="days-selector">
       {#each dayLabels as day}

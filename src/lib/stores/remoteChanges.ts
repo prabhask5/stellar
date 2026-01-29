@@ -431,18 +431,6 @@ export const remoteChangesStore = createRemoteChangesStore();
 // ============================================================
 
 /**
- * Derived store for components to check if a specific entity has pending remote changes.
- * Use this in form components to show a warning indicator.
- */
-export function createDeferredChangesIndicator(entityId: string, entityType: string) {
-  return derived(remoteChangesStore, ($state) => {
-    const key = `${entityType}:${entityId}`;
-    const changes = $state.deferredChanges.get(key);
-    return changes && changes.length > 0;
-  });
-}
-
-/**
  * Derived store for components to check if a specific entity was recently updated remotely.
  * Use this to trigger animations.
  */

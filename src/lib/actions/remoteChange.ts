@@ -290,29 +290,6 @@ export function trackEditing(node: HTMLElement, options: TrackEditingOptions) {
 }
 
 /**
- * Simple helper to manually trigger remote change animation on an element.
- * Use this when you need programmatic control.
- */
-export function triggerRemoteChangeAnimation(
-  element: HTMLElement,
-  animationClass = 'item-changed'
-): void {
-  element.classList.add(animationClass);
-
-  const handleAnimationEnd = () => {
-    element.classList.remove(animationClass);
-    element.removeEventListener('animationend', handleAnimationEnd);
-  };
-
-  element.addEventListener('animationend', handleAnimationEnd);
-
-  // Fallback removal
-  setTimeout(() => {
-    element.classList.remove(animationClass);
-  }, 2000);
-}
-
-/**
  * Trigger a local action animation on an element.
  * Use this to make local actions animate the same way as remote actions.
  *
