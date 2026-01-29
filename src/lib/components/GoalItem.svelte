@@ -36,9 +36,11 @@
     onDecrement?.();
   }
 
-  // Focus action for accessibility
+  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
   function focus(node: HTMLElement) {
-    node.focus();
+    if (window.innerWidth > 640) {
+      node.focus();
+    }
   }
 
   let editing = $state(false);
@@ -323,8 +325,8 @@
   }
 
   .checkbox {
-    width: 26px;
-    height: 26px;
+    width: 32px;
+    height: 32px;
     border: 2px solid;
     border-radius: 50%;
     display: flex;
@@ -375,7 +377,7 @@
 
   .checkmark {
     color: white;
-    font-size: 0.9375rem;
+    font-size: 1.125rem;
     font-weight: bold;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     animation: checkAppear 0.3s var(--ease-spring);
@@ -877,6 +879,15 @@
 
     .goal-main {
       gap: 0.75rem;
+    }
+
+    .checkbox {
+      width: 16px;
+      height: 16px;
+    }
+
+    .checkmark {
+      font-size: 0.625rem;
     }
 
     .increment-controls {

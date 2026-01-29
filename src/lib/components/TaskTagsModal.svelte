@@ -43,6 +43,13 @@
     onUpdateCategory
   }: Props = $props();
 
+  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
+  function focus(node: HTMLElement) {
+    if (window.innerWidth > 640) {
+      node.focus();
+    }
+  }
+
   // Editing state
   let editingCategoryId = $state<string | null>(null);
   let editingCategoryName = $state('');
@@ -256,7 +263,7 @@
                     bind:value={editingCategoryName}
                     onkeydown={handleNameKeydown}
                     onblur={saveEditName}
-                    autofocus
+                    use:focus
                   />
                 {:else if projectOwned}
                   <span class="category-name-static">{category.name}</span>

@@ -20,9 +20,11 @@
   let editingListName = $state(false);
   let newListName = $state('');
 
-  // Focus action for accessibility (replaces autofocus attribute)
+  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
   function focus(node: HTMLElement) {
-    node.focus();
+    if (window.innerWidth > 640) {
+      node.focus();
+    }
   }
 
   const listId = $derived($page.params.id!);

@@ -16,6 +16,28 @@
   const completedGoals = $derived(project.goalList?.completedGoals ?? 0);
   const completionPercentage = $derived(project.goalList?.completionPercentage ?? 0);
   const tagColor = $derived(project.tag?.color ?? '#6c5ce7');
+
+  // Track animation state for star
+  let starAnimating = $state(false);
+  let prevIsCurrent = $state(project.is_current);
+
+  // Detect changes to is_current and trigger animation
+  $effect(() => {
+    if (project.is_current !== prevIsCurrent) {
+      starAnimating = true;
+      prevIsCurrent = project.is_current;
+      // Reset animation state after animation completes
+      setTimeout(() => {
+        starAnimating = false;
+      }, 800);
+    }
+  });
+
+  function handleStarClick(e: MouseEvent) {
+    e.stopPropagation();
+    starAnimating = true;
+    onSetCurrent(project.id);
+  }
 </script>
 
 <div
@@ -35,14 +57,38 @@
       <button
         class="star-btn"
         class:is-current={project.is_current}
-        onclick={(e) => {
-          e.stopPropagation();
-          onSetCurrent(project.id);
-        }}
+        class:animating={starAnimating}
+        onclick={handleStarClick}
         aria-label={project.is_current ? 'Current project' : 'Set as current project'}
         title={project.is_current ? 'Current project' : 'Set as current project'}
       >
-        {project.is_current ? '★' : '☆'}
+        <!-- Glow layer -->
+        <span class="star-glow"></span>
+
+        <!-- Particle burst container -->
+        <span class="star-particles">
+          {#each Array(6) as _, i}
+            <span class="particle" style="--i: {i}"></span>
+          {/each}
+        </span>
+
+        <!-- Ring pulse -->
+        <span class="star-ring"></span>
+
+        <!-- The star icon -->
+        <svg
+          class="star-icon"
+          viewBox="0 0 24 24"
+          fill={project.is_current ? 'currentColor' : 'none'}
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+          />
+        </svg>
       </button>
       <button
         class="delete-btn"
@@ -164,27 +210,31 @@
     flex-shrink: 0;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════════════
+     STAR BUTTON — Cinematic Animation
+     ═══════════════════════════════════════════════════════════════════════════════ */
+
   .star-btn {
     width: 36px;
     height: 36px;
     border-radius: var(--radius-lg);
-    font-size: 1.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.35;
-    transition: all 0.3s var(--ease-spring);
+    opacity: 0.4;
+    transition: all 0.4s var(--ease-out);
     border: 1px solid transparent;
-    color: var(--color-text);
+    color: var(--color-text-muted);
+    position: relative;
+    overflow: visible;
   }
 
   .star-btn:hover {
     opacity: 1;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3) 0%, rgba(255, 215, 0, 0.1) 100%);
-    border-color: rgba(255, 215, 0, 0.5);
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 215, 0, 0.05) 100%);
+    border-color: rgba(255, 215, 0, 0.3);
     color: #ffd700;
-    transform: scale(1.15);
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    transform: scale(1.1);
   }
 
   .star-btn.is-current {
@@ -192,8 +242,177 @@
     color: #ffd700;
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(255, 215, 0, 0.05) 100%);
     border-color: rgba(255, 215, 0, 0.3);
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
   }
+
+  /* Star SVG icon */
+  .star-icon {
+    width: 20px;
+    height: 20px;
+    position: relative;
+    z-index: 2;
+    transition: all 0.4s var(--ease-spring);
+    filter: drop-shadow(0 0 0 transparent);
+  }
+
+  .star-btn.is-current .star-icon {
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.6));
+  }
+
+  .star-btn:hover .star-icon {
+    transform: scale(1.1);
+  }
+
+  /* Glow layer behind star */
+  .star-glow {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.4) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s var(--ease-out);
+    pointer-events: none;
+  }
+
+  .star-btn.is-current .star-glow {
+    opacity: 1;
+    animation: starGlowPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes starGlowPulse {
+    0%, 100% {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+  }
+
+  /* Ring pulse effect */
+  .star-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid #ffd700;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .star-btn.animating .star-ring {
+    animation: starRingExpand 0.6s var(--ease-out) forwards;
+  }
+
+  @keyframes starRingExpand {
+    0% {
+      opacity: 0.8;
+      transform: scale(0.8);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(2);
+    }
+  }
+
+  /* Particle burst container */
+  .star-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .particle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    background: #ffd700;
+    border-radius: 50%;
+    opacity: 0;
+    box-shadow: 0 0 6px #ffd700;
+  }
+
+  .star-btn.animating.is-current .particle {
+    animation: particleBurst 0.7s var(--ease-out) forwards;
+    animation-delay: calc(var(--i) * 0.03s);
+  }
+
+  @keyframes particleBurst {
+    0% {
+      opacity: 1;
+      transform: translate(-50%, -50%) rotate(calc(var(--i) * 60deg)) translateY(0) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -50%) rotate(calc(var(--i) * 60deg)) translateY(-30px) scale(0);
+    }
+  }
+
+  /* Star ignition animation when becoming current */
+  .star-btn.animating.is-current .star-icon {
+    animation: starIgnite 0.6s var(--ease-spring);
+  }
+
+  @keyframes starIgnite {
+    0% {
+      transform: scale(0.5) rotate(-30deg);
+      filter: drop-shadow(0 0 0 transparent);
+    }
+    40% {
+      transform: scale(1.4) rotate(10deg);
+      filter: drop-shadow(0 0 20px rgba(255, 215, 0, 1));
+    }
+    70% {
+      transform: scale(0.9) rotate(-5deg);
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+      filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.6));
+    }
+  }
+
+  /* Star fade animation when losing current status */
+  .star-btn.animating:not(.is-current) .star-icon {
+    animation: starFade 0.5s var(--ease-out);
+  }
+
+  @keyframes starFade {
+    0% {
+      transform: scale(1);
+      filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.8));
+    }
+    30% {
+      transform: scale(1.2);
+      filter: drop-shadow(0 0 25px rgba(255, 215, 0, 1));
+    }
+    100% {
+      transform: scale(1);
+      filter: drop-shadow(0 0 0 transparent);
+    }
+  }
+
+  /* Glow burst when becoming current */
+  .star-btn.animating.is-current .star-glow {
+    animation: glowBurst 0.6s var(--ease-out);
+  }
+
+  @keyframes glowBurst {
+    0% {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    30% {
+      opacity: 1;
+      transform: scale(2);
+    }
+    100% {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════ */
 
   .delete-btn {
     width: 36px;
@@ -256,6 +475,15 @@
       height: 44px;
       opacity: 0.5;
     }
+
+    .star-btn.is-current {
+      opacity: 1;
+    }
+
+    .star-icon {
+      width: 22px;
+      height: 22px;
+    }
   }
 
   /* iPhone 14/15/16 Pro Max specific (430px) */
@@ -273,6 +501,17 @@
 
     .project-name {
       font-size: 1rem;
+    }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .star-btn.animating .star-icon,
+    .star-btn.animating .star-ring,
+    .star-btn.animating .star-glow,
+    .star-btn.animating .particle,
+    .star-btn.is-current .star-glow {
+      animation: none;
     }
   }
 </style>

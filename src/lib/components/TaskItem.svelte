@@ -136,8 +136,8 @@
   }
 
   .checkbox {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border: 2px solid var(--color-red);
     border-radius: 50%;
     display: flex;
@@ -214,6 +214,15 @@
     .task-item {
       padding: 0.625rem 0.75rem;
       gap: 0.625rem;
+    }
+
+    .checkbox {
+      width: 16px;
+      height: 16px;
+    }
+
+    .checkmark {
+      font-size: 0.625rem;
     }
 
     .task-name {

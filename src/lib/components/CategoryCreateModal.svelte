@@ -9,9 +9,11 @@
 
   let { open, onClose, onCreate }: Props = $props();
 
-  // Focus action for accessibility
+  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
   function focus(node: HTMLElement) {
-    node.focus();
+    if (window.innerWidth > 640) {
+      node.focus();
+    }
   }
 
   const presetColors = [

@@ -175,8 +175,8 @@
   }
 
   .checkbox {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     border: 2px solid rgba(108, 92, 231, 0.4);
     border-radius: 50%;
     display: flex;
@@ -287,6 +287,16 @@
     .task-row {
       padding: 0.5rem 0.75rem;
       gap: 0.625rem;
+    }
+
+    .checkbox {
+      width: 14px;
+      height: 14px;
+    }
+
+    .checkbox svg {
+      width: 8px;
+      height: 8px;
     }
 
     .task-name {

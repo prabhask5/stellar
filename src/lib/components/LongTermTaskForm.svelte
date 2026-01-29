@@ -33,9 +33,11 @@
     onRequestCreateCategory
   }: Props = $props();
 
-  // Focus action for accessibility
+  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
   function focus(node: HTMLElement) {
-    node.focus();
+    if (window.innerWidth > 640) {
+      node.focus();
+    }
   }
 
   // Form state
@@ -514,5 +516,17 @@
   .submit-btn:not(:disabled):hover {
     transform: scale(1.02);
     box-shadow: 0 0 30px var(--color-primary-glow);
+  }
+
+  /* Mobile adjustments for dropdown */
+  @media (max-width: 640px) {
+    .dropdown-menu {
+      max-height: 180px;
+    }
+
+    .dropdown-item {
+      padding: 0.625rem 1rem;
+      font-size: 0.875rem;
+    }
   }
 </style>
