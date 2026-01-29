@@ -5,6 +5,7 @@
     session: FocusSession | null;
     isRunning: boolean;
     remainingMs: number;
+    stateTransition?: 'none' | 'starting' | 'pausing' | 'resuming' | 'stopping' | null;
     onStart: () => void;
     onPause: () => void;
     onResume: () => void;
@@ -12,8 +13,17 @@
     onSkip: () => void;
   }
 
-  let { session, isRunning, remainingMs, onStart, onPause, onResume, onStop, onSkip }: Props =
-    $props();
+  let {
+    session,
+    isRunning,
+    remainingMs,
+    stateTransition = null,
+    onStart,
+    onPause,
+    onResume,
+    onStop,
+    onSkip
+  }: Props = $props();
 
   // Can go back only in first 30 seconds of a phase
   const canGoBack = $derived(
@@ -29,7 +39,13 @@
   const isPaused = $derived(session?.status === 'paused');
 </script>
 
-<div class="controls">
+<div
+  class="controls"
+  class:transition-starting={stateTransition === 'starting'}
+  class:transition-pausing={stateTransition === 'pausing'}
+  class:transition-resuming={stateTransition === 'resuming'}
+  class:transition-stopping={stateTransition === 'stopping'}
+>
   {#if !hasSession}
     <!-- No session - show start button -->
     <button class="control-btn primary large" onclick={onStart} aria-label="Start focus session">
@@ -50,14 +66,24 @@
 
       <!-- Main play/pause button -->
       {#if isRunning}
-        <button class="control-btn primary" onclick={onPause} aria-label="Pause">
+        <button
+          class="control-btn primary"
+          class:remote-changed={stateTransition === 'resuming'}
+          onclick={onPause}
+          aria-label="Pause"
+        >
           <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
             <rect x="6" y="4" width="4" height="16" rx="1" />
             <rect x="14" y="4" width="4" height="16" rx="1" />
           </svg>
         </button>
       {:else}
-        <button class="control-btn primary" onclick={onResume} aria-label="Resume">
+        <button
+          class="control-btn primary"
+          class:remote-changed={stateTransition === 'pausing'}
+          onclick={onResume}
+          aria-label="Resume"
+        >
           <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
             <polygon points="5,3 19,12 5,21" />
           </svg>
@@ -93,6 +119,7 @@
     align-items: center;
     gap: 1rem;
     margin-top: 2rem;
+    position: relative;
   }
 
   .control-row {
@@ -215,6 +242,133 @@
     .control-btn.skip {
       width: 44px;
       height: 44px;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+     REMOTE SYNC TRANSITION ANIMATIONS
+     ═══════════════════════════════════════════════════════════════════════════════ */
+
+  /* Button state change animation */
+  .control-btn.primary.remote-changed {
+    animation: buttonPop 0.5s var(--ease-spring);
+  }
+
+  @keyframes buttonPop {
+    0% {
+      transform: scale(0.9);
+      opacity: 0.7;
+    }
+    50% {
+      transform: scale(1.1);
+      box-shadow: 0 8px 40px var(--color-primary-glow);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Starting transition - controls fade in */
+  .controls.transition-starting {
+    animation: controlsFadeIn 0.5s var(--ease-out);
+  }
+
+  @keyframes controlsFadeIn {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Pausing transition - pause icon pulse */
+  .controls.transition-pausing .control-btn.primary {
+    animation: pausePulse 0.5s var(--ease-out);
+  }
+
+  @keyframes pausePulse {
+    0% {
+      background: var(--gradient-primary);
+    }
+    50% {
+      background: linear-gradient(135deg, rgba(108, 92, 231, 0.4) 0%, rgba(108, 92, 231, 0.2) 100%);
+      box-shadow: 0 0 20px var(--color-primary-glow);
+    }
+    100% {
+      background: var(--gradient-primary);
+    }
+  }
+
+  /* Resuming transition - energize */
+  .controls.transition-resuming .control-btn.primary {
+    animation: resumeEnergize 0.5s var(--ease-spring);
+  }
+
+  @keyframes resumeEnergize {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 4px 20px var(--color-primary-glow);
+    }
+    50% {
+      transform: scale(1.15);
+      box-shadow: 0 8px 50px var(--color-primary-glow);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: 0 4px 20px var(--color-primary-glow);
+    }
+  }
+
+  /* Stopping transition - fade to start button */
+  .controls.transition-stopping {
+    animation: controlsTransition 0.5s var(--ease-out);
+  }
+
+  @keyframes controlsTransition {
+    0% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Shimmer effect on remote state change */
+  .controls.transition-starting::after,
+  .controls.transition-resuming::after {
+    content: '';
+    position: absolute;
+    inset: -20px;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at center,
+      rgba(108, 92, 231, 0.2) 0%,
+      transparent 70%
+    );
+    animation: controlsGlow 0.6s var(--ease-out);
+    pointer-events: none;
+  }
+
+  @keyframes controlsGlow {
+    0% {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.5);
     }
   }
 </style>

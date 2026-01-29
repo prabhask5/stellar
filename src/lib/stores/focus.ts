@@ -8,6 +8,7 @@ import type {
 } from '$lib/types';
 import * as repo from '$lib/db/repositories';
 import * as sync from '$lib/sync/engine';
+import { onRealtimeDataUpdate } from '$lib/sync/realtime';
 import { browser } from '$app/environment';
 import {
   calculateRemainingMs,
@@ -26,6 +27,8 @@ interface FocusState {
   session: FocusSession | null;
   remainingMs: number;
   isRunning: boolean;
+  // Animation state for transitions
+  stateTransition: 'none' | 'starting' | 'pausing' | 'resuming' | 'stopping' | null;
 }
 
 // Store to notify when focus time should be refreshed
@@ -36,14 +39,17 @@ function createFocusStore() {
     settings: null,
     session: null,
     remainingMs: 0,
-    isRunning: false
+    isRunning: false,
+    stateTransition: null
   });
 
   const loading = writable(true);
   let tickInterval: ReturnType<typeof setInterval> | null = null;
   let currentUserId: string | null = null;
-  let unsubscribe: (() => void) | null = null;
+  let unsubscribeSyncComplete: (() => void) | null = null;
+  let unsubscribeRealtime: (() => void) | null = null;
   let isHandlingPhaseComplete = false; // Prevent concurrent phase completions
+  let isHandlingRemoteChange = false; // Prevent recursive handling
 
   // Function to trigger focus time refresh
   function notifyFocusTimeUpdated() {
@@ -165,6 +171,108 @@ function createFocusStore() {
     }
   }
 
+  // Handle realtime updates for focus sessions
+  async function handleRealtimeUpdate(table: string, entityId: string) {
+    if (table !== 'focus_sessions' || !currentUserId || isHandlingRemoteChange) {
+      return;
+    }
+
+    isHandlingRemoteChange = true;
+
+    try {
+      // Get current state for comparison
+      let currentState: FocusState = {
+        settings: null,
+        session: null,
+        remainingMs: 0,
+        isRunning: false,
+        stateTransition: null
+      };
+      update((s) => {
+        currentState = s;
+        return s;
+      });
+
+      // Fetch the updated session from local DB (already updated by realtime handler)
+      const updatedSession = await repo.getActiveSession(currentUserId);
+
+      // Determine what transition happened
+      let transition: FocusState['stateTransition'] = null;
+
+      const prevSession = currentState.session;
+      const prevStatus = prevSession?.status;
+      const newStatus = updatedSession?.status;
+
+      if (!prevSession && updatedSession) {
+        transition = 'starting';
+      } else if (prevSession && !updatedSession) {
+        transition = 'stopping';
+      } else if (prevStatus !== newStatus) {
+        if (newStatus === 'running' && prevStatus === 'paused') {
+          transition = 'resuming';
+        } else if (newStatus === 'paused' && prevStatus === 'running') {
+          transition = 'pausing';
+        } else if (newStatus === 'stopped') {
+          transition = 'stopping';
+        }
+      }
+
+      // Calculate remaining time from the server-synced session
+      let remainingMs = 0;
+      let isRunning = false;
+
+      if (updatedSession) {
+        // Use the server's phase_remaining_ms for accuracy
+        remainingMs = calculateRemainingMs(updatedSession);
+        isRunning = updatedSession.status === 'running';
+      }
+
+      // Update state with transition
+      update((s) => ({
+        ...s,
+        session: updatedSession,
+        remainingMs,
+        isRunning,
+        stateTransition: transition
+      }));
+
+      // Start or stop ticker based on running state
+      if (isRunning) {
+        startTicker();
+      } else {
+        stopTicker();
+      }
+
+      // Clear transition state after animation duration
+      if (transition) {
+        setTimeout(() => {
+          update((s) => ({
+            ...s,
+            stateTransition: null
+          }));
+        }, 600);
+      }
+    } finally {
+      isHandlingRemoteChange = false;
+    }
+  }
+
+  // Handle realtime updates for focus settings
+  async function handleSettingsRealtimeUpdate(table: string, entityId: string) {
+    if (table !== 'focus_settings' || !currentUserId) {
+      return;
+    }
+
+    // Fetch the updated settings from local DB
+    const updatedSettings = await repo.getFocusSettings(currentUserId);
+    if (updatedSettings) {
+      update((s) => ({
+        ...s,
+        settings: updatedSettings
+      }));
+    }
+  }
+
   return {
     subscribe,
     loading: { subscribe: loading.subscribe },
@@ -192,7 +300,13 @@ function createFocusStore() {
           if (remainingMs <= 0 && isRunning) {
             await repo.stopFocusSession(activeSession.id);
             const stopped = await repo.getFocusSession(activeSession.id);
-            set({ settings, session: stopped, remainingMs: 0, isRunning: false });
+            set({
+              settings,
+              session: stopped,
+              remainingMs: 0,
+              isRunning: false,
+              stateTransition: null
+            });
             loading.set(false);
             return;
           }
@@ -202,19 +316,48 @@ function createFocusStore() {
           }
         }
 
-        set({ settings, session: activeSession, remainingMs, isRunning });
+        set({ settings, session: activeSession, remainingMs, isRunning, stateTransition: null });
 
-        // Register for sync complete
-        if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
-            if (currentUserId) {
+        // Register for sync complete (fallback for when realtime is not available)
+        if (browser && !unsubscribeSyncComplete) {
+          unsubscribeSyncComplete = sync.onSyncComplete(async () => {
+            if (currentUserId && !isHandlingRemoteChange) {
               const refreshedSettings = await repo.getFocusSettings(currentUserId);
               const refreshedSession = await repo.getActiveSession(currentUserId);
+
+              // Only update if not currently handling a realtime change
+              let remainingMs = 0;
+              let isRunning = false;
+              if (refreshedSession) {
+                remainingMs = calculateRemainingMs(refreshedSession);
+                isRunning = refreshedSession.status === 'running';
+              }
+
               update((s) => ({
                 ...s,
                 settings: refreshedSettings || s.settings,
-                session: refreshedSession || s.session
+                session: refreshedSession,
+                remainingMs,
+                isRunning
               }));
+
+              // Ensure ticker state is correct
+              if (isRunning) {
+                startTicker();
+              } else {
+                stopTicker();
+              }
+            }
+          });
+        }
+
+        // Register for realtime updates (primary sync method)
+        if (browser && !unsubscribeRealtime) {
+          unsubscribeRealtime = onRealtimeDataUpdate((table, entityId) => {
+            if (table === 'focus_sessions') {
+              handleRealtimeUpdate(table, entityId);
+            } else if (table === 'focus_settings') {
+              handleSettingsRealtimeUpdate(table, entityId);
             }
           });
         }
@@ -456,9 +599,13 @@ function createFocusStore() {
     // Cleanup
     destroy: () => {
       stopTicker();
-      if (unsubscribe) {
-        unsubscribe();
-        unsubscribe = null;
+      if (unsubscribeSyncComplete) {
+        unsubscribeSyncComplete();
+        unsubscribeSyncComplete = null;
+      }
+      if (unsubscribeRealtime) {
+        unsubscribeRealtime();
+        unsubscribeRealtime = null;
       }
     }
   };

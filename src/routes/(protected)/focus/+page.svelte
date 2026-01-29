@@ -17,6 +17,9 @@
   let remainingMs = $state(0);
   let isRunning = $state(false);
   let loading = $state(true);
+  let stateTransition = $state<'none' | 'starting' | 'pausing' | 'resuming' | 'stopping' | null>(
+    null
+  );
 
   // Block lists state
   let blockLists = $state<BlockList[]>([]);
@@ -47,6 +50,7 @@
         session = state.session;
         remainingMs = state.remainingMs;
         isRunning = state.isRunning;
+        stateTransition = state.stateTransition;
       }),
       focusStore.loading.subscribe((v) => (loading = v)),
       blockListStore.subscribe((v) => (blockLists = v)),
@@ -180,13 +184,14 @@
     </div>
   {:else}
     <!-- Timer Section -->
-    <section class="timer-section">
-      <FocusTimer {session} {settings} {remainingMs} {isRunning} />
+    <section class="timer-section" class:transitioning={stateTransition}>
+      <FocusTimer {session} {settings} {remainingMs} {isRunning} {stateTransition} />
 
       <FocusControls
         {session}
         {isRunning}
         {remainingMs}
+        {stateTransition}
         onStart={handleStart}
         onPause={handlePause}
         onResume={handleResume}

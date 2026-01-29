@@ -724,12 +724,11 @@
     right: 15px;
   }
 
-  /* Star progress wrapper (mobile) */
+  /* Star progress wrapper (mobile) - display controlled by .mobile-only */
   .star-progress-wrapper {
     position: relative;
     width: 28px;
     height: 28px;
-    display: flex;
     align-items: center;
     justify-content: center;
     margin: 4px 12px 4px 0;
@@ -1139,22 +1138,22 @@
     }
 
     .action-btn {
-      width: 36px;
-      height: 36px;
-      font-size: 1.25rem;
+      width: 32px;
+      height: 32px;
+      font-size: 1.125rem;
       opacity: 0.5;
     }
 
     /* Star progress on mobile */
     .star-progress-wrapper {
-      width: 24px;
-      height: 24px;
-      margin: 2px 8px 2px 0;
+      width: 20px;
+      height: 20px;
+      margin: 2px 4px 2px 0;
     }
 
     .star-container {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
     }
 
     /* Scale down celebration effects for star */

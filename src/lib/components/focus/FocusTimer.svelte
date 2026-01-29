@@ -7,9 +7,10 @@
     settings: FocusSettings | null;
     remainingMs: number;
     isRunning: boolean;
+    stateTransition?: 'none' | 'starting' | 'pausing' | 'resuming' | 'stopping' | null;
   }
 
-  let { session, settings, remainingMs, isRunning }: Props = $props();
+  let { session, settings, remainingMs, isRunning, stateTransition = null }: Props = $props();
 
   // Calculate total duration for progress
   const totalMs = $derived(() => {
@@ -46,7 +47,14 @@
   const strokeDashoffset = $derived(circumference - (progress / 100) * circumference);
 </script>
 
-<div class="timer-container" class:running={isRunning}>
+<div
+  class="timer-container"
+  class:running={isRunning}
+  class:transition-starting={stateTransition === 'starting'}
+  class:transition-pausing={stateTransition === 'pausing'}
+  class:transition-resuming={stateTransition === 'resuming'}
+  class:transition-stopping={stateTransition === 'stopping'}
+>
   <!-- 3-Layer CSS Starfield -->
   <div class="stars-container">
     <div class="stars stars-small"></div>
@@ -418,6 +426,182 @@
 
     .time-display {
       font-size: 3rem;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+     STATE TRANSITION ANIMATIONS — Remote Sync Visual Feedback
+     ═══════════════════════════════════════════════════════════════════════════════ */
+
+  /* Starting animation - pulse and glow */
+  .timer-container.transition-starting {
+    animation: timerStart 0.6s var(--ease-spring);
+  }
+
+  @keyframes timerStart {
+    0% {
+      transform: scale(0.95);
+      opacity: 0.7;
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .timer-container.transition-starting .timer-ring {
+    animation: ringFlash 0.6s var(--ease-out);
+  }
+
+  @keyframes ringFlash {
+    0% {
+      filter: drop-shadow(0 0 0 transparent);
+    }
+    50% {
+      filter: drop-shadow(0 0 30px var(--color-primary)) drop-shadow(0 0 60px var(--color-primary-glow));
+    }
+    100% {
+      filter: none;
+    }
+  }
+
+  /* Pausing animation - gentle fade and settle */
+  .timer-container.transition-pausing {
+    animation: timerPause 0.5s var(--ease-out);
+  }
+
+  @keyframes timerPause {
+    0% {
+      filter: brightness(1);
+    }
+    50% {
+      filter: brightness(0.7);
+      transform: scale(0.98);
+    }
+    100% {
+      filter: brightness(1);
+      transform: scale(1);
+    }
+  }
+
+  .timer-container.transition-pausing .time-display {
+    animation: timePulse 0.5s var(--ease-out);
+  }
+
+  @keyframes timePulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  /* Resuming animation - energize */
+  .timer-container.transition-resuming {
+    animation: timerResume 0.5s var(--ease-spring);
+  }
+
+  @keyframes timerResume {
+    0% {
+      transform: scale(0.98);
+      filter: brightness(0.9);
+    }
+    50% {
+      transform: scale(1.02);
+      filter: brightness(1.2);
+    }
+    100% {
+      transform: scale(1);
+      filter: brightness(1);
+    }
+  }
+
+  .timer-container.transition-resuming .progress-ring {
+    animation: ringEnergize 0.5s var(--ease-out);
+  }
+
+  @keyframes ringEnergize {
+    0% {
+      filter: none;
+    }
+    50% {
+      filter: drop-shadow(0 0 20px var(--color-primary)) drop-shadow(0 0 40px var(--color-primary-glow));
+    }
+    100% {
+      filter: none;
+    }
+  }
+
+  /* Stopping animation - fade out and reset */
+  .timer-container.transition-stopping {
+    animation: timerStop 0.6s var(--ease-out);
+  }
+
+  @keyframes timerStop {
+    0% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    30% {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .timer-container.transition-stopping .progress-ring {
+    animation: ringFade 0.6s var(--ease-out);
+  }
+
+  @keyframes ringFade {
+    0% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  /* Remote sync shimmer overlay */
+  .timer-container.transition-starting::before,
+  .timer-container.transition-resuming::before {
+    content: '';
+    position: absolute;
+    inset: -10px;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at center,
+      rgba(108, 92, 231, 0.3) 0%,
+      rgba(108, 92, 231, 0.1) 50%,
+      transparent 70%
+    );
+    animation: syncPulse 0.6s var(--ease-out);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  @keyframes syncPulse {
+    0% {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.2);
     }
   }
 </style>
