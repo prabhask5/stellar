@@ -24,6 +24,7 @@ import { remoteChangesStore } from '$lib/stores/remoteChanges';
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 // Tables that support real-time sync
+// No user_id filter needed - RLS policies handle security at the database level
 const REALTIME_TABLES = [
   'goal_lists',
   'goals',
@@ -499,20 +500,19 @@ export async function startRealtimeSubscriptions(userId: string): Promise<void> 
     const channelName = `stellar_sync_${userId}`;
     state.channel = supabase.channel(channelName);
 
-    // Subscribe to each table
-    console.log(`[Realtime] Setting up subscriptions for ${REALTIME_TABLES.length} tables for user ${userId}`);
+    // Subscribe to all tables without user_id filter
+    // RLS (Row Level Security) policies handle security at the database level
+    console.log(`[Realtime] Setting up subscriptions for ${REALTIME_TABLES.length} tables`);
     for (const table of REALTIME_TABLES) {
       state.channel = state.channel.on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: table,
-          filter: `user_id=eq.${userId}`
+          table: table
         },
         (payload) => {
           console.log(`[Realtime] Raw payload received for ${table}:`, payload.eventType);
-          // Handle async function properly - catch errors to prevent unhandled rejections
           handleRealtimeChange(
             table,
             payload as RealtimePostgresChangesPayload<Record<string, unknown>>
