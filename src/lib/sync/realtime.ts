@@ -44,21 +44,8 @@ const REALTIME_TABLES = [
 type RealtimeTable = (typeof REALTIME_TABLES)[number];
 
 // Map from Supabase table names to Dexie table names
-const TABLE_MAP: Record<RealtimeTable, keyof typeof db> = {
-  goal_lists: 'goalLists',
-  goals: 'goals',
-  daily_routine_goals: 'dailyRoutineGoals',
-  daily_goal_progress: 'dailyGoalProgress',
-  task_categories: 'taskCategories',
-  commitments: 'commitments',
-  daily_tasks: 'dailyTasks',
-  long_term_tasks: 'longTermTasks',
-  focus_settings: 'focusSettings',
-  focus_sessions: 'focusSessions',
-  block_lists: 'blockLists',
-  blocked_websites: 'blockedWebsites',
-  projects: 'projects'
-};
+import { SUPABASE_TO_DEXIE_TABLE } from './types';
+const TABLE_MAP = SUPABASE_TO_DEXIE_TABLE as Record<RealtimeTable, keyof typeof db>;
 
 // Protection window for recently modified entities (matches engine.ts)
 const RECENTLY_MODIFIED_TTL_MS = 2000;

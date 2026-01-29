@@ -27,6 +27,7 @@ import type {
   Project
 } from '$lib/types';
 import type { SyncOperationItem } from './types';
+import { SUPABASE_TO_DEXIE_TABLE } from './types';
 import { syncStatusStore } from '$lib/stores/sync';
 import { calculateGoalProgressCapped } from '$lib/utils/colors';
 import { isRoutineActiveOnDate } from '$lib/utils/dates';
@@ -1459,7 +1460,8 @@ async function processSyncItem(item: SyncOperationItem): Promise<void> {
 
       // For increment, the local DB already has the final value after increment
       // We need to read it to get what to push to the server
-      const localEntity = await db.table(table).get(entityId);
+      const dexieTable = SUPABASE_TO_DEXIE_TABLE[table] || table;
+      const localEntity = await db.table(dexieTable).get(entityId);
       if (!localEntity) {
         // Entity was deleted locally, skip this increment
         console.warn(`[SYNC] Skipping increment for deleted entity: ${table}/${entityId}`);

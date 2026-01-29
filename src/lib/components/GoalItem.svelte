@@ -313,8 +313,7 @@
     border-radius: var(--radius-xl);
     transition: all 0.35s var(--ease-out);
     position: relative;
-    overflow-x: scroll;
-    overflow-y: hidden;
+    overflow: hidden;
   }
 
   .goal-content {

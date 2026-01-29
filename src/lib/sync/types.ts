@@ -41,6 +41,25 @@ export type SyncEntityType =
   | 'projects';
 
 /**
+ * Map from Supabase snake_case table names to Dexie camelCase table names.
+ */
+export const SUPABASE_TO_DEXIE_TABLE: Record<SyncEntityType, string> = {
+  goal_lists: 'goalLists',
+  goals: 'goals',
+  daily_routine_goals: 'dailyRoutineGoals',
+  daily_goal_progress: 'dailyGoalProgress',
+  task_categories: 'taskCategories',
+  commitments: 'commitments',
+  daily_tasks: 'dailyTasks',
+  long_term_tasks: 'longTermTasks',
+  focus_settings: 'focusSettings',
+  focus_sessions: 'focusSessions',
+  block_lists: 'blockLists',
+  blocked_websites: 'blockedWebsites',
+  projects: 'projects'
+};
+
+/**
  * Intent-based sync operation item.
  *
  * Key design:
