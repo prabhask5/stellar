@@ -41,7 +41,7 @@
     for (const [field, label] of Object.entries(fieldLabels)) {
       const local = localData[field];
       const remote = remoteData[field];
-      if (local !== remote && remote !== undefined) {
+      if (remote !== undefined && JSON.stringify(local) !== JSON.stringify(remote)) {
         const fmt = formatValue || defaultFormat;
         result.push({
           field,
@@ -97,46 +97,44 @@
 <!-- Always rendered; CSS controls visibility via max-height transition -->
 <div class="deferred-banner-wrapper" class:show={showBanner}>
   <div class="deferred-banner">
-    <div class="banner-content">
-      <div class="banner-message">
-        <span class="banner-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-        </span>
-        <span class="banner-text">Changes were made on another device</span>
-        {#if diffs.length > 0}
-          <button
-            class="toggle-preview"
-            onclick={() => (showPreview = !showPreview)}
-            type="button"
+    <div class="banner-header">
+      <span class="banner-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      </span>
+      <span class="banner-text">Changes were made on another device</span>
+    </div>
+    <div class="banner-actions">
+      <button class="banner-btn update-btn" onclick={handleLoadRemote} type="button">
+        Update
+      </button>
+      <button class="banner-btn dismiss-btn" onclick={handleDismiss} type="button">
+        Dismiss
+      </button>
+      {#if diffs.length > 0}
+        <button
+          class="toggle-preview"
+          onclick={() => (showPreview = !showPreview)}
+          type="button"
+        >
+          {showPreview ? 'Hide' : 'Show'} changes
+          <svg
+            class="chevron"
+            class:expanded={showPreview}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            width="14"
+            height="14"
           >
-            {showPreview ? 'Hide' : 'Show'} changes
-            <svg
-              class="chevron"
-              class:expanded={showPreview}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              width="14"
-              height="14"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-        {/if}
-      </div>
-      <div class="banner-actions">
-        <button class="banner-btn update-btn" onclick={handleLoadRemote} type="button">
-          Update
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </button>
-        <button class="banner-btn dismiss-btn" onclick={handleDismiss} type="button">
-          Dismiss
-        </button>
-      </div>
+      {/if}
     </div>
 
     {#if showPreview && diffs.length > 0}
@@ -204,19 +202,10 @@
     }
   }
 
-  .banner-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-  }
-
-  .banner-message {
+  .banner-header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex-wrap: wrap;
-    min-width: 0;
   }
 
   .banner-icon {
@@ -233,6 +222,13 @@
     white-space: nowrap;
   }
 
+  .banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
   .toggle-preview {
     display: inline-flex;
     align-items: center;
@@ -247,6 +243,7 @@
     cursor: pointer;
     transition: color 0.2s;
     white-space: nowrap;
+    margin-left: auto;
   }
 
   .toggle-preview:hover {
@@ -259,12 +256,6 @@
 
   .chevron.expanded {
     transform: rotate(180deg);
-  }
-
-  .banner-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-shrink: 0;
   }
 
   .banner-btn {
@@ -341,22 +332,29 @@
 
   /* Mobile responsive */
   @media (max-width: 480px) {
-    .banner-content {
-      flex-direction: column;
-      align-items: stretch;
+    .deferred-banner {
+      padding: 0.5rem 0.75rem;
+    }
+
+    .banner-header {
+      margin-bottom: 0.125rem;
     }
 
     .banner-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      flex-wrap: wrap;
+      gap: 0.375rem;
+      margin-top: 0.375rem;
     }
 
     .banner-btn {
       text-align: center;
     }
 
-    .deferred-banner {
-      padding: 0.625rem 0.75rem;
+    .toggle-preview {
+      flex-basis: 100%;
+      justify-content: center;
+      margin-left: 0;
+      padding: 0.25rem 0;
     }
   }
 

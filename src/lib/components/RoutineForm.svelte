@@ -117,6 +117,23 @@
     active_days: 'Active Days'
   };
 
+  const dayShortLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  function formatActiveDays(days: DayOfWeek[] | null): string {
+    if (days === null) return 'Everyday';
+    if (days.length === 5 && !days.includes(0) && !days.includes(6)) return 'Weekdays';
+    if (days.length === 2 && days.includes(0) && days.includes(6)) return 'Weekends';
+    return days.map((d) => dayShortLabels[d]).join(', ');
+  }
+
+  function formatFieldValue(field: string, value: unknown): string {
+    if (field === 'active_days') return formatActiveDays(value as DayOfWeek[] | null);
+    if (typeof value === 'boolean') return value ? 'On' : 'Off';
+    if (value === null || value === undefined) return 'None';
+    if (Array.isArray(value)) return value.join(', ');
+    return String(value);
+  }
+
   // Derive remote data by comparing reactive props (DB state) to local form state
   const localActiveDays = $derived(
     allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
@@ -209,12 +226,13 @@
         active_days: allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
       }}
       fieldLabels={routineFieldLabels}
+      formatValue={formatFieldValue}
       onLoadRemote={loadRemoteData}
       onDismiss={() => {}}
     />
   {/if}
 
-  <div class="form-group" class:field-changed={highlightedFields.has('name')}>
+  <div class="form-group">
     <label for="routine-name">Routine Name</label>
     <input
       id="routine-name"
@@ -222,12 +240,13 @@
       bind:value={name}
       placeholder="Enter routine name..."
       required
+      class:field-changed={highlightedFields.has('name')}
     />
   </div>
 
-  <div class="form-group" class:field-changed={highlightedFields.has('type')}>
+  <div class="form-group">
     <label>Goal Type</label>
-    <div class="type-toggle">
+    <div class="type-toggle" class:field-changed={highlightedFields.has('type')}>
       <button
         type="button"
         class="type-btn"
@@ -250,16 +269,16 @@
   </div>
 
   {#if type === 'incremental'}
-    <div class="form-group" class:field-changed={highlightedFields.has('target_value')}>
+    <div class="form-group">
       <label for="target-value">Daily Target Value</label>
-      <input id="target-value" type="number" bind:value={targetValue} min="1" required />
+      <input id="target-value" type="number" bind:value={targetValue} min="1" required class:field-changed={highlightedFields.has('target_value')} />
     </div>
   {/if}
 
   <!-- Active Days Selector -->
-  <div class="form-group" class:field-changed={highlightedFields.has('active_days')}>
+  <div class="form-group">
     <label>Active Days</label>
-    <div class="days-selector">
+    <div class="days-selector" class:field-changed={highlightedFields.has('active_days')}>
       {#each dayLabels as day}
         <button
           type="button"
@@ -304,14 +323,14 @@
   </div>
 
   <div class="form-row">
-    <div class="form-group" class:field-changed={highlightedFields.has('start_date')}>
+    <div class="form-group">
       <label for="start-date">Start Date</label>
-      <input id="start-date" type="date" bind:value={startDate} required />
+      <input id="start-date" type="date" bind:value={startDate} required class:field-changed={highlightedFields.has('start_date')} />
     </div>
 
-    <div class="form-group" class:field-changed={highlightedFields.has('end_date')}>
+    <div class="form-group">
       <label for="end-date-toggle" class="checkbox-label">
-        <input id="end-date-toggle" type="checkbox" bind:checked={hasEndDate} />
+        <input id="end-date-toggle" type="checkbox" bind:checked={hasEndDate} class:field-changed={highlightedFields.has('end_date')} />
         <span>Has End Date</span>
       </label>
       {#if hasEndDate}

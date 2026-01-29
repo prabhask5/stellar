@@ -241,7 +241,7 @@
         {/if}
 
         <!-- Focus Duration -->
-        <div class="setting-group" class:field-changed={highlightedFields.has('focus_duration')}>
+        <div class="setting-group">
           <label class="setting-label" for="focus-duration">
             <span class="label-text">Focus Duration</span>
             <span class="label-value">{focusDuration} min</span>
@@ -254,11 +254,12 @@
             step="15"
             bind:value={focusDuration}
             class="slider"
+            class:field-changed={highlightedFields.has('focus_duration')}
           />
         </div>
 
         <!-- Break Duration -->
-        <div class="setting-group" class:field-changed={highlightedFields.has('break_duration')}>
+        <div class="setting-group">
           <label class="setting-label" for="break-duration">
             <span class="label-text">Short Break</span>
             <span class="label-value">{breakDuration} min</span>
@@ -271,11 +272,12 @@
             step="1"
             bind:value={breakDuration}
             class="slider break"
+            class:field-changed={highlightedFields.has('break_duration')}
           />
         </div>
 
         <!-- Long Break Duration -->
-        <div class="setting-group" class:field-changed={highlightedFields.has('long_break_duration')}>
+        <div class="setting-group">
           <label class="setting-label" for="long-break-duration">
             <span class="label-text">Long Break</span>
             <span class="label-value">{longBreakDuration} min</span>
@@ -288,11 +290,12 @@
             step="5"
             bind:value={longBreakDuration}
             class="slider long-break"
+            class:field-changed={highlightedFields.has('long_break_duration')}
           />
         </div>
 
         <!-- Cycles Before Long Break -->
-        <div class="setting-group" class:field-changed={highlightedFields.has('cycles_before_long_break')}>
+        <div class="setting-group">
           <label class="setting-label" for="cycles-before-long-break">
             <span class="label-text">Cycles Before Long Break</span>
             <span class="label-value">{cyclesBeforeLongBreak}</span>
@@ -305,13 +308,14 @@
             step="1"
             bind:value={cyclesBeforeLongBreak}
             class="slider"
+            class:field-changed={highlightedFields.has('cycles_before_long_break')}
           />
         </div>
 
         <hr class="divider" />
 
         <!-- Auto-start toggles -->
-        <div class="setting-group toggle-group" class:field-changed={highlightedFields.has('auto_start_breaks')}>
+        <div class="setting-group toggle-group">
           <span class="toggle-label" id="auto-start-breaks-label">
             <span class="label-text">Auto-start Breaks</span>
             <span class="label-desc">Automatically start break timer after focus</span>
@@ -319,6 +323,7 @@
           <button
             class="toggle-btn"
             class:active={autoStartBreaks}
+            class:field-changed={highlightedFields.has('auto_start_breaks')}
             onclick={() => (autoStartBreaks = !autoStartBreaks)}
             aria-checked={autoStartBreaks}
             aria-labelledby="auto-start-breaks-label"
@@ -328,7 +333,7 @@
           </button>
         </div>
 
-        <div class="setting-group toggle-group" class:field-changed={highlightedFields.has('auto_start_focus')}>
+        <div class="setting-group toggle-group">
           <span class="toggle-label" id="auto-start-focus-label">
             <span class="label-text">Auto-start Focus</span>
             <span class="label-desc">Automatically start focus timer after break</span>
@@ -336,6 +341,7 @@
           <button
             class="toggle-btn"
             class:active={autoStartFocus}
+            class:field-changed={highlightedFields.has('auto_start_focus')}
             onclick={() => (autoStartFocus = !autoStartFocus)}
             aria-checked={autoStartFocus}
             aria-labelledby="auto-start-focus-label"
@@ -456,21 +462,7 @@
     transition: background 0.3s, box-shadow 0.3s;
   }
 
-  /* Background glow while slider animates + cosmic shimmer via global .field-changed::after */
-  .setting-group.field-changed {
-    animation: fieldHighlight 1.4s var(--ease-out) forwards;
-  }
-
-  @keyframes fieldHighlight {
-    0% {
-      background: rgba(108, 92, 231, 0.12);
-      box-shadow: 0 0 12px rgba(108, 92, 231, 0.2);
-    }
-    100% {
-      background: transparent;
-      box-shadow: none;
-    }
-  }
+  /* Cosmic shimmer applied directly on slider/toggle via global .field-changed::after */
 
   .setting-label {
     display: flex;

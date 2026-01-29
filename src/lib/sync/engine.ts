@@ -1275,6 +1275,15 @@ async function pushPendingOps(): Promise<PushStats> {
 
     for (const item of pendingItems) {
       try {
+        // Skip items that were purged from the queue during reconciliation
+        // (e.g. focus_settings ID reconciliation deletes old queued ops)
+        if (item.id) {
+          const stillQueued = await db.syncQueue.get(item.id);
+          if (!stillQueued) {
+            console.log(`[SYNC] Skipping purged item: ${item.operationType} ${item.table}/${item.entityId}`);
+            continue;
+          }
+        }
         console.log(`[SYNC] Processing: ${item.operationType} ${item.table}/${item.entityId}`);
         await processSyncItem(item);
         if (item.id) {
@@ -1546,6 +1555,44 @@ async function processSyncItem(item: SyncOperationItem): Promise<void> {
       if (error) throw error;
       // Check if update actually affected any rows
       if (!data) {
+        // For singleton tables like focus_settings, the local ID may not match the server.
+        // Look up the server's record by user_id and re-apply the update with the correct ID.
+        if (table === 'focus_settings') {
+          const dexieTable = SUPABASE_TO_DEXIE_TABLE[table] || table;
+          const localEntity = await db.table(dexieTable).get(entityId);
+          const userId = localEntity?.user_id;
+          if (userId) {
+            const { data: serverRow } = await supabase
+              .from(table)
+              .select('*')
+              .eq('user_id', userId)
+              .maybeSingle();
+
+            if (serverRow) {
+              // Apply the update to the correct server row
+              const { error: retryError } = await supabase
+                .from(table)
+                .update(updatePayload)
+                .eq('id', serverRow.id)
+                .select('id')
+                .maybeSingle();
+
+              // Reconcile local: replace stale ID with server ID
+              await db.table(dexieTable).delete(entityId);
+              // Merge our pending changes into the server row
+              const merged = { ...serverRow, ...updatePayload, id: serverRow.id };
+              await db.table(dexieTable).put(merged);
+              // Purge any remaining queued operations referencing the old ID
+              await db.syncQueue
+                .where('entityId')
+                .equals(entityId)
+                .delete();
+
+              if (retryError) throw retryError;
+              break;
+            }
+          }
+        }
         throw new Error(`Update blocked by RLS or row missing: ${table}/${entityId}`);
       }
       break;

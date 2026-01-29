@@ -95,14 +95,14 @@
     />
   {/if}
 
-  <div class="form-group" class:field-changed={highlightedFields.has('name')}>
+  <div class="form-group">
     <label for="goal-name">Goal Name</label>
-    <input id="goal-name" type="text" bind:value={name} placeholder="Enter goal name..." required />
+    <input id="goal-name" type="text" bind:value={name} placeholder="Enter goal name..." required class:field-changed={highlightedFields.has('name')} />
   </div>
 
-  <div class="form-group" class:field-changed={highlightedFields.has('type')}>
+  <div class="form-group">
     <label>Goal Type</label>
-    <div class="type-toggle">
+    <div class="type-toggle" class:field-changed={highlightedFields.has('type')}>
       <button
         type="button"
         class="type-btn"
@@ -125,9 +125,9 @@
   </div>
 
   {#if type === 'incremental'}
-    <div class="form-group" class:field-changed={highlightedFields.has('target_value')}>
+    <div class="form-group">
       <label for="target-value">Target Value</label>
-      <input id="target-value" type="number" bind:value={targetValue} min="1" required />
+      <input id="target-value" type="number" bind:value={targetValue} min="1" required class:field-changed={highlightedFields.has('target_value')} />
     </div>
   {/if}
 

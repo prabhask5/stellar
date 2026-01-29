@@ -90,6 +90,23 @@
     active_days: 'Active Days'
   };
 
+  const dayShortLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  function formatActiveDays(days: DayOfWeek[] | null): string {
+    if (days === null) return 'Everyday';
+    if (days.length === 5 && !days.includes(0) && !days.includes(6)) return 'Weekdays';
+    if (days.length === 2 && days.includes(0) && days.includes(6)) return 'Weekends';
+    return days.map((d) => dayShortLabels[d]).join(', ');
+  }
+
+  function formatFieldValue(field: string, value: unknown): string {
+    if (field === 'active_days') return formatActiveDays(value as DayOfWeek[] | null);
+    if (typeof value === 'boolean') return value ? 'On' : 'Off';
+    if (value === null || value === undefined) return 'None';
+    if (Array.isArray(value)) return value.join(', ');
+    return String(value);
+  }
+
   // Derive remote data by comparing reactive props (DB state) to local form state
   const localActiveDays = $derived(
     allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
@@ -158,12 +175,13 @@
         active_days: allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
       }}
       fieldLabels={blockListFieldLabels}
+      formatValue={formatFieldValue}
       onLoadRemote={loadRemoteData}
       onDismiss={() => {}}
     />
   {/if}
 
-  <div class="form-group" class:field-changed={highlightedFields.has('name')}>
+  <div class="form-group">
     <label for="block-list-name">Block List Name</label>
     <input
       id="block-list-name"
@@ -171,13 +189,14 @@
       bind:value={name}
       placeholder="Enter block list name..."
       required
+      class:field-changed={highlightedFields.has('name')}
     />
   </div>
 
   <!-- Active Days Selector -->
-  <div class="form-group" class:field-changed={highlightedFields.has('active_days')}>
+  <div class="form-group">
     <label>Active Days</label>
-    <div class="days-selector">
+    <div class="days-selector" class:field-changed={highlightedFields.has('active_days')}>
       {#each dayLabels as day}
         <button
           type="button"
