@@ -122,7 +122,8 @@
       >
         <span class="day-number">{day.getDate()}</span>
         {#if hasTasksDue}
-          <div class="task-chips">
+          <!-- Desktop: Show task chips -->
+          <div class="task-chips desktop-only">
             {#each dayTasks.slice(0, 2) as task}
               <button
                 class="task-chip"
@@ -140,6 +141,12 @@
             {#if dayTasks.length > 2}
               <span class="more-tasks">+{dayTasks.length - 2}</span>
             {/if}
+          </div>
+          <!-- Mobile: Show minimal task count indicator -->
+          <div class="task-count-indicator mobile-only">
+            <span class="task-count" class:multiple={dayTasks.length > 1}>
+              {dayTasks.length}
+            </span>
           </div>
         {/if}
       </div>
@@ -388,6 +395,41 @@
     padding: 0.125rem 0.25rem;
   }
 
+  /* Desktop/Mobile visibility */
+  .desktop-only {
+    display: flex;
+  }
+
+  .mobile-only {
+    display: none;
+  }
+
+  /* Mobile task count indicator */
+  .task-count-indicator {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+  }
+
+  .task-count {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: white;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
+    box-shadow: 0 2px 8px var(--color-primary-glow);
+  }
+
+  .task-count.multiple {
+    background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+  }
+
   @media (max-width: 640px) {
     .calendar {
       border-radius: var(--radius-xl);
@@ -407,22 +449,43 @@
     }
 
     .day-cell {
-      min-height: 60px;
+      min-height: 44px;
       padding: 0.375rem;
+      aspect-ratio: 1;
+    }
+
+    .day-cell:not(.empty):hover {
+      transform: none;
     }
 
     .day-number {
       font-size: 0.75rem;
     }
 
-    .task-chip {
-      font-size: 0.5625rem;
-      padding: 0.15rem 0.3rem;
-    }
-
     .weekday {
       font-size: 0.5625rem;
       padding: 0.5rem;
+    }
+
+    /* Hide task chips on mobile, show count indicator */
+    .desktop-only {
+      display: none !important;
+    }
+
+    .mobile-only {
+      display: flex !important;
+    }
+
+    .task-count-indicator {
+      bottom: 3px;
+      right: 3px;
+    }
+
+    .task-count {
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      font-size: 0.5625rem;
     }
   }
 </style>

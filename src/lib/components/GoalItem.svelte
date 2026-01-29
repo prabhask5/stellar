@@ -873,12 +873,12 @@
 
   @media (max-width: 480px) {
     .goal-item {
-      padding: 0.75rem 1rem;
-      gap: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      gap: 0.5rem;
     }
 
     .goal-main {
-      gap: 0.75rem;
+      gap: 0.5rem;
     }
 
     .checkbox {
@@ -891,45 +891,103 @@
     }
 
     .increment-controls {
-      gap: 0.375rem;
+      gap: 0.125rem;
+      flex-shrink: 0;
     }
 
     .increment-btn {
-      width: 30px;
-      height: 30px;
-      font-size: 1.125rem;
+      width: 24px;
+      height: 24px;
+      font-size: 0.875rem;
+      border-radius: var(--radius-md);
     }
 
     .current-value {
-      min-width: 3.5rem;
-      font-size: 0.875rem;
-      padding: 0.375rem 0.5rem;
+      min-width: auto;
+      font-size: 0.6875rem;
+      padding: 0.125rem 0.25rem;
     }
 
     .value-input {
-      width: 3.5rem;
-      font-size: 0.875rem;
-      padding: 0.375rem 0.5rem;
+      width: 2.5rem;
+      font-size: 0.6875rem;
+      padding: 0.125rem 0.25rem;
     }
 
     .goal-name {
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
     }
 
     .goal-actions {
-      gap: 0.5rem;
+      gap: 0.375rem;
     }
 
     .action-btn {
-      width: 30px;
-      height: 30px;
-      font-size: 1rem;
+      width: 24px;
+      height: 24px;
+      font-size: 0.75rem;
+      opacity: 0.5;
     }
 
+    /* Compact progress bar on mobile */
     .mini-progress-wrapper {
-      width: 60px;
+      width: 40px;
+      height: 6px;
+      margin: 8px 12px 8px 4px;
+    }
+
+    /* Scale down celebration effects for mobile */
+    .pulse-ring {
+      width: 14px;
+      height: 14px;
+    }
+
+    .overflow-star {
+      font-size: 8px;
+    }
+
+    .star-1 {
+      right: -8px;
+    }
+
+    .star-2 {
+      right: -4px;
+      top: -5px;
+      font-size: 6px;
+    }
+
+    .star-3 {
+      right: -3px;
+      bottom: -4px;
+      font-size: 7px;
+    }
+
+    .orbit-spark {
+      width: 2px;
+      height: 2px;
+    }
+
+    .orbit-1 {
+      --orbit-radius: 10px;
+    }
+
+    .orbit-2 {
+      --orbit-radius: 14px;
+    }
+
+    .particle {
+      width: 2px;
+      height: 2px;
+    }
+
+    .energy-arc {
       height: 8px;
-      margin: 10px 15px 10px 5px;
+      width: 1px;
+    }
+
+    .arc-2 {
+      height: 5px;
+      right: 10px;
     }
   }
 

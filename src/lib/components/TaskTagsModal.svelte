@@ -468,16 +468,16 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 0.75rem;
     background: rgba(20, 20, 40, 0.6);
     border: 1px solid rgba(108, 92, 231, 0.15);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
   }
 
   .category-info {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
     flex: 1;
     min-width: 0;
   }
@@ -488,18 +488,18 @@
   }
 
   .category-color {
-    width: 20px;
-    height: 20px;
+    width: 12px;
+    height: 12px;
     border-radius: var(--radius-sm);
     flex-shrink: 0;
-    border: 2px solid transparent;
+    border: none;
     cursor: pointer;
     transition: all 0.2s var(--ease-out);
   }
 
   .category-color:hover {
-    transform: scale(1.15);
-    border-color: rgba(255, 255, 255, 0.3);
+    transform: scale(1.2);
+    box-shadow: 0 0 8px currentColor;
   }
 
   .category-color-static {
