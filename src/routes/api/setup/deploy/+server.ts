@@ -41,7 +41,9 @@ async function setEnvVar(projectId: string, token: string, key: string, value: s
   const createData = await createRes.json();
 
   // If it already exists, find its ID and update it
-  if (createData.error?.code === 'ENV_ALREADY_EXISTS') {
+  const errorCode = createData.error?.code || '';
+  const errorMessage = createData.error?.message || '';
+  if (errorCode === 'ENV_ALREADY_EXISTS' || errorMessage.includes('already exists')) {
     // List env vars to find the ID
     const listRes = await vercelApi(`/v9/projects/${projectId}/env`, token);
     if (!listRes.ok) {
