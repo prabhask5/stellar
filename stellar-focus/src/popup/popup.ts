@@ -8,8 +8,8 @@
  */
 
 import browser from 'webextension-polyfill';
-import { createClient } from '@supabase/supabase-js';
-import { config } from '../config';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getConfig } from '../config';
 
 // Types
 interface FocusSession {
@@ -35,25 +35,36 @@ interface BlockList {
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
 // Supabase client — auth only (data queries go through service worker)
-const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey, {
-  auth: {
-    storage: {
-      getItem: async (key: string) => {
-        const result = await browser.storage.local.get(key);
-        return result[key] ?? null;
+let supabase: SupabaseClient | null = null;
+
+async function getSupabaseClient(): Promise<SupabaseClient | null> {
+  if (supabase) return supabase;
+
+  const config = await getConfig();
+  if (!config) return null;
+
+  supabase = createClient(config.supabaseUrl, config.supabaseAnonKey, {
+    auth: {
+      storage: {
+        getItem: async (key: string) => {
+          const result = await browser.storage.local.get(key);
+          return result[key] ?? null;
+        },
+        setItem: async (key: string, value: string) => {
+          await browser.storage.local.set({ [key]: value });
+        },
+        removeItem: async (key: string) => {
+          await browser.storage.local.remove(key);
+        }
       },
-      setItem: async (key: string, value: string) => {
-        await browser.storage.local.set({ [key]: value });
-      },
-      removeItem: async (key: string) => {
-        await browser.storage.local.remove(key);
-      }
-    },
-    autoRefreshToken: true,
-    persistSession: true
-  }
-  // EGRESS OPTIMIZATION: Removed realtime config — popup uses service worker for all data
-});
+      autoRefreshToken: true,
+      persistSession: true
+    }
+    // EGRESS OPTIMIZATION: Removed realtime config — popup uses service worker for all data
+  });
+
+  return supabase;
+}
 
 // DOM Elements
 const offlinePlaceholder = document.getElementById('offlinePlaceholder') as HTMLElement;
@@ -86,11 +97,21 @@ let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let cachedBlockLists: BlockList[] = [];
 let focusTimeInterval: ReturnType<typeof setInterval> | null = null;
 let hasActiveRunningSession = false;
+// Not-configured state element
+const notConfiguredEl = document.getElementById('notConfigured') as HTMLElement | null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
+  // Check if configured
+  const config = await getConfig();
+  if (!config) {
+    // Show not-configured state
+    showNotConfigured();
+    return;
+  }
+
   // Set links (for right-click open in new tab)
   if (openStellarBtn) openStellarBtn.href = config.appUrl;
   if (signupLink) signupLink.href = config.appUrl + '/login';
@@ -127,12 +148,40 @@ async function init() {
 
   privacyLink?.addEventListener('click', async (e) => {
     e.preventDefault();
-    await navigateToApp(`${config.appUrl}/policy`);
+    const cfg = await getConfig();
+    if (cfg) await navigateToApp(`${cfg.appUrl}/policy`);
   });
 
   // Check auth if online
   if (isOnline) {
     await checkAuth();
+  }
+}
+
+function showNotConfigured() {
+  // Hide all other sections
+  offlinePlaceholder?.classList.add('hidden');
+  authSection?.classList.add('hidden');
+  mainSection?.classList.add('hidden');
+
+  // Show not-configured message or create one
+  if (notConfiguredEl) {
+    notConfiguredEl.classList.remove('hidden');
+  } else {
+    // Fallback: create a simple message
+    const container = document.querySelector('.popup-container') || document.body;
+    const div = document.createElement('div');
+    div.className = 'not-configured';
+    div.innerHTML = `
+      <div style="text-align: center; padding: 2rem 1rem;">
+        <p style="color: #8b8ba3; margin-bottom: 1rem;">Extension not configured</p>
+        <a id="openOptionsBtn" style="color: #a78bfa; cursor: pointer; text-decoration: underline;">Open Settings</a>
+      </div>
+    `;
+    container.appendChild(div);
+    document.getElementById('openOptionsBtn')?.addEventListener('click', () => {
+      browser.runtime.openOptionsPage();
+    });
   }
 }
 
@@ -190,7 +239,10 @@ function updateView() {
 
 async function checkAuth() {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const client = await getSupabaseClient();
+    if (!client) return;
+
+    const { data: { session } } = await client.auth.getSession();
 
     if (session?.user) {
       currentUserId = session.user.id;
@@ -225,7 +277,14 @@ async function handleLogin(e: Event) {
   hideLoginError();
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const client = await getSupabaseClient();
+    if (!client) {
+      showLoginError('Extension not configured');
+      setLoginLoading(false);
+      return;
+    }
+
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
 
     if (error) {
       showLoginError(error.message);
@@ -253,7 +312,8 @@ async function handleLogout() {
   try {
     stopFocusTimeTick();
     hasActiveRunningSession = false;
-    await supabase.auth.signOut();
+    const client = await getSupabaseClient();
+    if (client) await client.auth.signOut();
     currentUserId = null;
     updateView();
     emailInput.value = '';
@@ -529,8 +589,11 @@ function updateStatusDisplay(session: FocusSession | null) {
   prevTimerState = newState;
 }
 
-function renderBlockLists(lists: BlockList[]) {
+async function renderBlockLists(lists: BlockList[]) {
   if (!blockListsContainer) return;
+
+  const config = await getConfig();
+  const appUrl = config?.appUrl || '';
 
   // Clear existing content
   blockListsContainer.textContent = '';
@@ -544,12 +607,12 @@ function renderBlockLists(lists: BlockList[]) {
     emptyDiv.appendChild(p);
 
     const createLink = document.createElement('a');
-    createLink.href = `${config.appUrl}/focus`;
+    createLink.href = `${appUrl}/focus`;
     createLink.className = 'create-link';
     createLink.textContent = 'Create one in Stellar';
     createLink.addEventListener('click', async (e) => {
       e.preventDefault();
-      await navigateToApp(`${config.appUrl}/focus`);
+      await navigateToApp(`${appUrl}/focus`);
     });
     emptyDiv.appendChild(createLink);
 
@@ -568,7 +631,7 @@ function renderBlockLists(lists: BlockList[]) {
 
   for (const list of sortedLists) {
     const isActive = isBlockListActiveToday(list);
-    const editUrl = `${config.appUrl}/focus/block-lists/${list.id}`;
+    const editUrl = `${appUrl}/focus/block-lists/${list.id}`;
 
     const itemDiv = document.createElement('div');
     itemDiv.className = 'block-list-item';
@@ -691,17 +754,14 @@ function hideLoginError() {
   loginError?.classList.add('hidden');
 }
 
-function escapeHtml(str: string): string {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
 /**
  * Focus an existing app tab if open, otherwise open a new tab to the app home
  */
 async function focusOrOpenApp() {
   try {
+    const config = await getConfig();
+    if (!config) return;
+
     const tabs = await browser.tabs.query({
       currentWindow: true,
       url: `${config.appUrl}/*`
@@ -718,7 +778,10 @@ async function focusOrOpenApp() {
     window.close();
   } catch (error) {
     console.error('[Stellar Focus] Navigation error:', error);
-    await browser.tabs.create({ url: config.appUrl });
+    const config = await getConfig();
+    if (config) {
+      await browser.tabs.create({ url: config.appUrl });
+    }
     window.close();
   }
 }
@@ -728,6 +791,9 @@ async function focusOrOpenApp() {
  */
 async function navigateToApp(url: string) {
   try {
+    const config = await getConfig();
+    if (!config) return;
+
     const tabs = await browser.tabs.query({
       currentWindow: true,
       url: `${config.appUrl}/*`

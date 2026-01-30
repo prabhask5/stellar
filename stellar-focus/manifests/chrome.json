@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Stellar Focus",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Block distracting websites during Stellar focus sessions",
   "permissions": [
     "storage",
@@ -32,5 +32,6 @@
       "matches": ["<all_urls>"]
     }
   ],
+  "options_page": "options/options.html",
   "minimum_chrome_version": "109"
 }

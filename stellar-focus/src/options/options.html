@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stellar Focus - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <!-- Starfield background -->
+  <div class="background">
+    <div class="stars stars-small"></div>
+    <div class="stars stars-medium"></div>
+    <div class="nebula nebula-1"></div>
+    <div class="nebula nebula-2"></div>
+  </div>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="url(#logoGrad)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <defs>
+            <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#6c5ce7" />
+              <stop offset="100%" stop-color="#ff79c6" />
+            </linearGradient>
+          </defs>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          <path d="M2 12h20" />
+        </svg>
+        <h1>Stellar Focus</h1>
+      </div>
+      <p class="subtitle">Connect to your Stellar instance</p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card">
+      <form id="configForm">
+        <div class="form-group">
+          <label for="supabaseUrl">Supabase URL</label>
+          <input type="url" id="supabaseUrl" placeholder="https://your-project.supabase.co" required>
+          <span class="hint">Found in Supabase Dashboard &gt; Settings &gt; API</span>
+        </div>
+
+        <div class="form-group">
+          <label for="supabaseAnonKey">Supabase Anon Key</label>
+          <input type="text" id="supabaseAnonKey" placeholder="eyJhbGciOiJIUzI1NiIs..." required>
+          <span class="hint">Your public anon key (safe to use client-side)</span>
+        </div>
+
+        <div class="form-group">
+          <label for="appUrl">Stellar App URL</label>
+          <input type="url" id="appUrl" placeholder="https://your-app.vercel.app" required>
+          <span class="hint">Your deployed Stellar web app URL</span>
+        </div>
+
+        <div id="message" class="message hidden"></div>
+
+        <button type="submit" id="saveBtn" class="btn btn-primary">
+          <span class="btn-text">Save & Connect</span>
+          <span class="btn-loading hidden">
+            <span class="spinner"></span>
+            Validating...
+          </span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

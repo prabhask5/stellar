@@ -56,6 +56,8 @@ const filesToCopy = [
   ['popup/popup.css', 'popup/popup.css'],
   ['pages/blocked.html', 'pages/blocked.html'],
   ['pages/blocked.css', 'pages/blocked.css'],
+  ['options/options.html', 'options/options.html'],
+  ['options/options.css', 'options/options.css'],
 ];
 
 async function buildTarget(target) {
@@ -72,6 +74,7 @@ async function buildTarget(target) {
     join(distDir, 'popup'),
     join(distDir, 'pages'),
     join(distDir, 'background'),
+    join(distDir, 'options'),
     join(distDir, 'icons'),
   ];
 
@@ -112,6 +115,14 @@ async function buildTarget(target) {
     ...commonOptions,
     entryPoints: [join(srcDir, 'pages/blocked.ts')],
     outfile: join(distDir, 'pages/blocked.js'),
+  });
+
+  // Build options page script
+  console.log('  Building options.js...');
+  await build({
+    ...commonOptions,
+    entryPoints: [join(srcDir, 'options/options.ts')],
+    outfile: join(distDir, 'options/options.js'),
   });
 
   // Copy static files from src

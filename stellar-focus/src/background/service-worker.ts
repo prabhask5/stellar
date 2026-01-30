@@ -12,9 +12,10 @@
 
 import browser from 'webextension-polyfill';
 import { type RealtimeChannel } from '@supabase/supabase-js';
-import { getSupabase, getSession } from '../auth/supabase';
+import { getSupabase, getSession, resetSupabase } from '../auth/supabase';
+import { isConfigured, getConfig } from '../config';
 import { blockListsCache, blockedWebsitesCache, focusSessionCacheStore, type FocusSessionCache } from '../lib/storage';
-import { getNetworkStatus, checkConnectivity, getSupabaseUrl } from '../lib/network';
+import { getNetworkStatus, checkConnectivity } from '../lib/network';
 
 // Polling interval for focus session status (30 seconds)
 const POLL_INTERVAL_MS = 30 * 1000;
@@ -40,14 +41,22 @@ const COLUMNS = {
 } as const;
 
 // Initialize
-browser.runtime.onInstalled.addListener(() => {
+browser.runtime.onInstalled.addListener(async () => {
   console.log('[Stellar Focus] Extension installed');
+  const configured = await isConfigured();
+  if (!configured) {
+    // Open options page for first-time setup
+    browser.runtime.openOptionsPage();
+    return;
+  }
   setupAlarm();
   init();
 });
 
-browser.runtime.onStartup.addListener(() => {
+browser.runtime.onStartup.addListener(async () => {
   console.log('[Stellar Focus] Browser started');
+  const configured = await isConfigured();
+  if (!configured) return;
   setupAlarm();
   init();
 });
@@ -90,6 +99,16 @@ if (typeof navigator !== 'undefined') {
 
 // Listen for messages from popup
 browser.runtime.onMessage.addListener((message: { type: string }, _sender: browser.Runtime.MessageSender, sendResponse: (response?: unknown) => void) => {
+  // Handle config update from options page
+  if (message.type === 'CONFIG_UPDATED') {
+    console.log('[Stellar Focus] Config updated - re-initializing');
+    resetSupabase();
+    cleanupRealtimeSubscriptions();
+    setupAlarm();
+    init();
+    return;
+  }
+
   if (message.type === 'CHECK_UPDATE') {
     // Firefox handles updates automatically through AMO
     // Just return false - no manual update check available
@@ -147,7 +166,7 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
           return;
         }
 
-        const supabase = getSupabase();
+        const supabase = await getSupabase();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayStr = today.toISOString();
@@ -229,7 +248,7 @@ browser.webNavigation.onBeforeNavigate.addListener(async (details: browser.WebNa
   }
 
   if (shouldBlock) {
-    console.log('[Stellar Focus] 🚫 Blocking:', hostname);
+    console.log('[Stellar Focus] Blocking:', hostname);
     // Redirect to blocked page
     const blockedUrl = browser.runtime.getURL(
       `pages/blocked.html?url=${encodeURIComponent(details.url)}&domain=${encodeURIComponent(hostname)}`
@@ -240,8 +259,18 @@ browser.webNavigation.onBeforeNavigate.addListener(async (details: browser.WebNa
 });
 
 async function init() {
+  // Check config availability
+  const configured = await isConfigured();
+  if (!configured) {
+    console.log('[Stellar Focus] Not configured - skipping init');
+    return;
+  }
+
+  const extConfig = await getConfig();
+  if (!extConfig) return;
+
   // Check online status
-  isOnline = await checkConnectivity(getSupabaseUrl());
+  isOnline = await checkConnectivity(extConfig.supabaseUrl);
 
   // Load cached focus session
   const cached = await focusSessionCacheStore.get('current');
@@ -271,7 +300,7 @@ async function setupRealtimeSubscriptions() {
   const user = session.user;
   if (!user) return;
 
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
 
   // Clean up existing subscriptions
   cleanupRealtimeSubscriptions();
@@ -294,7 +323,7 @@ async function setupRealtimeSubscriptions() {
         filter: `user_id=eq.${user.id}`
       },
       (payload) => {
-        console.log('[Stellar Focus] 🚀 Real-time: Focus session update', payload.eventType);
+        console.log('[Stellar Focus] Real-time: Focus session update', payload.eventType);
         // Use the payload data directly instead of making another query
         // This reduces egress since realtime already includes the data
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -345,7 +374,7 @@ async function setupRealtimeSubscriptions() {
         filter: `user_id=eq.${user.id}`
       },
       (payload) => {
-        console.log('[Stellar Focus] 🚀 Real-time: Block list update', payload.eventType);
+        console.log('[Stellar Focus] Real-time: Block list update', payload.eventType);
         // EGRESS OPTIMIZATION: Use payload data directly instead of re-fetching
         handleBlockListRealtimeUpdate(payload);
       }
@@ -362,7 +391,7 @@ async function setupRealtimeSubscriptions() {
         table: 'blocked_websites'
       },
       (payload) => {
-        console.log('[Stellar Focus] 🚀 Real-time: Blocked website update', payload.eventType);
+        console.log('[Stellar Focus] Real-time: Blocked website update', payload.eventType);
         // EGRESS OPTIMIZATION: Use payload data directly instead of re-fetching
         handleBlockedWebsiteRealtimeUpdate(payload);
       }
@@ -371,10 +400,10 @@ async function setupRealtimeSubscriptions() {
       console.log('[Stellar Focus] Realtime subscription:', status);
       if (status === 'SUBSCRIBED') {
         realtimeHealthy = true;
-        console.log('[Stellar Focus] ✅ Realtime healthy - disabling polling fallback');
+        console.log('[Stellar Focus] Realtime healthy - disabling polling fallback');
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         realtimeHealthy = false;
-        console.log('[Stellar Focus] ❌ Realtime unhealthy - polling enabled');
+        console.log('[Stellar Focus] Realtime unhealthy - polling enabled');
       }
     });
 
@@ -463,19 +492,28 @@ function notifyPopup(type: string) {
 }
 
 // Clean up real-time subscriptions
-function cleanupRealtimeSubscriptions() {
-  const supabase = getSupabase();
+async function cleanupRealtimeSubscriptions() {
+  try {
+    const supabase = await getSupabase();
 
-  if (realtimeChannel) {
-    supabase.removeChannel(realtimeChannel);
+    if (realtimeChannel) {
+      supabase.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+  } catch {
+    // Config might not be available, just clear the reference
     realtimeChannel = null;
   }
 }
 
 async function pollFocusSession() {
+  // Check config first
+  const extConfig = await getConfig();
+  if (!extConfig) return;
+
   // Check connectivity first
   const wasOnline = isOnline;
-  isOnline = await checkConnectivity(getSupabaseUrl());
+  isOnline = await checkConnectivity(extConfig.supabaseUrl);
 
   if (!isOnline) {
     console.log('[Stellar Focus] Offline - skipping poll');
@@ -504,7 +542,7 @@ async function pollFocusSession() {
     if (!user) return;
 
     // Query active focus session with explicit columns (egress optimization)
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('focus_sessions')
       .select(COLUMNS.focus_sessions)
@@ -566,7 +604,7 @@ async function refreshBlockLists() {
     const user = session.user;
     if (!user) return;
 
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
 
     // Fetch block lists with explicit columns (egress optimization)
     const { data: lists, error: listsError } = await supabase

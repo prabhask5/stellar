@@ -3,7 +3,7 @@
  * Determines if blocking should be active (only when online)
  */
 
-import { config } from '../config';
+import { getConfig } from '../config';
 
 let isOnline = navigator.onLine;
 
@@ -39,8 +39,9 @@ export async function checkConnectivity(supabaseUrl: string): Promise<boolean> {
 }
 
 /**
- * Get the Supabase URL for connectivity checks
+ * Get the Supabase URL for connectivity checks (async)
  */
-export function getSupabaseUrl(): string {
-  return config.supabaseUrl;
+export async function getSupabaseUrl(): Promise<string> {
+  const config = await getConfig();
+  return config?.supabaseUrl || '';
 }

@@ -4,7 +4,7 @@
  */
 
 import browser from 'webextension-polyfill';
-import { config } from '../config';
+import { getConfig } from '../config';
 
 // Encouraging submessages - the main message stays fixed for impact
 const submessages = [
@@ -31,9 +31,13 @@ function getRandomSubmessage(): string {
  */
 async function focusOrOpenApp() {
   try {
+    const config = await getConfig();
+    const appUrl = config?.appUrl || '';
+    if (!appUrl) return;
+
     const tabs = await browser.tabs.query({
       currentWindow: true,
-      url: `${config.appUrl}/*`
+      url: `${appUrl}/*`
     });
 
     if (tabs.length > 0 && tabs[0].id !== undefined) {
@@ -41,11 +45,14 @@ async function focusOrOpenApp() {
       await browser.tabs.update(tabs[0].id, { active: true });
     } else {
       // No existing tab - create a new one
-      await browser.tabs.create({ url: `${config.appUrl}/focus` });
+      await browser.tabs.create({ url: `${appUrl}/focus` });
     }
   } catch (error) {
     console.error('[Stellar Focus] Navigation error:', error);
-    window.open(`${config.appUrl}/focus`, '_blank');
+    const config = await getConfig();
+    if (config?.appUrl) {
+      window.open(`${config.appUrl}/focus`, '_blank');
+    }
   }
 }
 
@@ -337,14 +344,15 @@ function initStarfield() {
 }
 
 // Initialize page
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const submessageEl = document.getElementById('submessage');
   const blockedUrlEl = document.getElementById('blockedUrl');
   const returnBtn = document.getElementById('returnBtn') as HTMLAnchorElement;
 
   // Set return button URL and click handler
   if (returnBtn) {
-    returnBtn.href = `${config.appUrl}/focus`;
+    const config = await getConfig();
+    returnBtn.href = config?.appUrl ? `${config.appUrl}/focus` : '#';
     returnBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       await focusOrOpenApp();

@@ -447,7 +447,7 @@
 
           {#if deployStage === 'ready'}
             <div class="message success">
-              Your Stellar instance is configured and a new deployment has been triggered. When the deployment completes, a notification will appear at the top of the page to reload.
+              Your Stellar instance is configured and a new deployment has been triggered. When the deployment completes, a notification will appear at the bottom of the page to reload.
             </div>
           {/if}
         </div>
