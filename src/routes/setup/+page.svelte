@@ -95,7 +95,7 @@
 </svelte:head>
 
 <!-- Cosmic Background -->
-<div class="setup-background">
+<div class="setup-background" class:admin-mode={!isFirstSetup}>
   <div class="stars stars-small"></div>
   <div class="stars stars-medium"></div>
   <div class="stars stars-large"></div>
@@ -117,7 +117,7 @@
 </div>
 
 <!-- Setup Overlay -->
-<div class="setup-overlay">
+<div class="setup-overlay" class:admin-mode={!isFirstSetup}>
   <div class="setup-container">
     <!-- Header -->
     <div class="setup-header">
@@ -593,6 +593,17 @@
     display: flex;
     justify-content: center;
     padding: 2rem 1rem 4rem;
+  }
+
+  /* Admin reconfiguration mode: normal document flow under navbar */
+  .setup-background.admin-mode {
+    z-index: -1;
+  }
+
+  .setup-overlay.admin-mode {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
   }
 
   .setup-container {

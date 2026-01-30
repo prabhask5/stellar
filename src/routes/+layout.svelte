@@ -315,7 +315,9 @@
   // Also hide during initial loading to prevent flicker
   const isOnLoginPage = $derived($page.url.pathname.startsWith('/login'));
   const isOnConfirmPage = $derived($page.url.pathname.startsWith('/confirm'));
-  const isAuthPage = $derived(isOnLoginPage || isOnConfirmPage);
+  const isOnSetupPage = $derived($page.url.pathname.startsWith('/setup'));
+  const isSetupNoAuth = $derived(isOnSetupPage && data.authMode === 'none');
+  const isAuthPage = $derived(isOnLoginPage || isOnConfirmPage || isSetupNoAuth);
   const isAuthenticated = $derived(
     data.authMode !== 'none' && !isAuthPage && !$authState.isLoading
   );
