@@ -64,8 +64,11 @@ create table daily_routine_goals (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references auth.users(id) on delete cascade,
   name text not null,
-  type text not null check (type in ('completion', 'incremental')),
+  type text not null check (type in ('completion', 'incremental', 'progressive')),
   target_value integer,
+  start_target_value integer,
+  end_target_value integer,
+  progression_schedule integer,
   start_date date not null,
   end_date date,
   active_days jsonb default null, -- Array of integers 0-6 (0=Sunday, 6=Saturday), null = all days

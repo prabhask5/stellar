@@ -40,6 +40,9 @@
     name: string;
     type: GoalType;
     targetValue: number | null;
+    startTargetValue: number | null;
+    endTargetValue: number | null;
+    progressionSchedule: number | null;
     startDate: string;
     endDate: string | null;
     activeDays: DayOfWeek[] | null;
@@ -52,6 +55,9 @@
         name: data.name,
         type: data.type,
         target_value: data.targetValue,
+        start_target_value: data.startTargetValue,
+        end_target_value: data.endTargetValue,
+        progression_schedule: data.progressionSchedule,
         start_date: data.startDate,
         end_date: data.endDate,
         active_days: data.activeDays
@@ -153,6 +159,9 @@
         name={routine.name}
         type={routine.type}
         targetValue={routine.target_value}
+        startTargetValue={routine.start_target_value}
+        endTargetValue={routine.end_target_value}
+        progressionSchedule={routine.progression_schedule}
         startDate={routine.start_date}
         endDate={routine.end_date}
         activeDays={routine.active_days}

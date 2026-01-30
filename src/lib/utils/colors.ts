@@ -26,7 +26,7 @@ export function getProgressColor(percentage: number): string {
  * Calculate completion percentage for a goal (uncapped - can exceed 100%)
  */
 export function calculateGoalProgress(
-  type: 'completion' | 'incremental',
+  type: 'completion' | 'incremental' | 'progressive',
   completed: boolean,
   currentValue: number,
   targetValue: number | null
@@ -42,7 +42,7 @@ export function calculateGoalProgress(
  * Calculate completion percentage for a goal (capped at 100% for aggregate totals)
  */
 export function calculateGoalProgressCapped(
-  type: 'completion' | 'incremental',
+  type: 'completion' | 'incremental' | 'progressive',
   completed: boolean,
   currentValue: number,
   targetValue: number | null

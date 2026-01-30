@@ -130,6 +130,9 @@
     name: string;
     type: GoalType;
     targetValue: number | null;
+    startTargetValue: number | null;
+    endTargetValue: number | null;
+    progressionSchedule: number | null;
     startDate: string;
     endDate: string | null;
     activeDays: DayOfWeek[] | null;
@@ -147,7 +150,10 @@
         data.startDate,
         data.endDate,
         session.user.id,
-        data.activeDays
+        data.activeDays,
+        data.startTargetValue,
+        data.endTargetValue,
+        data.progressionSchedule
       );
       showCreateModal = false;
       // Refresh calendar data to show new routine
@@ -309,10 +315,12 @@
                     <h4>{routine.name}</h4>
                     <div class="routine-meta">
                       <span class="badge type-{routine.type}">
-                        {routine.type === 'completion' ? '✓' : '↑'}
+                        {routine.type === 'completion' ? '✓' : routine.type === 'progressive' ? '↗' : '↑'}
                         {routine.type === 'incremental'
                           ? routine.target_value + '/day'
-                          : 'Complete'}
+                          : routine.type === 'progressive'
+                            ? routine.start_target_value + ' → ' + routine.end_target_value
+                            : 'Complete'}
                       </span>
                       <span class="badge days-badge">
                         {getActiveDaysDisplay(routine.active_days)}
@@ -367,10 +375,12 @@
                     <h4>{routine.name}</h4>
                     <div class="routine-meta">
                       <span class="badge type-{routine.type}">
-                        {routine.type === 'completion' ? '✓' : '↑'}
+                        {routine.type === 'completion' ? '✓' : routine.type === 'progressive' ? '↗' : '↑'}
                         {routine.type === 'incremental'
                           ? routine.target_value + '/day'
-                          : 'Complete'}
+                          : routine.type === 'progressive'
+                            ? routine.start_target_value + ' → ' + routine.end_target_value
+                            : 'Complete'}
                       </span>
                       <span class="badge days-badge">
                         {getActiveDaysDisplay(routine.active_days)}
@@ -894,7 +904,8 @@
     box-shadow: 0 0 10px rgba(38, 222, 129, 0.1);
   }
 
-  .badge.type-incremental {
+  .badge.type-incremental,
+  .badge.type-progressive {
     color: var(--color-primary-light);
     border-color: rgba(108, 92, 231, 0.3);
     box-shadow: 0 0 10px var(--color-primary-glow);

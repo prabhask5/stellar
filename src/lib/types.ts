@@ -1,4 +1,4 @@
-export type GoalType = 'completion' | 'incremental';
+export type GoalType = 'completion' | 'incremental' | 'progressive';
 
 export interface Goal {
   id: string;
@@ -41,6 +41,9 @@ export interface DailyRoutineGoal {
   start_date: string;
   end_date: string | null;
   active_days: DayOfWeek[] | null; // null = all days (backwards compatible)
+  start_target_value: number | null;
+  end_target_value: number | null;
+  progression_schedule: number | null;
   order: number;
   created_at: string;
   updated_at: string;

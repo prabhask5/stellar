@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import { dailyProgressStore, dailyRoutinesStore } from '$lib/stores/data';
-  import { formatDisplayDate, isPastDay, isTodayDate } from '$lib/utils/dates';
+  import { formatDisplayDate, isPastDay, isTodayDate, getProgressiveTargetForDate } from '$lib/utils/dates';
   import { calculateGoalProgressCapped } from '$lib/utils/colors';
   import type { DailyRoutineGoal, DailyGoalProgress } from '$lib/types';
   import GoalItem from '$lib/components/GoalItem.svelte';
@@ -27,9 +27,13 @@
   const canEdit = $derived(isPastDay(date) || isTodayDate(date));
 
   // Derive goals with their progress attached
+  // For progressive routines, compute and override target_value with the dynamic target for this date
   const goalsWithProgress = $derived<GoalWithProgress[]>(
     routines.map((routine) => ({
       ...routine,
+      target_value: routine.type === 'progressive'
+        ? getProgressiveTargetForDate(routine, dateStr)
+        : routine.target_value,
       progress: progressMap.get(routine.id)
     }))
   );
@@ -92,7 +96,7 @@
   }
 
   async function handleIncrement(goal: GoalWithProgress, amount: number) {
-    if (!canEdit || goal.type !== 'incremental') return;
+    if (!canEdit || (goal.type !== 'incremental' && goal.type !== 'progressive')) return;
 
     try {
       await dailyProgressStore.increment(goal.id, dateStr, goal.target_value ?? 1, amount);
@@ -102,7 +106,7 @@
   }
 
   async function handleSetValue(goal: GoalWithProgress, value: number) {
-    if (!canEdit || goal.type !== 'incremental') return;
+    if (!canEdit || (goal.type !== 'incremental' && goal.type !== 'progressive')) return;
 
     try {
       await dailyProgressStore.setValue(goal.id, dateStr, goal.target_value ?? 1, value);

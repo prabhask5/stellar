@@ -102,7 +102,7 @@
   bind:this={element}
   class="goal-item"
   class:celebrating={isCelebrating}
-  class:is-incremental={goal.type === 'incremental'}
+  class:is-incremental={goal.type === 'incremental' || goal.type === 'progressive'}
   style="border-left-color: {progressColor}; --celebration-intensity: {celebrationIntensity}; --glow-color: {progressColor}"
   use:remoteChangeAnimation={{ entityId: goal.id, entityType }}
 >
@@ -159,7 +159,7 @@
         {goal.name}
       </span>
 
-      {#if goal.type === 'incremental'}
+      {#if goal.type === 'incremental' || goal.type === 'progressive'}
         <!-- Progress bar (desktop only: after name, before actions) -->
         <div
           class="mini-progress-wrapper desktop-only"
@@ -237,7 +237,7 @@
       {goal.name}
     </span>
 
-    {#if goal.type === 'incremental'}
+    {#if goal.type === 'incremental' || goal.type === 'progressive'}
       <!-- Row 3 (mobile only): Progress bar full width -->
       <div
         class="mini-progress-wrapper mobile-only"

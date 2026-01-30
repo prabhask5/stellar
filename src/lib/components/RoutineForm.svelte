@@ -8,6 +8,9 @@
     name?: string;
     type?: GoalType;
     targetValue?: number | null;
+    startTargetValue?: number | null;
+    endTargetValue?: number | null;
+    progressionSchedule?: number | null;
     startDate?: string;
     endDate?: string | null;
     activeDays?: DayOfWeek[] | null;
@@ -19,6 +22,9 @@
       name: string;
       type: GoalType;
       targetValue: number | null;
+      startTargetValue: number | null;
+      endTargetValue: number | null;
+      progressionSchedule: number | null;
       startDate: string;
       endDate: string | null;
       activeDays: DayOfWeek[] | null;
@@ -30,6 +36,9 @@
     name: initialName = '',
     type: initialType = 'completion',
     targetValue: initialTargetValue = 10,
+    startTargetValue: initialStartTargetValue = 10,
+    endTargetValue: initialEndTargetValue = 50,
+    progressionSchedule: initialProgressionSchedule = 1,
     startDate: initialStartDate = formatDate(new Date()),
     endDate: initialEndDate = null,
     activeDays: initialActiveDays = null,
@@ -54,8 +63,11 @@
   let name = $state(initialName);
   let type = $state<GoalType>(initialType);
   let targetValue = $state(initialTargetValue ?? 10);
+  let startTargetValue = $state(initialStartTargetValue ?? 10);
+  let endTargetValue = $state(initialEndTargetValue ?? 50);
+  let progressionSchedule = $state(initialProgressionSchedule ?? 1);
   let startDate = $state(initialStartDate);
-  let hasEndDate = $state(initialEndDate !== null);
+  let hasEndDate = $state(initialEndDate !== null || initialType === 'progressive');
   let endDate = $state(initialEndDate ?? formatDate(new Date()));
 
   // Track which fields were recently animated for shimmer effect
@@ -112,6 +124,9 @@
     name: 'Name',
     type: 'Type',
     target_value: 'Target',
+    start_target_value: 'Starting Threshold',
+    end_target_value: 'Ending Threshold',
+    progression_schedule: 'Increase Every N',
     start_date: 'Start Date',
     end_date: 'End Date',
     active_days: 'Active Days'
@@ -148,6 +163,9 @@
       initialName !== name ||
       initialType !== type ||
       (initialTargetValue ?? 10) !== targetValue ||
+      (initialStartTargetValue ?? 10) !== startTargetValue ||
+      (initialEndTargetValue ?? 50) !== endTargetValue ||
+      (initialProgressionSchedule ?? 1) !== progressionSchedule ||
       initialStartDate !== startDate ||
       JSON.stringify(propEndDate) !== JSON.stringify(localEndDate) ||
       JSON.stringify(propActiveDays) !== JSON.stringify(localActiveDays);
@@ -156,6 +174,9 @@
       name: initialName,
       type: initialType,
       target_value: initialTargetValue ?? 10,
+      start_target_value: initialStartTargetValue ?? 10,
+      end_target_value: initialEndTargetValue ?? 50,
+      progression_schedule: initialProgressionSchedule ?? 1,
       start_date: initialStartDate,
       end_date: propEndDate,
       active_days: propActiveDays
@@ -167,6 +188,9 @@
     if (name !== initialName) fieldsToHighlight.push('name');
     if (type !== initialType) fieldsToHighlight.push('type');
     if (targetValue !== (initialTargetValue ?? 10)) fieldsToHighlight.push('target_value');
+    if (startTargetValue !== (initialStartTargetValue ?? 10)) fieldsToHighlight.push('start_target_value');
+    if (endTargetValue !== (initialEndTargetValue ?? 50)) fieldsToHighlight.push('end_target_value');
+    if (progressionSchedule !== (initialProgressionSchedule ?? 1)) fieldsToHighlight.push('progression_schedule');
     if (startDate !== initialStartDate) fieldsToHighlight.push('start_date');
     if (JSON.stringify(hasEndDate ? endDate : null) !== JSON.stringify(initialEndDate)) fieldsToHighlight.push('end_date');
     const currentActiveDays = allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b);
@@ -175,8 +199,11 @@
     name = initialName;
     type = initialType;
     targetValue = initialTargetValue ?? 10;
+    startTargetValue = initialStartTargetValue ?? 10;
+    endTargetValue = initialEndTargetValue ?? 50;
+    progressionSchedule = initialProgressionSchedule ?? 1;
     startDate = initialStartDate;
-    hasEndDate = initialEndDate !== null;
+    hasEndDate = initialEndDate !== null || initialType === 'progressive';
     endDate = initialEndDate ?? formatDate(new Date());
     selectedDays = initialActiveDays === null
       ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
@@ -185,6 +212,13 @@
     highlightedFields = new Set(fieldsToHighlight);
     setTimeout(() => { highlightedFields = new Set(); }, 1400);
   }
+
+  // Force end date when progressive is selected
+  $effect(() => {
+    if (type === 'progressive') {
+      hasEndDate = true;
+    }
+  });
 
   function handleSubmit(event: Event) {
     event.preventDefault();
@@ -200,6 +234,9 @@
       name: name.trim(),
       type,
       targetValue: type === 'incremental' ? targetValue : null,
+      startTargetValue: type === 'progressive' ? startTargetValue : null,
+      endTargetValue: type === 'progressive' ? endTargetValue : null,
+      progressionSchedule: type === 'progressive' ? progressionSchedule : null,
       startDate,
       endDate: hasEndDate ? endDate : null,
       activeDays: activeDaysResult
@@ -221,6 +258,9 @@
         name,
         type,
         target_value: targetValue,
+        start_target_value: startTargetValue,
+        end_target_value: endTargetValue,
+        progression_schedule: progressionSchedule,
         start_date: startDate,
         end_date: hasEndDate ? endDate : null,
         active_days: allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
@@ -265,6 +305,15 @@
         <span class="type-icon">↑</span>
         <span>Incremental</span>
       </button>
+      <button
+        type="button"
+        class="type-btn"
+        class:active={type === 'progressive'}
+        onclick={() => (type = 'progressive')}
+      >
+        <span class="type-icon">↗</span>
+        <span>Progressive</span>
+      </button>
     </div>
   </div>
 
@@ -272,6 +321,21 @@
     <div class="form-group">
       <label for="target-value">Daily Target Value</label>
       <input id="target-value" type="number" bind:value={targetValue} min="1" required class:field-changed={highlightedFields.has('target_value')} />
+    </div>
+  {/if}
+
+  {#if type === 'progressive'}
+    <div class="form-group">
+      <label for="start-target-value">Starting Threshold</label>
+      <input id="start-target-value" type="number" bind:value={startTargetValue} min="1" required class:field-changed={highlightedFields.has('start_target_value')} />
+    </div>
+    <div class="form-group">
+      <label for="end-target-value">Ending Threshold</label>
+      <input id="end-target-value" type="number" bind:value={endTargetValue} min="1" required class:field-changed={highlightedFields.has('end_target_value')} />
+    </div>
+    <div class="form-group">
+      <label for="progression-schedule">Increase Every N Occurrences</label>
+      <input id="progression-schedule" type="number" bind:value={progressionSchedule} min="1" required class:field-changed={highlightedFields.has('progression_schedule')} />
     </div>
   {/if}
 
@@ -330,8 +394,8 @@
 
     <div class="form-group">
       <label for="end-date-toggle" class="checkbox-label">
-        <input id="end-date-toggle" type="checkbox" bind:checked={hasEndDate} class:field-changed={highlightedFields.has('end_date')} />
-        <span>Has End Date</span>
+        <input id="end-date-toggle" type="checkbox" bind:checked={hasEndDate} disabled={type === 'progressive'} class:field-changed={highlightedFields.has('end_date')} />
+        <span>Has End Date{type === 'progressive' ? ' (required)' : ''}</span>
       </label>
       {#if hasEndDate}
         <input id="end-date" type="date" bind:value={endDate} min={startDate} required />

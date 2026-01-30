@@ -10,7 +10,10 @@ export async function createDailyRoutineGoal(
   startDate: string,
   endDate: string | null,
   userId: string,
-  activeDays: DayOfWeek[] | null = null // null = all days (backwards compatible)
+  activeDays: DayOfWeek[] | null = null, // null = all days (backwards compatible)
+  startTargetValue: number | null = null,
+  endTargetValue: number | null = null,
+  progressionSchedule: number | null = null
 ): Promise<DailyRoutineGoal> {
   const timestamp = now();
 
@@ -33,6 +36,9 @@ export async function createDailyRoutineGoal(
     start_date: startDate,
     end_date: endDate,
     active_days: activeDays,
+    start_target_value: type === 'progressive' ? startTargetValue : null,
+    end_target_value: type === 'progressive' ? endTargetValue : null,
+    progression_schedule: type === 'progressive' ? progressionSchedule : null,
     order: nextOrder,
     created_at: timestamp,
     updated_at: timestamp
@@ -49,6 +55,9 @@ export async function createDailyRoutineGoal(
       start_date: startDate,
       end_date: endDate,
       active_days: activeDays,
+      start_target_value: newRoutine.start_target_value,
+      end_target_value: newRoutine.end_target_value,
+      progression_schedule: newRoutine.progression_schedule,
       order: nextOrder,
       created_at: timestamp,
       updated_at: timestamp
@@ -65,7 +74,7 @@ export async function updateDailyRoutineGoal(
   updates: Partial<
     Pick<
       DailyRoutineGoal,
-      'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days'
+      'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days' | 'start_target_value' | 'end_target_value' | 'progression_schedule'
     >
   >
 ): Promise<DailyRoutineGoal | undefined> {

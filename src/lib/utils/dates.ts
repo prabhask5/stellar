@@ -68,6 +68,79 @@ export function getFirstDayOfMonthWeekday(date: Date): number {
 }
 
 /**
+ * Count the number of active occurrences between two dates (inclusive),
+ * respecting the active_days filter.
+ */
+export function countActiveOccurrences(
+  startDate: string,
+  endDate: string,
+  activeDays: DayOfWeek[] | null
+): number {
+  const start = parseDateString(startDate);
+  const end = parseDateString(endDate);
+  if (start > end) return 0;
+
+  const days = eachDayOfInterval({ start, end });
+  if (activeDays == null || activeDays.length === 0 || activeDays.length === 7) {
+    return days.length;
+  }
+  return days.filter((d) => activeDays.includes(getDay(d) as DayOfWeek)).length;
+}
+
+/**
+ * Get the 0-based occurrence index of a target date among active days
+ * starting from startDate.
+ */
+export function getOccurrenceIndex(
+  startDate: string,
+  targetDate: string,
+  activeDays: DayOfWeek[] | null
+): number {
+  const start = parseDateString(startDate);
+  const target = parseDateString(targetDate);
+  if (target < start) return 0;
+
+  const days = eachDayOfInterval({ start, end: target });
+  if (activeDays == null || activeDays.length === 0 || activeDays.length === 7) {
+    return days.length - 1;
+  }
+  return days.filter((d) => activeDays.includes(getDay(d) as DayOfWeek)).length - 1;
+}
+
+/**
+ * Compute the effective target value for a progressive routine on a given date.
+ * Returns the dynamically computed target based on the progression plan.
+ */
+export function getProgressiveTargetForDate(
+  routine: Pick<
+    DailyRoutineGoal,
+    'start_date' | 'end_date' | 'active_days' | 'start_target_value' | 'end_target_value' | 'progression_schedule'
+  >,
+  date: string
+): number {
+  const startVal = routine.start_target_value ?? 0;
+  const endVal = routine.end_target_value ?? 0;
+  const schedule = routine.progression_schedule ?? 1;
+
+  if (!routine.end_date) return startVal;
+
+  const totalOccurrences = countActiveOccurrences(routine.start_date, routine.end_date, routine.active_days);
+  if (totalOccurrences <= 1) return startVal;
+
+  const totalSteps = Math.floor((totalOccurrences - 1) / schedule);
+  if (totalSteps === 0) return startVal;
+
+  const incrementAmount = (endVal - startVal) / totalSteps;
+
+  const occurrenceIndex = getOccurrenceIndex(routine.start_date, date, routine.active_days);
+  const stepIndex = Math.floor(occurrenceIndex / schedule);
+
+  const effectiveTarget = Math.round(startVal + stepIndex * incrementAmount);
+
+  return Math.max(Math.min(startVal, endVal), Math.min(Math.max(startVal, endVal), effectiveTarget));
+}
+
+/**
  * Check if a routine is active on a specific date.
  * A routine is active if:
  * 1. The date is within the routine's start_date and end_date range

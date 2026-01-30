@@ -267,7 +267,7 @@ const COLUMNS = {
   goals:
     'id,goal_list_id,name,type,target_value,current_value,completed,order,created_at,updated_at,deleted,_version,device_id',
   daily_routine_goals:
-    'id,user_id,name,type,target_value,start_date,end_date,active_days,order,created_at,updated_at,deleted,_version,device_id',
+    'id,user_id,name,type,target_value,start_target_value,end_target_value,progression_schedule,start_date,end_date,active_days,order,created_at,updated_at,deleted,_version,device_id',
   daily_goal_progress:
     'id,daily_routine_goal_id,date,current_value,completed,updated_at,deleted,_version,device_id',
   task_categories:

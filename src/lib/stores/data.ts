@@ -18,7 +18,7 @@ import type {
 import * as repo from '$lib/db/repositories';
 import * as sync from '$lib/sync/engine';
 import { calculateGoalProgressCapped } from '$lib/utils/colors';
-import { isRoutineActiveOnDate } from '$lib/utils/dates';
+import { isRoutineActiveOnDate, getProgressiveTargetForDate } from '$lib/utils/dates';
 import { browser } from '$app/environment';
 import { remoteChangesStore } from '$lib/stores/remoteChanges';
 
@@ -127,7 +127,7 @@ function createGoalListStore() {
     addGoal: async (
       goalListId: string,
       name: string,
-      type: 'completion' | 'incremental',
+      type: 'completion' | 'incremental' | 'progressive',
       targetValue: number | null
     ) => {
       const newGoal = await repo.createGoal(goalListId, name, type, targetValue);
@@ -230,12 +230,15 @@ function createDailyRoutinesStore() {
     },
     create: async (
       name: string,
-      type: 'completion' | 'incremental',
+      type: 'completion' | 'incremental' | 'progressive',
       targetValue: number | null,
       startDate: string,
       endDate: string | null,
       userId: string,
-      activeDays: DailyRoutineGoal['active_days'] = null
+      activeDays: DailyRoutineGoal['active_days'] = null,
+      startTargetValue: number | null = null,
+      endTargetValue: number | null = null,
+      progressionSchedule: number | null = null
     ) => {
       const newRoutine = await repo.createDailyRoutineGoal(
         name,
@@ -244,7 +247,10 @@ function createDailyRoutinesStore() {
         startDate,
         endDate,
         userId,
-        activeDays
+        activeDays,
+        startTargetValue,
+        endTargetValue,
+        progressionSchedule
       );
       // Record for animation before updating store
       remoteChangesStore.recordLocalChange(newRoutine.id, 'daily_routine_goals', 'create');
@@ -256,7 +262,7 @@ function createDailyRoutinesStore() {
       updates: Partial<
         Pick<
           DailyRoutineGoal,
-          'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days'
+          'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days' | 'start_target_value' | 'end_target_value' | 'progression_schedule'
         >
       >
     ) => {
@@ -327,7 +333,7 @@ function createRoutineStore() {
       updates: Partial<
         Pick<
           DailyRoutineGoal,
-          'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days'
+          'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days' | 'start_target_value' | 'end_target_value' | 'progression_schedule'
         >
       >
     ) => {
@@ -528,16 +534,21 @@ function createMonthProgressStore() {
         const currentValue = progress?.current_value || 0;
         const isCompleted = progress?.completed || false;
 
+        // For progressive routines, compute the dynamic target for this date
+        const effectiveTarget = routine.type === 'progressive'
+          ? getProgressiveTargetForDate(routine, dateStr)
+          : routine.target_value;
+
         const progressPercent = calculateGoalProgressCapped(
           routine.type,
           isCompleted,
           currentValue,
-          routine.target_value
+          effectiveTarget
         );
         completedProgress += progressPercent;
 
         if (
-          routine.type === 'completion' ? isCompleted : currentValue >= (routine.target_value || 0)
+          routine.type === 'completion' ? isCompleted : currentValue >= (effectiveTarget || 0)
         ) {
           completedGoals++;
         }
