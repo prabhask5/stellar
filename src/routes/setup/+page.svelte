@@ -592,6 +592,7 @@
     overflow-y: auto;
     display: flex;
     justify-content: center;
+    align-items: flex-start;
     padding: 2rem 1rem 4rem;
   }
 

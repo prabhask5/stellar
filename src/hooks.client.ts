@@ -8,7 +8,10 @@ getSupabaseAsync().then((supabase) => {
       goto('/login');
     } else if (event === 'SIGNED_IN' && session) {
       // Invalidate page data to refresh session in layouts
-      goto(window.location.pathname, { invalidateAll: true });
+      // Skip if on login page — the login form handles its own navigation
+      if (!window.location.pathname.startsWith('/login')) {
+        goto(window.location.pathname, { invalidateAll: true });
+      }
     }
   });
 });
