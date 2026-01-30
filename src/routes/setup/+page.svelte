@@ -69,6 +69,25 @@
     validating = false;
   }
 
+  async function pollForDeployment() {
+    const maxAttempts = 60; // 3s * 60 = 3 minutes max
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      try {
+        const res = await fetch('/api/config');
+        const data = await res.json();
+        if (data.configured && data.supabaseUrl === supabaseUrl && data.supabaseAnonKey === supabaseAnonKey) {
+          deployStage = 'ready';
+          return;
+        }
+      } catch {
+        // Network error during poll, keep trying
+      }
+    }
+    // Timed out but deployment was triggered — show ready anyway
+    deployStage = 'ready';
+  }
+
   async function handleDeploy() {
     deployError = null;
     deploying = true;
@@ -86,10 +105,8 @@
       if (data.success) {
         deployStage = 'deploying';
         deploymentUrl = data.deploymentUrl || '';
-        // Simulate deployment progress
-        setTimeout(() => {
-          deployStage = 'ready';
-        }, 3000);
+        // Poll /api/config until the new deployment is live with the submitted credentials
+        await pollForDeployment();
       } else {
         deployError = data.error || 'Deployment failed';
         deployStage = 'idle';
@@ -102,9 +119,7 @@
     deploying = false;
   }
 
-  function handleReload() {
-    window.location.href = '/';
-  }
+
 </script>
 
 <svelte:head>
@@ -432,11 +447,8 @@
 
           {#if deployStage === 'ready'}
             <div class="message success">
-              Your Stellar instance is configured and a new deployment has been triggered. Reload to start using Stellar.
+              Your Stellar instance is configured and a new deployment has been triggered. When the deployment completes, a notification will appear at the top of the page to reload.
             </div>
-            <button class="btn btn-primary" onclick={handleReload}>
-              Reload Stellar
-            </button>
           {/if}
         </div>
       </section>
