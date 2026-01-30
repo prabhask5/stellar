@@ -336,7 +336,7 @@
     <div class="form-group">
       <label for="progression-schedule">Milestone Interval</label>
       <input id="progression-schedule" type="number" bind:value={progressionSchedule} min="1" required class:field-changed={highlightedFields.has('progression_schedule')} />
-      <p class="field-help">The threshold will increase after every {progressionSchedule} {progressionSchedule === 1 ? 'occurrence' : 'occurrences'}.</p>
+      <p class="field-help">The threshold will increase after every {progressionSchedule === 1 ? 'occurrence' : progressionSchedule + ' occurrences'}.</p>
     </div>
   {/if}
 
