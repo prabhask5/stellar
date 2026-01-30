@@ -314,12 +314,25 @@ async function handleLogout() {
   }
 }
 
-function updateUserInfo(user: { email?: string; user_metadata?: { first_name?: string } }) {
+function updateUserInfo(user: { email?: string; user_metadata?: { first_name?: string }; app_metadata?: { is_admin?: boolean } }) {
   const firstName = user.user_metadata?.first_name || '';
   const initial = firstName.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || '?';
   if (userAvatar) userAvatar.textContent = initial;
   const displayName = firstName || user.email?.split('@')[0] || 'there';
   if (userName) userName.textContent = `Hey, ${displayName}!`;
+
+  // Show admin settings button for admin users
+  const adminBtn = document.getElementById('adminSettingsBtn');
+  if (adminBtn) {
+    if (user.app_metadata?.is_admin === true) {
+      adminBtn.classList.remove('hidden');
+      adminBtn.addEventListener('click', () => {
+        browser.runtime.openOptionsPage();
+      });
+    } else {
+      adminBtn.classList.add('hidden');
+    }
+  }
 }
 
 // Data loading with sync indicator
