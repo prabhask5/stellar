@@ -155,6 +155,8 @@ async function init() {
   // Check auth if online
   if (isOnline) {
     await checkAuth();
+    // Ask service worker to check realtime health and reconnect if needed
+    browser.runtime.sendMessage({ type: 'CHECK_REALTIME' }).catch(() => {});
   }
 }
 

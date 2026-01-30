@@ -34,6 +34,12 @@ export async function getSupabase(): Promise<SupabaseClient> {
         },
       },
     },
+    realtime: {
+      // Shorter heartbeat interval (15s vs default 30s) to keep the WebSocket
+      // alive and signal activity to Firefox's event page lifecycle.
+      // Heartbeats are WebSocket pings — no Supabase API/egress cost.
+      heartbeatIntervalMs: 15000,
+    },
   });
 
   return supabaseInstance;

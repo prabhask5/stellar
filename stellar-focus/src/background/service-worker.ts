@@ -23,7 +23,8 @@ const POLL_INTERVAL_MS = 30 * 1000;
 // Track current state
 let currentFocusSession: FocusSessionCache | null = null;
 let isOnline = getNetworkStatus();
-let pollAlarmName = 'focus-poll';
+const ALARM_PRIMARY = 'focus-poll';
+const ALARM_SECONDARY = 'focus-poll-2';
 
 // Rate limiting to prevent excessive polling (egress optimization)
 let lastPollTime = 0;
@@ -61,24 +62,36 @@ browser.runtime.onStartup.addListener(async () => {
   init();
 });
 
-// Set up polling alarm
+// Set up two staggered alarms to wake the event page ~every 30 seconds
+// Firefox enforces a 1-minute minimum for MV3 alarms, so two alarms
+// offset by 30 seconds give us wake-ups roughly every 30 seconds
 function setupAlarm() {
-  browser.alarms.create(pollAlarmName, {
-    periodInMinutes: POLL_INTERVAL_MS / 60000
+  browser.alarms.create(ALARM_PRIMARY, {
+    periodInMinutes: 1
+  });
+  // Second alarm offset by 30 seconds
+  browser.alarms.create(ALARM_SECONDARY, {
+    delayInMinutes: 0.5,
+    periodInMinutes: 1
   });
 }
 
-// Handle alarm with rate limiting
+// Handle alarm — reconnect realtime if unhealthy, always poll to catch missed updates
 browser.alarms.onAlarm.addListener((alarm: browser.Alarms.Alarm) => {
-  if (alarm.name === pollAlarmName) {
-    // Skip polling if realtime is working (egress optimization)
-    if (realtimeHealthy) {
-      console.log('[Stellar Focus] Skipping poll - realtime is healthy');
-      return;
-    }
-    pollFocusSessionThrottled();
+  if (alarm.name === ALARM_PRIMARY || alarm.name === ALARM_SECONDARY) {
+    handleAlarmWake();
   }
 });
+
+async function handleAlarmWake() {
+  // If realtime is down, try to reconnect it
+  if (!realtimeHealthy) {
+    console.log('[Stellar Focus] Alarm wake - realtime unhealthy, reconnecting');
+    await setupRealtimeSubscriptions();
+  }
+  // Always poll to catch updates missed during any disconnection gap
+  await pollFocusSessionThrottled();
+}
 
 // Throttled poll to prevent excessive requests
 async function pollFocusSessionThrottled() {
@@ -106,6 +119,16 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
     cleanupRealtimeSubscriptions();
     setupAlarm();
     init();
+    return;
+  }
+
+  if (message.type === 'CHECK_REALTIME') {
+    // Popup opened — check realtime health and reconnect if needed
+    if (!realtimeHealthy) {
+      console.log('[Stellar Focus] Popup opened - realtime unhealthy, reconnecting');
+      setupRealtimeSubscriptions();
+      pollFocusSessionThrottled();
+    }
     return;
   }
 
@@ -403,7 +426,14 @@ async function setupRealtimeSubscriptions() {
         console.log('[Stellar Focus] Realtime healthy - disabling polling fallback');
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         realtimeHealthy = false;
-        console.log('[Stellar Focus] Realtime unhealthy - polling enabled');
+        console.log('[Stellar Focus] Realtime unhealthy - attempting immediate reconnection');
+        // Immediate reconnection attempt with a short delay to avoid tight loops
+        setTimeout(() => {
+          if (!realtimeHealthy) {
+            setupRealtimeSubscriptions();
+            pollFocusSessionThrottled();
+          }
+        }, 3000);
       }
     });
 
@@ -701,5 +731,6 @@ async function isDomainBlocked(hostname: string): Promise<boolean> {
   }
 }
 
-// Initialize on load
+// Initialize on load (also runs after event page suspension/wake in Firefox)
+setupAlarm();
 init();
