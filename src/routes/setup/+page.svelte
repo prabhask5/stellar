@@ -20,6 +20,21 @@
   // Access control from load function
   const isFirstSetup = $derived(($page.data as { isFirstSetup?: boolean }).isFirstSetup ?? false);
 
+  // Track validated credentials to detect changes after validation
+  let validatedUrl = $state('');
+  let validatedKey = $state('');
+  const credentialsChanged = $derived(
+    validateSuccess && (supabaseUrl !== validatedUrl || supabaseAnonKey !== validatedKey)
+  );
+
+  // Reset validation when credentials change after successful validation
+  $effect(() => {
+    if (credentialsChanged) {
+      validateSuccess = false;
+      validateError = null;
+    }
+  });
+
   async function handleValidate() {
     validateError = null;
     validateSuccess = false;
@@ -36,6 +51,8 @@
 
       if (data.valid) {
         validateSuccess = true;
+        validatedUrl = supabaseUrl;
+        validatedKey = supabaseAnonKey;
         // Cache config locally so the app works immediately after deploy
         setConfig({
           supabaseUrl,

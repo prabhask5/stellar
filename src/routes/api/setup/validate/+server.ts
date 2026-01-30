@@ -27,16 +27,19 @@ export const POST: RequestHandler = async ({ request }) => {
     const tempClient = createClient(supabaseUrl, supabaseAnonKey);
 
     // Test REST API reachability by attempting a simple query
-    // This will fail with a specific error if the table doesn't exist, but succeeds if the API is reachable
     const { error } = await tempClient.from('focus_sessions').select('id').limit(1);
 
     if (error) {
-      // "relation does not exist" means the API is reachable but tables aren't set up yet - that's OK for validation
-      // "Invalid API key" or auth errors mean bad credentials
+      // Bad credentials
       if (error.message?.includes('Invalid API key') || error.code === 'PGRST301') {
         return json({ valid: false, error: 'Invalid Supabase credentials. Check your URL and Anon Key.' });
       }
-      // Any other error from a reachable API is fine - credentials work
+      // Table doesn't exist but API is reachable — credentials work, schema not set up yet
+      if (error.message?.includes('relation') && error.message?.includes('does not exist')) {
+        return json({ valid: true });
+      }
+      // Any other error — don't assume credentials are valid
+      return json({ valid: false, error: `Supabase responded with an error: ${error.message}` });
     }
 
     return json({ valid: true });
