@@ -1,4 +1,6 @@
 import { browser } from '$app/environment';
+import { redirect } from '@sveltejs/kit';
+import { initConfig } from '$lib/config/runtimeConfig';
 import { getSession, isSessionExpired } from '$lib/supabase/auth';
 import { isOnline } from '$lib/stores/network';
 import { startSyncEngine, performSync } from '$lib/sync/engine';
@@ -76,8 +78,21 @@ export interface LayoutData {
   offlineProfile: OfflineCredentials | null;
 }
 
-export const load: LayoutLoad = async (): Promise<LayoutData> => {
+export const load: LayoutLoad = async ({ url }): Promise<LayoutData> => {
   if (browser) {
+    // Initialize runtime config before anything else
+    const config = await initConfig();
+
+    // If not configured and not already on /setup, redirect to setup
+    if (!config && url.pathname !== '/setup') {
+      redirect(307, '/setup');
+    }
+
+    // If not configured and on /setup, return early (no auth exists yet)
+    if (!config) {
+      return { session: null, authMode: 'none', offlineProfile: null };
+    }
+
     try {
       const isOffline = !navigator.onLine;
 

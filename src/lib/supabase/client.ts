@@ -1,11 +1,14 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY } from '$env/static/public';
+/**
+ * Supabase Client - Lazy Initialization via Proxy
+ *
+ * Uses runtime config instead of build-time $env/static/public.
+ * The Proxy pattern preserves the exact same API surface:
+ * `import { supabase } from '$lib/supabase/client'` continues to work
+ * in all consumer files without changes.
+ */
 
-if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY) {
-  console.warn(
-    'Supabase environment variables not set. Please create a .env file with PUBLIC_SUPABASE_URL and PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY'
-  );
-}
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getConfig, waitForConfig } from '$lib/config/runtimeConfig';
 
 // Clear corrupted Supabase auth data from localStorage if it exists
 // This prevents "can't access property 'hash'" errors during initialization
@@ -87,10 +90,23 @@ if (isIOSPWA) {
   console.log('[Auth] Running as iOS PWA - using enhanced auth persistence');
 }
 
-export const supabase: SupabaseClient = createClient(
-  PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-  PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || 'placeholder',
-  {
+// Lazy singleton: actual client is created on first access
+let realClient: SupabaseClient | null = null;
+
+function getOrCreateClient(): SupabaseClient {
+  if (realClient) return realClient;
+
+  const config = getConfig();
+  const url = config?.supabaseUrl || 'https://placeholder.supabase.co';
+  const key = config?.supabaseAnonKey || 'placeholder';
+
+  if (!config) {
+    console.warn(
+      'Supabase config not loaded yet. Call initConfig() before using supabase client.'
+    );
+  }
+
+  realClient = createClient(url, key, {
     auth: {
       // Use localStorage for persistence (default, but explicit for clarity)
       persistSession: true,
@@ -109,24 +125,59 @@ export const supabase: SupabaseClient = createClient(
         'x-client-info': isIOSPWA ? 'stellar-ios-pwa' : 'stellar-web'
       }
     }
-  }
-);
-
-// Set up auth state change listener to log auth events (helps debug PWA issues)
-if (typeof window !== 'undefined') {
-  supabase.auth.onAuthStateChange((event, session) => {
-    console.log(
-      `[Auth] State change: ${event}`,
-      session ? `User: ${session.user?.id}` : 'No session'
-    );
-
-    // If session is lost unexpectedly, this helps identify the issue
-    if (event === 'SIGNED_OUT' && isIOSPWA) {
-      console.warn('[Auth] Signed out on iOS PWA - session may have been evicted');
-    }
-
-    if (event === 'TOKEN_REFRESHED') {
-      console.log('[Auth] Token refreshed successfully');
-    }
   });
+
+  // Set up auth state change listener to log auth events (helps debug PWA issues)
+  if (typeof window !== 'undefined') {
+    realClient.auth.onAuthStateChange((event, session) => {
+      console.log(
+        `[Auth] State change: ${event}`,
+        session ? `User: ${session.user?.id}` : 'No session'
+      );
+
+      // If session is lost unexpectedly, this helps identify the issue
+      if (event === 'SIGNED_OUT' && isIOSPWA) {
+        console.warn('[Auth] Signed out on iOS PWA - session may have been evicted');
+      }
+
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('[Auth] Token refreshed successfully');
+      }
+    });
+  }
+
+  return realClient;
+}
+
+/**
+ * Proxy-based lazy singleton.
+ * Delegates all property access to the real SupabaseClient,
+ * which is created on first access using getConfig().
+ */
+export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop, receiver) {
+    const client = getOrCreateClient();
+    const value = Reflect.get(client, prop, receiver);
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  }
+});
+
+/**
+ * Get Supabase client asynchronously, waiting for config to load first.
+ * Use this when config might not be loaded yet (e.g., in hooks.client.ts).
+ */
+export async function getSupabaseAsync(): Promise<SupabaseClient> {
+  await waitForConfig();
+  return getOrCreateClient();
+}
+
+/**
+ * Reset the Supabase client (for admin config updates).
+ * Forces re-creation with new config on next access.
+ */
+export function resetSupabaseClient(): void {
+  realClient = null;
 }
