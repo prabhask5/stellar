@@ -34,7 +34,7 @@ interface BlockList {
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
-// Supabase client with realtime config
+// Supabase client — auth only (data queries go through service worker)
 const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey, {
   auth: {
     storage: {
@@ -51,12 +51,8 @@ const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey, {
     },
     autoRefreshToken: true,
     persistSession: true
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10
-    }
   }
+  // EGRESS OPTIMIZATION: Removed realtime config — popup uses service worker for all data
 });
 
 // DOM Elements
@@ -301,17 +297,14 @@ async function loadFocusStatus(isInitialLoad = false) {
   }
 
   try {
-    const { data, error } = await supabase
-      .from('focus_sessions')
-      .select('*')
-      .eq('user_id', currentUserId)
-      .is('ended_at', null)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    // EGRESS OPTIMIZATION: Use service worker cache instead of direct Supabase query
+    const response = await browser.runtime.sendMessage({ type: 'GET_FOCUS_STATUS' }) as {
+      isOnline: boolean;
+      realtimeHealthy: boolean;
+      focusSession: FocusSession | null;
+    };
 
-    if (error) throw error;
-
-    const session = (data && data.length > 0) ? data[0] as FocusSession : null;
+    const session = response?.focusSession || null;
     const sessionJson = session ? JSON.stringify({ id: session.id, phase: session.phase, status: session.status }) : null;
 
     // Check if session actually changed
@@ -344,16 +337,12 @@ async function loadFocusStatus(isInitialLoad = false) {
 async function loadBlockLists() {
   if (!currentUserId) return;
 
-  const { data, error } = await supabase
-    .from('block_lists')
-    .select('id, name, is_enabled, active_days')
-    .eq('user_id', currentUserId)
-    .eq('deleted', false)
-    .order('order', { ascending: true });
+  // EGRESS OPTIMIZATION: Use service worker cache instead of direct Supabase query
+  const response = await browser.runtime.sendMessage({ type: 'GET_BLOCK_LISTS' }) as {
+    lists: BlockList[];
+  };
 
-  if (error) throw error;
-
-  cachedBlockLists = data || [];
+  cachedBlockLists = response?.lists || [];
   renderBlockLists(cachedBlockLists);
   updateActiveBlockListCount(cachedBlockLists);
 }
@@ -383,38 +372,14 @@ async function loadFocusTimeToday(animate = true) {
   if (!currentUserId) return;
 
   try {
-    // Get today's date at midnight in local timezone
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString();
+    // EGRESS OPTIMIZATION: Use service worker instead of direct Supabase query
+    const response = await browser.runtime.sendMessage({ type: 'GET_FOCUS_TIME_TODAY' }) as {
+      totalMs: number;
+      hasRunningSession: boolean;
+    };
 
-    // Query all of today's sessions
-    const { data: sessions, error } = await supabase
-      .from('focus_sessions')
-      .select('*')
-      .eq('user_id', currentUserId)
-      .gte('started_at', todayStr)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    let totalMs = 0;
-    let foundRunningFocusSession = false;
-
-    for (const session of (sessions || [])) {
-      // Skip deleted sessions
-      if (session.deleted) continue;
-
-      // Use elapsed_duration (actual time spent in focus)
-      totalMs += (session.elapsed_duration || 0) * 60 * 1000;
-
-      // For currently running focus phase, add current elapsed
-      if (!session.ended_at && session.phase === 'focus' && session.status === 'running') {
-        foundRunningFocusSession = true;
-        const currentElapsed = Date.now() - new Date(session.phase_started_at).getTime();
-        totalMs += Math.min(currentElapsed, session.focus_duration * 60 * 1000);
-      }
-    }
+    const totalMs = response?.totalMs || 0;
+    const foundRunningFocusSession = response?.hasRunningSession || false;
 
     // Track if there's an active running focus session
     const wasRunning = hasActiveRunningSession;

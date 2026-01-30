@@ -291,6 +291,15 @@ const COLUMNS = {
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let syncInterval: ReturnType<typeof setInterval> | null = null;
 let hasHydrated = false; // Track if initial hydration has been attempted
+
+// EGRESS OPTIMIZATION: Cache getUser() validation to avoid network call every sync cycle
+let lastUserValidation = 0;
+let lastValidatedUserId: string | null = null;
+const USER_VALIDATION_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+
+// EGRESS OPTIMIZATION: Track last successful sync for online-reconnect cooldown
+let lastSuccessfulSyncTimestamp = 0;
+const ONLINE_RECONNECT_COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
 let isTabVisible = true; // Track tab visibility
 let visibilityDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
 let tabHiddenAt: number | null = null; // Track when tab became hidden for smart sync
@@ -733,7 +742,13 @@ export function scheduleSyncPush(): void {
     clearTimeout(syncTimeout);
   }
   syncTimeout = setTimeout(() => {
-    runFullSync(false); // Show syncing indicator for user-triggered writes
+    // EGRESS OPTIMIZATION: When realtime is healthy, other devices' changes arrive via realtime.
+    // Skip pulling all 13 tables after local writes — just push.
+    const skipPull = isRealtimeHealthy();
+    if (skipPull) {
+      console.log('[SYNC] Realtime healthy — push-only mode (skipping pull)');
+    }
+    runFullSync(false, skipPull); // Show syncing indicator for user-triggered writes
   }, SYNC_DEBOUNCE_MS);
 }
 
@@ -768,7 +783,19 @@ async function getCurrentUserId(): Promise<string | null> {
         return null;
       }
       console.log('[SYNC] Session refreshed successfully');
-      return refreshData.session.user?.id || null;
+      const refreshedId = refreshData.session.user?.id || null;
+      if (refreshedId) {
+        lastValidatedUserId = refreshedId;
+        lastUserValidation = Date.now();
+      }
+      return refreshedId;
+    }
+
+    // EGRESS OPTIMIZATION: Only validate with getUser() (network call) once per hour.
+    // Between validations, trust the cached session.
+    const now = Date.now();
+    if (lastValidatedUserId && session.user?.id === lastValidatedUserId && (now - lastUserValidation) < USER_VALIDATION_INTERVAL_MS) {
+      return session.user.id;
     }
 
     // Session is valid, but also validate with getUser() which makes a network call
@@ -780,13 +807,27 @@ async function getCurrentUserId(): Promise<string | null> {
 
     if (userError) {
       console.warn('[SYNC] User validation failed:', userError.message);
+      // Invalidate cache on error
+      lastValidatedUserId = null;
+      lastUserValidation = 0;
       // Try to refresh the session
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError || !refreshData.session) {
         console.warn('[SYNC] Failed to refresh after user validation error');
         return null;
       }
-      return refreshData.session.user?.id || null;
+      const refreshedId = refreshData.session.user?.id || null;
+      if (refreshedId) {
+        lastValidatedUserId = refreshedId;
+        lastUserValidation = Date.now();
+      }
+      return refreshedId;
+    }
+
+    // Cache successful validation
+    if (user?.id) {
+      lastValidatedUserId = user.id;
+      lastUserValidation = Date.now();
     }
 
     return user?.id || null;
@@ -920,148 +961,87 @@ async function pullRemoteChanges(minCursor?: string): Promise<{ bytes: number; r
   let pullBytes = 0;
   let pullRecords = 0;
 
-  // Pull goal_lists changed since last sync
-  const { data: remoteLists, error: listsError } = await supabase
-    .from('goal_lists')
-    .select(COLUMNS.goal_lists)
-    .gt('updated_at', lastSync);
+  // Pull all 13 tables in parallel (egress optimization: reduces wall time per sync cycle)
+  const [
+    listsResult,
+    goalsResult,
+    routinesResult,
+    progressResult,
+    categoriesResult,
+    commitmentsResult,
+    dailyTasksResult,
+    longTermTasksResult,
+    focusSettingsResult,
+    focusSessionsResult,
+    blockListsResult,
+    blockedWebsitesResult,
+    projectsResult
+  ] = await Promise.all([
+    supabase.from('goal_lists').select(COLUMNS.goal_lists).gt('updated_at', lastSync),
+    supabase.from('goals').select(COLUMNS.goals).gt('updated_at', lastSync),
+    supabase.from('daily_routine_goals').select(COLUMNS.daily_routine_goals).gt('updated_at', lastSync),
+    supabase.from('daily_goal_progress').select(COLUMNS.daily_goal_progress).gt('updated_at', lastSync),
+    supabase.from('task_categories').select(COLUMNS.task_categories).gt('updated_at', lastSync),
+    supabase.from('commitments').select(COLUMNS.commitments).gt('updated_at', lastSync),
+    supabase.from('daily_tasks').select(COLUMNS.daily_tasks).gt('updated_at', lastSync),
+    supabase.from('long_term_tasks').select(COLUMNS.long_term_tasks).gt('updated_at', lastSync),
+    supabase.from('focus_settings').select(COLUMNS.focus_settings).gt('updated_at', lastSync),
+    supabase.from('focus_sessions').select(COLUMNS.focus_sessions).gt('updated_at', lastSync),
+    supabase.from('block_lists').select(COLUMNS.block_lists).gt('updated_at', lastSync),
+    supabase.from('blocked_websites').select(COLUMNS.blocked_websites).gt('updated_at', lastSync),
+    supabase.from('projects').select(COLUMNS.projects).gt('updated_at', lastSync)
+  ]);
 
-  if (listsError) throw listsError;
-  const listsEgress = trackEgress('goal_lists', remoteLists);
-  pullBytes += listsEgress.bytes;
-  pullRecords += listsEgress.records;
+  // Check for errors
+  if (listsResult.error) throw listsResult.error;
+  if (goalsResult.error) throw goalsResult.error;
+  if (routinesResult.error) throw routinesResult.error;
+  if (progressResult.error) throw progressResult.error;
+  if (categoriesResult.error) throw categoriesResult.error;
+  if (commitmentsResult.error) throw commitmentsResult.error;
+  if (dailyTasksResult.error) throw dailyTasksResult.error;
+  if (longTermTasksResult.error) throw longTermTasksResult.error;
+  if (focusSettingsResult.error) throw focusSettingsResult.error;
+  if (focusSessionsResult.error) throw focusSessionsResult.error;
+  if (blockListsResult.error) throw blockListsResult.error;
+  if (blockedWebsitesResult.error) throw blockedWebsitesResult.error;
+  if (projectsResult.error) throw projectsResult.error;
 
-  // Pull goals changed since last sync
-  const { data: remoteGoals, error: goalsError } = await supabase
-    .from('goals')
-    .select(COLUMNS.goals)
-    .gt('updated_at', lastSync);
+  // Extract data
+  const remoteLists = listsResult.data;
+  const remoteGoals = goalsResult.data;
+  const remoteRoutines = routinesResult.data;
+  const remoteProgress = progressResult.data;
+  const remoteCategories = categoriesResult.data;
+  const remoteCommitments = commitmentsResult.data;
+  const remoteDailyTasks = dailyTasksResult.data;
+  const remoteLongTermTasks = longTermTasksResult.data;
+  const remoteFocusSettings = focusSettingsResult.data;
+  const remoteFocusSessions = focusSessionsResult.data;
+  const remoteBlockLists = blockListsResult.data;
+  const remoteBlockedWebsites = blockedWebsitesResult.data;
+  const remoteProjects = projectsResult.data;
 
-  if (goalsError) throw goalsError;
-  const goalsEgress = trackEgress('goals', remoteGoals);
-  pullBytes += goalsEgress.bytes;
-  pullRecords += goalsEgress.records;
-
-  // Pull daily_routine_goals changed since last sync
-  const { data: remoteRoutines, error: routinesError } = await supabase
-    .from('daily_routine_goals')
-    .select(COLUMNS.daily_routine_goals)
-    .gt('updated_at', lastSync);
-
-  if (routinesError) throw routinesError;
-  const routinesEgress = trackEgress('daily_routine_goals', remoteRoutines);
-  pullBytes += routinesEgress.bytes;
-  pullRecords += routinesEgress.records;
-
-  // Pull daily_goal_progress changed since last sync
-  const { data: remoteProgress, error: progressError } = await supabase
-    .from('daily_goal_progress')
-    .select(COLUMNS.daily_goal_progress)
-    .gt('updated_at', lastSync);
-
-  if (progressError) throw progressError;
-  const progressEgress = trackEgress('daily_goal_progress', remoteProgress);
-  pullBytes += progressEgress.bytes;
-  pullRecords += progressEgress.records;
-
-  // Pull task_categories changed since last sync
-  const { data: remoteCategories, error: categoriesError } = await supabase
-    .from('task_categories')
-    .select(COLUMNS.task_categories)
-    .gt('updated_at', lastSync);
-
-  if (categoriesError) throw categoriesError;
-  const categoriesEgress = trackEgress('task_categories', remoteCategories);
-  pullBytes += categoriesEgress.bytes;
-  pullRecords += categoriesEgress.records;
-
-  // Pull commitments changed since last sync
-  const { data: remoteCommitments, error: commitmentsError } = await supabase
-    .from('commitments')
-    .select(COLUMNS.commitments)
-    .gt('updated_at', lastSync);
-
-  if (commitmentsError) throw commitmentsError;
-  const commitmentsEgress = trackEgress('commitments', remoteCommitments);
-  pullBytes += commitmentsEgress.bytes;
-  pullRecords += commitmentsEgress.records;
-
-  // Pull daily_tasks changed since last sync
-  const { data: remoteDailyTasks, error: dailyTasksError } = await supabase
-    .from('daily_tasks')
-    .select(COLUMNS.daily_tasks)
-    .gt('updated_at', lastSync);
-
-  if (dailyTasksError) throw dailyTasksError;
-  const dailyTasksEgress = trackEgress('daily_tasks', remoteDailyTasks);
-  pullBytes += dailyTasksEgress.bytes;
-  pullRecords += dailyTasksEgress.records;
-
-  // Pull long_term_tasks changed since last sync
-  const { data: remoteLongTermTasks, error: longTermTasksError } = await supabase
-    .from('long_term_tasks')
-    .select(COLUMNS.long_term_tasks)
-    .gt('updated_at', lastSync);
-
-  if (longTermTasksError) throw longTermTasksError;
-  const longTermTasksEgress = trackEgress('long_term_tasks', remoteLongTermTasks);
-  pullBytes += longTermTasksEgress.bytes;
-  pullRecords += longTermTasksEgress.records;
-
-  // Pull focus_settings changed since last sync
-  const { data: remoteFocusSettings, error: focusSettingsError } = await supabase
-    .from('focus_settings')
-    .select(COLUMNS.focus_settings)
-    .gt('updated_at', lastSync);
-
-  if (focusSettingsError) throw focusSettingsError;
-  const focusSettingsEgress = trackEgress('focus_settings', remoteFocusSettings);
-  pullBytes += focusSettingsEgress.bytes;
-  pullRecords += focusSettingsEgress.records;
-
-  // Pull focus_sessions changed since last sync
-  const { data: remoteFocusSessions, error: focusSessionsError } = await supabase
-    .from('focus_sessions')
-    .select(COLUMNS.focus_sessions)
-    .gt('updated_at', lastSync);
-
-  if (focusSessionsError) throw focusSessionsError;
-  const focusSessionsEgress = trackEgress('focus_sessions', remoteFocusSessions);
-  pullBytes += focusSessionsEgress.bytes;
-  pullRecords += focusSessionsEgress.records;
-
-  // Pull block_lists changed since last sync
-  const { data: remoteBlockLists, error: blockListsError } = await supabase
-    .from('block_lists')
-    .select(COLUMNS.block_lists)
-    .gt('updated_at', lastSync);
-
-  if (blockListsError) throw blockListsError;
-  const blockListsEgress = trackEgress('block_lists', remoteBlockLists);
-  pullBytes += blockListsEgress.bytes;
-  pullRecords += blockListsEgress.records;
-
-  // Pull blocked_websites changed since last sync
-  const { data: remoteBlockedWebsites, error: blockedWebsitesError } = await supabase
-    .from('blocked_websites')
-    .select(COLUMNS.blocked_websites)
-    .gt('updated_at', lastSync);
-
-  if (blockedWebsitesError) throw blockedWebsitesError;
-  const blockedWebsitesEgress = trackEgress('blocked_websites', remoteBlockedWebsites);
-  pullBytes += blockedWebsitesEgress.bytes;
-  pullRecords += blockedWebsitesEgress.records;
-
-  // Pull projects changed since last sync
-  const { data: remoteProjects, error: projectsError } = await supabase
-    .from('projects')
-    .select(COLUMNS.projects)
-    .gt('updated_at', lastSync);
-
-  if (projectsError) throw projectsError;
-  const projectsEgress = trackEgress('projects', remoteProjects);
-  pullBytes += projectsEgress.bytes;
-  pullRecords += projectsEgress.records;
+  // Track egress
+  const egressResults = [
+    trackEgress('goal_lists', remoteLists),
+    trackEgress('goals', remoteGoals),
+    trackEgress('daily_routine_goals', remoteRoutines),
+    trackEgress('daily_goal_progress', remoteProgress),
+    trackEgress('task_categories', remoteCategories),
+    trackEgress('commitments', remoteCommitments),
+    trackEgress('daily_tasks', remoteDailyTasks),
+    trackEgress('long_term_tasks', remoteLongTermTasks),
+    trackEgress('focus_settings', remoteFocusSettings),
+    trackEgress('focus_sessions', remoteFocusSessions),
+    trackEgress('block_lists', remoteBlockLists),
+    trackEgress('blocked_websites', remoteBlockedWebsites),
+    trackEgress('projects', remoteProjects)
+  ];
+  for (const egress of egressResults) {
+    pullBytes += egress.bytes;
+    pullRecords += egress.records;
+  }
 
   // Helper function to apply remote changes with field-level conflict resolution
   async function applyRemoteWithConflictResolution<T extends { id: string; updated_at: string }>(
@@ -1425,7 +1405,7 @@ async function processSyncItem(item: SyncOperationItem): Promise<void> {
         if (table === 'focus_settings' && payload.user_id) {
           const { data: existing } = await supabase
             .from(table)
-            .select('*')
+            .select(COLUMNS.focus_settings)
             .eq('user_id', payload.user_id as string)
             .maybeSingle();
 
@@ -1690,7 +1670,7 @@ function parseErrorMessage(error: unknown): string {
 
 // Full sync: push first (so our changes are persisted), then pull
 // quiet: if true, don't update UI status at all (for background periodic syncs)
-export async function runFullSync(quiet: boolean = false): Promise<void> {
+export async function runFullSync(quiet: boolean = false, skipPull: boolean = false): Promise<void> {
   if (typeof navigator === 'undefined' || !navigator.onLine) {
     if (!quiet) {
       syncStatusStore.setStatus('offline');
@@ -1753,36 +1733,43 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
     pushedItems = pushStats.actualPushed;
     pushSucceeded = true;
 
-    if (!quiet) {
-      syncStatusStore.setSyncMessage('Downloading latest data...');
-    }
-
-    // Pull remote changes - retry up to 3 times if push succeeded
-    // Uses stored cursor to get all changes since last sync
-    // Conflict resolution handles our own pushed changes via device_id check
-    let pullAttempts = 0;
-    const maxPullAttempts = 3;
-    let lastPullError: unknown = null;
+    // EGRESS OPTIMIZATION: Skip pull when realtime is healthy and this is a push-triggered sync
     let pullEgress = { bytes: 0, records: 0 };
 
-    while (pullAttempts < maxPullAttempts && !pullSucceeded) {
-      try {
-        // Don't pass postPushCursor - we want ALL changes since stored cursor
-        // The conflict resolution handles our own pushed changes via device_id check
-        pullEgress = await pullRemoteChanges();
-        pullSucceeded = true;
-      } catch (pullError) {
-        lastPullError = pullError;
-        pullAttempts++;
-        if (pullAttempts < maxPullAttempts) {
-          // Wait before retry (exponential backoff: 1s, 2s)
-          await new Promise((resolve) => setTimeout(resolve, pullAttempts * 1000));
+    if (skipPull) {
+      console.log('[SYNC] Skipping pull (realtime healthy, push-only mode)');
+      pullSucceeded = true;
+    } else {
+      if (!quiet) {
+        syncStatusStore.setSyncMessage('Downloading latest data...');
+      }
+
+      // Pull remote changes - retry up to 3 times if push succeeded
+      // Uses stored cursor to get all changes since last sync
+      // Conflict resolution handles our own pushed changes via device_id check
+      let pullAttempts = 0;
+      const maxPullAttempts = 3;
+      let lastPullError: unknown = null;
+
+      while (pullAttempts < maxPullAttempts && !pullSucceeded) {
+        try {
+          // Don't pass postPushCursor - we want ALL changes since stored cursor
+          // The conflict resolution handles our own pushed changes via device_id check
+          pullEgress = await pullRemoteChanges();
+          pullSucceeded = true;
+        } catch (pullError) {
+          lastPullError = pullError;
+          pullAttempts++;
+          if (pullAttempts < maxPullAttempts) {
+            // Wait before retry (exponential backoff: 1s, 2s)
+            await new Promise((resolve) => setTimeout(resolve, pullAttempts * 1000));
+          }
         }
       }
-    }
 
-    if (!pullSucceeded && lastPullError) {
-      throw lastPullError;
+      if (!pullSucceeded && lastPullError) {
+        throw lastPullError;
+      }
     }
 
     // Store egress for logging
@@ -1846,6 +1833,7 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
 
     // Notify stores that sync is complete so they can refresh from local
     notifySyncComplete();
+    lastSuccessfulSyncTimestamp = Date.now();
   } catch (error) {
     console.error('Sync failed:', error);
 
@@ -1868,7 +1856,7 @@ export async function runFullSync(quiet: boolean = false): Promise<void> {
     logSyncCycle({
       trigger,
       pushedItems,
-      pulledTables: pullSucceeded ? 12 : 0, // 12 tables pulled on success
+      pulledTables: pullSucceeded && !skipPull ? 13 : 0, // 13 tables pulled on success
       pulledRecords: cycleEgressRecords,
       egressBytes: cycleEgressBytes,
       durationMs: Date.now() - cycleStart
@@ -2507,8 +2495,15 @@ export async function startSyncEngine(): Promise<void> {
 
   // Handle online event - run sync and start realtime when connection restored
   handleOnlineRef = async () => {
-    runFullSync(false);
-    // Start realtime subscriptions when coming online
+    // EGRESS OPTIMIZATION: Skip sync if last successful sync was recent (< 2 minutes)
+    // iOS PWA triggers frequent network transitions — avoid redundant full syncs
+    const timeSinceLastSync = Date.now() - lastSuccessfulSyncTimestamp;
+    if (timeSinceLastSync < ONLINE_RECONNECT_COOLDOWN_MS) {
+      console.log(`[SYNC] Skipping online-reconnect sync (last sync ${Math.round(timeSinceLastSync / 1000)}s ago)`);
+    } else {
+      runFullSync(false);
+    }
+    // Always restart realtime subscriptions regardless of cooldown
     const userId = await getCurrentUserId();
     if (userId) {
       startRealtimeSubscriptions(userId);

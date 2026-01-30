@@ -135,6 +135,57 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
     });
     return true; // Keep channel open for async response
   }
+
+  // EGRESS OPTIMIZATION: Popup requests today's focus time from service worker
+  // instead of making its own Supabase query
+  if (message.type === 'GET_FOCUS_TIME_TODAY') {
+    (async () => {
+      try {
+        const session = await getSession();
+        if (!session?.user) {
+          sendResponse({ totalMs: 0, hasRunningSession: false });
+          return;
+        }
+
+        const supabase = getSupabase();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = today.toISOString();
+
+        const { data: sessions, error } = await supabase
+          .from('focus_sessions')
+          .select(COLUMNS.focus_sessions + ',started_at,elapsed_duration,deleted')
+          .eq('user_id', session.user.id)
+          .gte('started_at', todayStr)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('[Stellar Focus] GET_FOCUS_TIME_TODAY error:', error);
+          sendResponse({ totalMs: 0, hasRunningSession: false });
+          return;
+        }
+
+        let totalMs = 0;
+        let hasRunningSession = false;
+
+        for (const s of (sessions || [])) {
+          if (s.deleted) continue;
+          totalMs += (s.elapsed_duration || 0) * 60 * 1000;
+          if (!s.ended_at && s.phase === 'focus' && s.status === 'running') {
+            hasRunningSession = true;
+            const currentElapsed = Date.now() - new Date(s.phase_started_at).getTime();
+            totalMs += Math.min(currentElapsed, s.focus_duration * 60 * 1000);
+          }
+        }
+
+        sendResponse({ totalMs, hasRunningSession });
+      } catch (err) {
+        console.error('[Stellar Focus] GET_FOCUS_TIME_TODAY error:', err);
+        sendResponse({ totalMs: 0, hasRunningSession: false });
+      }
+    })();
+    return true; // Keep channel open for async response
+  }
 });
 
 // Web navigation blocking
@@ -266,20 +317,22 @@ async function setupRealtimeSubscriptions() {
               if (focusSession.status === 'running' && focusSession.phase === 'focus') {
                 refreshBlockLists();
               }
+              // Notify popup AFTER cache is updated so GET_FOCUS_STATUS returns fresh data
+              notifyPopup('FOCUS_STATUS_CHANGED');
             });
           } else {
             // Session ended
             focusSessionCacheStore.clear().then(() => {
               currentFocusSession = null;
+              notifyPopup('FOCUS_STATUS_CHANGED');
             });
           }
         } else if (payload.eventType === 'DELETE') {
           focusSessionCacheStore.clear().then(() => {
             currentFocusSession = null;
+            notifyPopup('FOCUS_STATUS_CHANGED');
           });
         }
-        // Notify popup of focus session change
-        notifyPopup('FOCUS_STATUS_CHANGED');
       }
     )
     // Block lists subscription
@@ -298,6 +351,9 @@ async function setupRealtimeSubscriptions() {
       }
     )
     // Blocked websites subscription
+    // Note: No user_id filter — blocked_websites links through block_list_id, not directly.
+    // RLS policies filter at the server level. The handler additionally validates
+    // that the block_list_id belongs to the user's cached block lists before processing.
     .on(
       'postgres_changes',
       {
