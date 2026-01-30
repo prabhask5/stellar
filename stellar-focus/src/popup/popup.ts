@@ -164,25 +164,15 @@ function showNotConfigured() {
   authSection?.classList.add('hidden');
   mainSection?.classList.add('hidden');
 
-  // Show not-configured message or create one
+  // Show not-configured section
   if (notConfiguredEl) {
     notConfiguredEl.classList.remove('hidden');
-  } else {
-    // Fallback: create a simple message
-    const container = document.querySelector('.popup-container') || document.body;
-    const div = document.createElement('div');
-    div.className = 'not-configured';
-    div.innerHTML = `
-      <div style="text-align: center; padding: 2rem 1rem;">
-        <p style="color: #8b8ba3; margin-bottom: 1rem;">Extension not configured</p>
-        <a id="openOptionsBtn" style="color: #a78bfa; cursor: pointer; text-decoration: underline;">Open Settings</a>
-      </div>
-    `;
-    container.appendChild(div);
-    document.getElementById('openOptionsBtn')?.addEventListener('click', () => {
-      browser.runtime.openOptionsPage();
-    });
   }
+
+  // Wire up the open settings button
+  document.getElementById('openOptionsBtn')?.addEventListener('click', () => {
+    browser.runtime.openOptionsPage();
+  });
 }
 
 // EGRESS OPTIMIZATION: Listen for updates from service worker instead of creating own subscriptions

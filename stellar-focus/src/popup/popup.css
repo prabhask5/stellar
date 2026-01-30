@@ -567,6 +567,89 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   NOT CONFIGURED PLACEHOLDER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.not-configured-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  text-align: center;
+  animation: fadeInUp 0.5s var(--ease-smooth);
+}
+
+.not-configured-visual {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin-bottom: 24px;
+}
+
+.not-configured-rings {
+  position: absolute;
+  inset: 0;
+}
+
+.not-configured-rings .ring {
+  border-color: rgba(108, 92, 231, 0.2);
+}
+
+.not-configured-rings .ring-1 {
+  animation: ringExpand 3s ease-out infinite;
+}
+
+.not-configured-rings .ring-2 {
+  animation: ringExpand 3s ease-out infinite 1s;
+}
+
+.not-configured-rings .ring-3 {
+  animation: ringExpand 3s ease-out infinite 2s;
+}
+
+.not-configured-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-light, #a78bfa);
+  animation: configSpin 8s linear infinite;
+}
+
+@keyframes configSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.not-configured-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--color-text) 0%, var(--color-primary-light, #a78bfa) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.not-configured-desc {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  max-width: 220px;
+  margin-bottom: 24px;
+}
+
+.not-configured-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    AUTH SECTION
    ═══════════════════════════════════════════════════════════════════════════ */
 
