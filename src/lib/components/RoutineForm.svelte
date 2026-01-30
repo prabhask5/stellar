@@ -126,7 +126,7 @@
     target_value: 'Target',
     start_target_value: 'Starting Threshold',
     end_target_value: 'Ending Threshold',
-    progression_schedule: 'Increase Every N',
+    progression_schedule: 'Milestone Interval',
     start_date: 'Start Date',
     end_date: 'End Date',
     active_days: 'Active Days'
@@ -334,8 +334,9 @@
       <input id="end-target-value" type="number" bind:value={endTargetValue} min="1" required class:field-changed={highlightedFields.has('end_target_value')} />
     </div>
     <div class="form-group">
-      <label for="progression-schedule">Increase Every N Occurrences</label>
+      <label for="progression-schedule">Milestone Interval</label>
       <input id="progression-schedule" type="number" bind:value={progressionSchedule} min="1" required class:field-changed={highlightedFields.has('progression_schedule')} />
+      <p class="field-help">The threshold will increase after every {progressionSchedule} {progressionSchedule === 1 ? 'occurrence' : 'occurrences'}.</p>
     </div>
   {/if}
 
@@ -659,6 +660,13 @@
     height: 20px;
     cursor: pointer;
     accent-color: var(--color-primary);
+  }
+
+  .field-help {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin: 0;
   }
 
   .help-text {
