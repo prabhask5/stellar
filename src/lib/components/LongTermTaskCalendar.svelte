@@ -75,10 +75,12 @@
       </svg>
     </button>
     <div class="month-title-wrapper">
-      <h2 class="month-title">{formatMonthYear(currentDate)}</h2>
-      {#if !isViewingCurrentMonth()}
-        <button class="today-btn" onclick={goToToday}> Today </button>
-      {/if}
+      <h2 class="month-title">
+        {formatMonthYear(currentDate)}
+        {#if !isViewingCurrentMonth()}
+          <button class="today-btn" onclick={goToToday}>today</button>
+        {/if}
+      </h2>
     </div>
     <button class="nav-btn" onclick={goToNextMonth} aria-label="Next month">
       <svg
@@ -227,9 +229,8 @@
 
   .month-title-wrapper {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 0.375rem;
+    justify-content: center;
   }
 
   .month-title {
@@ -249,25 +250,34 @@
   }
 
   .today-btn {
-    font-size: 0.625rem;
+    font-size: 0.5625rem;
     font-weight: 700;
-    padding: 0.25rem 0.625rem;
-    background: rgba(108, 92, 231, 0.15);
-    border: 1px solid rgba(108, 92, 231, 0.3);
+    padding: 0.2rem 0.5rem;
+    margin-left: 0.5rem;
+    background: rgba(108, 92, 231, 0.12);
+    border: 1px solid rgba(108, 92, 231, 0.25);
     border-radius: var(--radius-full);
     color: var(--color-primary-light);
     cursor: pointer;
-    transition: all 0.3s var(--ease-spring);
+    transition: all 0.2s var(--ease-out);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
+    vertical-align: middle;
+    line-height: 1;
+    -webkit-text-fill-color: var(--color-primary-light);
+    background-clip: padding-box;
+    -webkit-background-clip: padding-box;
   }
 
   .today-btn:hover {
-    background: var(--gradient-primary);
-    border-color: transparent;
+    background: rgba(108, 92, 231, 0.25);
+    border-color: rgba(108, 92, 231, 0.5);
     color: white;
-    transform: scale(1.05);
-    box-shadow: 0 0 20px var(--color-primary-glow);
+    -webkit-text-fill-color: white;
+  }
+
+  .today-btn:active {
+    transform: scale(0.95);
   }
 
   .calendar-weekdays {

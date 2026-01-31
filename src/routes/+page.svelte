@@ -168,7 +168,18 @@
 
 {#if isLoading}
   <div class="loading-screen">
-    <div class="loading-orb"></div>
+    <div class="stellar-loader">
+      <div class="loader-ring loader-ring-1"></div>
+      <div class="loader-ring loader-ring-2"></div>
+      <div class="loader-ring loader-ring-3"></div>
+      <div class="loader-core">
+        <div class="loader-core-inner"></div>
+      </div>
+      <div class="loader-particle loader-particle-1"></div>
+      <div class="loader-particle loader-particle-2"></div>
+      <div class="loader-particle loader-particle-3"></div>
+      <div class="loader-particle loader-particle-4"></div>
+    </div>
   </div>
 {:else}
   <div class="home-container">
@@ -292,26 +303,179 @@
     background: var(--color-void);
   }
 
-  .loading-orb {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: var(--gradient-primary);
-    box-shadow:
-      0 0 60px var(--color-primary-glow),
-      0 0 120px var(--color-primary-glow);
-    animation: loadingPulse 1.5s ease-in-out infinite;
+  /* ── Stellar Loader — A star being born ── */
+  .stellar-loader {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    animation: loaderFadeIn 0.6s ease-out both;
   }
 
-  @keyframes loadingPulse {
-    0%,
-    100% {
+  @keyframes loaderFadeIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .loader-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid transparent;
+  }
+
+  .loader-ring-1 {
+    inset: 0;
+    border-color: rgba(108, 92, 231, 0.25);
+    border-top-color: rgba(108, 92, 231, 0.8);
+    animation: loaderOrbit 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  .loader-ring-2 {
+    inset: 12px;
+    border-color: rgba(255, 121, 198, 0.15);
+    border-right-color: rgba(255, 121, 198, 0.6);
+    animation: loaderOrbit 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite reverse;
+  }
+
+  .loader-ring-3 {
+    inset: 24px;
+    border-color: rgba(0, 212, 255, 0.1);
+    border-bottom-color: rgba(0, 212, 255, 0.5);
+    animation: loaderOrbit 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes loaderOrbit {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .loader-core {
+    position: absolute;
+    inset: 36px;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      rgba(108, 92, 231, 0.4) 0%,
+      rgba(108, 92, 231, 0.1) 60%,
+      transparent 70%
+    );
+    animation: loaderCorePulse 2s ease-in-out infinite;
+  }
+
+  .loader-core-inner {
+    position: absolute;
+    inset: 30%;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(139, 124, 240, 0.9) 30%,
+      rgba(108, 92, 231, 0.6) 60%,
+      transparent 100%
+    );
+    box-shadow:
+      0 0 20px rgba(108, 92, 231, 0.8),
+      0 0 40px rgba(108, 92, 231, 0.4),
+      0 0 80px rgba(108, 92, 231, 0.2);
+    animation: loaderCoreGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes loaderCorePulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.15); opacity: 1; }
+  }
+
+  @keyframes loaderCoreGlow {
+    0%, 100% {
       transform: scale(1);
-      opacity: 1;
+      box-shadow:
+        0 0 20px rgba(108, 92, 231, 0.8),
+        0 0 40px rgba(108, 92, 231, 0.4),
+        0 0 80px rgba(108, 92, 231, 0.2);
     }
     50% {
-      transform: scale(1.2);
-      opacity: 0.7;
+      transform: scale(1.1);
+      box-shadow:
+        0 0 30px rgba(139, 124, 240, 0.9),
+        0 0 60px rgba(108, 92, 231, 0.5),
+        0 0 100px rgba(255, 121, 198, 0.2);
+    }
+  }
+
+  .loader-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+  }
+
+  .loader-particle-1 {
+    background: rgba(108, 92, 231, 0.9);
+    box-shadow: 0 0 6px rgba(108, 92, 231, 0.6);
+    animation: loaderParticleOrbit1 3s linear infinite;
+  }
+
+  .loader-particle-2 {
+    width: 3px;
+    height: 3px;
+    background: rgba(255, 121, 198, 0.9);
+    box-shadow: 0 0 6px rgba(255, 121, 198, 0.6);
+    animation: loaderParticleOrbit2 2.2s linear infinite;
+  }
+
+  .loader-particle-3 {
+    width: 3px;
+    height: 3px;
+    background: rgba(0, 212, 255, 0.9);
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+    animation: loaderParticleOrbit3 2.8s linear infinite;
+  }
+
+  .loader-particle-4 {
+    width: 2px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+    animation: loaderParticleOrbit4 3.5s linear infinite;
+  }
+
+  @keyframes loaderParticleOrbit1 {
+    from { transform: rotate(0deg) translateX(54px) rotate(0deg); opacity: 0.9; }
+    50% { opacity: 0.4; }
+    to { transform: rotate(360deg) translateX(54px) rotate(-360deg); opacity: 0.9; }
+  }
+
+  @keyframes loaderParticleOrbit2 {
+    from { transform: rotate(90deg) translateX(42px) rotate(-90deg); opacity: 0.8; }
+    50% { opacity: 0.3; }
+    to { transform: rotate(450deg) translateX(42px) rotate(-450deg); opacity: 0.8; }
+  }
+
+  @keyframes loaderParticleOrbit3 {
+    from { transform: rotate(200deg) translateX(48px) rotate(-200deg); opacity: 0.8; }
+    50% { opacity: 0.3; }
+    to { transform: rotate(560deg) translateX(48px) rotate(-560deg); opacity: 0.8; }
+  }
+
+  @keyframes loaderParticleOrbit4 {
+    from { transform: rotate(320deg) translateX(36px) rotate(-320deg); opacity: 0.7; }
+    50% { opacity: 0.2; }
+    to { transform: rotate(680deg) translateX(36px) rotate(-680deg); opacity: 0.7; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .loader-ring,
+    .loader-core,
+    .loader-core-inner,
+    .loader-particle {
+      animation: none !important;
+    }
+    .loader-core-inner {
+      box-shadow:
+        0 0 20px rgba(108, 92, 231, 0.8),
+        0 0 40px rgba(108, 92, 231, 0.4);
     }
   }
 

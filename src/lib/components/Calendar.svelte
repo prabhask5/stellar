@@ -117,10 +117,10 @@
         class:slide-out-right={transitionDirection === 'right' && isTransitioning}
       >
         {formatMonthYear(currentDate)}
+        {#if !isViewingCurrentMonth()}
+          <button class="today-btn" onclick={goToToday} disabled={isTransitioning}>today</button>
+        {/if}
       </h2>
-      {#if !isViewingCurrentMonth()}
-        <button class="today-btn" onclick={goToToday} disabled={isTransitioning}> Today </button>
-      {/if}
     </div>
     <button
       class="nav-btn"
@@ -308,35 +308,44 @@
     position: relative;
     flex: 1;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
   }
 
   .today-btn {
-    font-size: 0.6875rem;
+    font-size: 0.5625rem;
     font-weight: 700;
-    padding: 0.3rem 0.75rem;
-    background: rgba(108, 92, 231, 0.15);
-    border: 1px solid rgba(108, 92, 231, 0.3);
+    padding: 0.2rem 0.5rem;
+    margin-left: 0.5rem;
+    background: rgba(108, 92, 231, 0.12);
+    border: 1px solid rgba(108, 92, 231, 0.25);
     border-radius: var(--radius-full);
     color: var(--color-primary-light);
     cursor: pointer;
-    transition: all 0.3s var(--ease-spring);
+    transition: all 0.2s var(--ease-out);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
+    vertical-align: middle;
+    line-height: 1;
+    /* Reset gradient text from h2 parent */
+    -webkit-text-fill-color: var(--color-primary-light);
+    background-clip: padding-box;
+    -webkit-background-clip: padding-box;
   }
 
   .today-btn:hover:not(:disabled) {
-    background: var(--gradient-primary);
-    border-color: transparent;
+    background: rgba(108, 92, 231, 0.25);
+    border-color: rgba(108, 92, 231, 0.5);
     color: white;
-    transform: scale(1.05);
-    box-shadow: 0 0 20px var(--color-primary-glow);
+    -webkit-text-fill-color: white;
+  }
+
+  .today-btn:active:not(:disabled) {
+    transform: scale(0.95);
   }
 
   .today-btn:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
   }
 

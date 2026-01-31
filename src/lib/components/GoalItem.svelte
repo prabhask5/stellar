@@ -1003,31 +1003,39 @@
     }
 
     .increment-controls {
-      gap: 0.375rem;
+      gap: 0.25rem;
       flex-shrink: 0;
     }
 
-    /* Increment buttons */
+    /* Increment buttons — compact but still 44px touch target */
     .increment-btn {
-      width: 32px;
-      height: 32px;
-      font-size: 1.125rem;
-      border-radius: var(--radius-md);
+      width: 28px;
+      height: 28px;
+      font-size: 1rem;
+      border-radius: var(--radius-sm);
+      /* Expand touch target beyond visual bounds */
+      position: relative;
+    }
+
+    .increment-btn::after {
+      content: '';
+      position: absolute;
+      inset: -8px;
     }
 
     /* Value display */
     .current-value {
-      min-width: 3.5rem;
-      font-size: 0.9375rem;
-      padding: 0.375rem 0.5rem;
+      min-width: 2.75rem;
+      font-size: 0.8125rem;
+      padding: 0.25rem 0.25rem;
       font-weight: 700;
     }
 
     /* Input field sized for iPhone 16 Pro */
     .value-input {
-      width: 3.5rem;
+      width: 2.75rem;
       font-size: 16px !important; /* Prevents iOS zoom */
-      padding: 0.375rem 0.5rem;
+      padding: 0.25rem 0.25rem;
       font-weight: 700;
     }
 
@@ -1036,17 +1044,25 @@
     }
 
     .goal-actions {
-      gap: 0.5rem;
+      gap: 0.375rem;
       flex-shrink: 0;
     }
 
-    /* MUCH bigger action buttons on mobile */
+    /* Action buttons — compact to match completion goal row padding */
     .action-btn {
-      width: 48px;
-      height: 48px;
-      font-size: 1.625rem;
+      width: 36px;
+      height: 36px;
+      font-size: 1.25rem;
       opacity: 0.7;
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-md);
+      position: relative;
+    }
+
+    /* Expand touch target to meet 44px minimum */
+    .action-btn::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
     }
 
     /* Multi-row layout for mobile */

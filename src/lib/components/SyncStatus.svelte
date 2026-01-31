@@ -1050,7 +1050,7 @@
   }
 
   .live-indicator.active .live-dot {
-    animation: liveDotPulse 2s ease-in-out infinite;
+    animation: liveDotPulse 3s ease-in-out infinite;
   }
 
   .live-indicator.connecting .live-dot {
@@ -1099,7 +1099,7 @@
   }
 
   .live-indicator.active .live-ring {
-    animation: liveRingPulse 2s ease-out infinite;
+    animation: liveRingPulse 3s ease-out infinite;
   }
 
   @keyframes liveRingPulse {

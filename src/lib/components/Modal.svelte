@@ -393,7 +393,7 @@
   }
 
   .modal-sheet .modal-header {
-    padding: 0.75rem 1.25rem 1rem;
+    padding: 0.5rem 1.25rem 0.625rem;
   }
 
   .modal-header h2 {
@@ -467,7 +467,7 @@
   }
 
   .modal-sheet .modal-content {
-    padding: 1.25rem;
+    padding: 1rem 1.25rem;
     /* Extra padding at bottom for home indicator + comfortable spacing */
     padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 24px));
   }

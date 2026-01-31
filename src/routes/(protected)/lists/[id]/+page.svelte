@@ -107,12 +107,6 @@
         // Reset progress when changing type
         updates.current_value = 0;
         updates.completed = false;
-      } else if (data.type === 'incremental' && data.targetValue !== null) {
-        // Cap current_value if new target is lower
-        if (editingGoal.current_value > data.targetValue) {
-          updates.current_value = data.targetValue;
-          updates.completed = true;
-        }
       }
 
       await goalListStore.updateGoal(editingGoal.id, updates);

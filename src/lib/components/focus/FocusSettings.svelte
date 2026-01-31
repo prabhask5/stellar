@@ -2,6 +2,7 @@
   import type { FocusSettings } from '$lib/types';
   import { trackEditing } from '$lib/actions/remoteChange';
   import DeferredChangesBanner from '../DeferredChangesBanner.svelte';
+  import Modal from '../Modal.svelte';
 
   interface Props {
     settings: FocusSettings | null;
@@ -184,270 +185,158 @@
     onClose();
   }
 
-  function handleBackdropClick(e: MouseEvent) {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  }
+
 </script>
 
-{#if isOpen}
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={handleBackdropClick}>
-    <div class="modal">
-      <div class="modal-header">
-        <h2>Focus Settings</h2>
-        <button class="close-btn" onclick={onClose} aria-label="Close">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            width="24"
-            height="24"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
-
-      <div
-        class="modal-body"
-        use:trackEditing={{
-          entityId: settings?.id ?? 'new',
-          entityType: 'focus_settings',
-          formType: 'manual-save'
+<Modal open={isOpen} title="Focus Settings" onClose={onClose}>
+  <div
+    class="modal-body"
+    use:trackEditing={{
+      entityId: settings?.id ?? 'new',
+      entityType: 'focus_settings',
+      formType: 'manual-save'
+    }}
+  >
+    {#if settings?.id}
+      <DeferredChangesBanner
+        entityId={settings.id}
+        entityType="focus_settings"
+        {remoteData}
+        localData={{
+          focus_duration: focusDuration,
+          break_duration: breakDuration,
+          long_break_duration: longBreakDuration,
+          cycles_before_long_break: cyclesBeforeLongBreak,
+          auto_start_breaks: autoStartBreaks,
+          auto_start_focus: autoStartFocus
         }}
+        {fieldLabels}
+        {formatValue}
+        onLoadRemote={loadRemoteData}
+        onDismiss={dismissBanner}
+      />
+    {/if}
+
+    <!-- Focus Duration -->
+    <div class="setting-group">
+      <label class="setting-label" for="focus-duration">
+        <span class="label-text">Focus Duration</span>
+        <span class="label-value">{focusDuration} min</span>
+      </label>
+      <input
+        id="focus-duration"
+        type="range"
+        min="15"
+        max="240"
+        step="15"
+        bind:value={focusDuration}
+        class="slider"
+        class:field-changed={highlightedFields.has('focus_duration')}
+      />
+    </div>
+
+    <!-- Break Duration -->
+    <div class="setting-group">
+      <label class="setting-label" for="break-duration">
+        <span class="label-text">Short Break</span>
+        <span class="label-value">{breakDuration} min</span>
+      </label>
+      <input
+        id="break-duration"
+        type="range"
+        min="3"
+        max="20"
+        step="1"
+        bind:value={breakDuration}
+        class="slider break"
+        class:field-changed={highlightedFields.has('break_duration')}
+      />
+    </div>
+
+    <!-- Long Break Duration -->
+    <div class="setting-group">
+      <label class="setting-label" for="long-break-duration">
+        <span class="label-text">Long Break</span>
+        <span class="label-value">{longBreakDuration} min</span>
+      </label>
+      <input
+        id="long-break-duration"
+        type="range"
+        min="10"
+        max="60"
+        step="5"
+        bind:value={longBreakDuration}
+        class="slider long-break"
+        class:field-changed={highlightedFields.has('long_break_duration')}
+      />
+    </div>
+
+    <!-- Cycles Before Long Break -->
+    <div class="setting-group">
+      <label class="setting-label" for="cycles-before-long-break">
+        <span class="label-text">Cycles Before Long Break</span>
+        <span class="label-value">{cyclesBeforeLongBreak}</span>
+      </label>
+      <input
+        id="cycles-before-long-break"
+        type="range"
+        min="2"
+        max="6"
+        step="1"
+        bind:value={cyclesBeforeLongBreak}
+        class="slider"
+        class:field-changed={highlightedFields.has('cycles_before_long_break')}
+      />
+    </div>
+
+    <hr class="divider" />
+
+    <!-- Auto-start toggles -->
+    <div class="setting-group toggle-group">
+      <span class="toggle-label" id="auto-start-breaks-label">
+        <span class="label-text">Auto-start Breaks</span>
+        <span class="label-desc">Automatically start break timer after focus</span>
+      </span>
+      <button
+        class="toggle-btn"
+        class:active={autoStartBreaks}
+        class:field-changed={highlightedFields.has('auto_start_breaks')}
+        onclick={() => (autoStartBreaks = !autoStartBreaks)}
+        aria-checked={autoStartBreaks}
+        aria-labelledby="auto-start-breaks-label"
+        role="switch"
       >
-        {#if settings?.id}
-          <DeferredChangesBanner
-            entityId={settings.id}
-            entityType="focus_settings"
-            {remoteData}
-            localData={{
-              focus_duration: focusDuration,
-              break_duration: breakDuration,
-              long_break_duration: longBreakDuration,
-              cycles_before_long_break: cyclesBeforeLongBreak,
-              auto_start_breaks: autoStartBreaks,
-              auto_start_focus: autoStartFocus
-            }}
-            {fieldLabels}
-            {formatValue}
-            onLoadRemote={loadRemoteData}
-            onDismiss={dismissBanner}
-          />
-        {/if}
+        <span class="toggle-knob"></span>
+      </button>
+    </div>
 
-        <!-- Focus Duration -->
-        <div class="setting-group">
-          <label class="setting-label" for="focus-duration">
-            <span class="label-text">Focus Duration</span>
-            <span class="label-value">{focusDuration} min</span>
-          </label>
-          <input
-            id="focus-duration"
-            type="range"
-            min="15"
-            max="240"
-            step="15"
-            bind:value={focusDuration}
-            class="slider"
-            class:field-changed={highlightedFields.has('focus_duration')}
-          />
-        </div>
+    <div class="setting-group toggle-group">
+      <span class="toggle-label" id="auto-start-focus-label">
+        <span class="label-text">Auto-start Focus</span>
+        <span class="label-desc">Automatically start focus timer after break</span>
+      </span>
+      <button
+        class="toggle-btn"
+        class:active={autoStartFocus}
+        class:field-changed={highlightedFields.has('auto_start_focus')}
+        onclick={() => (autoStartFocus = !autoStartFocus)}
+        aria-checked={autoStartFocus}
+        aria-labelledby="auto-start-focus-label"
+        role="switch"
+      >
+        <span class="toggle-knob"></span>
+      </button>
+    </div>
 
-        <!-- Break Duration -->
-        <div class="setting-group">
-          <label class="setting-label" for="break-duration">
-            <span class="label-text">Short Break</span>
-            <span class="label-value">{breakDuration} min</span>
-          </label>
-          <input
-            id="break-duration"
-            type="range"
-            min="3"
-            max="20"
-            step="1"
-            bind:value={breakDuration}
-            class="slider break"
-            class:field-changed={highlightedFields.has('break_duration')}
-          />
-        </div>
-
-        <!-- Long Break Duration -->
-        <div class="setting-group">
-          <label class="setting-label" for="long-break-duration">
-            <span class="label-text">Long Break</span>
-            <span class="label-value">{longBreakDuration} min</span>
-          </label>
-          <input
-            id="long-break-duration"
-            type="range"
-            min="10"
-            max="60"
-            step="5"
-            bind:value={longBreakDuration}
-            class="slider long-break"
-            class:field-changed={highlightedFields.has('long_break_duration')}
-          />
-        </div>
-
-        <!-- Cycles Before Long Break -->
-        <div class="setting-group">
-          <label class="setting-label" for="cycles-before-long-break">
-            <span class="label-text">Cycles Before Long Break</span>
-            <span class="label-value">{cyclesBeforeLongBreak}</span>
-          </label>
-          <input
-            id="cycles-before-long-break"
-            type="range"
-            min="2"
-            max="6"
-            step="1"
-            bind:value={cyclesBeforeLongBreak}
-            class="slider"
-            class:field-changed={highlightedFields.has('cycles_before_long_break')}
-          />
-        </div>
-
-        <hr class="divider" />
-
-        <!-- Auto-start toggles -->
-        <div class="setting-group toggle-group">
-          <span class="toggle-label" id="auto-start-breaks-label">
-            <span class="label-text">Auto-start Breaks</span>
-            <span class="label-desc">Automatically start break timer after focus</span>
-          </span>
-          <button
-            class="toggle-btn"
-            class:active={autoStartBreaks}
-            class:field-changed={highlightedFields.has('auto_start_breaks')}
-            onclick={() => (autoStartBreaks = !autoStartBreaks)}
-            aria-checked={autoStartBreaks}
-            aria-labelledby="auto-start-breaks-label"
-            role="switch"
-          >
-            <span class="toggle-knob"></span>
-          </button>
-        </div>
-
-        <div class="setting-group toggle-group">
-          <span class="toggle-label" id="auto-start-focus-label">
-            <span class="label-text">Auto-start Focus</span>
-            <span class="label-desc">Automatically start focus timer after break</span>
-          </span>
-          <button
-            class="toggle-btn"
-            class:active={autoStartFocus}
-            class:field-changed={highlightedFields.has('auto_start_focus')}
-            onclick={() => (autoStartFocus = !autoStartFocus)}
-            aria-checked={autoStartFocus}
-            aria-labelledby="auto-start-focus-label"
-            role="switch"
-          >
-            <span class="toggle-knob"></span>
-          </button>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick={onClose}>Cancel</button>
-        <button class="btn btn-primary" onclick={handleSave}>Save Settings</button>
-      </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick={onClose}>Cancel</button>
+      <button class="btn btn-primary" onclick={handleSave}>Save Settings</button>
     </div>
   </div>
-{/if}
+</Modal>
 
 <style>
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: calc(64px + 1.5rem) 1.5rem 1.5rem 1.5rem;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    animation: fadeIn 0.2s ease-out;
-    overflow-y: auto;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  .modal {
-    width: 100%;
-    max-width: 420px;
-    max-height: calc(100vh - 64px - 3rem);
-    overflow-y: auto;
-    background: linear-gradient(135deg, rgba(20, 20, 35, 0.98) 0%, rgba(15, 15, 26, 0.98) 100%);
-    border: 1px solid rgba(108, 92, 231, 0.2);
-    border-radius: var(--radius-xl);
-    box-shadow:
-      0 20px 60px rgba(0, 0, 0, 0.5),
-      0 0 40px var(--color-primary-glow);
-    animation: modalSlideIn 0.3s var(--ease-spring);
-    margin-bottom: 1.5rem;
-    flex-shrink: 0;
-  }
-
-  @keyframes modalSlideIn {
-    from {
-      opacity: 0;
-      transform: translateY(20px) scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid rgba(108, 92, 231, 0.15);
-  }
-
-  .modal-header h2 {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--color-text);
-    margin: 0;
-  }
-
-  .close-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    background: none;
-    border: none;
-    border-radius: var(--radius-md);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .close-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--color-text);
-  }
-
   .modal-body {
-    padding: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
@@ -514,6 +403,39 @@
   }
 
   .slider.long-break::-webkit-slider-thumb {
+    background: linear-gradient(135deg, #00d4ff 0%, #6c5ce7 100%);
+    box-shadow: 0 2px 8px rgba(0, 212, 255, 0.5);
+  }
+
+  /* Firefox slider styles */
+  .slider::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(108, 92, 231, 0.2);
+    border: none;
+  }
+
+  .slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--gradient-primary);
+    cursor: pointer;
+    box-shadow: 0 2px 8px var(--color-primary-glow);
+    border: none;
+    transition: transform 0.2s;
+  }
+
+  .slider::-moz-range-thumb:hover {
+    transform: scale(1.15);
+  }
+
+  .slider.break::-moz-range-thumb {
+    background: linear-gradient(135deg, #26de81 0%, #00d4ff 100%);
+    box-shadow: 0 2px 8px rgba(38, 222, 129, 0.5);
+  }
+
+  .slider.long-break::-moz-range-thumb {
     background: linear-gradient(135deg, #00d4ff 0%, #6c5ce7 100%);
     box-shadow: 0 2px 8px rgba(0, 212, 255, 0.5);
   }
@@ -617,14 +539,6 @@
 
   /* Tablet responsive toggles */
   @media (min-width: 641px) and (max-width: 900px) {
-    .modal-backdrop {
-      padding: calc(64px + 1rem) 1rem 1rem 1rem;
-    }
-
-    .modal {
-      max-height: calc(100vh - 64px - 2rem);
-    }
-
     .toggle-btn {
       width: 44px;
       height: 26px;
@@ -637,23 +551,6 @@
 
     .toggle-btn.active .toggle-knob {
       transform: translateX(18px);
-    }
-  }
-
-  /* Mobile */
-  @media (max-width: 640px) {
-    .modal-backdrop {
-      padding: calc(env(safe-area-inset-top, 20px) + 1rem) 1rem
-        calc(80px + env(safe-area-inset-bottom, 0) + 1rem) 1rem;
-      align-items: center;
-    }
-
-    .modal {
-      max-width: 100%;
-      max-height: calc(
-        100vh - env(safe-area-inset-top, 20px) - 80px - env(safe-area-inset-bottom, 0) - 2rem
-      );
-      margin-bottom: 0;
     }
   }
 </style>
