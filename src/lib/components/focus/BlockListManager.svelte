@@ -78,6 +78,7 @@
   }
 
   async function deleteList(id: string) {
+    if (!confirm('Delete this block list? All blocked websites in it will be removed.')) return;
     await blockListStore.delete(id);
     if (editingListId === id) {
       editingListId = null;

@@ -55,7 +55,6 @@
   let editingCategoryId = $state<string | null>(null);
   let editingCategoryName = $state('');
   let showColorPicker = $state<string | null>(null);
-  let colorPickerPos = $state<{ top: number; left: number }>({ top: 0, left: 0 });
 
   // Group incomplete tasks by category, sorted by date (soonest first)
   const tasksByCategory = $derived(() => {
@@ -171,37 +170,10 @@
   }
 
   // Toggle color picker
-  function toggleColorPicker(categoryId: string, event: MouseEvent) {
+  function toggleColorPicker(categoryId: string) {
     if (showColorPicker === categoryId) {
       showColorPicker = null;
     } else {
-      const button = event.currentTarget as HTMLElement;
-      const rect = button.getBoundingClientRect();
-
-      // Calculate position - place below and to the right of the button
-      // Color picker is roughly 150px wide (5 cols * 24px + gaps + padding)
-      const pickerWidth = 150;
-      const pickerHeight = 80;
-
-      let left = rect.left;
-      let top = rect.bottom + 8;
-
-      // Ensure it doesn't go off the right edge
-      if (left + pickerWidth > window.innerWidth - 16) {
-        left = window.innerWidth - pickerWidth - 16;
-      }
-
-      // Ensure it doesn't go off the bottom edge
-      if (top + pickerHeight > window.innerHeight - 16) {
-        top = rect.top - pickerHeight - 8;
-      }
-
-      // Ensure it doesn't go off the left edge
-      if (left < 16) {
-        left = 16;
-      }
-
-      colorPickerPos = { top, left };
       showColorPicker = categoryId;
       editingCategoryId = null; // Close name editing if open
     }
@@ -263,31 +235,12 @@
                     </svg>
                   </span>
                 {:else}
-                  <div class="color-picker-container">
-                    <button
-                      class="category-color"
-                      style="background-color: {category.color}"
-                      onclick={(e) => toggleColorPicker(category.id, e)}
-                      aria-label="Change color"
-                    ></button>
-                    {#if showColorPicker === category.id}
-                      <div
-                        class="color-picker"
-                        style="top: {colorPickerPos.top}px; left: {colorPickerPos.left}px;"
-                        transition:scale={{ duration: 150, start: 0.9 }}
-                      >
-                        {#each CATEGORY_COLORS as color}
-                          <button
-                            class="color-option"
-                            class:selected={category.color === color}
-                            style="background-color: {color}"
-                            onclick={() => selectColor(category.id, color)}
-                            aria-label="Select {color}"
-                          ></button>
-                        {/each}
-                      </div>
-                    {/if}
-                  </div>
+                  <button
+                    class="category-color"
+                    style="background-color: {category.color}"
+                    onclick={() => toggleColorPicker(category.id)}
+                    aria-label="Change color"
+                  ></button>
                 {/if}
 
                 <!-- Editable name (only if not project-owned) -->
@@ -330,6 +283,20 @@
                 </button>
               {/if}
             </div>
+
+            {#if showColorPicker === category.id}
+              <div class="color-picker" transition:scale={{ duration: 150, start: 0.95 }}>
+                {#each CATEGORY_COLORS as color}
+                  <button
+                    class="color-option"
+                    class:selected={category.color === color}
+                    style="background-color: {color}"
+                    onclick={() => selectColor(category.id, color)}
+                    aria-label="Select {color}"
+                  ></button>
+                {/each}
+              </div>
+            {/if}
 
             {#if categoryTasks.length > 0}
               <div class="tasks-list">
@@ -495,6 +462,8 @@
   }
 
   .category-section {
+    position: relative;
+    overflow: hidden;
     border-radius: var(--radius-lg);
   }
 
@@ -514,14 +483,6 @@
     gap: 0.5rem;
     flex: 1;
     min-width: 0;
-  }
-
-  /* Color picker container */
-  .color-picker-container {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
   }
 
   .category-color {
@@ -549,23 +510,21 @@
     flex-shrink: 0;
   }
 
-  /* Color picker dropdown */
+  /* Inline color picker — rendered below the header */
   .color-picker {
-    position: fixed;
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
-    padding: 10px;
-    background: rgba(20, 20, 40, 0.98);
-    border: 1px solid rgba(108, 92, 231, 0.3);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    z-index: 10000;
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.375rem;
+    background: rgba(15, 15, 30, 0.8);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-radius: var(--radius-md);
   }
 
   .color-option {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     border-radius: var(--radius-sm);
     border: 2px solid transparent;
     cursor: pointer;

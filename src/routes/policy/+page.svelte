@@ -63,7 +63,7 @@
     <div class="content-glow"></div>
     <h1 class="title">Privacy</h1>
     <p class="policy-text">
-      Your goals, tasks, routines, and focus sessions are stored securely and never sold. Who would
+      This is a self-hosted app, so your goals, tasks, routines, and focus sessions data are only managed by you (or your admin) and never sold. Who would
       want that anyway?
     </p>
     <a href="/" class="back-link">

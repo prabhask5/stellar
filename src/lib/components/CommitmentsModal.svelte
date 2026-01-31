@@ -2,6 +2,7 @@
   import Modal from './Modal.svelte';
   import { remoteChangeAnimation } from '$lib/actions/remoteChange';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
+  import { calculateNewOrder } from '$lib/utils/reorder';
   import type { Commitment, CommitmentSection } from '$lib/types';
 
   interface Props {
@@ -39,10 +40,12 @@
   let editingId = $state<string | null>(null);
   let editingName = $state('');
 
-  // Drag state
+  // Drag state — pointer-event based (works on touch + mouse)
   let draggedId = $state<string | null>(null);
   let draggedSection = $state<CommitmentSection | null>(null);
-  let dropTargetId = $state<string | null>(null);
+  let draggedIndex = $state<number>(-1);
+  let dropTargetIndex = $state<number>(-1);
+  let sectionListEls: Record<string, HTMLDivElement> = {};
 
   function getCommitmentsForSection(section: CommitmentSection): Commitment[] {
     return commitments.filter((c) => c.section === section).sort((a, b) => a.order - b.order);
@@ -91,45 +94,77 @@
     }
   }
 
-  function handleDragStart(e: DragEvent, commitment: Commitment) {
-    draggedId = commitment.id;
-    draggedSection = commitment.section;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move';
-    }
-  }
+  // Pointer-event based drag (works on both touch and mouse)
+  function handlePointerDown(e: PointerEvent, commitment: Commitment, section: CommitmentSection, index: number) {
+    if (isProjectOwned(commitment)) return;
+    const sectionItems = getCommitmentsForSection(section);
+    if (sectionItems.length <= 1) return;
+    if (e.button !== 0) return;
 
-  function handleDragOver(e: DragEvent, targetId: string) {
     e.preventDefault();
-    dropTargetId = targetId;
+    draggedId = commitment.id;
+    draggedSection = section;
+    draggedIndex = index;
+    dropTargetIndex = index;
+
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
+    document.addEventListener('pointercancel', handlePointerUp);
   }
 
-  function handleDragEnd() {
-    if (draggedId && dropTargetId && draggedId !== dropTargetId) {
-      const sectionItems = getCommitmentsForSection(draggedSection!);
-      const draggedIndex = sectionItems.findIndex((c) => c.id === draggedId);
-      const targetIndex = sectionItems.findIndex((c) => c.id === dropTargetId);
+  function handlePointerMove(e: PointerEvent) {
+    if (draggedId === null || !draggedSection) return;
 
-      if (draggedIndex !== -1 && targetIndex !== -1) {
-        // Calculate new order between target's neighbors
-        let newOrder: number;
-        if (targetIndex === 0) {
-          newOrder = sectionItems[0].order - 1;
-        } else if (targetIndex === sectionItems.length - 1) {
-          newOrder = sectionItems[targetIndex].order + 1;
-        } else {
-          const before = sectionItems[targetIndex - 1].order;
-          const after = sectionItems[targetIndex].order;
-          newOrder = (before + after) / 2;
-        }
+    const listEl = sectionListEls[draggedSection];
+    if (!listEl) return;
 
-        onReorder(draggedId, newOrder);
+    const itemElements = listEl.querySelectorAll('[data-commitment-item]');
+    let newDropIndex = itemElements.length - 1;
+
+    for (let i = 0; i < itemElements.length; i++) {
+      const itemEl = itemElements[i] as HTMLElement;
+      const itemRect = itemEl.getBoundingClientRect();
+      const itemMiddle = itemRect.top + itemRect.height / 2;
+
+      if (e.clientY < itemMiddle) {
+        newDropIndex = i;
+        break;
       }
     }
 
+    dropTargetIndex = newDropIndex;
+  }
+
+  function handlePointerUp() {
+    document.removeEventListener('pointermove', handlePointerMove);
+    document.removeEventListener('pointerup', handlePointerUp);
+    document.removeEventListener('pointercancel', handlePointerUp);
+
+    if (draggedId === null || draggedSection === null || draggedIndex === -1) {
+      resetDragState();
+      return;
+    }
+
+    const fromIndex = draggedIndex;
+    const toIndex = dropTargetIndex;
+    const itemId = draggedId;
+    const sectionItems = getCommitmentsForSection(draggedSection);
+
+    resetDragState();
+
+    if (fromIndex !== toIndex && sectionItems.length > 1) {
+      const newOrder = calculateNewOrder(sectionItems, fromIndex, toIndex);
+      onReorder(itemId, newOrder);
+    }
+  }
+
+  function resetDragState() {
     draggedId = null;
     draggedSection = null;
-    dropTargetId = null;
+    draggedIndex = -1;
+    dropTargetIndex = -1;
   }
 </script>
 
@@ -214,21 +249,22 @@
           </div>
         {/if}
 
-        <div class="items-list">
-          {#each getCommitmentsForSection(section.key) as commitment (commitment.id)}
+        <div class="items-list" bind:this={sectionListEls[section.key]}>
+          {#each getCommitmentsForSection(section.key) as commitment, index (commitment.id)}
             <div
               class="commitment-item"
               class:dragging={draggedId === commitment.id}
-              class:drop-target={dropTargetId === commitment.id && draggedId !== commitment.id}
+              class:drop-above={draggedId !== null && draggedSection === section.key && dropTargetIndex === index && draggedIndex > index}
+              class:drop-below={draggedId !== null && draggedSection === section.key && dropTargetIndex === index && draggedIndex < index}
               class:project-owned={isProjectOwned(commitment)}
-              draggable={!isProjectOwned(commitment)}
-              ondragstart={(e) => !isProjectOwned(commitment) && handleDragStart(e, commitment)}
-              ondragover={(e) => handleDragOver(e, commitment.id)}
-              ondragend={handleDragEnd}
+              data-commitment-item
               use:remoteChangeAnimation={{ entityId: commitment.id, entityType: 'commitments' }}
             >
               {#if !isProjectOwned(commitment)}
-                <span class="drag-handle-icon">
+                <span
+                  class="drag-handle-icon"
+                  onpointerdown={(e) => handlePointerDown(e, commitment, section.key, index)}
+                >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                     <circle cx="9" cy="6" r="1.5" />
                     <circle cx="15" cy="6" r="1.5" />
@@ -437,6 +473,7 @@
   }
 
   .commitment-item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -445,7 +482,6 @@
     border: 1px solid rgba(108, 92, 231, 0.15);
     border-radius: var(--radius-lg);
     transition: all 0.25s var(--ease-out);
-    cursor: grab;
   }
 
   .commitment-item:hover {
@@ -454,24 +490,89 @@
   }
 
   .commitment-item.dragging {
-    opacity: 0.6;
+    opacity: 0.5;
     transform: scale(1.02);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    z-index: 10;
   }
 
-  .commitment-item.drop-target {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 15px var(--color-primary-glow);
+  /* Drop indicator line above */
+  .commitment-item.drop-above::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
+    box-shadow:
+      0 0 15px var(--color-primary-glow),
+      0 0 30px rgba(108, 92, 231, 0.3);
+    animation: dropPulse 1s var(--ease-smooth) infinite;
+  }
+
+  /* Drop indicator line below */
+  .commitment-item.drop-below::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
+    box-shadow:
+      0 0 15px var(--color-primary-glow),
+      0 0 30px rgba(108, 92, 231, 0.3);
+    animation: dropPulse 1s var(--ease-smooth) infinite;
+  }
+
+  @keyframes dropPulse {
+    0%, 100% {
+      opacity: 1;
+      box-shadow:
+        0 0 15px var(--color-primary-glow),
+        0 0 30px rgba(108, 92, 231, 0.3);
+    }
+    50% {
+      opacity: 0.8;
+      box-shadow:
+        0 0 20px var(--color-primary-glow),
+        0 0 40px rgba(108, 92, 231, 0.4);
+    }
   }
 
   .drag-handle-icon {
     opacity: 0.3;
     transition: opacity 0.2s;
     color: var(--color-text-muted);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    padding: 0.25rem;
+    -webkit-user-select: none;
+  }
+
+  .drag-handle-icon:active {
+    cursor: grabbing;
+    opacity: 0.8;
   }
 
   .commitment-item:hover .drag-handle-icon {
     opacity: 0.7;
+  }
+
+  /* On mobile, keep handles visible so users know they can drag */
+  @media (max-width: 640px) {
+    .drag-handle-icon {
+      opacity: 0.5;
+      padding: 0.375rem;
+    }
+
+    .delete-btn {
+      opacity: 0.4 !important;
+    }
   }
 
   .commitment-name {

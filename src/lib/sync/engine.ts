@@ -348,22 +348,35 @@ function cleanupRecentlyModified(): void {
 // Uses a queue-based approach where each caller waits for the previous one
 let lockPromise: Promise<void> | null = null;
 let lockResolve: (() => void) | null = null;
+let lockAcquiredAt: number | null = null;
+const SYNC_LOCK_TIMEOUT_MS = 60_000; // Force-release lock after 60s
 
 // Store event listener references for cleanup
 let handleOnlineRef: (() => void) | null = null;
 let handleOfflineRef: (() => void) | null = null;
 let handleVisibilityChangeRef: (() => void) | null = null;
 
+// Watchdog: detect stuck syncs and auto-retry
+let watchdogInterval: ReturnType<typeof setInterval> | null = null;
+const WATCHDOG_INTERVAL_MS = 15_000; // Check every 15s
+const SYNC_OPERATION_TIMEOUT_MS = 45_000; // Abort sync operations after 45s
+
 async function acquireSyncLock(): Promise<boolean> {
-  // If lock is held, return false (non-blocking check for callers that want to skip)
+  // If lock is held, check if it's stale (held too long)
   if (lockPromise !== null) {
-    return false;
+    if (lockAcquiredAt && Date.now() - lockAcquiredAt > SYNC_LOCK_TIMEOUT_MS) {
+      debugWarn(`[SYNC] Force-releasing stale sync lock (held for ${Math.round((Date.now() - lockAcquiredAt) / 1000)}s)`);
+      releaseSyncLock();
+    } else {
+      return false;
+    }
   }
 
   // Create a new lock promise
   lockPromise = new Promise<void>((resolve) => {
     lockResolve = resolve;
   });
+  lockAcquiredAt = Date.now();
 
   return true;
 }
@@ -374,6 +387,20 @@ function releaseSyncLock(): void {
   }
   lockPromise = null;
   lockResolve = null;
+  lockAcquiredAt = null;
+}
+
+// Timeout wrapper: races a promise against a timeout
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`));
+    }, ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
 }
 
 // Callbacks for when sync completes (stores can refresh from local)
@@ -963,6 +990,7 @@ async function pullRemoteChanges(minCursor?: string): Promise<{ bytes: number; r
   let pullRecords = 0;
 
   // Pull all 13 tables in parallel (egress optimization: reduces wall time per sync cycle)
+  // Wrapped in timeout to prevent hanging if Supabase doesn't respond
   const [
     listsResult,
     goalsResult,
@@ -977,7 +1005,7 @@ async function pullRemoteChanges(minCursor?: string): Promise<{ bytes: number; r
     blockListsResult,
     blockedWebsitesResult,
     projectsResult
-  ] = await Promise.all([
+  ] = await withTimeout(Promise.all([
     supabase.from('goal_lists').select(COLUMNS.goal_lists).gt('updated_at', lastSync),
     supabase.from('goals').select(COLUMNS.goals).gt('updated_at', lastSync),
     supabase.from('daily_routine_goals').select(COLUMNS.daily_routine_goals).gt('updated_at', lastSync),
@@ -991,7 +1019,7 @@ async function pullRemoteChanges(minCursor?: string): Promise<{ bytes: number; r
     supabase.from('block_lists').select(COLUMNS.block_lists).gt('updated_at', lastSync),
     supabase.from('blocked_websites').select(COLUMNS.blocked_websites).gt('updated_at', lastSync),
     supabase.from('projects').select(COLUMNS.projects).gt('updated_at', lastSync)
-  ]);
+  ]), 30_000, 'Pull remote changes');
 
   // Check for errors
   if (listsResult.error) throw listsResult.error;
@@ -1730,7 +1758,7 @@ export async function runFullSync(quiet: boolean = false, skipPull: boolean = fa
 
     // Push first so local changes are persisted
     // Note: pushPendingOps coalesces before pushing, so actual requests are lower
-    const pushStats = await pushPendingOps();
+    const pushStats = await withTimeout(pushPendingOps(), SYNC_OPERATION_TIMEOUT_MS, 'Push pending ops');
     pushedItems = pushStats.actualPushed;
     pushSucceeded = true;
 
@@ -1756,11 +1784,12 @@ export async function runFullSync(quiet: boolean = false, skipPull: boolean = fa
         try {
           // Don't pass postPushCursor - we want ALL changes since stored cursor
           // The conflict resolution handles our own pushed changes via device_id check
-          pullEgress = await pullRemoteChanges();
+          pullEgress = await withTimeout(pullRemoteChanges(), SYNC_OPERATION_TIMEOUT_MS, 'Pull remote changes');
           pullSucceeded = true;
         } catch (pullError) {
           lastPullError = pullError;
           pullAttempts++;
+          debugWarn(`[SYNC] Pull attempt ${pullAttempts}/${maxPullAttempts} failed:`, pullError);
           if (pullAttempts < maxPullAttempts) {
             // Wait before retry (exponential backoff: 1s, 2s)
             await new Promise((resolve) => setTimeout(resolve, pullAttempts * 1000));
@@ -2444,6 +2473,10 @@ export async function startSyncEngine(): Promise<void> {
     clearTimeout(visibilityDebounceTimeout);
     visibilityDebounceTimeout = null;
   }
+  if (watchdogInterval) {
+    clearInterval(watchdogInterval);
+    watchdogInterval = null;
+  }
   if (realtimeDataUnsubscribe) {
     realtimeDataUnsubscribe();
     realtimeDataUnsubscribe = null;
@@ -2638,10 +2671,33 @@ export async function startSyncEngine(): Promise<void> {
       );
     }
   });
+
+  // Watchdog: detect stuck syncs and auto-retry
+  if (watchdogInterval) {
+    clearInterval(watchdogInterval);
+  }
+  watchdogInterval = setInterval(() => {
+    // If the sync lock has been held for too long, force-release and retry
+    if (lockAcquiredAt && Date.now() - lockAcquiredAt > SYNC_LOCK_TIMEOUT_MS) {
+      debugWarn(`[SYNC] Watchdog: sync lock stuck for ${Math.round((Date.now() - lockAcquiredAt) / 1000)}s — force-releasing and retrying`);
+      releaseSyncLock();
+      syncStatusStore.setStatus('idle');
+      // Auto-retry after force-release
+      if (navigator.onLine) {
+        runFullSync(true);
+      }
+    }
+  }, WATCHDOG_INTERVAL_MS);
 }
 
 export async function stopSyncEngine(): Promise<void> {
   if (typeof window === 'undefined') return;
+
+  // Stop watchdog
+  if (watchdogInterval) {
+    clearInterval(watchdogInterval);
+    watchdogInterval = null;
+  }
 
   // Remove event listeners to prevent memory leaks
   if (handleOnlineRef) {

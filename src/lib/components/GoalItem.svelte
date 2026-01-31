@@ -313,7 +313,7 @@
     border: 1px solid rgba(108, 92, 231, 0.15);
     border-left-width: 4px;
     border-radius: var(--radius-xl);
-    transition: all 0.35s var(--ease-out);
+    transition: border-color 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out), transform 0.35s var(--ease-out);
     position: relative;
     overflow: hidden;
   }
@@ -356,17 +356,22 @@
     opacity: 0;
   }
 
+  @media (hover: hover) {
+    .goal-item:hover {
+      transform: translateX(6px) translateY(-2px);
+    }
+
+    .goal-item:hover::after {
+      opacity: 1;
+    }
+  }
+
   .goal-item:hover {
-    transform: translateX(6px) translateY(-2px);
     border-color: rgba(108, 92, 231, 0.35);
     box-shadow:
       0 8px 32px rgba(0, 0, 0, 0.4),
       0 0 60px rgba(108, 92, 231, 0.15),
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  }
-
-  .goal-item:hover::after {
-    opacity: 1;
   }
 
   /* Celebration effects for overflow */
@@ -515,20 +520,22 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.25s var(--ease-spring);
+    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
     color: var(--color-text-muted);
+    -webkit-tap-highlight-color: transparent;
   }
 
   .increment-btn:hover {
     background: var(--gradient-primary);
     border-color: transparent;
     color: white;
-    transform: scale(1.15);
     box-shadow: 0 0 25px var(--color-primary-glow);
   }
 
   .increment-btn:active {
-    transform: scale(0.95);
+    background: var(--gradient-primary);
+    border-color: transparent;
+    color: white;
     box-shadow: 0 0 15px var(--color-primary-glow);
   }
 

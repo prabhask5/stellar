@@ -80,7 +80,12 @@
             <span class="task-meta">
               <span class="due-date">{formatDate(task.due_date)}</span>
               {#if task.category}
-                <span class="category-tag" style="--tag-color: {task.category.color}" use:truncateTooltip>
+                <span
+                  class="category-tag"
+                  style="--tag-color: {task.category.color}"
+                  use:truncateTooltip
+                  use:remoteChangeAnimation={{ entityId: task.category_id ?? '', entityType: 'task_categories' }}
+                >
                   {task.category.name}
                 </span>
               {/if}
@@ -249,6 +254,8 @@
   }
 
   .category-tag {
+    position: relative;
+    overflow: hidden;
     font-size: 0.6875rem;
     font-weight: 600;
     padding: 0.2rem 0.5rem;

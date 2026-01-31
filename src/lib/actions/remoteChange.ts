@@ -56,14 +56,6 @@ const ACTION_ANIMATION_MAP: Record<RemoteActionType, string> = {
 };
 
 /**
- * Local-only animation overrides (shimmer without jiggle)
- */
-const LOCAL_ANIMATION_MAP: Partial<Record<RemoteActionType, string>> = {
-  increment: 'counter-increment-local',
-  decrement: 'counter-decrement-local'
-};
-
-/**
  * Animation durations for cleanup (ms)
  */
 const ACTION_DURATION_MAP: Record<RemoteActionType, number> = {
@@ -326,12 +318,21 @@ export function triggerLocalAnimation(
 ): void {
   if (!element) return;
 
-  // Prevent overlapping animations
-  if (animatingElements.has(element)) return;
-  animatingElements.add(element);
-
-  const cssClass = LOCAL_ANIMATION_MAP[actionType] || ACTION_ANIMATION_MAP[actionType] || 'item-changed';
+  const cssClass = ACTION_ANIMATION_MAP[actionType] || 'item-changed';
   const duration = ACTION_DURATION_MAP[actionType] || 1600;
+
+  // For increment/decrement, restart animation on rapid taps instead of blocking
+  if (actionType === 'increment' || actionType === 'decrement') {
+    if (animatingElements.has(element)) {
+      // Force restart: remove class, trigger reflow, re-add
+      element.classList.remove(cssClass);
+      void element.offsetWidth;
+    }
+  } else {
+    // Prevent overlapping animations for other types
+    if (animatingElements.has(element)) return;
+  }
+  animatingElements.add(element);
 
   // Apply animation class
   element.classList.add(cssClass);

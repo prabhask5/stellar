@@ -198,7 +198,7 @@
     <h1>Daily Routines</h1>
     <div class="header-actions">
       <button class="btn btn-secondary btn-sm" onclick={() => goto(`/calendar/${today}`)}>
-        Today's Goals
+        Today's Routines
       </button>
       <button class="btn btn-primary btn-sm" onclick={() => (showCreateModal = true)}>
         + New Routine
