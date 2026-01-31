@@ -188,6 +188,9 @@
 
     window.addEventListener('unhandledrejection', chunkErrorHandler);
 
+    // Listen for sign out requests from child pages (e.g. mobile profile page)
+    window.addEventListener('stellar:signout', handleSignOut);
+
     // Register reconnect handler
     setReconnectHandler(handleReconnectAuthCheck);
 
@@ -280,6 +283,8 @@
     if (chunkErrorHandler) {
       window.removeEventListener('unhandledrejection', chunkErrorHandler);
     }
+    // Cleanup sign out listener
+    window.removeEventListener('stellar:signout', handleSignOut);
     // Cleanup reconnect handler
     setReconnectHandler(null);
     // Cleanup auth channel

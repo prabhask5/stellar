@@ -123,6 +123,10 @@
   function goBack() {
     goto('/tasks');
   }
+
+  function handleMobileSignOut() {
+    window.dispatchEvent(new CustomEvent('stellar:signout'));
+  }
 </script>
 
 <svelte:head>
@@ -474,6 +478,27 @@
       </button>
     </div>
   {/if}
+
+  <!-- Sign Out (Mobile only — desktop has sign out in the navbar) -->
+  <div class="mobile-signout">
+    <button class="signout-btn" onclick={handleMobileSignOut}>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
+      </svg>
+      Sign Out
+    </button>
+  </div>
 
   <!-- Footer Links -->
   <div class="profile-footer">
@@ -1157,6 +1182,49 @@
 
   .toggle-btn.active .toggle-knob {
     transform: translateX(22px);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MOBILE SIGN OUT — Only visible on mobile (desktop uses navbar sign out)
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .mobile-signout {
+    display: none;
+  }
+
+  @media (max-width: 640px) {
+    .mobile-signout {
+      display: flex;
+      justify-content: center;
+      padding-top: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+  }
+
+  .signout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-red, #ff6b6b);
+    background: rgba(255, 107, 107, 0.08);
+    border: 1px solid rgba(255, 107, 107, 0.2);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all 0.3s var(--ease-spring);
+  }
+
+  .signout-btn:hover {
+    background: rgba(255, 107, 107, 0.15);
+    border-color: rgba(255, 107, 107, 0.35);
+  }
+
+  .signout-btn:active {
+    transform: scale(0.98);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
