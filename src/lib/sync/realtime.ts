@@ -261,6 +261,27 @@ async function handleRealtimeChange(
           }
         }
 
+        // Soft delete: UPDATE with deleted=true is treated as a deletion
+        // Play the delete animation BEFORE writing to DB so stores don't filter it out instantly
+        const isSoftDelete =
+          newRecord.deleted === true && localEntity && !localEntity.deleted;
+
+        if (isSoftDelete) {
+          debugLog(`[Realtime] Soft delete detected for ${table}/${entityId}`);
+
+          // Record delete animation and wait for it to play
+          remoteChangesStore.recordRemoteChange(entityId, table, ['*'], true, 'DELETE');
+          await remoteChangesStore.markPendingDelete(entityId, table);
+
+          // Now write the soft-deleted record to DB (triggers reactive store refresh)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (db[dexieTable] as any).put(newRecord);
+
+          recentlyProcessedByRealtime.set(entityId, Date.now());
+          notifyDataUpdate(table, entityId);
+          break;
+        }
+
         // Check for pending operations
         const pendingEntityIds = await getPendingEntityIds();
         const hasPendingOps = pendingEntityIds.has(entityId);

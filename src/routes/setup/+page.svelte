@@ -422,7 +422,7 @@
                   </svg>
                 {/if}
               </div>
-              <span>Setting environment variables</span>
+              <span>Setting environment variables...</span>
             </div>
             <div class="deploy-step" class:active={deployStage === 'deploying'} class:complete={deployStage === 'ready'}>
               <div class="step-indicator">
@@ -436,7 +436,7 @@
                   <div class="step-dot"></div>
                 {/if}
               </div>
-              <span>Deploying</span>
+              <span>Deploying... (might take a bit)</span>
             </div>
             <div class="deploy-step" class:active={deployStage === 'ready'}>
               <div class="step-indicator">

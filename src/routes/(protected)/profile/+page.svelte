@@ -443,7 +443,7 @@
       <div class="setting-row">
         <div class="setting-info">
           <span class="setting-label">Debug Mode</span>
-          <span class="setting-hint">Enable console logging for troubleshooting</span>
+          <span class="setting-hint">Enable console logging for troubleshooting (you'll need to refresh for the changes to take effect)</span>
         </div>
         <button
           class="toggle-btn"
