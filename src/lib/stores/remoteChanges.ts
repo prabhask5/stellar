@@ -157,8 +157,8 @@ function createRemoteChangesStore() {
         return 'reorder';
       }
 
-      // Rename (name changed)
-      if (fields.includes('name') && fields.length <= 2) {
+      // Rename or visual property change (name, color)
+      if ((fields.includes('name') || fields.includes('color')) && fields.length <= 2) {
         return 'rename';
       }
 
