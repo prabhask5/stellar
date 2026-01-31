@@ -1,5 +1,6 @@
 <script lang="ts">
   import Modal from './Modal.svelte';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   interface Props {
     open: boolean;
@@ -83,7 +84,7 @@
       </div>
       <div class="color-preview" style="--preview-color: {color}">
         <span class="preview-dot"></span>
-        <span class="preview-text">{name || 'Tag Preview'}</span>
+        <span class="preview-text" use:truncateTooltip>{name || 'Tag Preview'}</span>
       </div>
     </div>
 

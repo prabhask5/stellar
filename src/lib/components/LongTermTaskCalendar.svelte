@@ -10,6 +10,7 @@
   } from '$lib/utils/dates';
   import { addMonths, subMonths } from 'date-fns';
   import type { LongTermTaskWithCategory } from '$lib/types';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   interface Props {
     currentDate: Date;
@@ -133,7 +134,7 @@
                   e.stopPropagation();
                   onTaskClick(task);
                 }}
-                title={task.name}
+                use:truncateTooltip
               >
                 {task.name}
               </button>

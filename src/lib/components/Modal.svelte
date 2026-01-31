@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade, fly } from 'svelte/transition';
   import { cubicOut, backOut } from 'svelte/easing';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   interface Props {
     open: boolean;
@@ -93,7 +94,7 @@
         </div>
 
         <div class="modal-header">
-          <h2 id="modal-title">{title}</h2>
+          <h2 id="modal-title" use:truncateTooltip>{title}</h2>
           <button class="close-btn" onclick={onClose} aria-label="Close modal">
             <svg
               width="20"
@@ -122,7 +123,7 @@
         out:fly={{ y: -10, duration: 200, easing: cubicOut }}
       >
         <div class="modal-header">
-          <h2 id="modal-title">{title}</h2>
+          <h2 id="modal-title" use:truncateTooltip>{title}</h2>
           <button class="close-btn" onclick={onClose} aria-label="Close modal">
             <svg
               width="20"

@@ -9,6 +9,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   let error = $state<string | null>(null);
   let showCreateListModal = $state(false);
@@ -173,7 +174,7 @@
 
     <div class="current-project-line" class:empty={!currentProject}>
       <span class="current-label">Current Project:</span>
-      <span class="current-name">{currentProject?.name || 'None selected'}</span>
+      <span class="current-name" use:truncateTooltip>{currentProject?.name || 'None selected'}</span>
     </div>
 
     {#if loadingProjects}
@@ -259,7 +260,7 @@
             use:remoteChangeAnimation={{ entityId: list.id, entityType: 'goal_lists' }}
           >
             <div class="list-header">
-              <h3 class="list-name">{list.name}</h3>
+              <h3 class="list-name" use:truncateTooltip>{list.name}</h3>
               <button
                 class="delete-btn"
                 onclick={(e) => {

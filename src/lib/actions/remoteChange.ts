@@ -56,6 +56,14 @@ const ACTION_ANIMATION_MAP: Record<RemoteActionType, string> = {
 };
 
 /**
+ * Local-only animation overrides (shimmer without jiggle)
+ */
+const LOCAL_ANIMATION_MAP: Partial<Record<RemoteActionType, string>> = {
+  increment: 'counter-increment-local',
+  decrement: 'counter-decrement-local'
+};
+
+/**
  * Animation durations for cleanup (ms)
  */
 const ACTION_DURATION_MAP: Record<RemoteActionType, number> = {
@@ -317,7 +325,7 @@ export function triggerLocalAnimation(
   if (animatingElements.has(element)) return;
   animatingElements.add(element);
 
-  const cssClass = ACTION_ANIMATION_MAP[actionType] || 'item-changed';
+  const cssClass = LOCAL_ANIMATION_MAP[actionType] || ACTION_ANIMATION_MAP[actionType] || 'item-changed';
   const duration = ACTION_DURATION_MAP[actionType] || 1600;
 
   // Apply animation class

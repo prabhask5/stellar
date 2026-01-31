@@ -5,6 +5,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import BlockListForm from './BlockListForm.svelte';
   import { remoteChangeAnimation, triggerLocalAnimation } from '$lib/actions/remoteChange';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   interface Props {
     userId: string;
@@ -239,8 +240,8 @@
                 aria-label={`Edit ${list.name}`}
               >
                 <div class="list-details">
-                  <span class="list-name">{list.name}</span>
-                  <span class="list-days">{getActiveDaysLabel(list.active_days)}</span>
+                  <span class="list-name" use:truncateTooltip>{list.name}</span>
+                  <span class="list-days" use:truncateTooltip>{getActiveDaysLabel(list.active_days)}</span>
                 </div>
                 <svg
                   viewBox="0 0 24 24"

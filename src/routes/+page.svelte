@@ -5,6 +5,7 @@
   import { browser } from '$app/environment';
   import { authState, userDisplayInfo } from '$lib/stores/authState';
   import PWAInstallModal from '$lib/components/PWAInstallModal.svelte';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
   let isLoading = $state(true);
   let selectedCompliment = $state('');
   let timeGreeting = $state('Good day');
@@ -206,7 +207,7 @@
           <span class="greeting-hello" class:greeting-transitioning={isGreetingTransitioning}
             >{timeGreeting},</span
           >
-          <span class="greeting-name">{firstName}</span>
+          <span class="greeting-name" use:truncateTooltip>{firstName}</span>
         </h1>
       </div>
 

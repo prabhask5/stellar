@@ -1,5 +1,6 @@
 <script lang="ts">
   import { remoteChangeAnimation, triggerLocalAnimation } from '$lib/actions/remoteChange';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
   import type { DailyTask } from '$lib/types';
 
   interface Props {
@@ -56,7 +57,7 @@
     {/if}
   </button>
 
-  <span class="task-name">{task.name}</span>
+  <span class="task-name" use:truncateTooltip>{task.name}</span>
 
   {#if onDelete}
     <button class="delete-btn" onclick={onDelete} aria-label="Delete task">×</button>

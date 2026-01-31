@@ -17,6 +17,7 @@
   import DraggableList from '$lib/components/DraggableList.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   let currentDate = $state(new Date());
   let loading = $state(true);
@@ -312,7 +313,7 @@
                 </button>
                 <div class="routine-card">
                   <div class="routine-info">
-                    <h4>{routine.name}</h4>
+                    <h4 use:truncateTooltip>{routine.name}</h4>
                     <div class="routine-meta">
                       <span class="badge type-{routine.type}">
                         {routine.type === 'completion' ? '✓' : routine.type === 'progressive' ? '↗' : '↑'}
@@ -372,7 +373,7 @@
                 </button>
                 <div class="routine-card inactive">
                   <div class="routine-info">
-                    <h4>{routine.name}</h4>
+                    <h4 use:truncateTooltip>{routine.name}</h4>
                     <div class="routine-meta">
                       <span class="badge type-{routine.type}">
                         {routine.type === 'completion' ? '✓' : routine.type === 'progressive' ? '↗' : '↑'}

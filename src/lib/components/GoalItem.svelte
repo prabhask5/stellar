@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getProgressColor, calculateGoalProgress, getOverflowColor } from '$lib/utils/colors';
   import { remoteChangeAnimation, triggerLocalAnimation } from '$lib/actions/remoteChange';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
   import type { Goal, DailyRoutineGoal, DailyGoalProgress } from '$lib/types';
 
   interface Props {
@@ -155,6 +156,7 @@
       <span
         class="goal-name desktop-name"
         class:completed={completed && goal.type === 'completion'}
+        use:truncateTooltip
       >
         {goal.name}
       </span>
@@ -233,7 +235,7 @@
     </div>
 
     <!-- Row 2 (mobile only): Goal name -->
-    <span class="goal-name mobile-name" class:completed={completed && goal.type === 'completion'}>
+    <span class="goal-name mobile-name" class:completed={completed && goal.type === 'completion'} use:truncateTooltip>
       {goal.name}
     </span>
 

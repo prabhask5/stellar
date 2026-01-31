@@ -11,6 +11,7 @@
   import GoalForm from '$lib/components/GoalForm.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import DraggableList from '$lib/components/DraggableList.svelte';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   let list = $state<(GoalList & { goals: Goal[] }) | null>(null);
   let loading = $state(true);
@@ -229,7 +230,7 @@
           onclick={() => (editingListName = true)}
           title="Click to edit list name"
         >
-          <h1>{list?.name ?? 'List'}</h1>
+          <h1 use:truncateTooltip>{list?.name ?? 'List'}</h1>
         </button>
       {/if}
     </div>

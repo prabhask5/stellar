@@ -6,6 +6,7 @@
   import type { BlockList, BlockedWebsite, DayOfWeek } from '$lib/types';
   import BlockListForm from '$lib/components/focus/BlockListForm.svelte';
   import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   let blockList = $state<BlockList | null>(null);
   let websites = $state<BlockedWebsite[]>([]);
@@ -242,7 +243,7 @@
               class="website-item"
               use:remoteChangeAnimation={{ entityId: website.id, entityType: 'blocked_websites' }}
             >
-              <span class="domain">{website.domain}</span>
+              <span class="domain" use:truncateTooltip>{website.domain}</span>
               <button
                 class="delete-btn"
                 onclick={() => removeWebsite(website.id)}

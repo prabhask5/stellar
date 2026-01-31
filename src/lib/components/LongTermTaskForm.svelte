@@ -3,6 +3,7 @@
   import type { TaskCategory } from '$lib/types';
   import { getTodayDateString } from '$lib/utils/dates';
   import { trackEditing } from '$lib/actions/remoteChange';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   interface Props {
     open: boolean;
@@ -152,7 +153,7 @@
           onclick={() => (dropdownOpen = !dropdownOpen)}
         >
           {#if selectedCategory}
-            <span class="selected-category">
+            <span class="selected-category" use:truncateTooltip>
               <span class="cat-dot" style="--cat-color: {selectedCategory.color}"></span>
               {selectedCategory.name}
             </span>

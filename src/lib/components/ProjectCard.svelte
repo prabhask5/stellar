@@ -2,6 +2,7 @@
   import type { ProjectWithDetails } from '$lib/types';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   interface Props {
     project: ProjectWithDetails;
@@ -51,7 +52,7 @@
   <div class="project-header">
     <div class="project-title">
       <span class="tag-dot" style="background-color: {tagColor}"></span>
-      <h3 class="project-name">{project.name}</h3>
+      <h3 class="project-name" use:truncateTooltip>{project.name}</h3>
     </div>
     <div class="project-actions">
       <button

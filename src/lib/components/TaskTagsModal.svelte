@@ -4,6 +4,7 @@
   import type { TaskCategory, LongTermTaskWithCategory } from '$lib/types';
   import { parseDateString } from '$lib/utils/dates';
   import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   // Available colors for categories (same as CategoryCreateModal)
   const CATEGORY_COLORS = [
@@ -300,9 +301,9 @@
                     use:focus
                   />
                 {:else if projectOwned}
-                  <span class="category-name-static">{category.name}</span>
+                  <span class="category-name-static" use:truncateTooltip>{category.name}</span>
                 {:else}
-                  <button class="category-name" onclick={() => startEditName(category)}>
+                  <button class="category-name" onclick={() => startEditName(category)} use:truncateTooltip>
                     {category.name}
                   </button>
                 {/if}
@@ -349,7 +350,7 @@
                     ></button>
 
                     <button class="task-info" onclick={() => onTaskClick(task)}>
-                      <span class="task-name">{task.name}</span>
+                      <span class="task-name" use:truncateTooltip>{task.name}</span>
                       <span
                         class="due-date"
                         class:overdue={isOverdue(task.due_date)}
@@ -418,7 +419,7 @@
                   ></button>
 
                   <button class="task-info" onclick={() => onTaskClick(task)}>
-                    <span class="task-name">{task.name}</span>
+                    <span class="task-name" use:truncateTooltip>{task.name}</span>
                     <span
                       class="due-date"
                       class:overdue={isOverdue(task.due_date)}

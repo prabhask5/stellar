@@ -6,12 +6,14 @@
     children?: import('svelte').Snippet;
   }
 
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
+
   let { icon = '📋', title, description, children }: Props = $props();
 </script>
 
 <div class="empty-state">
   <span class="empty-icon">{icon}</span>
-  <h3 class="empty-title">{title}</h3>
+  <h3 class="empty-title" use:truncateTooltip>{title}</h3>
   {#if description}
     <p class="empty-description">{description}</p>
   {/if}

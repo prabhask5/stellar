@@ -1,6 +1,7 @@
 <script lang="ts">
   import Modal from './Modal.svelte';
   import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
   import type { Commitment, CommitmentSection } from '$lib/types';
 
   interface Props {
@@ -260,6 +261,7 @@
                 <span
                   class="commitment-name"
                   ondblclick={() => !isProjectOwned(commitment) && startEditing(commitment)}
+                  use:truncateTooltip
                 >
                   {commitment.name}
                 </span>
