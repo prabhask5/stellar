@@ -69,15 +69,18 @@
       // Get cached credentials to validate with Supabase
       const credentials = await getOfflineCredentials();
 
-      if (!credentials) {
-        debugError('[Auth] No cached credentials found - cannot validate');
+      if (!credentials || !credentials.email || !credentials.password) {
+        // No offline credentials cached, but the Supabase session token may still be valid
+        // in localStorage (e.g. short offline period, credentials never stored)
+        const session = await getSession();
+        if (session) {
+          debugLog('[Auth] No offline credentials but Supabase session valid — allowing sync');
+          markAuthValidated();
+          runFullSync(false);
+          return;
+        }
+        debugError('[Auth] No cached credentials and no valid session');
         await handleInvalidAuth('No cached credentials found. Please sign in again.');
-        return;
-      }
-
-      if (!credentials.email || !credentials.password) {
-        debugError('[Auth] Cached credentials missing email or password');
-        await handleInvalidAuth('Invalid cached credentials. Please sign in again.');
         return;
       }
 
@@ -120,12 +123,11 @@
     }
   }
 
-  // Handle invalid auth: clear everything and kick user to login
+  // Handle invalid auth: clear session and kick user to login
+  // NOTE: We intentionally do NOT clear the sync queue here.
+  // The user's offline changes should be preserved and pushed after re-authentication.
+  // The sync queue is harmless without auth (Supabase RLS blocks unauthorized writes).
   async function handleInvalidAuth(message: string): Promise<void> {
-    // SECURITY: Clear pending sync queue to prevent unauthorized data sync
-    const clearedCount = await clearPendingSyncQueue();
-    debugLog(`[Auth] Cleared ${clearedCount} pending sync operations due to invalid auth`);
-
     // Clear offline session (credentials cleared by signOut below)
     await clearOfflineSession();
 

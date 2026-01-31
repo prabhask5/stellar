@@ -7,7 +7,8 @@ import {
   incrementRetry,
   getPendingEntityIds,
   cleanupFailedItems,
-  coalescePendingOps
+  coalescePendingOps,
+  queueSyncOperation
 } from './queue';
 import { getDeviceId } from './deviceId';
 import type {
@@ -27,7 +28,7 @@ import type {
   BlockedWebsite,
   Project
 } from '$lib/types';
-import type { SyncOperationItem } from './types';
+import type { SyncOperationItem, SyncEntityType } from './types';
 import { SUPABASE_TO_DEXIE_TABLE } from './types';
 import { syncStatusStore } from '$lib/stores/sync';
 import { calculateGoalProgressCapped } from '$lib/utils/colors';
@@ -1895,6 +1896,67 @@ export async function runFullSync(quiet: boolean = false, skipPull: boolean = fa
   }
 }
 
+/**
+ * Reconcile orphaned local changes with remote.
+ *
+ * After re-login, local IndexedDB may have items that were modified offline
+ * but whose sync queue entries were lost (e.g. cleared by a previous bug).
+ * This scans all tables for items modified after the last sync cursor and
+ * re-queues them so they get pushed on the next sync.
+ *
+ * Only runs when the sync queue is empty (otherwise normal sync handles it).
+ */
+export async function reconcileLocalWithRemote(): Promise<number> {
+  const queueCount = await db.syncQueue.count();
+  if (queueCount > 0) return 0; // Queue has items, no reconciliation needed
+
+  const userId = await getCurrentUserId();
+  if (!userId) return 0;
+
+  const cursor = getLastSyncCursor(userId);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tables: Array<{ supaName: SyncEntityType; dexieTable: { toArray(): Promise<any[]> } }> = [
+    { supaName: 'goal_lists', dexieTable: db.goalLists },
+    { supaName: 'goals', dexieTable: db.goals },
+    { supaName: 'daily_routine_goals', dexieTable: db.dailyRoutineGoals },
+    { supaName: 'daily_goal_progress', dexieTable: db.dailyGoalProgress },
+    { supaName: 'task_categories', dexieTable: db.taskCategories },
+    { supaName: 'commitments', dexieTable: db.commitments },
+    { supaName: 'daily_tasks', dexieTable: db.dailyTasks },
+    { supaName: 'long_term_tasks', dexieTable: db.longTermTasks },
+    { supaName: 'focus_settings', dexieTable: db.focusSettings },
+    { supaName: 'focus_sessions', dexieTable: db.focusSessions },
+    { supaName: 'block_lists', dexieTable: db.blockLists },
+    { supaName: 'blocked_websites', dexieTable: db.blockedWebsites },
+    { supaName: 'projects', dexieTable: db.projects },
+  ];
+
+  let requeued = 0;
+
+  for (const { supaName, dexieTable } of tables) {
+    const allItems = await dexieTable.toArray();
+    for (const item of allItems) {
+      if (item.updated_at && item.updated_at > cursor) {
+        const { id, ...payload } = item;
+        await queueSyncOperation({
+          table: supaName,
+          entityId: item.id,
+          operationType: item.deleted ? 'delete' : 'create',
+          value: item.deleted ? undefined : payload,
+        });
+        requeued++;
+      }
+    }
+  }
+
+  if (requeued > 0) {
+    debugLog(`[SYNC] Reconciliation: re-queued ${requeued} orphaned items for sync`);
+  }
+
+  return requeued;
+}
+
 // Initial hydration: if local DB is empty, pull everything from remote
 export async function hydrateFromRemote(): Promise<void> {
   if (typeof navigator === 'undefined' || !navigator.onLine) return;
@@ -1929,6 +1991,8 @@ export async function hydrateFromRemote(): Promise<void> {
   ) {
     // Local has data, release lock and do a normal sync
     releaseSyncLock();
+    // Check for orphaned changes (local data modified after last sync, but empty queue)
+    await reconcileLocalWithRemote();
     await runFullSync();
     return;
   }
