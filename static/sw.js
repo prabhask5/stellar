@@ -4,12 +4,12 @@
 // Version is updated automatically on each build by vite.config.ts
 const APP_VERSION = 'ml1btabi';
 
-// Single persistent cache - we don't delete old assets since immutable files have unique hashes
-const CACHE_NAME = 'stellar-cache-v1';
+// Split caches: immutable assets persist across deploys, shell is versioned per deploy
+const ASSET_CACHE = 'stellar-assets-v1';           // persistent, immutable only
+const SHELL_CACHE = 'stellar-shell-' + APP_VERSION; // versioned per deploy
 
 // Core app shell to precache on install
 const PRECACHE_ASSETS = [
-  '/',
   '/manifest.json',
   '/favicon.png',
   '/icon-192.png',
@@ -24,8 +24,13 @@ self.addEventListener('install', (event) => {
   console.log(`[SW] Installing version: ${APP_VERSION}`);
 
   event.waitUntil(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      // Add minimal assets - don't fail install if some fail
+    caches.open(SHELL_CACHE).then(async (cache) => {
+      // The root HTML is REQUIRED - if it fails, install fails
+      // Better to stay on working old SW than activate with no cached HTML
+      await cache.add('/');
+      console.log('[SW] Root HTML precached');
+
+      // Other shell assets are optional
       await Promise.allSettled(
         PRECACHE_ASSETS.map(url =>
           cache.add(url).catch(err => console.warn(`[SW] Failed to precache ${url}:`, err))
@@ -45,23 +50,28 @@ self.addEventListener('install', (event) => {
   // Don't skipWaiting() - let UpdatePrompt control the transition
 });
 
-// Activate event - take control but DON'T delete caches
-// Immutable assets have unique hashes, so old versions don't conflict
+// Activate event - clean up old shell caches, keep immutable assets
 self.addEventListener('activate', (event) => {
   console.log(`[SW] Activating version: ${APP_VERSION}`);
 
   event.waitUntil(
     (async () => {
-      // Only delete very old cache formats (migration from old naming)
       const cacheNames = await caches.keys();
       await Promise.all(
         cacheNames
-          .filter(name => name.startsWith('stellar-') && name !== CACHE_NAME && name !== 'stellar-cache-v1')
+          .filter(name => {
+            // Delete old versioned shell caches (not the current one)
+            if (name.startsWith('stellar-shell-') && name !== SHELL_CACHE) return true;
+            // Delete legacy shared cache (one-time migration)
+            if (name === 'stellar-cache-v1') return true;
+            return false;
+          })
           .map(name => {
-            console.log(`[SW] Deleting legacy cache: ${name}`);
+            console.log(`[SW] Deleting old cache: ${name}`);
             return caches.delete(name);
           })
       );
+      // Keep ASSET_CACHE - immutable assets persist across versions
 
       // Take control of all tabs
       await self.clients.claim();
@@ -125,7 +135,7 @@ function isStaticAsset(pathname) {
 
 // Navigation: network with cache fallback, short timeout
 async function handleNavigationRequest(request) {
-  const cache = await caches.open(CACHE_NAME);
+  const cache = await caches.open(SHELL_CACHE);
 
   try {
     const controller = new AbortController();
@@ -156,7 +166,7 @@ async function handleNavigationRequest(request) {
 
 // Immutable assets: cache-first, NEVER revalidate (they have content hashes)
 async function handleImmutableAsset(request) {
-  const cache = await caches.open(CACHE_NAME);
+  const cache = await caches.open(ASSET_CACHE);
 
   // Check cache first
   const cached = await cache.match(request);
@@ -179,7 +189,7 @@ async function handleImmutableAsset(request) {
 
 // Static assets: cache-first, NO background revalidation (saves bandwidth)
 async function handleStaticAsset(request) {
-  const cache = await caches.open(CACHE_NAME);
+  const cache = await caches.open(SHELL_CACHE);
 
   // Check cache first
   const cached = await cache.match(request);
@@ -203,7 +213,7 @@ async function handleStaticAsset(request) {
 
 // Other requests: network-first
 async function handleOtherRequest(request) {
-  const cache = await caches.open(CACHE_NAME);
+  const cache = await caches.open(SHELL_CACHE);
 
   try {
     const response = await fetch(request);
@@ -221,7 +231,8 @@ async function handleOtherRequest(request) {
 // Background precache - only downloads NEW assets
 async function backgroundPrecache() {
   try {
-    const cache = await caches.open(CACHE_NAME);
+    const assetCache = await caches.open(ASSET_CACHE);
+    const shellCache = await caches.open(SHELL_CACHE);
 
     // Fetch manifest with cache bust
     const manifestResponse = await fetch('/asset-manifest.json?_=' + Date.now(), {
@@ -241,9 +252,11 @@ async function backgroundPrecache() {
       return;
     }
 
-    // Check which assets are NOT already cached
+    // Check which assets are NOT already cached (check both caches)
     const uncached = [];
     for (const url of assets) {
+      const isImmutable = url.includes('/_app/immutable/');
+      const cache = isImmutable ? assetCache : shellCache;
       const cached = await cache.match(url);
       if (!cached) {
         uncached.push(url);
@@ -265,7 +278,11 @@ async function backgroundPrecache() {
     for (let i = 0; i < uncached.length; i += batchSize) {
       const batch = uncached.slice(i, i + batchSize);
       const results = await Promise.allSettled(
-        batch.map(url => cache.add(url))
+        batch.map(url => {
+          const isImmutable = url.includes('/_app/immutable/');
+          const cache = isImmutable ? assetCache : shellCache;
+          return cache.add(url);
+        })
       );
 
       results.forEach((r, idx) => {
@@ -288,10 +305,11 @@ async function backgroundPrecache() {
   }
 }
 
-// Cleanup old assets not in current manifest (run periodically)
+// Cleanup old assets not in current manifest (only immutable assets)
+// Shell cache is already versioned and cleaned on activate
 async function cleanupOldAssets() {
   try {
-    const cache = await caches.open(CACHE_NAME);
+    const cache = await caches.open(ASSET_CACHE);
 
     // Get current manifest
     const manifestResponse = await fetch('/asset-manifest.json', { cache: 'no-store' });
@@ -299,10 +317,6 @@ async function cleanupOldAssets() {
 
     const manifest = await manifestResponse.json();
     const currentAssets = new Set(manifest.assets || []);
-
-    // Add core assets that should always be kept
-    PRECACHE_ASSETS.forEach(url => currentAssets.add(url));
-    currentAssets.add('/');
 
     // Get all cached requests
     const cachedRequests = await cache.keys();
@@ -313,7 +327,6 @@ async function cleanupOldAssets() {
       const pathname = url.pathname;
 
       // Only clean up immutable assets that are no longer in manifest
-      // Keep non-immutable assets as they might still be valid
       if (pathname.includes('/_app/immutable/') && !currentAssets.has(pathname)) {
         await cache.delete(request);
         deletedCount++;
@@ -401,8 +414,14 @@ self.addEventListener('message', (event) => {
 
   if (type === 'CACHE_URLS') {
     const urls = event.data.urls || [];
-    caches.open(CACHE_NAME).then(cache => {
-      urls.forEach(url => cache.add(url).catch(() => {}));
+    const assetCache = caches.open(ASSET_CACHE);
+    const shellCache = caches.open(SHELL_CACHE);
+    Promise.all([assetCache, shellCache]).then(([ac, sc]) => {
+      urls.forEach(url => {
+        const isImmutable = url.includes('/_app/immutable/');
+        const cache = isImmutable ? ac : sc;
+        cache.add(url).catch(() => {});
+      });
     });
   }
 
@@ -415,8 +434,10 @@ self.addEventListener('message', (event) => {
 
 async function getCacheStatus() {
   try {
-    const cache = await caches.open(CACHE_NAME);
-    const manifestResponse = await cache.match('/asset-manifest.json') ||
+    const assetCache = await caches.open(ASSET_CACHE);
+    const shellCache = await caches.open(SHELL_CACHE);
+    const manifestResponse = await shellCache.match('/asset-manifest.json') ||
+                             await assetCache.match('/asset-manifest.json') ||
                              await fetch('/asset-manifest.json').catch(() => null);
 
     if (!manifestResponse) {
@@ -428,6 +449,8 @@ async function getCacheStatus() {
 
     let cachedCount = 0;
     for (const url of assets) {
+      const isImmutable = url.includes('/_app/immutable/');
+      const cache = isImmutable ? assetCache : shellCache;
       if (await cache.match(url)) cachedCount++;
     }
 

@@ -368,6 +368,9 @@ function createRemoteChangesStore() {
     /**
      * Mark an entity as pending delete (for delete animation).
      * Returns a promise that resolves after the animation duration.
+     * The pending delete is cleared AFTER resolve so the caller can
+     * delete from DB first — this prevents a reactive flash where the
+     * item reappears between animation end and DOM removal.
      */
     markPendingDelete(entityId: string, entityType: string): Promise<void> {
       update((state) => {
@@ -379,12 +382,16 @@ function createRemoteChangesStore() {
       // Return promise that resolves after animation duration
       return new Promise((resolve) => {
         setTimeout(() => {
-          update((state) => {
-            const key = `${entityType}:${entityId}`;
-            state.pendingDeletes.delete(key);
-            return state;
-          });
           resolve();
+          // Clean up after a short delay — the caller deletes from DB on
+          // resolve which triggers DOM removal, so this is just housekeeping
+          setTimeout(() => {
+            update((state) => {
+              const key = `${entityType}:${entityId}`;
+              state.pendingDeletes.delete(key);
+              return state;
+            });
+          }, 100);
         }, DELETE_ANIMATION_DURATION);
       });
     },

@@ -138,6 +138,11 @@ export function remoteChangeAnimation(node: HTMLElement, options: RemoteChangeOp
       }
     }
 
+    // For delete animations, don't remove the class — the element will be
+    // removed from DOM after the animation. Removing it early causes the item
+    // to briefly reappear between animation end and DOM removal.
+    if (actionType === 'delete') return;
+
     // Remove class after animation completes
     const handleAnimationEnd = () => {
       node.classList.remove(cssClass);

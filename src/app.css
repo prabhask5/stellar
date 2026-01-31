@@ -1519,27 +1519,24 @@ textarea {
 .item-deleting {
   animation: itemDelete 0.4s var(--ease-out) forwards;
   pointer-events: none;
+  overflow: hidden;
 }
 
 @keyframes itemDelete {
   0% {
     opacity: 1;
-    transform: scale(1) translateX(0);
-    max-height: 200px;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
   }
-  30% {
-    opacity: 0.7;
-    transform: scale(0.98) translateX(8px);
+  40% {
+    opacity: 0.4;
+    transform: translateX(8px) scale(0.98);
+    filter: blur(0);
   }
   100% {
     opacity: 0;
-    transform: scale(0.92) translateX(30px);
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    margin-top: 0;
-    margin-bottom: 0;
-    border-width: 0;
+    transform: translateX(20px) scale(0.95);
+    filter: blur(2px);
   }
 }
 
@@ -2105,7 +2102,8 @@ textarea {
   }
 
   .item-created::after,
-  .item-deleting::before {
+  .item-deleting::before,
+  .item-deleting::after {
     animation: none;
   }
 }

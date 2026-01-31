@@ -268,7 +268,7 @@
           controller.postMessage({
             type: 'PRECACHE_ALL'
           });
-        }, 2000); // Wait 2 seconds after page load for better UX
+        }, 500); // Cache assets quickly to reduce window for uncached refreshes
       });
     }
   });

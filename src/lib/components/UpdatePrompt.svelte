@@ -86,7 +86,11 @@
     });
   });
 
+  let reloading = false;
+
   async function handleRefresh() {
+    if (reloading) return;
+    reloading = true;
     showPrompt = false;
 
     // Tell the waiting service worker to take over
