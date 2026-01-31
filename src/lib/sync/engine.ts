@@ -2136,7 +2136,7 @@ export async function hydrateFromRemote(): Promise<void> {
 
 // Clean up old tombstones (deleted records) from local DB AND Supabase
 // This prevents indefinite accumulation of soft-deleted records
-const TOMBSTONE_MAX_AGE_DAYS = 30;
+const TOMBSTONE_MAX_AGE_DAYS = 1;
 const CLEANUP_INTERVAL_MS = 86400000; // 24 hours - only run server cleanup once per day
 let lastServerCleanup = 0;
 

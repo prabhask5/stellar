@@ -70,13 +70,20 @@
   }
 
   async function pollForDeployment() {
-    const maxAttempts = 60; // 3s * 60 = 3 minutes max
+    const maxAttempts = 200; // 3s * 200 = 10 minutes max
+    const registration = await navigator.serviceWorker?.getRegistration();
+
+    // If there's already a waiting SW from before, note it so we don't false-positive
+    const existingWaiting = registration?.waiting;
+
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise((resolve) => setTimeout(resolve, 3000));
       try {
-        const res = await fetch('/api/config');
-        const data = await res.json();
-        if (data.configured && data.supabaseUrl === supabaseUrl && data.supabaseAnonKey === supabaseAnonKey) {
+        // Force the browser to check for a new service worker version
+        await registration?.update();
+
+        // A new SW (different from any pre-existing one) means the new build is live
+        if (registration?.installing || (registration?.waiting && registration.waiting !== existingWaiting)) {
           deployStage = 'ready';
           return;
         }
@@ -447,7 +454,7 @@
 
           {#if deployStage === 'ready'}
             <div class="message success">
-              Your Stellar instance is configured and a new deployment has been triggered. When the deployment completes, a notification will appear at the bottom of the page to reload.
+              Your Stellar instance is configured and the new deployment is live. Use the notification at the bottom of the page to refresh and load the updated version.
             </div>
           {/if}
         </div>

@@ -154,7 +154,6 @@ These tables exist only on the server for multi-device sync infrastructure:
 
 | Table | Purpose |
 |-------|---------|
-| `sync_operations` | Operation log for conflict auditing and replay |
 | `tombstones` | Tracks deleted entities for resurrection prevention |
 
 ### Atomic Transaction Pattern
