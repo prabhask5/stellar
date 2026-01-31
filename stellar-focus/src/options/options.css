@@ -321,6 +321,151 @@ input::placeholder {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
+   ADMIN SETTINGS
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.admin-header h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #e8e6f0;
+  margin-bottom: 1rem;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.setting-label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #e8e6f0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.setting-hint {
+  font-size: 0.75rem;
+  color: #8b8ba3;
+}
+
+.toggle-btn {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  background: rgba(108, 92, 231, 0.15);
+  border: 1px solid rgba(108, 92, 231, 0.25);
+  border-radius: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.toggle-btn.active {
+  background: linear-gradient(135deg, #6c5ce7, #a78bfa);
+  border-color: rgba(108, 92, 231, 0.5);
+  box-shadow: 0 0 12px rgba(108, 92, 231, 0.25);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #e8e6f0;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  display: block;
+}
+
+.toggle-btn.active .toggle-knob {
+  transform: translateX(22px);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════════════
+   ADMIN SETTINGS
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.admin-header h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #e8e6f0;
+  margin-bottom: 1.25rem;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.setting-label {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #e8e6f0;
+}
+
+.setting-hint {
+  font-size: 0.75rem;
+  color: #8b8ba3;
+}
+
+.toggle-btn {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  border-radius: 14px;
+  border: none;
+  background: rgba(37, 37, 61, 0.8);
+  cursor: pointer;
+  transition: background 0.3s;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.toggle-btn.active {
+  background: linear-gradient(135deg, #6c5ce7, #a78bfa);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.3s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-btn.active .toggle-knob {
+  transform: translateX(20px);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════
    REDUCED MOTION
    ═══════════════════════════════════════════════════════════════════════════════════ */
 

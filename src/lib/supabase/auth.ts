@@ -8,6 +8,7 @@ import {
 } from '$lib/auth/offlineCredentials';
 import { clearOfflineSession } from '$lib/auth/offlineSession';
 import { browser } from '$app/environment';
+import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 
 /**
  * Get the email confirmation redirect URL
@@ -44,7 +45,7 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
       await cacheOfflineCredentials(email, password, data.user, data.session);
     } catch (e) {
       // Don't fail login if credential caching fails
-      console.error('[Auth] Failed to cache offline credentials:', e);
+      debugError('[Auth] Failed to cache offline credentials:', e);
     }
   }
 
@@ -91,7 +92,7 @@ export async function signOut(options?: {
     }
     await clearOfflineSession();
   } catch (e) {
-    console.error('[Auth] Failed to clear offline data:', e);
+    debugError('[Auth] Failed to clear offline data:', e);
   }
 
   const { error } = await supabase.auth.signOut();
@@ -110,18 +111,18 @@ export async function getSession(): Promise<Session | null> {
     const { data, error } = await supabase.auth.getSession();
 
     if (error) {
-      console.error('[Auth] getSession error:', error.message);
+      debugError('[Auth] getSession error:', error.message);
 
       // If offline and we got an error, don't clear session - it might just be a network issue
       if (isOffline) {
-        console.warn('[Auth] Offline - keeping session despite error');
+        debugWarn('[Auth] Offline - keeping session despite error');
         // Try to get session from localStorage directly
         return getSessionFromStorage();
       }
 
       // If session retrieval fails online, it might be corrupted - try to sign out to clear it
       if (error.message?.includes('hash') || error.message?.includes('undefined')) {
-        console.warn('[Auth] Detected corrupted session, attempting to clear');
+        debugWarn('[Auth] Detected corrupted session, attempting to clear');
         await supabase.auth.signOut();
       }
       return null;
@@ -129,11 +130,11 @@ export async function getSession(): Promise<Session | null> {
 
     return data.session;
   } catch (e) {
-    console.error('[Auth] Unexpected error getting session:', e);
+    debugError('[Auth] Unexpected error getting session:', e);
 
     // If offline, don't clear anything - try to get from storage
     if (isOffline) {
-      console.warn('[Auth] Offline - attempting to get session from storage');
+      debugWarn('[Auth] Offline - attempting to get session from storage');
       return getSessionFromStorage();
     }
 
@@ -171,7 +172,7 @@ function getSessionFromStorage(): Session | null {
     }
     return null;
   } catch (e) {
-    console.error('[Auth] Failed to get session from storage:', e);
+    debugError('[Auth] Failed to get session from storage:', e);
     return null;
   }
 }
@@ -214,7 +215,7 @@ export async function updateProfile(
     try {
       await updateOfflineCredentialsProfile(firstName, lastName);
     } catch (e) {
-      console.error('[Auth] Failed to update offline profile:', e);
+      debugError('[Auth] Failed to update offline profile:', e);
     }
   }
 
@@ -261,7 +262,7 @@ export async function changePassword(
     try {
       await updateOfflineCredentialsPassword(newPassword);
     } catch (e) {
-      console.error('[Auth] Failed to update offline password:', e);
+      debugError('[Auth] Failed to update offline password:', e);
     }
   }
 

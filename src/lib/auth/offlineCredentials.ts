@@ -6,6 +6,7 @@
 import { db } from '$lib/db/schema';
 import type { OfflineCredentials } from '$lib/types';
 import type { User, Session } from '@supabase/supabase-js';
+import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 
 const CREDENTIALS_ID = 'current_user';
 
@@ -21,7 +22,7 @@ export async function cacheOfflineCredentials(
 ): Promise<void> {
   // Validate inputs to prevent storing incomplete credentials
   if (!email || !password) {
-    console.error('[Auth] Cannot cache credentials: email or password is empty');
+    debugError('[Auth] Cannot cache credentials: email or password is empty');
     throw new Error('Cannot cache credentials: email or password is empty');
   }
 
@@ -41,7 +42,7 @@ export async function cacheOfflineCredentials(
   // Verify the credentials were stored correctly (paranoid check)
   const stored = await db.offlineCredentials.get(CREDENTIALS_ID);
   if (!stored || !stored.password) {
-    console.error('[Auth] Credentials were not stored correctly - password missing');
+    debugError('[Auth] Credentials were not stored correctly - password missing');
     throw new Error('Failed to store credentials: password not persisted');
   }
 }
@@ -73,28 +74,28 @@ export async function verifyOfflineCredentials(
 ): Promise<{ valid: boolean; reason?: string }> {
   const credentials = await getOfflineCredentials();
   if (!credentials) {
-    console.warn('[Auth] No credentials found in database');
+    debugWarn('[Auth] No credentials found in database');
     return { valid: false, reason: 'no_credentials' };
   }
 
   // SECURITY: Verify all fields match
   if (credentials.userId !== expectedUserId) {
-    console.warn('[Auth] Credential userId mismatch:', credentials.userId, '!==', expectedUserId);
+    debugWarn('[Auth] Credential userId mismatch:', credentials.userId, '!==', expectedUserId);
     return { valid: false, reason: 'user_mismatch' };
   }
 
   if (credentials.email !== email) {
-    console.warn('[Auth] Credential email mismatch:', credentials.email, '!==', email);
+    debugWarn('[Auth] Credential email mismatch:', credentials.email, '!==', email);
     return { valid: false, reason: 'email_mismatch' };
   }
 
   if (!credentials.password) {
-    console.warn('[Auth] No password stored in credentials');
+    debugWarn('[Auth] No password stored in credentials');
     return { valid: false, reason: 'no_stored_password' };
   }
 
   if (credentials.password !== password) {
-    console.warn(
+    debugWarn(
       '[Auth] Password mismatch (stored length:',
       credentials.password.length,
       ', entered length:',

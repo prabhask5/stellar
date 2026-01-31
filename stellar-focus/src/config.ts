@@ -6,6 +6,7 @@
  */
 
 import browser from 'webextension-polyfill';
+import { debugError } from './lib/debug';
 
 export interface StellarExtConfig {
   supabaseUrl: string;
@@ -32,7 +33,7 @@ export async function getConfig(): Promise<StellarExtConfig | null> {
       return cachedConfig;
     }
   } catch (e) {
-    console.error('[Stellar Focus] Failed to read config:', e);
+    debugError('[Stellar Focus] Failed to read config:', e);
   }
 
   return null;

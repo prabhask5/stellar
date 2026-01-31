@@ -9,6 +9,7 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getConfig, waitForConfig } from '$lib/config/runtimeConfig';
+import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 
 // Clear corrupted Supabase auth data from localStorage if it exists
 // This prevents "can't access property 'hash'" errors during initialization
@@ -36,19 +37,19 @@ function clearCorruptedAuthData(): void {
               (parsed.expires_at !== undefined && typeof parsed.expires_at !== 'number');
 
             if (hasCorruptedSession) {
-              console.warn('[Auth] Clearing corrupted session data:', key);
+              debugWarn('[Auth] Clearing corrupted session data:', key);
               localStorage.removeItem(key);
             }
           }
         } catch {
           // JSON parse failed - data is corrupted
-          console.warn('[Auth] Clearing malformed session data:', key);
+          debugWarn('[Auth] Clearing malformed session data:', key);
           localStorage.removeItem(key);
         }
       }
     }
   } catch (e) {
-    console.error('[Auth] Error checking localStorage:', e);
+    debugError('[Auth] Error checking localStorage:', e);
   }
 }
 
@@ -61,7 +62,7 @@ if (typeof window !== 'undefined') {
     if (reason && typeof reason === 'object' && 'message' in reason) {
       const message = String(reason.message || '');
       if (message.includes('hash') || message.includes("can't access property")) {
-        console.warn('[Auth] Caught unhandled auth error, clearing storage');
+        debugWarn('[Auth] Caught unhandled auth error, clearing storage');
         event.preventDefault(); // Prevent the error from showing in console
         // Clear Supabase storage
         try {
@@ -87,7 +88,7 @@ const isIOSPWA =
   (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches);
 
 if (isIOSPWA) {
-  console.log('[Auth] Running as iOS PWA - using enhanced auth persistence');
+  debugLog('[Auth] Running as iOS PWA - using enhanced auth persistence');
 }
 
 // Lazy singleton: actual client is created on first access
@@ -101,7 +102,7 @@ function getOrCreateClient(): SupabaseClient {
   const key = config?.supabaseAnonKey || 'placeholder';
 
   if (!config) {
-    console.warn(
+    debugWarn(
       'Supabase config not loaded yet. Call initConfig() before using supabase client.'
     );
   }
@@ -130,18 +131,18 @@ function getOrCreateClient(): SupabaseClient {
   // Set up auth state change listener to log auth events (helps debug PWA issues)
   if (typeof window !== 'undefined') {
     realClient.auth.onAuthStateChange((event, session) => {
-      console.log(
+      debugLog(
         `[Auth] State change: ${event}`,
         session ? `User: ${session.user?.id}` : 'No session'
       );
 
       // If session is lost unexpectedly, this helps identify the issue
       if (event === 'SIGNED_OUT' && isIOSPWA) {
-        console.warn('[Auth] Signed out on iOS PWA - session may have been evicted');
+        debugWarn('[Auth] Signed out on iOS PWA - session may have been evicted');
       }
 
       if (event === 'TOKEN_REFRESHED') {
-        console.log('[Auth] Token refreshed successfully');
+        debugLog('[Auth] Token refreshed successfully');
       }
     });
   }

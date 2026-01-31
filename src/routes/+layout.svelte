@@ -21,6 +21,7 @@
   import type { LayoutData } from './+layout';
   import SyncStatus from '$lib/components/SyncStatus.svelte';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
+  import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -62,27 +63,27 @@
       return;
     }
 
-    console.log('[Auth] Reconnected from offline mode - validating credentials BEFORE sync');
+    debugLog('[Auth] Reconnected from offline mode - validating credentials BEFORE sync');
 
     try {
       // Get cached credentials to validate with Supabase
       const credentials = await getOfflineCredentials();
 
       if (!credentials) {
-        console.error('[Auth] No cached credentials found - cannot validate');
+        debugError('[Auth] No cached credentials found - cannot validate');
         await handleInvalidAuth('No cached credentials found. Please sign in again.');
         return;
       }
 
       if (!credentials.email || !credentials.password) {
-        console.error('[Auth] Cached credentials missing email or password');
+        debugError('[Auth] Cached credentials missing email or password');
         await handleInvalidAuth('Invalid cached credentials. Please sign in again.');
         return;
       }
 
       // SECURITY: Actually re-authenticate with Supabase using cached email and password
       // This ensures the password hasn't been changed while the user was offline
-      console.log('[Auth] Re-authenticating with Supabase using cached credentials...');
+      debugLog('[Auth] Re-authenticating with Supabase using cached credentials...');
 
       // Add timeout to prevent hanging on flaky network
       const SESSION_TIMEOUT_MS = 15000;
@@ -90,7 +91,7 @@
         signIn(credentials.email, credentials.password),
         new Promise<{ session: null; error: string }>((resolve) =>
           setTimeout(() => {
-            console.warn('[Auth] Re-authentication timed out');
+            debugWarn('[Auth] Re-authentication timed out');
             resolve({ session: null, error: 'timeout' });
           }, SESSION_TIMEOUT_MS)
         )
@@ -98,7 +99,7 @@
 
       if (authResult.session) {
         // SUCCESS: Email and password are still valid with Supabase
-        console.log('[Auth] Credentials validated with Supabase - allowing sync');
+        debugLog('[Auth] Credentials validated with Supabase - allowing sync');
         await clearOfflineSession();
         authState.setSupabaseAuth(authResult.session);
         markAuthValidated();
@@ -108,13 +109,13 @@
       } else {
         // FAILURE: Credentials are invalid (password may have been changed)
         // SECURITY: Cancel all pending syncs to prevent unauthorized data modification
-        console.error('[Auth] Credential validation failed:', authResult.error);
+        debugError('[Auth] Credential validation failed:', authResult.error);
         await handleInvalidAuth(
           'Your credentials may have changed while you are offline. Please sign in again.'
         );
       }
     } catch (e) {
-      console.error('[Auth] Error validating credentials on reconnect:', e);
+      debugError('[Auth] Error validating credentials on reconnect:', e);
       await handleInvalidAuth('Failed to validate credentials. Please sign in again.');
     }
   }
@@ -123,7 +124,7 @@
   async function handleInvalidAuth(message: string): Promise<void> {
     // SECURITY: Clear pending sync queue to prevent unauthorized data sync
     const clearedCount = await clearPendingSyncQueue();
-    console.log(`[Auth] Cleared ${clearedCount} pending sync operations due to invalid auth`);
+    debugLog(`[Auth] Cleared ${clearedCount} pending sync operations due to invalid auth`);
 
     // Clear offline session (credentials cleared by signOut below)
     await clearOfflineSession();
@@ -137,7 +138,7 @@
       const supabaseKeys = Object.keys(localStorage).filter((k) => k.startsWith('sb-'));
       supabaseKeys.forEach((k) => localStorage.removeItem(k));
     } catch (e) {
-      console.error('[Auth] Failed to clear Supabase localStorage:', e);
+      debugError('[Auth] Failed to clear Supabase localStorage:', e);
     }
 
     // Update auth state
@@ -221,24 +222,24 @@
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data?.type === 'PRECACHE_COMPLETE') {
           const { cached, total } = event.data;
-          console.log(`[PWA] Background precaching complete: ${cached}/${total} assets cached`);
+          debugLog(`[PWA] Background precaching complete: ${cached}/${total} assets cached`);
           if (cached === total) {
-            console.log('[PWA] Full offline support ready - all pages accessible offline');
+            debugLog('[PWA] Full offline support ready - all pages accessible offline');
           } else {
-            console.warn(`[PWA] Some assets failed to cache: ${total - cached} missing`);
+            debugWarn(`[PWA] Some assets failed to cache: ${total - cached} missing`);
           }
         }
       });
 
       // Wait for service worker to be ready (handles first load case)
       navigator.serviceWorker.ready.then((registration) => {
-        console.log('[PWA] Service worker ready, scheduling background precache...');
+        debugLog('[PWA] Service worker ready, scheduling background precache...');
 
         // Give the page time to fully load, then trigger background precaching
         setTimeout(() => {
           const controller = navigator.serviceWorker.controller || registration.active;
           if (!controller) {
-            console.warn('[PWA] No service worker controller available');
+            debugWarn('[PWA] No service worker controller available');
             return;
           }
 
@@ -254,7 +255,7 @@
           const urls = [...scripts, ...styles];
 
           if (urls.length > 0) {
-            console.log(`[PWA] Caching ${urls.length} current page assets...`);
+            debugLog(`[PWA] Caching ${urls.length} current page assets...`);
             controller.postMessage({
               type: 'CACHE_URLS',
               urls
@@ -263,7 +264,7 @@
 
           // Then trigger full background precaching for all app chunks
           // This ensures offline support for all pages, not just visited ones
-          console.log('[PWA] Triggering background precache of all app chunks...');
+          debugLog('[PWA] Triggering background precache of all app chunks...');
           controller.postMessage({
             type: 'PRECACHE_ALL'
           });
@@ -361,7 +362,7 @@
       const supabaseKeys = Object.keys(localStorage).filter((k) => k.startsWith('sb-'));
       supabaseKeys.forEach((k) => localStorage.removeItem(k));
     } catch (e) {
-      console.error('[Auth] Failed to clear Supabase localStorage:', e);
+      debugError('[Auth] Failed to clear Supabase localStorage:', e);
     }
 
     // Reset auth state

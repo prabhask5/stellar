@@ -13,6 +13,7 @@
  * - All other cases: Last-write-wins (with deviceId tiebreaker)
  */
 
+import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 import { db } from '$lib/db/client';
 import { getDeviceId } from './deviceId';
 import type { SyncOperationItem } from './types';
@@ -359,7 +360,7 @@ export async function storeConflictHistory(resolution: ConflictResolution): Prom
 
     await db.conflictHistory.bulkAdd(entries);
   } catch (error) {
-    console.error('[Conflict] Failed to store conflict history:', error);
+    debugError('[Conflict] Failed to store conflict history:', error);
   }
 }
 
@@ -386,12 +387,12 @@ export async function cleanupConflictHistory(): Promise<number> {
     const count = await db.conflictHistory.filter((entry) => entry.timestamp < cutoffStr).delete();
 
     if (count > 0) {
-      console.log(`[Conflict] Cleaned up ${count} old conflict history entries`);
+      debugLog(`[Conflict] Cleaned up ${count} old conflict history entries`);
     }
 
     return count;
   } catch (error) {
-    console.error('[Conflict] Failed to cleanup conflict history:', error);
+    debugError('[Conflict] Failed to cleanup conflict history:', error);
     return 0;
   }
 }

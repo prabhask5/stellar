@@ -10,6 +10,7 @@
 import browser from 'webextension-polyfill';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getConfig } from '../config';
+import { debugLog, debugWarn, debugError, initDebugMode } from '../lib/debug';
 
 // Types
 interface FocusSession {
@@ -104,6 +105,8 @@ const notConfiguredEl = document.getElementById('notConfigured') as HTMLElement 
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
+  await initDebugMode();
+
   // Check if configured
   const config = await getConfig();
   if (!config) {
@@ -181,7 +184,7 @@ function showNotConfigured() {
 function setupServiceWorkerMessageListener() {
   browser.runtime.onMessage.addListener((message: { type: string }) => {
     if (message.type === 'FOCUS_STATUS_CHANGED') {
-      console.log('[Stellar Focus] Received focus status update from service worker');
+      debugLog('[Stellar Focus] Received focus status update from service worker');
       // Refresh focus status display
       loadFocusStatus();
       loadFocusTimeToday();
@@ -189,7 +192,7 @@ function setupServiceWorkerMessageListener() {
       setTimeout(() => setSyncStatus('synced'), 800);
     }
     if (message.type === 'BLOCK_LISTS_CHANGED') {
-      console.log('[Stellar Focus] Received block lists update from service worker');
+      debugLog('[Stellar Focus] Received block lists update from service worker');
       // Refresh block lists display
       loadBlockLists();
       setSyncStatus('syncing');
@@ -248,7 +251,7 @@ async function checkAuth() {
       updateView();
     }
   } catch (error) {
-    console.error('Auth check failed:', error);
+    debugError('Auth check failed:', error);
     currentUserId = null;
     updateView();
   }
@@ -293,7 +296,7 @@ async function handleLogin(e: Event) {
       // Service worker handles realtime and notifies popup via messaging
     }
   } catch (error) {
-    console.error('Login error:', error);
+    debugError('Login error:', error);
     showLoginError('Login failed. Please try again.');
   }
 
@@ -312,7 +315,7 @@ async function handleLogout() {
     passwordInput.value = '';
     hideLoginError();
   } catch (error) {
-    console.error('Logout error:', error);
+    debugError('Logout error:', error);
   }
 }
 
@@ -346,7 +349,7 @@ async function loadData() {
       loadFocusTimeToday()
     ]);
   } catch (error) {
-    console.error('Failed to load data:', error);
+    debugError('Failed to load data:', error);
     setSyncStatus('error');
   }
 }
@@ -377,7 +380,7 @@ async function loadFocusStatus(isInitialLoad = false) {
     lastSessionJson = sessionJson;
 
     if (hasChanged) {
-      console.log('[Stellar Focus] Session changed:', session?.phase, session?.status);
+      debugLog('[Stellar Focus] Session changed:', session?.phase, session?.status);
 
       // Show sync animation for changes (but not initial load which already shows it)
       if (!isInitialLoad) {
@@ -392,7 +395,7 @@ async function loadFocusStatus(isInitialLoad = false) {
       setSyncStatus('synced');
     }
   } catch (error) {
-    console.error('[Stellar Focus] Load focus status error:', error);
+    debugError('[Stellar Focus] Load focus status error:', error);
     if (isInitialLoad) {
       setSyncStatus('error');
     }
@@ -459,7 +462,7 @@ async function loadFocusTimeToday(animate = true) {
 
     updateFocusTimeDisplay(totalMs, animate);
   } catch (error) {
-    console.error('[Stellar Focus] Load focus time error:', error);
+    debugError('[Stellar Focus] Load focus time error:', error);
   }
 }
 
@@ -782,7 +785,7 @@ async function focusOrOpenApp() {
 
     window.close();
   } catch (error) {
-    console.error('[Stellar Focus] Navigation error:', error);
+    debugError('[Stellar Focus] Navigation error:', error);
     const config = await getConfig();
     if (config) {
       await browser.tabs.create({ url: config.appUrl });
@@ -814,7 +817,7 @@ async function navigateToApp(url: string) {
 
     window.close();
   } catch (error) {
-    console.error('[Stellar Focus] Navigation error:', error);
+    debugError('[Stellar Focus] Navigation error:', error);
     await browser.tabs.create({ url });
     window.close();
   }

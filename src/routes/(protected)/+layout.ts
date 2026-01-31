@@ -3,6 +3,7 @@ import { browser } from '$app/environment';
 import { getSession, isSessionExpired } from '$lib/supabase/auth';
 import { getValidOfflineSession } from '$lib/auth/offlineSession';
 import { getOfflineCredentials } from '$lib/auth/offlineCredentials';
+import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 import type { AuthMode, OfflineCredentials } from '$lib/types';
 import type { Session } from '@supabase/supabase-js';
 import type { LayoutLoad } from './$types';
@@ -22,7 +23,7 @@ export const load: LayoutLoad = async ({ url }): Promise<ProtectedLayoutData> =>
     try {
       session = await getSession();
     } catch (e) {
-      console.warn('[Auth] Session check failed:', e);
+      debugWarn('[Auth] Session check failed:', e);
     }
 
     const hasValidSession = session && !isSessionExpired(session);
@@ -62,12 +63,12 @@ export const load: LayoutLoad = async ({ url }): Promise<ProtectedLayoutData> =>
           return { session: null, authMode: 'offline', offlineProfile: profile };
         }
         // Mismatch: credentials changed after session created
-        console.warn('[Auth] Offline session userId does not match credentials - clearing session');
+        debugWarn('[Auth] Offline session userId does not match credentials - clearing session');
         const { clearOfflineSession } = await import('$lib/auth/offlineSession');
         await clearOfflineSession();
       }
     } catch (e) {
-      console.warn('[Auth] Offline session check failed:', e);
+      debugWarn('[Auth] Offline session check failed:', e);
     }
 
     // No valid session while offline - redirect to login

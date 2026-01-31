@@ -15,6 +15,7 @@
  * - Uses reconnectScheduled flag to prevent duplicate reconnect attempts
  */
 
+import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 import { supabase } from '$lib/supabase/client';
 import { db } from '$lib/db/client';
 import { getDeviceId } from './deviceId';
@@ -148,7 +149,7 @@ function setConnectionState(newState: RealtimeConnectionState, error?: string): 
     try {
       callback(newState);
     } catch (e) {
-      console.error('[Realtime] Connection callback error:', e);
+      debugError('[Realtime] Connection callback error:', e);
     }
   }
 }
@@ -157,14 +158,14 @@ function setConnectionState(newState: RealtimeConnectionState, error?: string): 
  * Notify data update subscribers
  */
 function notifyDataUpdate(table: string, entityId: string): void {
-  console.log(
+  debugLog(
     `[Realtime] Notifying ${dataUpdateCallbacks.size} subscribers of update: ${table}/${entityId}`
   );
   for (const callback of dataUpdateCallbacks) {
     try {
       callback(table, entityId);
     } catch (e) {
-      console.error('[Realtime] Data update callback error:', e);
+      debugError('[Realtime] Data update callback error:', e);
     }
   }
 }
@@ -209,30 +210,30 @@ async function handleRealtimeChange(
   // Determine entity ID
   const entityId = (newRecord?.id || oldRecord?.id) as string;
 
-  console.log(`[Realtime] Received ${eventType} on ${table}:`, entityId);
+  debugLog(`[Realtime] Received ${eventType} on ${table}:`, entityId);
 
   if (!entityId) {
-    console.warn('[Realtime] Change without entity ID:', table, eventType);
+    debugWarn('[Realtime] Change without entity ID:', table, eventType);
     return;
   }
 
   // Skip if this change came from our own device (prevents echo)
   if (isOwnDeviceChange(newRecord)) {
-    console.log(`[Realtime] Skipping own device change: ${table}/${entityId}`);
+    debugLog(`[Realtime] Skipping own device change: ${table}/${entityId}`);
     return;
   }
 
   // Skip if we just processed this entity (prevents rapid duplicate processing)
   if (wasRecentlyProcessed(entityId)) {
-    console.log(`[Realtime] Skipping recently processed: ${table}/${entityId}`);
+    debugLog(`[Realtime] Skipping recently processed: ${table}/${entityId}`);
     return;
   }
 
-  console.log(`[Realtime] Processing remote change: ${eventType} ${table}/${entityId}`);
+  debugLog(`[Realtime] Processing remote change: ${eventType} ${table}/${entityId}`);
 
   const dexieTable = TABLE_MAP[table];
   if (!dexieTable) {
-    console.warn('[Realtime] Unknown table:', table);
+    debugWarn('[Realtime] Unknown table:', table);
     return;
   }
 
@@ -374,7 +375,7 @@ async function handleRealtimeChange(
       }
     }
   } catch (error) {
-    console.error(`[Realtime] Error handling ${eventType} on ${table}:`, error);
+    debugError(`[Realtime] Error handling ${eventType} on ${table}:`, error);
   }
 }
 
@@ -395,20 +396,20 @@ function scheduleReconnect(): void {
 
   // Don't attempt reconnection while offline - wait for online event
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    console.log('[Realtime] Offline - waiting for online event to reconnect');
+    debugLog('[Realtime] Offline - waiting for online event to reconnect');
     setConnectionState('disconnected');
     return;
   }
 
   if (state.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.log('[Realtime] Max reconnect attempts reached, falling back to polling');
+    debugLog('[Realtime] Max reconnect attempts reached, falling back to polling');
     setConnectionState('error', 'Max reconnection attempts reached');
     return;
   }
 
   reconnectScheduled = true;
   const delay = RECONNECT_BASE_DELAY * Math.pow(2, state.reconnectAttempts);
-  console.log(
+  debugLog(
     `[Realtime] Scheduling reconnect attempt ${state.reconnectAttempts + 1} in ${delay}ms`
   );
 
@@ -416,7 +417,7 @@ function scheduleReconnect(): void {
     reconnectScheduled = false;
     // Double-check we're still online before attempting
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.log('[Realtime] Went offline during backoff, cancelling reconnect');
+      debugLog('[Realtime] Went offline during backoff, cancelling reconnect');
       return;
     }
     state.reconnectAttempts++;
@@ -442,7 +443,7 @@ async function stopRealtimeSubscriptionsInternal(): Promise<void> {
     try {
       await supabase.removeChannel(state.channel);
     } catch (error) {
-      console.error('[Realtime] Error removing channel:', error);
+      debugError('[Realtime] Error removing channel:', error);
     }
     state.channel = null;
   }
@@ -459,7 +460,7 @@ export async function startRealtimeSubscriptions(userId: string): Promise<void> 
 
   // Don't start if offline - wait for online event
   if (!navigator.onLine) {
-    console.log('[Realtime] Offline - skipping subscription start');
+    debugLog('[Realtime] Offline - skipping subscription start');
     return;
   }
 
@@ -470,7 +471,7 @@ export async function startRealtimeSubscriptions(userId: string): Promise<void> 
 
   // Prevent concurrent start/stop operations
   if (operationInProgress) {
-    console.log('[Realtime] Operation already in progress, skipping');
+    debugLog('[Realtime] Operation already in progress, skipping');
     return;
   }
 
@@ -491,7 +492,7 @@ export async function startRealtimeSubscriptions(userId: string): Promise<void> 
 
     // Subscribe to all tables without user_id filter
     // RLS (Row Level Security) policies handle security at the database level
-    console.log(`[Realtime] Setting up subscriptions for ${REALTIME_TABLES.length} tables`);
+    debugLog(`[Realtime] Setting up subscriptions for ${REALTIME_TABLES.length} tables`);
     for (const table of REALTIME_TABLES) {
       state.channel = state.channel.on(
         'postgres_changes',
@@ -501,12 +502,12 @@ export async function startRealtimeSubscriptions(userId: string): Promise<void> 
           table: table
         },
         (payload) => {
-          console.log(`[Realtime] Raw payload received for ${table}:`, payload.eventType);
+          debugLog(`[Realtime] Raw payload received for ${table}:`, payload.eventType);
           handleRealtimeChange(
             table,
             payload as RealtimePostgresChangesPayload<Record<string, unknown>>
           ).catch((error) => {
-            console.error(`[Realtime] Error processing ${table} change:`, error);
+            debugError(`[Realtime] Error processing ${table} change:`, error);
           });
         }
       );
@@ -519,7 +520,7 @@ export async function startRealtimeSubscriptions(userId: string): Promise<void> 
 
       switch (status) {
         case 'SUBSCRIBED':
-          console.log('[Realtime] Connected and subscribed');
+          debugLog('[Realtime] Connected and subscribed');
           state.reconnectAttempts = 0;
           reconnectScheduled = false;
           setConnectionState('connected');
@@ -527,20 +528,20 @@ export async function startRealtimeSubscriptions(userId: string): Promise<void> 
 
         case 'CHANNEL_ERROR':
           if (err?.message) {
-            console.error('[Realtime] Channel error:', err?.message);
+            debugError('[Realtime] Channel error:', err?.message);
           }
           setConnectionState('error', err?.message || 'Channel error');
           scheduleReconnect();
           break;
 
         case 'TIMED_OUT':
-          console.warn('[Realtime] Connection timed out');
+          debugWarn('[Realtime] Connection timed out');
           setConnectionState('error', 'Connection timed out');
           scheduleReconnect();
           break;
 
         case 'CLOSED':
-          console.log('[Realtime] Channel closed');
+          debugLog('[Realtime] Channel closed');
           // Only try to reconnect if:
           // 1. We weren't intentionally disconnected
           // 2. We have a user
@@ -554,7 +555,7 @@ export async function startRealtimeSubscriptions(userId: string): Promise<void> 
     });
   } catch (error) {
     operationInProgress = false;
-    console.error('[Realtime] Failed to start subscriptions:', error);
+    debugError('[Realtime] Failed to start subscriptions:', error);
     setConnectionState('error', error instanceof Error ? error.message : 'Failed to connect');
     scheduleReconnect();
   }
@@ -566,7 +567,7 @@ export async function startRealtimeSubscriptions(userId: string): Promise<void> 
 export async function stopRealtimeSubscriptions(): Promise<void> {
   // Prevent concurrent operations
   if (operationInProgress) {
-    console.log('[Realtime] Operation already in progress, skipping stop');
+    debugLog('[Realtime] Operation already in progress, skipping stop');
     return;
   }
 
@@ -596,7 +597,7 @@ export function pauseRealtime(): void {
   // Reset reconnect attempts so we get fresh attempts when coming online
   state.reconnectAttempts = 0;
   setConnectionState('disconnected');
-  console.log('[Realtime] Paused - waiting for online event');
+  debugLog('[Realtime] Paused - waiting for online event');
 }
 
 /**

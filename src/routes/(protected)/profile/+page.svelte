@@ -5,6 +5,7 @@
   import { authState, userDisplayInfo } from '$lib/stores/authState';
   import { isOnline } from '$lib/stores/network';
   import { isAdmin } from '$lib/auth/admin';
+  import { isDebugMode, setDebugMode } from '$lib/utils/debug';
 
   // Form state
   let firstName = $state('');
@@ -23,6 +24,7 @@
   let showCurrentPassword = $state(false);
   let showNewPassword = $state(false);
   let showConfirmPassword = $state(false);
+  let debugMode = $state(isDebugMode());
 
   // Get initial values from user data
   $effect(() => {
@@ -111,6 +113,11 @@
     }
 
     passwordLoading = false;
+  }
+
+  function toggleDebugMode() {
+    debugMode = !debugMode;
+    setDebugMode(debugMode);
   }
 
   function goBack() {
@@ -431,6 +438,22 @@
       <div class="card-header">
         <h2 class="card-title">Administration</h2>
         <p class="card-subtitle">Manage your Stellar instance</p>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Debug Mode</span>
+          <span class="setting-hint">Enable console logging for troubleshooting</span>
+        </div>
+        <button
+          class="toggle-btn"
+          class:active={debugMode}
+          onclick={toggleDebugMode}
+          role="switch"
+          aria-checked={debugMode}
+        >
+          <span class="toggle-knob"></span>
+        </button>
       </div>
 
       <button class="btn btn-secondary" onclick={() => goto('/setup')}>
@@ -1070,6 +1093,70 @@
   .footer-link:hover {
     color: var(--color-primary-light);
     opacity: 1;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     SETTINGS TOGGLE
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(108, 92, 231, 0.1);
+    margin-bottom: 1rem;
+  }
+
+  .setting-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .setting-label {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .setting-hint {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  .toggle-btn {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    background: rgba(108, 92, 231, 0.15);
+    border: 1px solid rgba(108, 92, 231, 0.25);
+    border-radius: 13px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .toggle-btn.active {
+    background: var(--gradient-primary);
+    border-color: rgba(108, 92, 231, 0.5);
+    box-shadow: 0 0 12px var(--color-primary-glow);
+  }
+
+  .toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: #e8e6f0;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+  }
+
+  .toggle-btn.active .toggle-knob {
+    transform: translateX(22px);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════

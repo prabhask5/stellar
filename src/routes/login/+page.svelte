@@ -13,6 +13,7 @@
   import { createOfflineSession, getValidOfflineSession } from '$lib/auth/offlineSession';
   import { isOnline } from '$lib/stores/network';
   import type { OfflineCredentials } from '$lib/types';
+  import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 
   let mode: 'login' | 'signup' = $state('login');
   let email = $state('');
@@ -236,7 +237,7 @@
       await invalidateAll();
       goto(redirectUrl, { replaceState: true });
     } catch (e) {
-      console.error('[Offline Login] Failed to create session:', e);
+      debugError('[Offline Login] Failed to create session:', e);
       error = 'Failed to create offline session. Please try again.';
     }
   }

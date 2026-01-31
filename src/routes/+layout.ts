@@ -7,6 +7,7 @@ import { startSyncEngine, performSync } from '$lib/sync/engine';
 import { getValidOfflineSession, createOfflineSession } from '$lib/auth/offlineSession';
 import { getOfflineCredentials } from '$lib/auth/offlineCredentials';
 import { callReconnectHandler } from '$lib/auth/reconnectHandler';
+import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 import type { AuthMode, OfflineCredentials } from '$lib/types';
 import type { Session } from '@supabase/supabase-js';
 import type { LayoutLoad } from './$types';
@@ -21,20 +22,20 @@ if (browser) {
 
   // Register callback to create offline session when going offline
   isOnline.onDisconnect(async () => {
-    console.log('[App] Gone offline - creating offline session if credentials cached');
+    debugLog('[App] Gone offline - creating offline session if credentials cached');
 
     try {
       // Get current Supabase session to verify user
       const currentSession = await getSession();
       if (!currentSession?.user?.id) {
-        console.log('[App] No active Supabase session - skipping offline session creation');
+        debugLog('[App] No active Supabase session - skipping offline session creation');
         return;
       }
 
       // Check if we have cached credentials that match the current user
       const credentials = await getOfflineCredentials();
       if (!credentials) {
-        console.log('[App] No cached credentials - skipping offline session creation');
+        debugLog('[App] No cached credentials - skipping offline session creation');
         return;
       }
 
@@ -43,7 +44,7 @@ if (browser) {
         credentials.userId !== currentSession.user.id ||
         credentials.email !== currentSession.user.email
       ) {
-        console.warn(
+        debugWarn(
           '[App] Cached credentials do not match current user - skipping offline session creation'
         );
         return;
@@ -53,16 +54,16 @@ if (browser) {
       const existingSession = await getValidOfflineSession();
       if (!existingSession) {
         await createOfflineSession(credentials.userId);
-        console.log('[App] Offline session created from cached credentials');
+        debugLog('[App] Offline session created from cached credentials');
       }
     } catch (e) {
-      console.error('[App] Failed to create offline session:', e);
+      debugError('[App] Failed to create offline session:', e);
     }
   });
 
   // Register callback to sync when coming back online
   isOnline.onReconnect(async () => {
-    console.log('[App] Back online - triggering sync and auth check');
+    debugLog('[App] Back online - triggering sync and auth check');
 
     // First, check auth state on reconnect
     await callReconnectHandler();
@@ -138,7 +139,7 @@ export const load: LayoutLoad = async ({ url }): Promise<LayoutData> => {
         }
         // Mismatch: credentials changed after session created (e.g., different user logged in)
         // Clear the stale offline session
-        console.warn(
+        debugWarn(
           '[Layout] Offline session userId does not match credentials - clearing session'
         );
         const { clearOfflineSession } = await import('$lib/auth/offlineSession');
@@ -150,7 +151,7 @@ export const load: LayoutLoad = async ({ url }): Promise<LayoutData> => {
     } catch (e) {
       // If session retrieval fails completely (corrupted auth state),
       // clear all Supabase auth data and return no session
-      console.error('[Layout] Failed to get session, clearing auth state:', e);
+      debugError('[Layout] Failed to get session, clearing auth state:', e);
       try {
         // Clear all Supabase auth storage
         const keys = Object.keys(localStorage).filter((k) => k.startsWith('sb-'));

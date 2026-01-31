@@ -644,6 +644,20 @@
 
     .month-title {
       font-size: 1.375rem;
+      white-space: nowrap;
+    }
+
+    .today-btn {
+      font-size: 0;
+      width: 8px;
+      height: 8px;
+      padding: 0;
+      margin-left: 0.4rem;
+      border-radius: 50%;
+      background: var(--color-primary);
+      border-color: transparent;
+      box-shadow: 0 0 8px var(--color-primary-glow);
+      letter-spacing: 0;
     }
 
     .nav-btn {

@@ -5,6 +5,7 @@
 
 import browser from 'webextension-polyfill';
 import { getConfig } from '../config';
+import { debugError } from '../lib/debug';
 
 // Encouraging submessages - the main message stays fixed for impact
 const submessages = [
@@ -48,7 +49,7 @@ async function focusOrOpenApp() {
       await browser.tabs.create({ url: `${appUrl}/focus` });
     }
   } catch (error) {
-    console.error('[Stellar Focus] Navigation error:', error);
+    debugError('[Stellar Focus] Navigation error:', error);
     const config = await getConfig();
     if (config?.appUrl) {
       window.open(`${config.appUrl}/focus`, '_blank');

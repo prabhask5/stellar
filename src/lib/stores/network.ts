@@ -1,5 +1,6 @@
 import { writable, type Readable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 
 // Callbacks can be sync or async
 type NetworkCallback = () => void | Promise<void>;
@@ -32,7 +33,7 @@ function createNetworkStore(): Readable<boolean> & {
       try {
         await callback();
       } catch (e) {
-        console.error(`[Network] ${label} callback error:`, e);
+        debugError(`[Network] ${label} callback error:`, e);
       }
     }
   }

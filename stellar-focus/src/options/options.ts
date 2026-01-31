@@ -6,6 +6,7 @@
 import browser from 'webextension-polyfill';
 import { createClient } from '@supabase/supabase-js';
 import { getConfig, setConfig } from '../config';
+import { getUser } from '../auth/supabase';
 
 // DOM Elements
 const form = document.getElementById('configForm') as HTMLFormElement;
@@ -14,6 +15,10 @@ const supabaseAnonKeyInput = document.getElementById('supabaseAnonKey') as HTMLI
 const appUrlInput = document.getElementById('appUrl') as HTMLInputElement;
 const messageEl = document.getElementById('message') as HTMLElement;
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
+
+// Admin elements
+const adminCard = document.getElementById('adminCard') as HTMLElement;
+const debugToggle = document.getElementById('debugToggle') as HTMLButtonElement;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -26,6 +31,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   form.addEventListener('submit', handleSubmit);
+
+  // Check if user is admin and show admin settings
+  try {
+    const user = await getUser();
+    if (user?.app_metadata?.is_admin === true) {
+      adminCard.classList.remove('hidden');
+
+      // Load current debug mode state
+      const result = await browser.storage.local.get('stellar_debug_mode');
+      if (result.stellar_debug_mode === true) {
+        debugToggle.classList.add('active');
+        debugToggle.setAttribute('aria-checked', 'true');
+      }
+
+      debugToggle.addEventListener('click', async () => {
+        const isActive = debugToggle.classList.toggle('active');
+        debugToggle.setAttribute('aria-checked', String(isActive));
+        await browser.storage.local.set({ stellar_debug_mode: isActive });
+      });
+    }
+  } catch {
+    // User not logged in or extension not configured - admin card stays hidden
+  }
 });
 
 async function handleSubmit(e: Event) {

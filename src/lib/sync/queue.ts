@@ -1,3 +1,4 @@
+import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 import { db } from '$lib/db/client';
 import type { SyncOperationItem, SyncEntityType } from './types';
 
@@ -370,7 +371,7 @@ export async function cleanupFailedItems(): Promise<{ count: number; tables: str
   for (const item of failedItems) {
     affectedTables.add(item.table);
     if (item.id) {
-      console.warn(`Sync item permanently failed after ${MAX_SYNC_RETRIES} retries:`, {
+      debugWarn(`Sync item permanently failed after ${MAX_SYNC_RETRIES} retries:`, {
         table: item.table,
         operationType: item.operationType,
         entityId: item.entityId

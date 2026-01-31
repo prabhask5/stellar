@@ -16,6 +16,17 @@ import { getSupabase, getSession, resetSupabase } from '../auth/supabase';
 import { isConfigured, getConfig } from '../config';
 import { blockListsCache, blockedWebsitesCache, focusSessionCacheStore, type FocusSessionCache } from '../lib/storage';
 import { getNetworkStatus, checkConnectivity } from '../lib/network';
+import { debugLog, debugWarn, debugError, initDebugMode, setDebugModeCache } from '../lib/debug';
+
+// Initialize debug mode from storage
+initDebugMode();
+
+// Listen for debug mode changes
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.stellar_debug_mode) {
+    setDebugModeCache(changes.stellar_debug_mode.newValue === true);
+  }
+});
 
 // Polling interval for focus session status (30 seconds)
 const POLL_INTERVAL_MS = 30 * 1000;
@@ -43,7 +54,7 @@ const COLUMNS = {
 
 // Initialize
 browser.runtime.onInstalled.addListener(async () => {
-  console.log('[Stellar Focus] Extension installed');
+  debugLog('[Stellar Focus] Extension installed');
   const configured = await isConfigured();
   if (!configured) {
     // Open options page for first-time setup
@@ -55,7 +66,7 @@ browser.runtime.onInstalled.addListener(async () => {
 });
 
 browser.runtime.onStartup.addListener(async () => {
-  console.log('[Stellar Focus] Browser started');
+  debugLog('[Stellar Focus] Browser started');
   const configured = await isConfigured();
   if (!configured) return;
   setupAlarm();
@@ -86,7 +97,7 @@ browser.alarms.onAlarm.addListener((alarm: browser.Alarms.Alarm) => {
 async function handleAlarmWake() {
   // If realtime is down, try to reconnect it
   if (!realtimeHealthy) {
-    console.log('[Stellar Focus] Alarm wake - realtime unhealthy, reconnecting');
+    debugLog('[Stellar Focus] Alarm wake - realtime unhealthy, reconnecting');
     await setupRealtimeSubscriptions();
   }
   // Always poll to catch updates missed during any disconnection gap
@@ -97,7 +108,7 @@ async function handleAlarmWake() {
 async function pollFocusSessionThrottled() {
   const now = Date.now();
   if (now - lastPollTime < MIN_POLL_INTERVAL_MS) {
-    console.log('[Stellar Focus] Skipping poll - too soon (rate limited)');
+    debugLog('[Stellar Focus] Skipping poll - too soon (rate limited)');
     return;
   }
   lastPollTime = now;
@@ -114,7 +125,7 @@ if (typeof navigator !== 'undefined') {
 browser.runtime.onMessage.addListener((message: { type: string }, _sender: browser.Runtime.MessageSender, sendResponse: (response?: unknown) => void) => {
   // Handle config update from options page
   if (message.type === 'CONFIG_UPDATED') {
-    console.log('[Stellar Focus] Config updated - re-initializing');
+    debugLog('[Stellar Focus] Config updated - re-initializing');
     resetSupabase();
     cleanupRealtimeSubscriptions();
     setupAlarm();
@@ -125,7 +136,7 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
   if (message.type === 'CHECK_REALTIME') {
     // Popup opened — check realtime health and reconnect if needed
     if (!realtimeHealthy) {
-      console.log('[Stellar Focus] Popup opened - realtime unhealthy, reconnecting');
+      debugLog('[Stellar Focus] Popup opened - realtime unhealthy, reconnecting');
       setupRealtimeSubscriptions();
       pollFocusSessionThrottled();
     }
@@ -202,7 +213,7 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('[Stellar Focus] GET_FOCUS_TIME_TODAY error:', error);
+          debugError('[Stellar Focus] GET_FOCUS_TIME_TODAY error:', error);
           sendResponse({ totalMs: 0, hasRunningSession: false });
           return;
         }
@@ -222,7 +233,7 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
 
         sendResponse({ totalMs, hasRunningSession });
       } catch (err) {
-        console.error('[Stellar Focus] GET_FOCUS_TIME_TODAY error:', err);
+        debugError('[Stellar Focus] GET_FOCUS_TIME_TODAY error:', err);
         sendResponse({ totalMs: 0, hasRunningSession: false });
       }
     })();
@@ -246,7 +257,7 @@ browser.webNavigation.onBeforeNavigate.addListener(async (details: browser.WebNa
   const isDebugDomain = debugDomains.some(d => hostname.includes(d));
 
   if (isDebugDomain) {
-    console.log('[Stellar Focus] Navigation to:', hostname, {
+    debugLog('[Stellar Focus] Navigation to:', hostname, {
       isOnline,
       hasSession: !!currentFocusSession,
       sessionStatus: currentFocusSession?.status,
@@ -267,11 +278,11 @@ browser.webNavigation.onBeforeNavigate.addListener(async (details: browser.WebNa
   const shouldBlock = await isDomainBlocked(hostname);
 
   if (isDebugDomain) {
-    console.log('[Stellar Focus] Should block', hostname, ':', shouldBlock);
+    debugLog('[Stellar Focus] Should block', hostname, ':', shouldBlock);
   }
 
   if (shouldBlock) {
-    console.log('[Stellar Focus] Blocking:', hostname);
+    debugLog('[Stellar Focus] Blocking:', hostname);
     // Redirect to blocked page
     const blockedUrl = browser.runtime.getURL(
       `pages/blocked.html?url=${encodeURIComponent(details.url)}&domain=${encodeURIComponent(hostname)}`
@@ -285,7 +296,7 @@ async function init() {
   // Check config availability
   const configured = await isConfigured();
   if (!configured) {
-    console.log('[Stellar Focus] Not configured - skipping init');
+    debugLog('[Stellar Focus] Not configured - skipping init');
     return;
   }
 
@@ -346,7 +357,7 @@ async function setupRealtimeSubscriptions() {
         filter: `user_id=eq.${user.id}`
       },
       (payload) => {
-        console.log('[Stellar Focus] Real-time: Focus session update', payload.eventType);
+        debugLog('[Stellar Focus] Real-time: Focus session update', payload.eventType);
         // Use the payload data directly instead of making another query
         // This reduces egress since realtime already includes the data
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -397,7 +408,7 @@ async function setupRealtimeSubscriptions() {
         filter: `user_id=eq.${user.id}`
       },
       (payload) => {
-        console.log('[Stellar Focus] Real-time: Block list update', payload.eventType);
+        debugLog('[Stellar Focus] Real-time: Block list update', payload.eventType);
         // EGRESS OPTIMIZATION: Use payload data directly instead of re-fetching
         handleBlockListRealtimeUpdate(payload);
       }
@@ -414,19 +425,19 @@ async function setupRealtimeSubscriptions() {
         table: 'blocked_websites'
       },
       (payload) => {
-        console.log('[Stellar Focus] Real-time: Blocked website update', payload.eventType);
+        debugLog('[Stellar Focus] Real-time: Blocked website update', payload.eventType);
         // EGRESS OPTIMIZATION: Use payload data directly instead of re-fetching
         handleBlockedWebsiteRealtimeUpdate(payload);
       }
     )
     .subscribe((status) => {
-      console.log('[Stellar Focus] Realtime subscription:', status);
+      debugLog('[Stellar Focus] Realtime subscription:', status);
       if (status === 'SUBSCRIBED') {
         realtimeHealthy = true;
-        console.log('[Stellar Focus] Realtime healthy - disabling polling fallback');
+        debugLog('[Stellar Focus] Realtime healthy - disabling polling fallback');
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         realtimeHealthy = false;
-        console.log('[Stellar Focus] Realtime unhealthy - attempting immediate reconnection');
+        debugLog('[Stellar Focus] Realtime unhealthy - attempting immediate reconnection');
         // Immediate reconnection attempt with a short delay to avoid tight loops
         setTimeout(() => {
           if (!realtimeHealthy) {
@@ -437,7 +448,7 @@ async function setupRealtimeSubscriptions() {
       }
     });
 
-  console.log('[Stellar Focus] Real-time subscription set up (single consolidated channel)');
+  debugLog('[Stellar Focus] Real-time subscription set up (single consolidated channel)');
 }
 
 // EGRESS OPTIMIZATION: Handle block list updates directly from realtime payload
@@ -476,7 +487,7 @@ async function handleBlockListRealtimeUpdate(payload: { eventType: string; new?:
     // Notify popup of block list change
     notifyPopup('BLOCK_LISTS_CHANGED');
   } catch (error) {
-    console.error('[Stellar Focus] Error handling block list update:', error);
+    debugError('[Stellar Focus] Error handling block list update:', error);
     // Fall back to full refresh only on error
     refreshBlockLists();
   }
@@ -508,7 +519,7 @@ async function handleBlockedWebsiteRealtimeUpdate(payload: { eventType: string; 
       }
     }
   } catch (error) {
-    console.error('[Stellar Focus] Error handling blocked website update:', error);
+    debugError('[Stellar Focus] Error handling blocked website update:', error);
     // Fall back to full refresh only on error
     refreshBlockLists();
   }
@@ -546,14 +557,14 @@ async function pollFocusSession() {
   isOnline = await checkConnectivity(extConfig.supabaseUrl);
 
   if (!isOnline) {
-    console.log('[Stellar Focus] Offline - skipping poll');
+    debugLog('[Stellar Focus] Offline - skipping poll');
     cleanupRealtimeSubscriptions();
     return;
   }
 
   // Re-setup subscriptions if we just came back online
   if (!wasOnline && isOnline) {
-    console.log('[Stellar Focus] Back online - setting up real-time subscriptions');
+    debugLog('[Stellar Focus] Back online - setting up real-time subscriptions');
     await setupRealtimeSubscriptions();
   }
 
@@ -605,20 +616,20 @@ async function pollFocusSession() {
 
       // Refresh block lists when focus session starts to ensure we have latest data
       if (!wasRunning && isNowRunning) {
-        console.log('[Stellar Focus] Focus session started - refreshing block lists');
+        debugLog('[Stellar Focus] Focus session started - refreshing block lists');
         await refreshBlockLists();
       }
 
-      console.log('[Stellar Focus] Focus session active:', focusSession.phase, focusSession.status);
+      debugLog('[Stellar Focus] Focus session active:', focusSession.phase, focusSession.status);
     } else {
       // No active session
       await focusSessionCacheStore.clear();
       currentFocusSession = null;
 
-      console.log('[Stellar Focus] No active focus session');
+      debugLog('[Stellar Focus] No active focus session');
     }
   } catch (error) {
-    console.error('[Stellar Focus] Poll error:', error);
+    debugError('[Stellar Focus] Poll error:', error);
   }
 }
 
@@ -680,10 +691,10 @@ async function refreshBlockLists() {
         }
       }
 
-      console.log('[Stellar Focus] Block lists refreshed:', lists.length, 'lists');
+      debugLog('[Stellar Focus] Block lists refreshed:', lists.length, 'lists');
     }
   } catch (error) {
-    console.error('[Stellar Focus] Block lists refresh error:', error);
+    debugError('[Stellar Focus] Block lists refresh error:', error);
   }
 }
 
@@ -726,7 +737,7 @@ async function isDomainBlocked(hostname: string): Promise<boolean> {
 
     return false;
   } catch (error) {
-    console.error('[Stellar Focus] Domain check error:', error);
+    debugError('[Stellar Focus] Domain check error:', error);
     return false;
   }
 }

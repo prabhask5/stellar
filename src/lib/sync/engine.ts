@@ -1,4 +1,5 @@
 import { supabase } from '$lib/supabase/client';
+import { debugLog, debugWarn, debugError, isDebugMode } from '$lib/utils/debug';
 import { db } from '$lib/db/client';
 import {
   getPendingSync,
@@ -74,10 +75,10 @@ export async function clearPendingSyncQueue(): Promise<number> {
   try {
     const count = await db.syncQueue.count();
     await db.syncQueue.clear();
-    console.log(`[SYNC] Cleared ${count} pending sync operations (auth invalid)`);
+    debugLog(`[SYNC] Cleared ${count} pending sync operations (auth invalid)`);
     return count;
   } catch (e) {
-    console.error('[SYNC] Failed to clear sync queue:', e);
+    debugError('[SYNC] Failed to clear sync queue:', e);
     return 0;
   }
 }
@@ -194,7 +195,7 @@ function logSyncCycle(stats: Omit<SyncCycleStats, 'timestamp'>) {
     syncStats.shift();
   }
 
-  console.log(
+  debugLog(
     `[SYNC] Cycle #${totalSyncCycles}: ` +
       `trigger=${stats.trigger}, pushed=${stats.pushedItems}, ` +
       `pulled=${stats.pulledRecords} records (${formatBytes(stats.egressBytes)}), ${stats.durationMs}ms`
@@ -204,26 +205,26 @@ function logSyncCycle(stats: Omit<SyncCycleStats, 'timestamp'>) {
 // Export for debugging in browser console: window.__stellarSyncStats?.()
 // Also: window.__stellarTombstones?.() or window.__stellarTombstones?.({ cleanup: true, force: true })
 // Also: window.__stellarEgress?.()
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && isDebugMode()) {
   (window as unknown as Record<string, unknown>).__stellarSyncStats = () => {
     const recentMinute = syncStats.filter(
       (s) => new Date(s.timestamp).getTime() > Date.now() - 60000
     );
-    console.log('=== STELLAR SYNC STATS ===');
-    console.log(`Total cycles: ${totalSyncCycles}`);
-    console.log(`Last minute: ${recentMinute.length} cycles`);
-    console.log(`Recent cycles:`, syncStats.slice(-10));
+    debugLog('=== STELLAR SYNC STATS ===');
+    debugLog(`Total cycles: ${totalSyncCycles}`);
+    debugLog(`Last minute: ${recentMinute.length} cycles`);
+    debugLog(`Recent cycles:`, syncStats.slice(-10));
     return { totalSyncCycles, recentMinute: recentMinute.length, recent: syncStats.slice(-10) };
   };
 
   (window as unknown as Record<string, unknown>).__stellarEgress = () => {
-    console.log('=== STELLAR EGRESS STATS ===');
-    console.log(`Session started: ${egressStats.sessionStart}`);
-    console.log(
+    debugLog('=== STELLAR EGRESS STATS ===');
+    debugLog(`Session started: ${egressStats.sessionStart}`);
+    debugLog(
       `Total egress: ${formatBytes(egressStats.totalBytes)} (${egressStats.totalRecords} records)`
     );
-    console.log('');
-    console.log('--- BY TABLE ---');
+    debugLog('');
+    debugLog('--- BY TABLE ---');
 
     // Sort tables by bytes descending
     const sortedTables = Object.entries(egressStats.byTable).sort(
@@ -235,14 +236,14 @@ if (typeof window !== 'undefined') {
         egressStats.totalBytes > 0
           ? ((stats.bytes / egressStats.totalBytes) * 100).toFixed(1)
           : '0';
-      console.log(`  ${table}: ${formatBytes(stats.bytes)} (${stats.records} records, ${pct}%)`);
+      debugLog(`  ${table}: ${formatBytes(stats.bytes)} (${stats.records} records, ${pct}%)`);
     }
 
-    console.log('');
-    console.log('--- RECENT SYNC CYCLES ---');
+    debugLog('');
+    debugLog('--- RECENT SYNC CYCLES ---');
     const recent = syncStats.slice(-5);
     for (const cycle of recent) {
-      console.log(
+      debugLog(
         `  ${cycle.timestamp}: ${formatBytes(cycle.egressBytes)} (${cycle.pulledRecords} records)`
       );
     }
@@ -380,22 +381,22 @@ const syncCompleteCallbacks: Set<() => void> = new Set();
 
 export function onSyncComplete(callback: () => void): () => void {
   syncCompleteCallbacks.add(callback);
-  console.log(`[SYNC] Store registered for sync complete (total: ${syncCompleteCallbacks.size})`);
+  debugLog(`[SYNC] Store registered for sync complete (total: ${syncCompleteCallbacks.size})`);
   return () => {
     syncCompleteCallbacks.delete(callback);
-    console.log(
+    debugLog(
       `[SYNC] Store unregistered from sync complete (total: ${syncCompleteCallbacks.size})`
     );
   };
 }
 
 function notifySyncComplete(): void {
-  console.log(`[SYNC] Notifying ${syncCompleteCallbacks.size} store callbacks to refresh`);
+  debugLog(`[SYNC] Notifying ${syncCompleteCallbacks.size} store callbacks to refresh`);
   for (const callback of syncCompleteCallbacks) {
     try {
       callback();
     } catch (e) {
-      console.error('Sync callback error:', e);
+      debugError('Sync callback error:', e);
     }
   }
 }
@@ -480,7 +481,7 @@ export async function getGoalList(id: string): Promise<(GoalList & { goals: Goal
         }
       }
     } catch (e) {
-      console.error('Failed to fetch goal list from remote:', e);
+      debugError('Failed to fetch goal list from remote:', e);
     }
   }
 
@@ -529,7 +530,7 @@ export async function getDailyRoutineGoal(id: string): Promise<DailyRoutineGoal 
         routine = remoteRoutine;
       }
     } catch (e) {
-      console.error('Failed to fetch routine from remote:', e);
+      debugError('Failed to fetch routine from remote:', e);
     }
   }
 
@@ -578,7 +579,7 @@ export async function getDailyProgress(date: string): Promise<DailyGoalProgress[
         progress = remoteProgress;
       }
     } catch (e) {
-      console.error('Failed to fetch daily progress from remote:', e);
+      debugError('Failed to fetch daily progress from remote:', e);
     }
   }
 
@@ -611,7 +612,7 @@ export async function getMonthProgress(year: number, month: number): Promise<Dai
         progress = remoteProgress;
       }
     } catch (e) {
-      console.error('Failed to fetch month progress from remote:', e);
+      debugError('Failed to fetch month progress from remote:', e);
     }
   }
 
@@ -746,7 +747,7 @@ export function scheduleSyncPush(): void {
     // Skip pulling all 13 tables after local writes — just push.
     const skipPull = isRealtimeHealthy();
     if (skipPull) {
-      console.log('[SYNC] Realtime healthy — push-only mode (skipping pull)');
+      debugLog('[SYNC] Realtime healthy — push-only mode (skipping pull)');
     }
     runFullSync(false, skipPull); // Show syncing indicator for user-triggered writes
   }, SYNC_DEBOUNCE_MS);
@@ -763,26 +764,26 @@ async function getCurrentUserId(): Promise<string | null> {
     } = await supabase.auth.getSession();
 
     if (sessionError) {
-      console.warn('[SYNC] Session error:', sessionError.message);
+      debugWarn('[SYNC] Session error:', sessionError.message);
       return null;
     }
 
     if (!session) {
-      console.warn('[SYNC] No active session');
+      debugWarn('[SYNC] No active session');
       return null;
     }
 
     // Check if session is expired
     const expiresAt = session.expires_at;
     if (expiresAt && expiresAt * 1000 < Date.now()) {
-      console.log('[SYNC] Session expired, attempting refresh...');
+      debugLog('[SYNC] Session expired, attempting refresh...');
       // Try to refresh the session
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError || !refreshData.session) {
-        console.warn('[SYNC] Failed to refresh session:', refreshError?.message);
+        debugWarn('[SYNC] Failed to refresh session:', refreshError?.message);
         return null;
       }
-      console.log('[SYNC] Session refreshed successfully');
+      debugLog('[SYNC] Session refreshed successfully');
       const refreshedId = refreshData.session.user?.id || null;
       if (refreshedId) {
         lastValidatedUserId = refreshedId;
@@ -806,14 +807,14 @@ async function getCurrentUserId(): Promise<string | null> {
     } = await supabase.auth.getUser();
 
     if (userError) {
-      console.warn('[SYNC] User validation failed:', userError.message);
+      debugWarn('[SYNC] User validation failed:', userError.message);
       // Invalidate cache on error
       lastValidatedUserId = null;
       lastUserValidation = 0;
       // Try to refresh the session
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError || !refreshData.session) {
-        console.warn('[SYNC] Failed to refresh after user validation error');
+        debugWarn('[SYNC] Failed to refresh after user validation error');
         return null;
       }
       const refreshedId = refreshData.session.user?.id || null;
@@ -832,7 +833,7 @@ async function getCurrentUserId(): Promise<string | null> {
 
     return user?.id || null;
   } catch (e) {
-    console.error('[SYNC] Auth validation error:', e);
+    debugError('[SYNC] Auth validation error:', e);
     return null;
   }
 }
@@ -861,7 +862,7 @@ export async function resetSyncCursor(): Promise<void> {
   if (typeof localStorage !== 'undefined') {
     const key = userId ? `lastSyncCursor_${userId}` : 'lastSyncCursor';
     localStorage.removeItem(key);
-    console.log('[SYNC] Sync cursor reset - next sync will pull all data');
+    debugLog('[SYNC] Sync cursor reset - next sync will pull all data');
   }
 }
 
@@ -870,7 +871,7 @@ export async function resetSyncCursor(): Promise<void> {
  * This clears local data and re-downloads everything from the server.
  */
 export async function forceFullSync(): Promise<void> {
-  console.log('[SYNC] Starting force full sync...');
+  debugLog('[SYNC] Starting force full sync...');
 
   // Reset cursor to pull all data
   await resetSyncCursor();
@@ -910,7 +911,7 @@ export async function forceFullSync(): Promise<void> {
     }
   );
 
-  console.log('[SYNC] Local data cleared, pulling from server...');
+  debugLog('[SYNC] Local data cleared, pulling from server...');
 
   // Pull directly without using runFullSync (which passes a minCursor that overrides our reset)
   try {
@@ -924,9 +925,9 @@ export async function forceFullSync(): Promise<void> {
     syncStatusStore.setSyncMessage('Full sync complete');
     notifySyncComplete();
 
-    console.log('[SYNC] Force full sync complete');
+    debugLog('[SYNC] Force full sync complete');
   } catch (error) {
-    console.error('[SYNC] Force full sync failed:', error);
+    debugError('[SYNC] Force full sync failed:', error);
     syncStatusStore.setStatus('error');
     syncStatusStore.setError('Full sync failed', String(error));
     throw error;
@@ -950,7 +951,7 @@ async function pullRemoteChanges(minCursor?: string): Promise<{ bytes: number; r
   const lastSync = minCursor && minCursor > storedCursor ? minCursor : storedCursor;
   const pendingEntityIds = await getPendingEntityIds();
 
-  console.log(
+  debugLog(
     `[SYNC] Pulling changes since: ${lastSync} (stored: ${storedCursor}, min: ${minCursor || 'none'})`
   );
 
@@ -1102,7 +1103,7 @@ async function pullRemoteChanges(minCursor?: string): Promise<{ bytes: number; r
   }
 
   // Log what we're about to apply
-  console.log(`[SYNC] Pulled from server:`, {
+  debugLog(`[SYNC] Pulled from server:`, {
     goal_lists: remoteLists?.length || 0,
     goals: remoteGoals?.length || 0,
     daily_routine_goals: remoteRoutines?.length || 0,
@@ -1221,7 +1222,7 @@ async function pushPendingOps(): Promise<PushStats> {
   if (originalCount > 0) {
     const userId = await getCurrentUserId();
     if (!userId) {
-      console.error('[SYNC] Auth validation failed before push - session may be expired');
+      debugError('[SYNC] Auth validation failed before push - session may be expired');
       const authError = {
         message: 'Session expired - please sign in again',
         table: 'auth',
@@ -1241,7 +1242,7 @@ async function pushPendingOps(): Promise<PushStats> {
   // This merges e.g. 50 rapid increments into 1 update request
   const coalescedCount = await coalescePendingOps();
   if (coalescedCount > 0) {
-    console.log(
+    debugLog(
       `[SYNC] Coalesced ${coalescedCount} redundant operations (${originalCount} → ${originalCount - coalescedCount})`
     );
   }
@@ -1260,20 +1261,20 @@ async function pushPendingOps(): Promise<PushStats> {
         if (item.id) {
           const stillQueued = await db.syncQueue.get(item.id);
           if (!stillQueued) {
-            console.log(`[SYNC] Skipping purged item: ${item.operationType} ${item.table}/${item.entityId}`);
+            debugLog(`[SYNC] Skipping purged item: ${item.operationType} ${item.table}/${item.entityId}`);
             continue;
           }
         }
-        console.log(`[SYNC] Processing: ${item.operationType} ${item.table}/${item.entityId}`);
+        debugLog(`[SYNC] Processing: ${item.operationType} ${item.table}/${item.entityId}`);
         await processSyncItem(item);
         if (item.id) {
           await removeSyncItem(item.id);
           processedAny = true;
           actualPushed++;
-          console.log(`[SYNC] Success: ${item.operationType} ${item.table}/${item.entityId}`);
+          debugLog(`[SYNC] Success: ${item.operationType} ${item.table}/${item.entityId}`);
         }
       } catch (error) {
-        console.error(
+        debugError(
           `[SYNC] Failed: ${item.operationType} ${item.table}/${item.entityId}:`,
           error
         );
@@ -1457,7 +1458,7 @@ async function processSyncItem(item: SyncOperationItem): Promise<void> {
       // If update returned no data, the row may not exist or RLS blocked it
       // For deletes, we treat this as success (already deleted or will be on next sync)
       if (!error && !data) {
-        console.log(`[SYNC] Delete may have been blocked or row missing: ${table}/${entityId}`);
+        debugLog(`[SYNC] Delete may have been blocked or row missing: ${table}/${entityId}`);
       }
       break;
     }
@@ -1476,7 +1477,7 @@ async function processSyncItem(item: SyncOperationItem): Promise<void> {
       const localEntity = await db.table(dexieTable).get(entityId);
       if (!localEntity) {
         // Entity was deleted locally, skip this increment
-        console.warn(`[SYNC] Skipping increment for deleted entity: ${table}/${entityId}`);
+        debugWarn(`[SYNC] Skipping increment for deleted entity: ${table}/${entityId}`);
         return;
       }
 
@@ -1682,7 +1683,7 @@ export async function runFullSync(quiet: boolean = false, skipPull: boolean = fa
   // SECURITY: If we were offline and came back online, auth must be validated first
   // This prevents syncing potentially unauthorized data from an invalid offline session
   if (needsAuthValidation()) {
-    console.log('[SYNC] Waiting for auth validation before syncing (was offline)');
+    debugLog('[SYNC] Waiting for auth validation before syncing (was offline)');
     if (!quiet) {
       syncStatusStore.setStatus('idle');
       syncStatusStore.setSyncMessage('Validating credentials...');
@@ -1695,7 +1696,7 @@ export async function runFullSync(quiet: boolean = false, skipPull: boolean = fa
   // This causes the "sync succeeded but nothing synced" bug
   const userId = await getCurrentUserId();
   if (!userId) {
-    console.warn(
+    debugWarn(
       '[SYNC] No authenticated user - cannot sync. RLS would silently block all writes.'
     );
     if (!quiet) {
@@ -1737,7 +1738,7 @@ export async function runFullSync(quiet: boolean = false, skipPull: boolean = fa
     let pullEgress = { bytes: 0, records: 0 };
 
     if (skipPull) {
-      console.log('[SYNC] Skipping pull (realtime healthy, push-only mode)');
+      debugLog('[SYNC] Skipping pull (realtime healthy, push-only mode)');
       pullSucceeded = true;
     } else {
       if (!quiet) {
@@ -1835,7 +1836,7 @@ export async function runFullSync(quiet: boolean = false, skipPull: boolean = fa
     notifySyncComplete();
     lastSuccessfulSyncTimestamp = Date.now();
   } catch (error) {
-    console.error('Sync failed:', error);
+    debugError('Sync failed:', error);
 
     // Only show errors for user-initiated syncs (non-quiet)
     // Background syncs fail silently - they'll retry automatically
@@ -2017,7 +2018,7 @@ export async function hydrateFromRemote(): Promise<void> {
       (blockLists?.length || 0) +
       (blockedWebsites?.length || 0) +
       (projects?.length || 0);
-    console.log(
+    debugLog(
       `[SYNC] Initial hydration: ${totalRecords} records (${formatBytes(egressStats.totalBytes)})`
     );
 
@@ -2116,7 +2117,7 @@ export async function hydrateFromRemote(): Promise<void> {
     // Notify stores
     notifySyncComplete();
   } catch (error) {
-    console.error('Hydration failed:', error);
+    debugError('Hydration failed:', error);
     const friendlyMessage = parseErrorMessage(error);
     const rawMessage = extractErrorMessage(error);
     syncStatusStore.setStatus('error');
@@ -2188,7 +2189,7 @@ async function cleanupLocalTombstones(): Promise<number> {
             .filter((item) => item.deleted === true && item.updated_at < cutoffStr)
             .delete();
           if (count > 0) {
-            console.log(`[Tombstone] Cleaned ${count} old records from local ${name}`);
+            debugLog(`[Tombstone] Cleaned ${count} old records from local ${name}`);
             totalDeleted += count;
           }
         }
@@ -2196,10 +2197,10 @@ async function cleanupLocalTombstones(): Promise<number> {
     );
 
     if (totalDeleted > 0) {
-      console.log(`[Tombstone] Local cleanup complete: ${totalDeleted} total records removed`);
+      debugLog(`[Tombstone] Local cleanup complete: ${totalDeleted} total records removed`);
     }
   } catch (error) {
-    console.error('[Tombstone] Failed to cleanup local tombstones:', error);
+    debugError('[Tombstone] Failed to cleanup local tombstones:', error);
   }
 
   return totalDeleted;
@@ -2247,9 +2248,9 @@ async function cleanupServerTombstones(force = false): Promise<number> {
         .select('id');
 
       if (error) {
-        console.error(`[Tombstone] Failed to cleanup ${table}:`, error.message);
+        debugError(`[Tombstone] Failed to cleanup ${table}:`, error.message);
       } else if (data && data.length > 0) {
-        console.log(`[Tombstone] Cleaned ${data.length} old records from server ${table}`);
+        debugLog(`[Tombstone] Cleaned ${data.length} old records from server ${table}`);
         totalDeleted += data.length;
       }
     }
@@ -2257,10 +2258,10 @@ async function cleanupServerTombstones(force = false): Promise<number> {
     lastServerCleanup = now;
 
     if (totalDeleted > 0) {
-      console.log(`[Tombstone] Server cleanup complete: ${totalDeleted} total records removed`);
+      debugLog(`[Tombstone] Server cleanup complete: ${totalDeleted} total records removed`);
     }
   } catch (error) {
-    console.error('[Tombstone] Failed to cleanup server tombstones:', error);
+    debugError('[Tombstone] Failed to cleanup server tombstones:', error);
   }
 
   return totalDeleted;
@@ -2282,15 +2283,15 @@ export async function debugTombstones(options?: {
   cutoffDate.setDate(cutoffDate.getDate() - TOMBSTONE_MAX_AGE_DAYS);
   const cutoffStr = cutoffDate.toISOString();
 
-  console.log('=== TOMBSTONE DEBUG ===');
-  console.log(`Cutoff date (${TOMBSTONE_MAX_AGE_DAYS} days ago): ${cutoffStr}`);
-  console.log(
+  debugLog('=== TOMBSTONE DEBUG ===');
+  debugLog(`Cutoff date (${TOMBSTONE_MAX_AGE_DAYS} days ago): ${cutoffStr}`);
+  debugLog(
     `Last server cleanup: ${lastServerCleanup ? new Date(lastServerCleanup).toISOString() : 'Never'}`
   );
-  console.log('');
+  debugLog('');
 
   // Check local tombstones
-  console.log('--- LOCAL TOMBSTONES (IndexedDB) ---');
+  debugLog('--- LOCAL TOMBSTONES (IndexedDB) ---');
   const localTables = [
     { table: db.goalLists, name: 'goalLists' },
     { table: db.goals, name: 'goals' },
@@ -2314,7 +2315,7 @@ export async function debugTombstones(options?: {
     const eligible = allDeleted.filter((item) => item.updated_at < cutoffStr);
 
     if (allDeleted.length > 0) {
-      console.log(
+      debugLog(
         `  ${name}: ${allDeleted.length} tombstones (${eligible.length} eligible for cleanup)`
       );
       totalLocalTombstones += allDeleted.length;
@@ -2323,17 +2324,17 @@ export async function debugTombstones(options?: {
       // Show oldest tombstone
       if (allDeleted.length > 0) {
         const oldest = allDeleted.reduce((a, b) => (a.updated_at < b.updated_at ? a : b));
-        console.log(`    Oldest: ${oldest.updated_at}`);
+        debugLog(`    Oldest: ${oldest.updated_at}`);
       }
     }
   }
 
-  console.log(`  TOTAL: ${totalLocalTombstones} tombstones (${totalLocalEligible} eligible)`);
-  console.log('');
+  debugLog(`  TOTAL: ${totalLocalTombstones} tombstones (${totalLocalEligible} eligible)`);
+  debugLog('');
 
   // Check server tombstones (if online)
   if (navigator.onLine) {
-    console.log('--- SERVER TOMBSTONES (Supabase) ---');
+    debugLog('--- SERVER TOMBSTONES (Supabase) ---');
     const serverTables = [
       'goal_lists',
       'goals',
@@ -2359,14 +2360,14 @@ export async function debugTombstones(options?: {
         .eq('deleted', true);
 
       if (error) {
-        console.log(`  ${table}: ERROR - ${error.message}`);
+        debugLog(`  ${table}: ERROR - ${error.message}`);
         continue;
       }
 
       const eligible = (allDeleted || []).filter((item) => item.updated_at < cutoffStr);
 
       if (allDeleted && allDeleted.length > 0) {
-        console.log(
+        debugLog(
           `  ${table}: ${allDeleted.length} tombstones (${eligible.length} eligible for cleanup)`
         );
         totalServerTombstones += allDeleted.length;
@@ -2374,38 +2375,38 @@ export async function debugTombstones(options?: {
 
         // Show oldest tombstone
         const oldest = allDeleted.reduce((a, b) => (a.updated_at < b.updated_at ? a : b));
-        console.log(`    Oldest: ${oldest.updated_at}`);
+        debugLog(`    Oldest: ${oldest.updated_at}`);
       }
     }
 
-    console.log(`  TOTAL: ${totalServerTombstones} tombstones (${totalServerEligible} eligible)`);
+    debugLog(`  TOTAL: ${totalServerTombstones} tombstones (${totalServerEligible} eligible)`);
   } else {
-    console.log('--- SERVER TOMBSTONES: Offline, skipping ---');
+    debugLog('--- SERVER TOMBSTONES: Offline, skipping ---');
   }
 
-  console.log('');
+  debugLog('');
 
   // Run cleanup if requested
   if (options?.cleanup) {
-    console.log('--- RUNNING CLEANUP ---');
+    debugLog('--- RUNNING CLEANUP ---');
     const localDeleted = await cleanupLocalTombstones();
     const serverDeleted = options?.force
       ? await cleanupServerTombstones(true)
       : await cleanupServerTombstones();
 
-    console.log(`Cleanup complete: ${localDeleted} local, ${serverDeleted} server records removed`);
+    debugLog(`Cleanup complete: ${localDeleted} local, ${serverDeleted} server records removed`);
   } else {
-    console.log('To run cleanup, call: debugTombstones({ cleanup: true })');
-    console.log(
+    debugLog('To run cleanup, call: debugTombstones({ cleanup: true })');
+    debugLog(
       'To force server cleanup (bypass 24h limit): debugTombstones({ cleanup: true, force: true })'
     );
   }
 
-  console.log('========================');
+  debugLog('========================');
 }
 
 // Expose tombstone debug to window for console access
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && isDebugMode()) {
   (window as unknown as Record<string, unknown>).__stellarTombstones = debugTombstones;
 }
 
@@ -2458,17 +2459,17 @@ export async function startSyncEngine(): Promise<void> {
 
   // Subscribe to auth state changes - critical for iOS PWA where sessions can expire
   authStateUnsubscribe = supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log(`[SYNC] Auth state change: ${event}`);
+    debugLog(`[SYNC] Auth state change: ${event}`);
 
     if (event === 'SIGNED_OUT') {
       // User signed out - stop realtime and show error
-      console.warn('[SYNC] User signed out - stopping sync');
+      debugWarn('[SYNC] User signed out - stopping sync');
       stopRealtimeSubscriptions();
       syncStatusStore.setStatus('error');
       syncStatusStore.setError('Signed out', 'Please sign in to sync your data.');
     } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
       // User signed in or token refreshed - restart sync
-      console.log('[SYNC] Auth restored - resuming sync');
+      debugLog('[SYNC] Auth restored - resuming sync');
       if (navigator.onLine) {
         // Clear any auth errors
         syncStatusStore.reset();
@@ -2499,7 +2500,7 @@ export async function startSyncEngine(): Promise<void> {
     // iOS PWA triggers frequent network transitions — avoid redundant full syncs
     const timeSinceLastSync = Date.now() - lastSuccessfulSyncTimestamp;
     if (timeSinceLastSync < ONLINE_RECONNECT_COOLDOWN_MS) {
-      console.log(`[SYNC] Skipping online-reconnect sync (last sync ${Math.round(timeSinceLastSync / 1000)}s ago)`);
+      debugLog(`[SYNC] Skipping online-reconnect sync (last sync ${Math.round(timeSinceLastSync / 1000)}s ago)`);
     } else {
       runFullSync(false);
     }
@@ -2572,7 +2573,7 @@ export async function startSyncEngine(): Promise<void> {
   if (userId && navigator.onLine) {
     // Subscribe to realtime data updates - refresh stores when remote changes arrive
     realtimeDataUnsubscribe = onRealtimeDataUpdate((table, entityId) => {
-      console.log(`[SYNC] Realtime update received: ${table}/${entityId} - refreshing stores`);
+      debugLog(`[SYNC] Realtime update received: ${table}/${entityId} - refreshing stores`);
       // Notify stores to refresh from local DB
       notifySyncComplete();
     });
@@ -2749,7 +2750,7 @@ export async function performSync(): Promise<void> {
 }
 
 // Expose debug utilities to window for troubleshooting sync issues
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && isDebugMode()) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).stellarSync = {
     // Force full sync - clears local data and re-downloads from server
@@ -2772,13 +2773,13 @@ if (typeof window !== 'undefined') {
       try {
         const { data, error } = await supabase.from('goal_lists').select('id').limit(1);
         if (error) {
-          console.error('[SYNC DEBUG] Supabase query failed:', error);
+          debugError('[SYNC DEBUG] Supabase query failed:', error);
           return { connected: false, error: error.message };
         }
-        console.log('[SYNC DEBUG] Supabase connected, found', data?.length || 0, 'records');
+        debugLog('[SYNC DEBUG] Supabase connected, found', data?.length || 0, 'records');
         return { connected: true, records: data?.length || 0 };
       } catch (e) {
-        console.error('[SYNC DEBUG] Connection check failed:', e);
+        debugError('[SYNC DEBUG] Connection check failed:', e);
         return { connected: false, error: String(e) };
       }
     },
@@ -2791,22 +2792,22 @@ if (typeof window !== 'undefined') {
     }),
     // Test realtime subscription directly
     testRealtime: async () => {
-      console.log('[TEST] Setting up test realtime subscription...');
+      debugLog('[TEST] Setting up test realtime subscription...');
       const channel = supabase
         .channel('debug-test-channel')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'goal_lists' },
           (payload) => {
-            console.log('🔴 REALTIME TEST - Raw event received:', payload);
+            debugLog('🔴 REALTIME TEST - Raw event received:', payload);
           }
         )
         .subscribe((status, err) => {
-          console.log('🔴 REALTIME TEST - Subscription status:', status, err || '');
+          debugLog('🔴 REALTIME TEST - Subscription status:', status, err || '');
         });
 
-      console.log('[TEST] Subscription created. Make a change on another device.');
-      console.log('[TEST] To cleanup: window.stellarSync.cleanupTestRealtime()');
+      debugLog('[TEST] Subscription created. Make a change on another device.');
+      debugLog('[TEST] To cleanup: window.stellarSync.cleanupTestRealtime()');
 
       // Store for cleanup
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2819,9 +2820,9 @@ if (typeof window !== 'undefined') {
       const channel = (window as any)._testRealtimeChannel;
       if (channel) {
         await supabase.removeChannel(channel);
-        console.log('[TEST] Test channel removed');
+        debugLog('[TEST] Test channel removed');
       }
     }
   };
-  console.log('[SYNC] Debug utilities available at window.stellarSync');
+  debugLog('[SYNC] Debug utilities available at window.stellarSync');
 }
