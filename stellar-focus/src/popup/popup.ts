@@ -149,6 +149,12 @@ async function init() {
     await focusOrOpenApp();
   });
 
+  signupLink?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const cfg = await getConfig();
+    if (cfg) await navigateToApp(`${cfg.appUrl}/login`);
+  });
+
   privacyLink?.addEventListener('click', async (e) => {
     e.preventDefault();
     const cfg = await getConfig();
