@@ -9,9 +9,10 @@
     onNavigate: (goalListId: string) => void;
     onSetCurrent: (projectId: string) => void;
     onDelete: (projectId: string) => void;
+    dragHandleProps?: { onpointerdown: (e: PointerEvent) => void };
   }
 
-  let { project, onNavigate, onSetCurrent, onDelete }: Props = $props();
+  let { project, onNavigate, onSetCurrent, onDelete, dragHandleProps }: Props = $props();
 
   const totalGoals = $derived(project.goalList?.totalGoals ?? 0);
   const completedGoals = $derived(project.goalList?.completedGoals ?? 0);
@@ -43,12 +44,16 @@
 
 <div
   class="project-card"
+  class:has-drag-handle={!!dragHandleProps}
   role="button"
   tabindex="0"
   onclick={() => project.goal_list_id && onNavigate(project.goal_list_id)}
   onkeypress={(e) => e.key === 'Enter' && project.goal_list_id && onNavigate(project.goal_list_id)}
   use:remoteChangeAnimation={{ entityId: project.id, entityType: 'projects' }}
 >
+  {#if dragHandleProps}
+    <button class="drag-handle card-drag-handle" {...dragHandleProps} aria-label="Drag to reorder">⋮⋮</button>
+  {/if}
   <div class="project-header">
     <div class="project-title">
       <span class="tag-dot" style="background-color: {tagColor}"></span>
@@ -123,6 +128,22 @@
     transition: all 0.4s var(--ease-out);
     position: relative;
     overflow: hidden;
+  }
+
+  .project-card.has-drag-handle {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-drag-handle {
+    align-self: center;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(108, 92, 231, 0.1);
+    margin: -1rem -1rem 0.75rem -1rem;
+    padding: 0.375rem 1rem;
+    width: auto;
+    font-size: 1rem;
+    letter-spacing: 0.15em;
   }
 
   /* Top glow line */

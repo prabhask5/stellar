@@ -62,7 +62,7 @@
         end_date: data.endDate,
         active_days: data.activeDays
       });
-      goto('/calendar#manage-routines');
+      goto('/routines#manage-routines');
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to update routine';
       saving = false;
@@ -75,7 +75,7 @@
 
     try {
       await dailyRoutinesStore.delete(routine.id);
-      goto('/calendar#manage-routines');
+      goto('/routines#manage-routines');
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to delete routine';
     }
@@ -91,7 +91,7 @@
     <div class="header-left">
       <button
         class="back-btn"
-        onclick={() => goto('/calendar#manage-routines')}
+        onclick={() => goto('/routines#manage-routines')}
         aria-label="Back to calendar"
       >
         ← Back
@@ -169,13 +169,13 @@
         entityId={routine.id}
         entityType="daily_routine_goals"
         onSubmit={handleUpdateRoutine}
-        onCancel={() => goto('/calendar#manage-routines')}
+        onCancel={() => goto('/routines#manage-routines')}
       />
     </div>
   {:else}
     <div class="error-state">
       <p>Routine not found.</p>
-      <a href="/calendar#manage-routines" class="btn btn-primary">Back to Calendar</a>
+      <a href="/routines#manage-routines" class="btn btn-primary">Back to Calendar</a>
     </div>
   {/if}
 </div>

@@ -2,124 +2,183 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { dailyProgressStore, dailyRoutinesStore } from '$lib/stores/data';
-  import { formatDisplayDate, isPastDay, isTodayDate, getProgressiveTargetForDate } from '$lib/utils/dates';
+  import { goalListStore } from '$lib/stores/data';
+  import type { GoalList, Goal, GoalType } from '$lib/types';
   import { calculateGoalProgressCapped } from '$lib/utils/colors';
-  import type { DailyRoutineGoal, DailyGoalProgress } from '$lib/types';
   import GoalItem from '$lib/components/GoalItem.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
+  import Modal from '$lib/components/Modal.svelte';
+  import GoalForm from '$lib/components/GoalForm.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import DraggableList from '$lib/components/DraggableList.svelte';
-  import { parseISO } from 'date-fns';
+  import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
-  interface GoalWithProgress extends DailyRoutineGoal {
-    progress?: DailyGoalProgress;
-  }
-
-  let routines = $state<DailyRoutineGoal[]>([]);
-  let progressMap = $state<Map<string, DailyGoalProgress>>(new Map());
+  let list = $state<(GoalList & { goals: Goal[] }) | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
+  let showAddModal = $state(false);
+  let editingGoalId = $state<string | null>(null);
+  let editingListName = $state(false);
 
-  const dateStr = $derived($page.params.date!);
-  const date = $derived(parseISO(dateStr));
-  const displayDate = $derived(formatDisplayDate(dateStr));
-  const canEdit = $derived(isPastDay(date) || isTodayDate(date));
-
-  // Derive goals with their progress attached
-  // For progressive routines, compute and override target_value with the dynamic target for this date
-  const goalsWithProgress = $derived<GoalWithProgress[]>(
-    routines.map((routine) => ({
-      ...routine,
-      target_value: routine.type === 'progressive'
-        ? getProgressiveTargetForDate(routine, dateStr)
-        : routine.target_value,
-      progress: progressMap.get(routine.id)
-    }))
+  // Derive editing goal reactively from the store so props update when remote changes arrive
+  const editingGoal = $derived(
+    editingGoalId && list ? list.goals.find((g) => g.id === editingGoalId) ?? null : null
   );
+  let newListName = $state('');
+
+  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
+  function focus(node: HTMLElement) {
+    if (window.innerWidth > 640) {
+      node.focus();
+    }
+  }
+
+  const listId = $derived($page.params.id!);
 
   const totalProgress = $derived(() => {
-    if (goalsWithProgress.length === 0) return 0;
-    const total = goalsWithProgress.reduce((sum, goal) => {
-      const currentValue = goal.progress?.current_value ?? 0;
-      const completed = goal.progress?.completed ?? false;
+    if (!list?.goals || list.goals.length === 0) return 0;
+    const total = list.goals.reduce((sum, goal) => {
       return (
-        sum + calculateGoalProgressCapped(goal.type, completed, currentValue, goal.target_value)
+        sum +
+        calculateGoalProgressCapped(
+          goal.type,
+          goal.completed,
+          goal.current_value,
+          goal.target_value
+        )
       );
     }, 0);
-    return Math.round(total / goalsWithProgress.length);
+    return Math.round(total / list.goals.length);
   });
 
   // Subscribe to store
   $effect(() => {
-    const unsubStore = dailyProgressStore.subscribe((value) => {
-      if (value) {
-        routines = value.routines;
-        progressMap = value.progress;
-      }
+    const unsubList = goalListStore.subscribe((value) => {
+      list = value;
+      if (value) newListName = value.name;
     });
-    const unsubLoading = dailyProgressStore.loading.subscribe((value) => {
+    const unsubLoading = goalListStore.loading.subscribe((value) => {
       loading = value;
     });
 
     return () => {
-      unsubStore();
+      unsubList();
       unsubLoading();
     };
   });
 
   onMount(async () => {
-    await loadData();
+    await goalListStore.load(listId);
   });
 
   onDestroy(() => {
-    dailyProgressStore.clear();
+    goalListStore.clear();
   });
 
-  async function loadData() {
+  async function handleAddGoal(data: { name: string; type: GoalType; targetValue: number | null }) {
+    if (!list) return;
+
     try {
-      error = null;
-      await dailyProgressStore.load(dateStr);
+      await goalListStore.addGoal(list.id, data.name, data.type, data.targetValue);
+      showAddModal = false;
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load data';
+      error = e instanceof Error ? e.message : 'Failed to create goal';
     }
   }
 
-  async function handleToggleComplete(goal: GoalWithProgress) {
-    if (!canEdit) return;
+  async function handleUpdateGoal(data: {
+    name: string;
+    type: GoalType;
+    targetValue: number | null;
+  }) {
+    if (!editingGoal || !list) return;
 
     try {
-      await dailyProgressStore.toggleComplete(goal.id, dateStr);
+      const typeChanged = editingGoal.type !== data.type;
+
+      // Calculate updates
+      const updates: Partial<Goal> = {
+        name: data.name,
+        type: data.type,
+        target_value: data.targetValue
+      };
+
+      if (typeChanged) {
+        // Reset progress when changing type
+        updates.current_value = 0;
+        updates.completed = false;
+      }
+
+      await goalListStore.updateGoal(editingGoal.id, updates);
+      editingGoalId = null;
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to update progress';
+      error = e instanceof Error ? e.message : 'Failed to update goal';
     }
   }
 
-  async function handleIncrement(goal: GoalWithProgress, amount: number) {
-    if (!canEdit || (goal.type !== 'incremental' && goal.type !== 'progressive')) return;
+  async function handleToggleComplete(goal: Goal) {
+    if (!list) return;
 
     try {
-      await dailyProgressStore.increment(goal.id, dateStr, goal.target_value ?? 1, amount);
+      await goalListStore.updateGoal(goal.id, { completed: !goal.completed });
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to update progress';
+      error = e instanceof Error ? e.message : 'Failed to update goal';
     }
   }
 
-  async function handleSetValue(goal: GoalWithProgress, value: number) {
-    if (!canEdit || (goal.type !== 'incremental' && goal.type !== 'progressive')) return;
+  async function handleIncrement(goal: Goal, amount: number = 1) {
+    if (!list || goal.type !== 'incremental') return;
 
     try {
-      await dailyProgressStore.setValue(goal.id, dateStr, goal.target_value ?? 1, value);
+      if (amount > 0) {
+        await goalListStore.incrementGoal(goal.id, amount);
+      } else {
+        const newValue = Math.max(0, goal.current_value + amount);
+        const completed = goal.target_value ? newValue >= goal.target_value : false;
+        await goalListStore.updateGoal(goal.id, { current_value: newValue, completed });
+      }
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to update progress';
+      error = e instanceof Error ? e.message : 'Failed to update goal';
+    }
+  }
+
+  async function handleSetValue(goal: Goal, value: number) {
+    if (!list || goal.type !== 'incremental') return;
+
+    try {
+      // Only prevent negative - allow overflow above target
+      const clamped = Math.max(0, value);
+      const completed = goal.target_value ? clamped >= goal.target_value : false;
+      await goalListStore.updateGoal(goal.id, { current_value: clamped, completed });
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to update goal';
+    }
+  }
+
+  async function handleDeleteGoal(goal: Goal) {
+    if (!list || !confirm('Delete this goal?')) return;
+
+    try {
+      await goalListStore.deleteGoal(goal.id);
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to delete goal';
+    }
+  }
+
+  async function handleUpdateListName() {
+    if (!list || !newListName.trim()) return;
+
+    try {
+      await goalListStore.updateName(list.id, newListName.trim());
+      editingListName = false;
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to update list name';
     }
   }
 
   async function handleReorderGoal(goalId: string, newOrder: number) {
     try {
-      await dailyRoutinesStore.reorder(goalId, newOrder);
-      // Reload the daily progress to get the updated order
-      await dailyProgressStore.load(dateStr);
+      await goalListStore.reorderGoal(goalId, newOrder);
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to reorder goal';
     }
@@ -127,27 +186,49 @@
 </script>
 
 <svelte:head>
-  <title>{displayDate} - Stellar</title>
+  <title>{list?.name ?? 'Goal List'} - Stellar</title>
 </svelte:head>
 
 <div class="container">
   <header class="page-header">
     <div class="header-left">
-      <button class="back-btn" onclick={() => goto('/calendar')} aria-label="Back to calendar">
+      <button class="back-btn" onclick={() => goto('/plans')} aria-label="Back to lists">
         ← Back
       </button>
-      <div class="header-info">
-        <h1>{displayDate}</h1>
-        {#if isTodayDate(date)}
-          <span class="badge today">Today</span>
-        {:else if isPastDay(date)}
-          <span class="badge past">Past</span>
-        {:else}
-          <span class="badge future">Future</span>
-        {/if}
-      </div>
+      {#if editingListName}
+        <form
+          class="edit-name-form"
+          onsubmit={(e) => {
+            e.preventDefault();
+            handleUpdateListName();
+          }}
+        >
+          <input type="text" bind:value={newListName} use:focus />
+          <button type="submit" class="btn btn-sm btn-primary">Save</button>
+          <button
+            type="button"
+            class="btn btn-sm btn-secondary"
+            onclick={() => {
+              editingListName = false;
+              newListName = list?.name ?? '';
+            }}
+          >
+            Cancel
+          </button>
+        </form>
+      {:else if loading}
+        <div class="title-skeleton"></div>
+      {:else}
+        <button
+          class="title-edit-btn"
+          onclick={() => (editingListName = true)}
+          title="Click to edit list name"
+        >
+          <h1 use:truncateTooltip>{list?.name ?? 'List'}</h1>
+        </button>
+      {/if}
     </div>
-    <a href="/calendar" class="btn btn-secondary">Manage Routines</a>
+    <button class="btn btn-primary" onclick={() => (showAddModal = true)}> + Add Goal </button>
   </header>
 
   {#if error}
@@ -158,7 +239,7 @@
   {/if}
 
   {#if loading}
-    <!-- Daily Progress Skeleton -->
+    <!-- List Detail Skeleton -->
     <div class="skeleton-progress-section">
       <div class="skeleton-progress-bar"></div>
       <div class="skeleton-shimmer"></div>
@@ -170,57 +251,81 @@
           <div class="goal-skeleton-content">
             <div class="goal-skeleton-header">
               <div class="goal-skeleton-checkbox"></div>
-              <div class="goal-skeleton-title"></div>
+              <div class="goal-skeleton-info">
+                <div class="goal-skeleton-title"></div>
+                <div class="goal-skeleton-subtitle"></div>
+              </div>
             </div>
             <div class="goal-skeleton-progress-container">
               <div class="goal-skeleton-progress"></div>
+            </div>
+            <div class="goal-skeleton-actions">
+              <div class="goal-skeleton-btn"></div>
+              <div class="goal-skeleton-btn"></div>
             </div>
           </div>
           <div class="skeleton-shimmer"></div>
         </div>
       {/each}
     </div>
-  {:else if goalsWithProgress.length === 0}
-    <EmptyState
-      icon="📅"
-      title="No routines for this day"
-      description="No daily routine goals are active on this date. Create routines with date ranges that include this day."
-    >
-      <a href="/calendar" class="btn btn-primary">Create Routine</a>
-    </EmptyState>
-  {:else}
-    {#if canEdit}
-      <div class="progress-section">
-        <ProgressBar percentage={totalProgress()} />
-      </div>
-    {:else}
-      <div class="info-banner">
-        <p>This is a future date. Progress can only be tracked for past days and today.</p>
-      </div>
-    {/if}
+  {:else if list}
+    <div class="progress-section">
+      <ProgressBar percentage={totalProgress()} />
+    </div>
 
-    <DraggableList items={goalsWithProgress} onReorder={handleReorderGoal} disabled={!canEdit}>
-      {#snippet renderItem({ item: goal, dragHandleProps })}
-        <div class="goal-with-handle">
-          {#if canEdit}
+    {#if list.goals.length === 0}
+      <EmptyState
+        icon="🎯"
+        title="No goals yet"
+        description="Add your first goal to start tracking progress"
+      >
+        <button class="btn btn-primary" onclick={() => (showAddModal = true)}>
+          Add First Goal
+        </button>
+      </EmptyState>
+    {:else}
+      <DraggableList items={list.goals} onReorder={handleReorderGoal}>
+        {#snippet renderItem({ item: goal, dragHandleProps })}
+          <div class="goal-with-handle">
             <button class="drag-handle" {...dragHandleProps} aria-label="Drag to reorder">
               ⋮⋮
             </button>
-          {/if}
-          <div class="goal-item-wrapper" class:no-handle={!canEdit}>
-            <GoalItem
-              {goal}
-              onToggleComplete={canEdit ? () => handleToggleComplete(goal) : undefined}
-              onIncrement={canEdit ? () => handleIncrement(goal, 1) : undefined}
-              onDecrement={canEdit ? () => handleIncrement(goal, -1) : undefined}
-              onSetValue={canEdit ? (value) => handleSetValue(goal, value) : undefined}
-            />
+            <div class="goal-item-wrapper">
+              <GoalItem
+                {goal}
+                onToggleComplete={() => handleToggleComplete(goal)}
+                onIncrement={() => handleIncrement(goal, 1)}
+                onDecrement={() => handleIncrement(goal, -1)}
+                onSetValue={(value) => handleSetValue(goal, value)}
+                onEdit={() => (editingGoalId = goal.id)}
+                onDelete={() => handleDeleteGoal(goal)}
+              />
+            </div>
           </div>
-        </div>
-      {/snippet}
-    </DraggableList>
+        {/snippet}
+      </DraggableList>
+    {/if}
   {/if}
 </div>
+
+<Modal open={showAddModal} title="Add Goal" onClose={() => (showAddModal = false)}>
+  <GoalForm onSubmit={handleAddGoal} onCancel={() => (showAddModal = false)} />
+</Modal>
+
+<Modal open={editingGoal !== null} title="Edit Goal" onClose={() => (editingGoalId = null)}>
+  {#if editingGoal}
+    <GoalForm
+      name={editingGoal.name}
+      type={editingGoal.type}
+      targetValue={editingGoal.target_value}
+      submitLabel="Save Changes"
+      entityId={editingGoal.id}
+      entityType="goals"
+      onSubmit={handleUpdateGoal}
+      onCancel={() => (editingGoalId = null)}
+    />
+  {/if}
+</Modal>
 
 <style>
   .page-header {
@@ -236,6 +341,8 @@
     display: flex;
     align-items: center;
     gap: 1rem;
+    flex: 1;
+    min-width: 0;
   }
 
   .back-btn {
@@ -257,15 +364,33 @@
     box-shadow: 0 0 20px var(--color-primary-glow);
   }
 
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+  .title-edit-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    text-align: left;
   }
 
-  .page-header h1 {
+  .title-edit-btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 4px;
+    border-radius: var(--radius-lg);
+  }
+
+  .page-header h1,
+  .title-edit-btn h1 {
     font-size: 2rem;
     font-weight: 800;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    margin: -0.5rem -1rem;
+    border-radius: var(--radius-xl);
+    transition: all 0.35s var(--ease-out);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     background: linear-gradient(
       135deg,
       var(--color-text) 0%,
@@ -289,46 +414,36 @@
     }
   }
 
-  .badge {
-    font-size: 0.6875rem;
+  .page-header h1:hover,
+  .title-edit-btn:hover h1 {
+    background: linear-gradient(
+      135deg,
+      var(--color-primary-light) 0%,
+      var(--color-accent) 50%,
+      var(--color-primary-light) 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    filter: drop-shadow(0 0 30px var(--color-primary-glow));
+    animation: textShimmer 4s linear infinite;
+  }
+
+  .edit-name-form {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+  }
+
+  .edit-name-form input {
+    font-size: 1.375rem;
     font-weight: 700;
-    padding: 0.4rem 0.875rem;
-    border-radius: var(--radius-full);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    border: 1px solid transparent;
-  }
-
-  .badge.today {
-    background: var(--gradient-primary);
-    color: white;
-    box-shadow: 0 0 25px var(--color-primary-glow);
-    animation: todayPulse 2s var(--ease-smooth) infinite;
-  }
-
-  @keyframes todayPulse {
-    0%,
-    100% {
-      box-shadow: 0 0 20px var(--color-primary-glow);
-    }
-    50% {
-      box-shadow:
-        0 0 35px var(--color-primary-glow),
-        0 0 50px rgba(108, 92, 231, 0.3);
-    }
-  }
-
-  .badge.past {
-    background: linear-gradient(135deg, rgba(37, 37, 61, 0.9) 0%, rgba(26, 26, 46, 0.8) 100%);
-    color: var(--color-text-muted);
-    border-color: rgba(108, 92, 231, 0.2);
-  }
-
-  .badge.future {
-    background: rgba(37, 37, 61, 0.4);
-    color: var(--color-text-muted);
-    border-color: rgba(58, 58, 92, 0.3);
-    opacity: 0.7;
+    padding: 0.625rem 1rem;
+    width: 250px;
+    background: rgba(108, 92, 231, 0.15);
+    border: 2px solid var(--color-primary);
+    box-shadow: 0 0 30px var(--color-primary-glow);
+    letter-spacing: -0.01em;
   }
 
   .error-banner {
@@ -359,34 +474,6 @@
   .error-banner button:hover {
     background: rgba(255, 107, 107, 0.25);
     transform: scale(1.05);
-  }
-
-  .info-banner {
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.15) 0%, rgba(108, 92, 231, 0.05) 100%);
-    border: 1px solid rgba(108, 92, 231, 0.3);
-    border-radius: var(--radius-xl);
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 2rem;
-    backdrop-filter: blur(16px);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .info-banner::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(108, 92, 231, 0.3), transparent);
-  }
-
-  .info-banner p {
-    color: var(--color-text-muted);
-    font-size: 0.9375rem;
-    font-weight: 500;
-    line-height: 1.6;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -427,7 +514,7 @@
 
   .goal-skeleton-handle {
     width: 32px;
-    min-height: 90px;
+    min-height: 100px;
     background: linear-gradient(135deg, rgba(37, 37, 61, 0.9) 0%, rgba(26, 26, 46, 0.95) 100%);
     border: 1px solid rgba(108, 92, 231, 0.2);
     border-right: none;
@@ -438,17 +525,18 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.875rem;
     padding: 1.25rem 1.5rem;
     background: linear-gradient(165deg, rgba(15, 15, 30, 0.95) 0%, rgba(20, 20, 40, 0.9) 100%);
     border: 1px solid rgba(108, 92, 231, 0.2);
     border-left: none;
     border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+    position: relative;
   }
 
   .goal-skeleton-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 1rem;
   }
 
@@ -457,11 +545,19 @@
     height: 28px;
     border-radius: var(--radius-md);
     background: rgba(108, 92, 231, 0.15);
+    flex-shrink: 0;
+  }
+
+  .goal-skeleton-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   .goal-skeleton-title {
-    width: 55%;
-    height: 1.25rem;
+    width: 60%;
+    height: 1.125rem;
     background: linear-gradient(
       90deg,
       rgba(108, 92, 231, 0.15) 0%,
@@ -471,15 +567,37 @@
     border-radius: var(--radius-md);
   }
 
+  .goal-skeleton-subtitle {
+    width: 40%;
+    height: 0.875rem;
+    background: rgba(108, 92, 231, 0.08);
+    border-radius: var(--radius-sm);
+  }
+
   .goal-skeleton-progress-container {
     padding-left: 2.75rem;
   }
 
   .goal-skeleton-progress {
     height: 6px;
-    width: 70%;
+    width: 80%;
     background: rgba(108, 92, 231, 0.1);
     border-radius: var(--radius-full);
+  }
+
+  .goal-skeleton-actions {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .goal-skeleton-btn {
+    width: 36px;
+    height: 36px;
+    background: rgba(108, 92, 231, 0.08);
+    border-radius: var(--radius-lg);
   }
 
   .skeleton-shimmer {
@@ -516,6 +634,19 @@
     100% {
       left: 200%;
     }
+  }
+
+  .title-skeleton {
+    width: 200px;
+    height: 2rem;
+    background: linear-gradient(
+      90deg,
+      rgba(108, 92, 231, 0.15) 0%,
+      rgba(108, 92, 231, 0.25) 50%,
+      rgba(108, 92, 231, 0.15) 100%
+    );
+    border-radius: var(--radius-lg);
+    animation: skeletonPulse 2s ease-in-out infinite;
   }
 
   .progress-section {
@@ -558,7 +689,7 @@
     min-width: 0;
   }
 
-  .goal-item-wrapper:not(.no-handle) :global(.goal-item) {
+  .goal-item-wrapper :global(.goal-item) {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     border-left: none;
@@ -607,14 +738,15 @@
       transform: scale(0.98);
     }
 
-    .header-info {
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
     .page-header h1 {
       font-size: 1.5rem;
       text-align: center;
+      padding: 0.5rem;
+      margin: 0;
+    }
+
+    .page-header h1:hover {
+      filter: none;
     }
 
     .page-header .btn {
@@ -623,25 +755,25 @@
       padding: 1rem;
     }
 
-    .badge {
-      font-size: 0.625rem;
-      padding: 0.3rem 0.75rem;
+    .edit-name-form {
+      flex-direction: column;
+      width: 100%;
+      gap: 0.75rem;
+    }
+
+    .edit-name-form input {
+      width: 100%;
+      font-size: 1.125rem;
+    }
+
+    .edit-name-form .btn {
+      width: 100%;
     }
 
     .progress-section {
       padding: 1.25rem;
       margin-bottom: 1.5rem;
       border-radius: var(--radius-xl);
-    }
-
-    .info-banner {
-      padding: 1rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .info-banner p {
-      font-size: 0.875rem;
-      text-align: center;
     }
 
     .error-banner {
@@ -673,6 +805,10 @@
     .progress-section {
       padding: 1.5rem;
     }
+
+    .edit-name-form input {
+      font-size: 1.25rem;
+    }
   }
 
   /* Very small devices (iPhone SE) */
@@ -681,17 +817,12 @@
       font-size: 1.25rem;
     }
 
-    .badge {
-      font-size: 0.5625rem;
-      padding: 0.25rem 0.5rem;
-    }
-
     .progress-section {
       padding: 1rem;
     }
 
-    .info-banner p {
-      font-size: 0.8125rem;
+    .edit-name-form input {
+      font-size: 1rem;
     }
   }
 </style>

@@ -3,12 +3,21 @@ import type { GoalList } from '$lib/types';
 import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
 import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
+async function getNextGoalListOrder(userId: string): Promise<number> {
+  const existing = await db.goalLists.where('user_id').equals(userId).toArray();
+  const active = existing.filter((l) => !l.deleted);
+  if (active.length === 0) return 0;
+  return Math.min(...active.map((l) => l.order ?? 0)) - 1;
+}
+
 export async function createGoalList(name: string, userId: string): Promise<GoalList> {
   const timestamp = now();
+  const order = await getNextGoalListOrder(userId);
   const newList: GoalList = {
     id: generateId(),
     user_id: userId,
     name,
+    order,
     created_at: timestamp,
     updated_at: timestamp
   };
@@ -18,6 +27,7 @@ export async function createGoalList(name: string, userId: string): Promise<Goal
     await db.goalLists.add(newList);
     await queueCreateOperation('goal_lists', newList.id, {
       name,
+      order,
       user_id: userId,
       created_at: timestamp,
       updated_at: timestamp
@@ -97,6 +107,32 @@ export async function updateGoalList(id: string, name: string): Promise<GoalList
       }
     }
   );
+
+  if (updated) {
+    markEntityModified(id);
+    scheduleSyncPush();
+  }
+
+  return updated;
+}
+
+export async function reorderGoalList(id: string, newOrder: number): Promise<GoalList | undefined> {
+  const timestamp = now();
+
+  let updated: GoalList | undefined;
+  await db.transaction('rw', [db.goalLists, db.syncQueue], async () => {
+    await db.goalLists.update(id, { order: newOrder, updated_at: timestamp });
+    updated = await db.goalLists.get(id);
+    if (updated) {
+      await queueSyncOperation({
+        table: 'goal_lists',
+        entityId: id,
+        operationType: 'set',
+        field: 'order',
+        value: newOrder
+      });
+    }
+  });
 
   if (updated) {
     markEntityModified(id);

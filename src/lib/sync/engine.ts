@@ -461,12 +461,12 @@ function calculateListProgress(goals: Goal[]): {
 
 // Get all goal lists from LOCAL DB, fetch from remote if empty
 export async function getGoalLists(): Promise<GoalListWithProgress[]> {
-  let lists = await db.goalLists.orderBy('created_at').reverse().toArray();
+  let lists = await db.goalLists.orderBy('order').toArray();
 
   // If local is empty and online and we haven't tried hydrating yet, try to hydrate from remote
   if (lists.length === 0 && !hasHydrated && typeof navigator !== 'undefined' && navigator.onLine) {
     await hydrateFromRemote();
-    lists = await db.goalLists.orderBy('created_at').reverse().toArray();
+    lists = await db.goalLists.orderBy('order').toArray();
   }
 
   // Filter out deleted lists

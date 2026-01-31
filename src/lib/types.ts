@@ -21,6 +21,7 @@ export interface GoalList {
   user_id: string;
   name: string;
   project_id?: string | null; // If set, this goal list belongs to a project
+  order: number;
   created_at: string;
   updated_at: string;
   deleted?: boolean; // Tombstone flag

@@ -278,6 +278,40 @@ export class GoalPlannerDB extends Dexie {
       conflictHistory: '++id, entityId, entityType, timestamp',
       projects: 'id, user_id, is_current, order, created_at, updated_at'
     });
+
+    // Version 13: Add order column to goalLists for drag-drop reordering
+    this.version(13)
+      .stores({
+        goalLists: 'id, user_id, project_id, order, created_at, updated_at',
+        goals: 'id, goal_list_id, order, created_at, updated_at',
+        dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+        dailyGoalProgress:
+          'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+        syncQueue: '++id, table, entityId, timestamp',
+        taskCategories: 'id, user_id, project_id, order, created_at, updated_at',
+        commitments: 'id, user_id, project_id, section, order, created_at, updated_at',
+        dailyTasks: 'id, user_id, order, created_at, updated_at',
+        longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+        offlineCredentials: 'id',
+        offlineSession: 'id',
+        focusSettings: 'id, user_id, updated_at',
+        focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+        blockLists: 'id, user_id, order, updated_at',
+        blockedWebsites: 'id, block_list_id, updated_at',
+        conflictHistory: '++id, entityId, entityType, timestamp',
+        projects: 'id, user_id, is_current, order, created_at, updated_at'
+      })
+      .upgrade(async (tx) => {
+        const lists = await tx.table('goalLists').toArray();
+        // Sort by created_at descending (newest first, matching current display order)
+        lists.sort(
+          (a: { created_at: string }, b: { created_at: string }) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        for (let i = 0; i < lists.length; i++) {
+          await tx.table('goalLists').update(lists[i].id, { order: i });
+        }
+      });
   }
 }
 

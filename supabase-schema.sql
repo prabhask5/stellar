@@ -37,6 +37,7 @@ create table goal_lists (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references auth.users(id) on delete cascade,
   name text not null,
+  "order" double precision default 0 not null,
   deleted boolean default false not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -169,6 +170,7 @@ alter table goal_lists add column project_id uuid references projects(id) on del
 
 -- Goal Lists & Goals
 create index idx_goal_lists_user_id on goal_lists(user_id);
+create index idx_goal_lists_order on goal_lists("order");
 create index idx_goal_lists_updated_at on goal_lists(updated_at);
 create index idx_goal_lists_deleted on goal_lists(deleted) where deleted = false;
 

@@ -6,6 +6,7 @@
   import type { GoalListWithProgress, ProjectWithDetails } from '$lib/types';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import ProjectCard from '$lib/components/ProjectCard.svelte';
+  import DraggableList from '$lib/components/DraggableList.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import { remoteChangeAnimation } from '$lib/actions/remoteChange';
@@ -146,8 +147,16 @@
     }
   }
 
+  async function handleReorderProject(itemId: string, newOrder: number) {
+    await projectsStore.reorder(itemId, newOrder);
+  }
+
+  async function handleReorderGoalList(itemId: string, newOrder: number) {
+    await goalListsStore.reorder(itemId, newOrder);
+  }
+
   function navigateToList(id: string) {
-    goto(`/lists/${id}`);
+    goto(`/plans/${id}`);
   }
 </script>
 
@@ -202,16 +211,17 @@
         </button>
       </EmptyState>
     {:else}
-      <div class="lists-grid">
-        {#each projects as project (project.id)}
+      <DraggableList items={projects} onReorder={handleReorderProject}>
+        {#snippet renderItem({ item: project, dragHandleProps })}
           <ProjectCard
             {project}
+            {dragHandleProps}
             onNavigate={navigateToList}
             onSetCurrent={handleSetCurrentProject}
             onDelete={handleDeleteProject}
           />
-        {/each}
-      </div>
+        {/snippet}
+      </DraggableList>
     {/if}
   </section>
 
@@ -249,16 +259,17 @@
         </button>
       </EmptyState>
     {:else}
-      <div class="lists-grid">
-        {#each standaloneLists as list (list.id)}
+      <DraggableList items={standaloneLists} onReorder={handleReorderGoalList}>
+        {#snippet renderItem({ item: list, dragHandleProps })}
           <div
-            class="list-card"
+            class="list-card has-drag-handle"
             role="button"
             tabindex="0"
             onclick={() => navigateToList(list.id)}
             onkeypress={(e) => e.key === 'Enter' && navigateToList(list.id)}
             use:remoteChangeAnimation={{ entityId: list.id, entityType: 'goal_lists' }}
           >
+            <button class="drag-handle card-drag-handle" {...dragHandleProps} aria-label="Drag to reorder">⋮⋮</button>
             <div class="list-header">
               <h3 class="list-name" use:truncateTooltip>{list.name}</h3>
               <button
@@ -279,8 +290,8 @@
             </div>
             <ProgressBar percentage={list.completionPercentage} />
           </div>
-        {/each}
-      </div>
+        {/snippet}
+      </DraggableList>
     {/if}
   </section>
 </div>
@@ -578,6 +589,22 @@
     transition: all 0.4s var(--ease-out);
     position: relative;
     overflow: hidden;
+  }
+
+  .list-card.has-drag-handle {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-drag-handle {
+    align-self: center;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(108, 92, 231, 0.1);
+    margin: -1rem -1rem 0.75rem -1rem;
+    padding: 0.375rem 1rem;
+    width: auto;
+    font-size: 1rem;
+    letter-spacing: 0.15em;
   }
 
   /* Top glow line */

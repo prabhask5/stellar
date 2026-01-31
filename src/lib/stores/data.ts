@@ -79,6 +79,17 @@ function createGoalListsStore() {
       await repo.deleteGoalList(id);
       update((lists) => lists.filter((l) => l.id !== id));
     },
+    reorder: async (id: string, newOrder: number) => {
+      const updated = await repo.reorderGoalList(id, newOrder);
+      if (updated) {
+        update((lists) => {
+          const updatedLists = lists.map((l) => (l.id === id ? { ...l, order: newOrder } : l));
+          updatedLists.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          return updatedLists;
+        });
+      }
+      return updated;
+    },
     refresh: async () => {
       const lists = await sync.getGoalLists();
       set(lists);
@@ -959,6 +970,19 @@ function createProjectsStore() {
       // Refresh to reflect is_current changes
       const projectsWithDetails = await loadProjectsWithDetails();
       set(projectsWithDetails);
+    },
+    reorder: async (id: string, newOrder: number) => {
+      const updated = await repo.reorderProject(id, newOrder);
+      if (updated) {
+        update((projects) => {
+          const updatedProjects = projects.map((p) =>
+            p.id === id ? { ...p, order: newOrder } : p
+          );
+          updatedProjects.sort((a, b) => a.order - b.order);
+          return updatedProjects;
+        });
+      }
+      return updated;
     },
     refresh: async () => {
       const projectsWithDetails = await loadProjectsWithDetails();

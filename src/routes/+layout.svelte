@@ -332,8 +332,8 @@
 
   const navItems = [
     { href: '/tasks', label: 'Tasks', icon: 'tasks', mobileLabel: 'Tasks' },
-    { href: '/lists', label: 'Plans', icon: 'goals', mobileLabel: 'Plans' },
-    { href: '/calendar', label: 'Routines', icon: 'calendar', mobileLabel: 'Routines' },
+    { href: '/plans', label: 'Plans', icon: 'goals', mobileLabel: 'Plans' },
+    { href: '/routines', label: 'Routines', icon: 'calendar', mobileLabel: 'Routines' },
     { href: '/focus', label: 'Focus', icon: 'focus', mobileLabel: 'Focus' }
   ];
 
