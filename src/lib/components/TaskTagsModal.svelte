@@ -555,8 +555,6 @@
 
   .category-section {
     position: relative;
-    overflow: hidden;
-    border-radius: var(--radius-lg);
   }
 
   .category-header {
