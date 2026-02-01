@@ -517,6 +517,7 @@
   open={showTaskModal}
   task={selectedTask}
   categories={projectCategories}
+  lockedCategory
   onClose={() => {
     showTaskModal = false;
     selectedTask = null;
@@ -530,6 +531,7 @@
   open={showTaskForm}
   categories={projectCategories}
   initialCategoryId={project?.tag_id ?? null}
+  lockedCategory
   onClose={() => (showTaskForm = false)}
   onCreate={handleCreateLongTermTask}
   onDeleteCategory={() => {}}

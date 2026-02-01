@@ -9,6 +9,7 @@
     open: boolean;
     task: LongTermTaskWithCategory | null;
     categories: TaskCategory[];
+    lockedCategory?: boolean;
     onClose: () => void;
     onUpdate: (
       id: string,
@@ -18,7 +19,7 @@
     onDelete: (id: string) => void;
   }
 
-  let { open, task, categories, onClose, onUpdate, onToggle, onDelete }: Props = $props();
+  let { open, task, categories, lockedCategory = false, onClose, onUpdate, onToggle, onDelete }: Props = $props();
 
   // Focus action for accessibility (skip on mobile to avoid keyboard popup)
   function focus(node: HTMLElement) {
@@ -163,12 +164,8 @@
 
       <div class="field">
         <label class="field-label">Tag</label>
-        <div class="category-dropdown">
-          <button
-            type="button"
-            class="dropdown-trigger"
-            onclick={() => (dropdownOpen = !dropdownOpen)}
-          >
+        {#if lockedCategory}
+          <div class="field-value locked-tag">
             {#if selectedCategory}
               <span class="selected-category" use:truncateTooltip>
                 <span class="cat-dot" style="--cat-color: {selectedCategory.color}"></span>
@@ -180,48 +177,68 @@
                 No tag
               </span>
             {/if}
-            <svg
-              class="chevron"
-              class:open={dropdownOpen}
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+          </div>
+        {:else}
+          <div class="category-dropdown">
+            <button
+              type="button"
+              class="dropdown-trigger"
+              onclick={() => (dropdownOpen = !dropdownOpen)}
             >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-
-          {#if dropdownOpen}
-            <div class="dropdown-menu">
-              <button
-                type="button"
-                class="dropdown-item"
-                class:selected={categoryId === null}
-                onclick={() => selectCategory(null)}
+              {#if selectedCategory}
+                <span class="selected-category" use:truncateTooltip>
+                  <span class="cat-dot" style="--cat-color: {selectedCategory.color}"></span>
+                  {selectedCategory.name}
+                </span>
+              {:else}
+                <span class="no-tag">
+                  <span class="cat-dot none"></span>
+                  No tag
+                </span>
+              {/if}
+              <svg
+                class="chevron"
+                class:open={dropdownOpen}
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
               >
-                <span class="cat-dot none"></span>
-                No tag
-              </button>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
 
-              {#each categories as cat (cat.id)}
+            {#if dropdownOpen}
+              <div class="dropdown-menu">
                 <button
                   type="button"
                   class="dropdown-item"
-                  class:selected={categoryId === cat.id}
-                  onclick={() => selectCategory(cat.id)}
+                  class:selected={categoryId === null}
+                  onclick={() => selectCategory(null)}
                 >
-                  <span class="cat-dot" style="--cat-color: {cat.color}"></span>
-                  {cat.name}
+                  <span class="cat-dot none"></span>
+                  No tag
                 </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
+
+                {#each categories as cat (cat.id)}
+                  <button
+                    type="button"
+                    class="dropdown-item"
+                    class:selected={categoryId === cat.id}
+                    onclick={() => selectCategory(cat.id)}
+                  >
+                    <span class="cat-dot" style="--cat-color: {cat.color}"></span>
+                    {cat.name}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/if}
       </div>
 
       <div class="field">
@@ -328,6 +345,12 @@
     text-align: left;
     width: 100%;
     cursor: default;
+  }
+
+  .field-value.locked-tag {
+    display: flex;
+    align-items: center;
+    opacity: 0.7;
   }
 
   .field-value.editable {

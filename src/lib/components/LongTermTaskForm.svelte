@@ -12,6 +12,7 @@
     // Allow restoring form state when coming back from category creation
     initialName?: string;
     initialCategoryId?: string | null;
+    lockedCategory?: boolean;
     onClose: () => void;
     onCreate: (name: string, dueDate: string, categoryId: string | null) => void;
     onDeleteCategory: (id: string) => void;
@@ -28,6 +29,7 @@
     defaultDate,
     initialName = '',
     initialCategoryId = null,
+    lockedCategory = false,
     onClose,
     onCreate,
     onDeleteCategory,
@@ -142,115 +144,128 @@
       <input id="due-date" type="date" bind:value={dueDate} class="field-input date-input" />
     </div>
 
-    <div class="field field-dropdown">
-      <label class="field-label">Tag (optional)</label>
+    <div class="field" class:field-dropdown={!lockedCategory}>
+      <label class="field-label">Tag</label>
 
-      <!-- Custom Dropdown -->
-      <div class="category-dropdown">
-        <button
-          type="button"
-          class="dropdown-trigger"
-          onclick={() => (dropdownOpen = !dropdownOpen)}
-        >
+      {#if lockedCategory}
+        <div class="locked-tag">
           {#if selectedCategory}
             <span class="selected-category" use:truncateTooltip>
               <span class="cat-dot" style="--cat-color: {selectedCategory.color}"></span>
               {selectedCategory.name}
             </span>
           {:else}
-            <span class="placeholder">Select a tag...</span>
+            <span class="placeholder">No tag</span>
           {/if}
-          <svg
-            class="chevron"
-            class:open={dropdownOpen}
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+        </div>
+      {:else}
+        <!-- Custom Dropdown -->
+        <div class="category-dropdown">
+          <button
+            type="button"
+            class="dropdown-trigger"
+            onclick={() => (dropdownOpen = !dropdownOpen)}
           >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-
-        {#if dropdownOpen}
-          <div class="dropdown-menu">
-            <!-- No tag option -->
-            <button
-              type="button"
-              class="dropdown-item"
-              class:selected={categoryId === null}
-              onclick={() => selectCategory(null)}
-            >
-              <span class="item-content">
-                <span class="cat-dot none"></span>
-                No tag
+            {#if selectedCategory}
+              <span class="selected-category" use:truncateTooltip>
+                <span class="cat-dot" style="--cat-color: {selectedCategory.color}"></span>
+                {selectedCategory.name}
               </span>
-            </button>
-
-            <!-- Category options -->
-            {#each categories as cat (cat.id)}
-              <div class="dropdown-item-wrapper">
-                <button
-                  type="button"
-                  class="dropdown-item"
-                  class:selected={categoryId === cat.id}
-                  onclick={() => selectCategory(cat.id)}
-                >
-                  <span class="item-content">
-                    <span class="cat-dot" style="--cat-color: {cat.color}"></span>
-                    {cat.name}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  class="delete-btn"
-                  onclick={(e) => handleDeleteCategory(e, cat.id)}
-                  aria-label="Delete tag"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-            {/each}
-
-            <!-- Divider -->
-            <div class="dropdown-divider"></div>
-
-            <!-- Add Tag Button -->
-            <button
-              type="button"
-              class="dropdown-item add-category-btn"
-              onclick={handleAddCategoryClick}
+            {:else}
+              <span class="placeholder">Select a tag...</span>
+            {/if}
+            <svg
+              class="chevron"
+              class:open={dropdownOpen}
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {#if dropdownOpen}
+            <div class="dropdown-menu">
+              <!-- No tag option -->
+              <button
+                type="button"
+                class="dropdown-item"
+                class:selected={categoryId === null}
+                onclick={() => selectCategory(null)}
               >
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Add Tag
-            </button>
-          </div>
-        {/if}
-      </div>
+                <span class="item-content">
+                  <span class="cat-dot none"></span>
+                  No tag
+                </span>
+              </button>
+
+              <!-- Category options -->
+              {#each categories as cat (cat.id)}
+                <div class="dropdown-item-wrapper">
+                  <button
+                    type="button"
+                    class="dropdown-item"
+                    class:selected={categoryId === cat.id}
+                    onclick={() => selectCategory(cat.id)}
+                  >
+                    <span class="item-content">
+                      <span class="cat-dot" style="--cat-color: {cat.color}"></span>
+                      {cat.name}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    class="delete-btn"
+                    onclick={(e) => handleDeleteCategory(e, cat.id)}
+                    aria-label="Delete tag"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              {/each}
+
+              <!-- Divider -->
+              <div class="dropdown-divider"></div>
+
+              <!-- Add Tag Button -->
+              <button
+                type="button"
+                class="dropdown-item add-category-btn"
+                onclick={handleAddCategoryClick}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add Tag
+              </button>
+            </div>
+          {/if}
+        </div>
+      {/if}
     </div>
 
     <div class="actions">
@@ -306,6 +321,18 @@
 
   .date-input {
     color-scheme: dark;
+  }
+
+  .locked-tag {
+    display: flex;
+    align-items: center;
+    padding: 0.875rem 1rem;
+    background: rgba(15, 15, 30, 0.6);
+    border: 1px solid rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-lg);
+    color: var(--color-text);
+    font-size: 1rem;
+    opacity: 0.7;
   }
 
   /* Custom Category Dropdown */
