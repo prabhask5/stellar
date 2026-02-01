@@ -927,6 +927,23 @@ function createProjectsStore() {
         const projectsWithDetails = await loadProjectsWithDetails();
         set(projectsWithDetails);
 
+        // One-time migration: sync linked tag/commitment order to match project order
+        if (browser && !localStorage.getItem('project-order-sync-v1')) {
+          const commitments = await sync.getCommitments();
+          for (const project of projectsWithDetails) {
+            if (project.tag_id && project.tag && project.tag.order !== project.order) {
+              await repo.reorderTaskCategory(project.tag_id, project.order);
+            }
+            if (project.commitment_id) {
+              const commitment = commitments.find((c) => c.id === project.commitment_id);
+              if (commitment && commitment.order !== project.order) {
+                await repo.reorderCommitment(project.commitment_id, project.order);
+              }
+            }
+          }
+          localStorage.setItem('project-order-sync-v1', '1');
+        }
+
         if (browser && !unsubscribe) {
           unsubscribe = sync.onSyncComplete(async () => {
             const refreshed = await loadProjectsWithDetails();
@@ -974,6 +991,14 @@ function createProjectsStore() {
     reorder: async (id: string, newOrder: number) => {
       const updated = await repo.reorderProject(id, newOrder);
       if (updated) {
+        // Sync order to linked tag and commitment so they stay in the same order
+        if (updated.tag_id) {
+          await repo.reorderTaskCategory(updated.tag_id, newOrder);
+        }
+        if (updated.commitment_id) {
+          await repo.reorderCommitment(updated.commitment_id, newOrder);
+        }
+
         update((projects) => {
           const updatedProjects = projects.map((p) =>
             p.id === id ? { ...p, order: newOrder } : p

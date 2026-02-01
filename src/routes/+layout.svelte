@@ -2009,7 +2009,7 @@
     }
 
     .island-brand-text {
-      font-size: 0.75rem;
+      font-size: 1rem;
     }
 
     .island-brand svg {
@@ -2043,7 +2043,7 @@
     }
 
     .island-brand-text {
-      font-size: 0.875rem;
+      font-size: 1.125rem;
     }
 
     .tab-bar {
@@ -2069,7 +2069,7 @@
     }
 
     .island-brand-text {
-      font-size: 0.9375rem;
+      font-size: 1.1875rem;
     }
 
     .island-brand svg {
@@ -2124,7 +2124,7 @@
     }
 
     .island-brand-text {
-      font-size: 1rem;
+      font-size: 1.25rem;
     }
 
     .island-brand svg {
