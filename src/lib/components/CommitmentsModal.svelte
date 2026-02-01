@@ -1,8 +1,8 @@
 <script lang="ts">
   import Modal from './Modal.svelte';
-  import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
+  import { calculateNewOrder } from '@prabhask5/stellar-engine/utils';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
-  import { calculateNewOrder } from '$lib/utils/reorder';
   import type { Commitment, CommitmentSection } from '$lib/types';
 
   interface Props {
@@ -95,7 +95,12 @@
   }
 
   // Pointer-event based drag (works on both touch and mouse)
-  function handlePointerDown(e: PointerEvent, commitment: Commitment, section: CommitmentSection, index: number) {
+  function handlePointerDown(
+    e: PointerEvent,
+    commitment: Commitment,
+    section: CommitmentSection,
+    index: number
+  ) {
     if (isProjectOwned(commitment)) return;
     const sectionItems = getCommitmentsForSection(section);
     if (sectionItems.length <= 1) return;
@@ -170,7 +175,7 @@
 
 <Modal {open} title="Commitments" {onClose}>
   <div class="commitments-content">
-    {#each sections as section}
+    {#each sections as section (section.key)}
       <div class="section" class:projects-section={section.key === 'projects'}>
         <div class="section-header">
           <h3 class="section-title">{section.label}</h3>
@@ -254,8 +259,14 @@
             <div
               class="commitment-item"
               class:dragging={draggedId === commitment.id}
-              class:drop-above={draggedId !== null && draggedSection === section.key && dropTargetIndex === index && draggedIndex > index}
-              class:drop-below={draggedId !== null && draggedSection === section.key && dropTargetIndex === index && draggedIndex < index}
+              class:drop-above={draggedId !== null &&
+                draggedSection === section.key &&
+                dropTargetIndex === index &&
+                draggedIndex > index}
+              class:drop-below={draggedId !== null &&
+                draggedSection === section.key &&
+                dropTargetIndex === index &&
+                draggedIndex < index}
               class:project-owned={isProjectOwned(commitment)}
               data-commitment-item
               use:remoteChangeAnimation={{ entityId: commitment.id, entityType: 'commitments' }}
@@ -296,6 +307,8 @@
               {:else}
                 <span
                   class="commitment-name"
+                  role="button"
+                  tabindex="0"
                   ondblclick={() => !isProjectOwned(commitment) && startEditing(commitment)}
                   use:truncateTooltip
                 >
@@ -529,7 +542,8 @@
   }
 
   @keyframes dropPulse {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 1;
       box-shadow:
         0 0 15px var(--color-primary-glow),

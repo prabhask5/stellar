@@ -1,7 +1,7 @@
-import { db, generateId, now } from '../client';
+import { generateId, now } from '@prabhask5/stellar-engine/utils';
+import { getDb } from '@prabhask5/stellar-engine';
+import { engineCreate, engineUpdate, engineIncrement } from '@prabhask5/stellar-engine/data';
 import type { DailyGoalProgress } from '$lib/types';
-import { queueCreateOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 async function getProgressForRoutineAndDate(
   routineId: string,
@@ -9,12 +9,14 @@ async function getProgressForRoutineAndDate(
 ): Promise<DailyGoalProgress | undefined> {
   // Must filter out deleted records to avoid updating tombstones
   // instead of creating new progress records
-  const results = await db.dailyGoalProgress
+  const db = getDb();
+  const results = await db
+    .table('dailyGoalProgress')
     .where('[daily_routine_goal_id+date]')
     .equals([routineId, date])
     .toArray();
 
-  return results.find((p) => !p.deleted);
+  return results.find((p: DailyGoalProgress) => !p.deleted);
 }
 
 export async function upsertDailyProgress(
@@ -29,61 +31,27 @@ export async function upsertDailyProgress(
   const existing = await getProgressForRoutineAndDate(dailyRoutineGoalId, date);
 
   if (existing) {
-    // Use transaction to ensure atomicity
-    let updated: DailyGoalProgress | undefined;
-    await db.transaction('rw', [db.dailyGoalProgress, db.syncQueue], async () => {
-      await db.dailyGoalProgress.update(existing.id, {
-        current_value: currentValue,
-        completed,
-        updated_at: timestamp
-      });
-      updated = await db.dailyGoalProgress.get(existing.id);
-      if (updated) {
-        await queueSyncOperation({
-          table: 'daily_goal_progress',
-          entityId: existing.id,
-          operationType: 'set',
-          value: {
-            current_value: currentValue,
-            completed,
-            updated_at: timestamp
-          }
-        });
-      }
+    const result = await engineUpdate('daily_goal_progress', existing.id, {
+      current_value: currentValue,
+      completed
     });
 
-    if (updated) {
-      markEntityModified(existing.id);
-      scheduleSyncPush();
-      return updated;
+    if (result) {
+      return result as unknown as DailyGoalProgress;
     }
   }
 
   // Create new progress record
-  const newProgress: DailyGoalProgress = {
+  const result = await engineCreate('daily_goal_progress', {
     id: generateId(),
     daily_routine_goal_id: dailyRoutineGoalId,
     date,
     current_value: currentValue,
     completed,
     updated_at: timestamp
-  };
-
-  // Use transaction to ensure atomicity of local write + queue operation
-  await db.transaction('rw', [db.dailyGoalProgress, db.syncQueue], async () => {
-    await db.dailyGoalProgress.add(newProgress);
-    await queueCreateOperation('daily_goal_progress', newProgress.id, {
-      daily_routine_goal_id: dailyRoutineGoalId,
-      date,
-      current_value: currentValue,
-      completed,
-      updated_at: timestamp
-    });
   });
-  markEntityModified(newProgress.id);
-  scheduleSyncPush();
 
-  return newProgress;
+  return result as unknown as DailyGoalProgress;
 }
 
 export async function incrementDailyProgress(
@@ -102,57 +70,32 @@ export async function incrementDailyProgress(
   const completed = newValue >= targetValue;
 
   if (existing) {
-    // Use transaction to ensure atomicity - prevents sync pull from overwriting during rapid clicks
-    let updated: DailyGoalProgress | undefined;
-    await db.transaction('rw', [db.dailyGoalProgress, db.syncQueue], async () => {
-      await db.dailyGoalProgress.update(existing.id, {
+    const result = await engineIncrement(
+      'daily_goal_progress',
+      existing.id,
+      'current_value',
+      amount,
+      { completed }
+    );
+    return (
+      (result as unknown as DailyGoalProgress) ?? {
+        ...existing,
         current_value: newValue,
         completed,
         updated_at: timestamp
-      });
-      updated = await db.dailyGoalProgress.get(existing.id);
-      if (updated) {
-        // Use increment operation to preserve intent for multi-device conflict resolution
-        await queueSyncOperation({
-          table: 'daily_goal_progress',
-          entityId: existing.id,
-          operationType: 'increment',
-          field: 'current_value',
-          value: amount // Store the delta, not the final value
-        });
       }
-    });
-
-    if (updated) {
-      markEntityModified(existing.id);
-      scheduleSyncPush();
-      return updated;
-    }
+    );
   }
 
   // Create new progress record
-  const newProgress: DailyGoalProgress = {
+  const result = await engineCreate('daily_goal_progress', {
     id: generateId(),
     daily_routine_goal_id: dailyRoutineGoalId,
     date,
     current_value: newValue,
     completed,
     updated_at: timestamp
-  };
-
-  // Use transaction to ensure atomicity of local write + queue operation
-  await db.transaction('rw', [db.dailyGoalProgress, db.syncQueue], async () => {
-    await db.dailyGoalProgress.add(newProgress);
-    await queueCreateOperation('daily_goal_progress', newProgress.id, {
-      daily_routine_goal_id: dailyRoutineGoalId,
-      date,
-      current_value: newValue,
-      completed,
-      updated_at: timestamp
-    });
   });
-  markEntityModified(newProgress.id);
-  scheduleSyncPush();
 
-  return newProgress;
+  return result as unknown as DailyGoalProgress;
 }

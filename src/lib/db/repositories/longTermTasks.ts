@@ -1,7 +1,11 @@
-import { db, generateId, now } from '../client';
+import { generateId, now } from '@prabhask5/stellar-engine/utils';
+import {
+  engineCreate,
+  engineUpdate,
+  engineDelete,
+  engineGet
+} from '@prabhask5/stellar-engine/data';
 import type { LongTermTask } from '$lib/types';
-import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function createLongTermTask(
   name: string,
@@ -11,7 +15,7 @@ export async function createLongTermTask(
 ): Promise<LongTermTask> {
   const timestamp = now();
 
-  const newTask: LongTermTask = {
+  const result = await engineCreate('long_term_tasks', {
     id: generateId(),
     user_id: userId,
     name,
@@ -20,96 +24,28 @@ export async function createLongTermTask(
     completed: false,
     created_at: timestamp,
     updated_at: timestamp
-  };
-
-  // Use transaction to ensure atomicity of local write + queue operation
-  await db.transaction('rw', [db.longTermTasks, db.syncQueue], async () => {
-    await db.longTermTasks.add(newTask);
-    await queueCreateOperation('long_term_tasks', newTask.id, {
-      name,
-      due_date: dueDate,
-      category_id: categoryId,
-      completed: false,
-      user_id: userId,
-      created_at: timestamp,
-      updated_at: timestamp
-    });
   });
-  markEntityModified(newTask.id);
-  scheduleSyncPush();
 
-  return newTask;
+  return result as unknown as LongTermTask;
 }
 
 export async function updateLongTermTask(
   id: string,
   updates: Partial<Pick<LongTermTask, 'name' | 'due_date' | 'category_id' | 'completed'>>
 ): Promise<LongTermTask | undefined> {
-  const timestamp = now();
-
-  // Use transaction to ensure atomicity
-  let updated: LongTermTask | undefined;
-  await db.transaction('rw', [db.longTermTasks, db.syncQueue], async () => {
-    await db.longTermTasks.update(id, { ...updates, updated_at: timestamp });
-    updated = await db.longTermTasks.get(id);
-    if (updated) {
-      await queueSyncOperation({
-        table: 'long_term_tasks',
-        entityId: id,
-        operationType: 'set',
-        value: { ...updates, updated_at: timestamp }
-      });
-    }
-  });
-
-  if (updated) {
-    markEntityModified(id);
-    scheduleSyncPush();
-  }
-
-  return updated;
+  const result = await engineUpdate('long_term_tasks', id, updates as Record<string, unknown>);
+  return result as unknown as LongTermTask | undefined;
 }
 
 export async function toggleLongTermTaskComplete(id: string): Promise<LongTermTask | undefined> {
-  const task = await db.longTermTasks.get(id);
+  const task = (await engineGet('long_term_tasks', id)) as unknown as LongTermTask | undefined;
   if (!task) return undefined;
 
-  const timestamp = now();
   const newCompleted = !task.completed;
-
-  // Use transaction to ensure atomicity
-  let updated: LongTermTask | undefined;
-  await db.transaction('rw', [db.longTermTasks, db.syncQueue], async () => {
-    await db.longTermTasks.update(id, { completed: newCompleted, updated_at: timestamp });
-    updated = await db.longTermTasks.get(id);
-    if (updated) {
-      await queueSyncOperation({
-        table: 'long_term_tasks',
-        entityId: id,
-        operationType: 'set',
-        field: 'completed',
-        value: newCompleted
-      });
-    }
-  });
-
-  if (updated) {
-    markEntityModified(id);
-    scheduleSyncPush();
-  }
-
-  return updated;
+  const result = await engineUpdate('long_term_tasks', id, { completed: newCompleted });
+  return result as unknown as LongTermTask | undefined;
 }
 
 export async function deleteLongTermTask(id: string): Promise<void> {
-  const timestamp = now();
-
-  // Use transaction to ensure atomicity of delete + queue operation
-  await db.transaction('rw', [db.longTermTasks, db.syncQueue], async () => {
-    // Tombstone delete
-    await db.longTermTasks.update(id, { deleted: true, updated_at: timestamp });
-    await queueDeleteOperation('long_term_tasks', id);
-  });
-  markEntityModified(id);
-  scheduleSyncPush();
+  await engineDelete('long_term_tasks', id);
 }

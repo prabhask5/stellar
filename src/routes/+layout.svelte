@@ -3,26 +3,14 @@
   import { onMount, onDestroy } from 'svelte';
   import { fade } from 'svelte/transition';
   import { page } from '$app/stores';
-  import { goto } from '$app/navigation';
   import { browser } from '$app/environment';
-  import { signOut, getUserProfile, getSession, signIn } from '$lib/supabase/auth';
-  import {
-    stopSyncEngine,
-    clearLocalCache,
-    clearPendingSyncQueue,
-    markAuthValidated,
-    runFullSync,
-    needsAuthValidation
-  } from '$lib/sync/engine';
-  import { getOfflineCredentials, clearOfflineCredentials } from '$lib/auth/offlineCredentials';
-  import { syncStatusStore } from '$lib/stores/sync';
-  import { authState, userDisplayInfo } from '$lib/stores/authState';
-  import { clearOfflineSession } from '$lib/auth/offlineSession';
-  import { setReconnectHandler } from '$lib/auth/reconnectHandler';
+  import { signOut, getUserProfile } from '@prabhask5/stellar-engine/auth';
+  import { authState } from '@prabhask5/stellar-engine/stores';
+  import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
+  import { debug } from '@prabhask5/stellar-engine/utils';
   import type { LayoutData } from './+layout';
   import SyncStatus from '$lib/components/SyncStatus.svelte';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
-  import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -52,111 +40,6 @@
       authState.setNoAuth();
     }
   });
-
-  // Handle reconnection - validate auth BEFORE allowing sync
-  // SECURITY: This is critical - we must verify cached credentials (email AND password)
-  // are still valid with Supabase before allowing any pending changes to sync to the database
-  async function handleReconnectAuthCheck(): Promise<void> {
-    // Check if the sync engine needs auth validation (was offline at some point)
-    if (!needsAuthValidation()) {
-      // Was online the whole time - mark as validated and allow sync
-      markAuthValidated();
-      return;
-    }
-
-    debugLog('[Auth] Reconnected from offline mode - validating credentials BEFORE sync');
-
-    try {
-      // Get cached credentials to validate with Supabase
-      const credentials = await getOfflineCredentials();
-
-      if (!credentials || !credentials.email || !credentials.password) {
-        // No offline credentials cached, but the Supabase session token may still be valid
-        // in localStorage (e.g. short offline period, credentials never stored)
-        const session = await getSession();
-        if (session) {
-          debugLog('[Auth] No offline credentials but Supabase session valid — allowing sync');
-          markAuthValidated();
-          runFullSync(false);
-          return;
-        }
-        debugError('[Auth] No cached credentials and no valid session');
-        await handleInvalidAuth('No cached credentials found. Please sign in again.');
-        return;
-      }
-
-      // SECURITY: Actually re-authenticate with Supabase using cached email and password
-      // This ensures the password hasn't been changed while the user was offline
-      debugLog('[Auth] Re-authenticating with Supabase using cached credentials...');
-
-      // Add timeout to prevent hanging on flaky network
-      const SESSION_TIMEOUT_MS = 15000;
-      const authResult = await Promise.race([
-        signIn(credentials.email, credentials.password),
-        new Promise<{ session: null; error: string }>((resolve) =>
-          setTimeout(() => {
-            debugWarn('[Auth] Re-authentication timed out');
-            resolve({ session: null, error: 'timeout' });
-          }, SESSION_TIMEOUT_MS)
-        )
-      ]);
-
-      if (authResult.session) {
-        // SUCCESS: Email and password are still valid with Supabase
-        debugLog('[Auth] Credentials validated with Supabase - allowing sync');
-        await clearOfflineSession();
-        authState.setSupabaseAuth(authResult.session);
-        markAuthValidated();
-
-        // Now trigger the sync that was waiting
-        runFullSync(false);
-      } else {
-        // FAILURE: Credentials are invalid (password may have been changed)
-        // SECURITY: Cancel all pending syncs to prevent unauthorized data modification
-        debugError('[Auth] Credential validation failed:', authResult.error);
-        await handleInvalidAuth(
-          'Your credentials may have changed while you are offline. Please sign in again.'
-        );
-      }
-    } catch (e) {
-      debugError('[Auth] Error validating credentials on reconnect:', e);
-      await handleInvalidAuth('Failed to validate credentials. Please sign in again.');
-    }
-  }
-
-  // Handle invalid auth: clear session and kick user to login
-  // NOTE: We intentionally do NOT clear the sync queue here.
-  // The user's offline changes should be preserved and pushed after re-authentication.
-  // The sync queue is harmless without auth (Supabase RLS blocks unauthorized writes).
-  async function handleInvalidAuth(message: string): Promise<void> {
-    // Clear offline session (credentials cleared by signOut below)
-    await clearOfflineSession();
-
-    // Sign out from Supabase and clear stale offline credentials
-    // (credentials are invalid, so don't preserve them)
-    await signOut({ preserveOfflineCredentials: false });
-
-    // Also clear Supabase localStorage as backup (in case signOut fails)
-    try {
-      const supabaseKeys = Object.keys(localStorage).filter((k) => k.startsWith('sb-'));
-      supabaseKeys.forEach((k) => localStorage.removeItem(k));
-    } catch (e) {
-      debugError('[Auth] Failed to clear Supabase localStorage:', e);
-    }
-
-    // Update auth state
-    authState.setNoAuth(message);
-
-    // Show toast and redirect to login
-    toastMessage = message;
-    toastType = 'error';
-    showToast = true;
-
-    setTimeout(() => {
-      showToast = false;
-      goto('/login');
-    }, 3000);
-  }
 
   const AUTH_CHANNEL_NAME = 'stellar-auth-channel';
   let authChannel: BroadcastChannel | null = null;
@@ -192,9 +75,6 @@
     // Listen for sign out requests from child pages (e.g. mobile profile page)
     window.addEventListener('stellar:signout', handleSignOut);
 
-    // Register reconnect handler
-    setReconnectHandler(handleReconnectAuthCheck);
-
     // Listen for focus requests from confirmation page
     // This allows the confirmation tab to communicate with any open Stellar tab
     if ('BroadcastChannel' in window) {
@@ -228,24 +108,24 @@
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data?.type === 'PRECACHE_COMPLETE') {
           const { cached, total } = event.data;
-          debugLog(`[PWA] Background precaching complete: ${cached}/${total} assets cached`);
+          debug('log', `[PWA] Background precaching complete: ${cached}/${total} assets cached`);
           if (cached === total) {
-            debugLog('[PWA] Full offline support ready - all pages accessible offline');
+            debug('log', '[PWA] Full offline support ready - all pages accessible offline');
           } else {
-            debugWarn(`[PWA] Some assets failed to cache: ${total - cached} missing`);
+            debug('warn', `[PWA] Some assets failed to cache: ${total - cached} missing`);
           }
         }
       });
 
       // Wait for service worker to be ready (handles first load case)
       navigator.serviceWorker.ready.then((registration) => {
-        debugLog('[PWA] Service worker ready, scheduling background precache...');
+        debug('log', '[PWA] Service worker ready, scheduling background precache...');
 
         // Give the page time to fully load, then trigger background precaching
         setTimeout(() => {
           const controller = navigator.serviceWorker.controller || registration.active;
           if (!controller) {
-            debugWarn('[PWA] No service worker controller available');
+            debug('warn', '[PWA] No service worker controller available');
             return;
           }
 
@@ -261,7 +141,7 @@
           const urls = [...scripts, ...styles];
 
           if (urls.length > 0) {
-            debugLog(`[PWA] Caching ${urls.length} current page assets...`);
+            debug('log', `[PWA] Caching ${urls.length} current page assets...`);
             controller.postMessage({
               type: 'CACHE_URLS',
               urls
@@ -270,7 +150,7 @@
 
           // Then trigger full background precaching for all app chunks
           // This ensures offline support for all pages, not just visited ones
-          debugLog('[PWA] Triggering background precache of all app chunks...');
+          debug('log', '[PWA] Triggering background precache of all app chunks...');
           controller.postMessage({
             type: 'PRECACHE_ALL'
           });
@@ -288,8 +168,6 @@
       // Cleanup sign out listener
       window.removeEventListener('stellar:signout', handleSignOut);
     }
-    // Cleanup reconnect handler
-    setReconnectHandler(null);
     // Cleanup auth channel
     authChannel?.close();
   });
@@ -303,8 +181,8 @@
     // Try firstName from session profile
     if (data.session?.user) {
       const profile = getUserProfile(data.session.user);
-      if (profile.firstName) {
-        return profile.firstName;
+      if (profile.firstName || profile.first_name) {
+        return (profile.firstName || profile.first_name) as string;
       }
       // Fallback to email username (before @)
       if (data.session.user.email) {
@@ -312,8 +190,8 @@
       }
     }
     // Fallback to offline profile
-    if (data.offlineProfile?.firstName) {
-      return data.offlineProfile.firstName;
+    if (data.offlineProfile?.profile?.firstName) {
+      return data.offlineProfile.profile.firstName as string;
     }
     if (data.offlineProfile?.email) {
       return data.offlineProfile.email.split('@')[0];
@@ -347,36 +225,10 @@
     // Wait for overlay to fully appear
     await new Promise((resolve) => setTimeout(resolve, 250));
 
-    // Do cleanup in background (user sees overlay)
-    await stopSyncEngine();
-    await clearPendingSyncQueue(); // Clear any pending sync operations
-    await clearLocalCache();
-    localStorage.removeItem('lastSyncTimestamp');
-    syncStatusStore.reset();
-
-    // Clear offline session (user must re-authenticate)
-    await clearOfflineSession();
-
-    // Only clear offline credentials if ONLINE
-    // When offline, keep credentials so user can sign back in with password
-    if (navigator.onLine) {
-      await clearOfflineCredentials();
-    }
-
-    // Sign out from Supabase (pass flag to preserve credentials if offline)
+    // Engine's signOut handles ALL cleanup:
+    // stop engine, clear queue, clear cache, clear offline session/credentials,
+    // Supabase signOut, clear sb-* localStorage, reset stores
     await signOut({ preserveOfflineCredentials: !navigator.onLine });
-
-    // IMPORTANT: When offline, supabase.auth.signOut() doesn't clear localStorage
-    // Manually clear Supabase session storage to prevent stale session being found
-    try {
-      const supabaseKeys = Object.keys(localStorage).filter((k) => k.startsWith('sb-'));
-      supabaseKeys.forEach((k) => localStorage.removeItem(k));
-    } catch (e) {
-      debugError('[Auth] Failed to clear Supabase localStorage:', e);
-    }
-
-    // Reset auth state
-    authState.reset();
 
     // Navigate to login - overlay stays visible during navigation
     window.location.href = '/login';
@@ -592,7 +444,7 @@
 
         <!-- Center Navigation Links -->
         <div class="nav-center">
-          {#each navItems as item}
+          {#each navItems as item (item.href)}
             <a href={item.href} class="nav-link" class:active={isActive(item.href)}>
               <span class="link-icon">
                 {#if item.icon === 'tasks'}
@@ -749,7 +601,7 @@
       <div class="nav-mobile-bg"></div>
 
       <div class="tab-bar">
-        {#each navItems as item, index}
+        {#each navItems as item, index (item.href)}
           <a
             href={item.href}
             class="tab-item"
@@ -881,8 +733,14 @@
   }
 
   @keyframes loaderFadeIn {
-    from { opacity: 0; transform: scale(0.8); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   /* Orbital rings */
@@ -915,8 +773,12 @@
   }
 
   @keyframes loaderOrbit {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   /* Core — the star igniting */
@@ -952,12 +814,20 @@
   }
 
   @keyframes loaderCorePulse {
-    0%, 100% { transform: scale(1); opacity: 0.8; }
-    50% { transform: scale(1.15); opacity: 1; }
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+    50% {
+      transform: scale(1.15);
+      opacity: 1;
+    }
   }
 
   @keyframes loaderCoreGlow {
-    0%, 100% {
+    0%,
+    100% {
       transform: scale(1);
       box-shadow:
         0 0 20px rgba(108, 92, 231, 0.8),
@@ -1014,27 +884,59 @@
   }
 
   @keyframes loaderParticleOrbit1 {
-    from { transform: rotate(0deg) translateX(54px) rotate(0deg); opacity: 0.9; }
-    50% { opacity: 0.4; }
-    to { transform: rotate(360deg) translateX(54px) rotate(-360deg); opacity: 0.9; }
+    from {
+      transform: rotate(0deg) translateX(54px) rotate(0deg);
+      opacity: 0.9;
+    }
+    50% {
+      opacity: 0.4;
+    }
+    to {
+      transform: rotate(360deg) translateX(54px) rotate(-360deg);
+      opacity: 0.9;
+    }
   }
 
   @keyframes loaderParticleOrbit2 {
-    from { transform: rotate(90deg) translateX(42px) rotate(-90deg); opacity: 0.8; }
-    50% { opacity: 0.3; }
-    to { transform: rotate(450deg) translateX(42px) rotate(-450deg); opacity: 0.8; }
+    from {
+      transform: rotate(90deg) translateX(42px) rotate(-90deg);
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 0.3;
+    }
+    to {
+      transform: rotate(450deg) translateX(42px) rotate(-450deg);
+      opacity: 0.8;
+    }
   }
 
   @keyframes loaderParticleOrbit3 {
-    from { transform: rotate(200deg) translateX(48px) rotate(-200deg); opacity: 0.8; }
-    50% { opacity: 0.3; }
-    to { transform: rotate(560deg) translateX(48px) rotate(-560deg); opacity: 0.8; }
+    from {
+      transform: rotate(200deg) translateX(48px) rotate(-200deg);
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 0.3;
+    }
+    to {
+      transform: rotate(560deg) translateX(48px) rotate(-560deg);
+      opacity: 0.8;
+    }
   }
 
   @keyframes loaderParticleOrbit4 {
-    from { transform: rotate(320deg) translateX(36px) rotate(-320deg); opacity: 0.7; }
-    50% { opacity: 0.2; }
-    to { transform: rotate(680deg) translateX(36px) rotate(-680deg); opacity: 0.7; }
+    from {
+      transform: rotate(320deg) translateX(36px) rotate(-320deg);
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 0.2;
+    }
+    to {
+      transform: rotate(680deg) translateX(36px) rotate(-680deg);
+      opacity: 0.7;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

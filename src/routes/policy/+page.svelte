@@ -43,7 +43,7 @@
 
   <!-- Floating Particles -->
   <div class="particles">
-    {#each Array(15) as _, i}
+    {#each Array(15) as _, _i (_i)}
       <span
         class="particle"
         style="
@@ -63,8 +63,8 @@
     <div class="content-glow"></div>
     <h1 class="title">Privacy</h1>
     <p class="policy-text">
-      This is a self-hosted app, so your goals, tasks, routines, and focus sessions data are only managed by you (or your admin) and never sold. Who would
-      want that anyway?
+      This is a self-hosted app, so your goals, tasks, routines, and focus sessions data are only
+      managed by you (or your admin) and never sold. Who would want that anyway?
     </p>
     <a href="/" class="back-link">
       <svg

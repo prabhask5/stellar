@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { remoteChangeAnimation, triggerLocalAnimation } from '$lib/actions/remoteChange';
+  import { remoteChangeAnimation, triggerLocalAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
   import type { LongTermTaskWithCategory } from '$lib/types';
 
@@ -76,7 +76,9 @@
           </button>
 
           <button class="task-info" onclick={() => onTaskClick(task)}>
-            <span class="task-name" class:completed={task.completed} use:truncateTooltip>{task.name}</span>
+            <span class="task-name" class:completed={task.completed} use:truncateTooltip
+              >{task.name}</span
+            >
             <span class="task-meta">
               <span class="due-date">{formatDate(task.due_date)}</span>
               {#if task.category}
@@ -84,7 +86,10 @@
                   class="category-tag"
                   style="--tag-color: {task.category.color}"
                   use:truncateTooltip
-                  use:remoteChangeAnimation={{ entityId: task.category_id ?? '', entityType: 'task_categories' }}
+                  use:remoteChangeAnimation={{
+                    entityId: task.category_id ?? '',
+                    entityType: 'task_categories'
+                  }}
                 >
                   {task.category.name}
                 </span>

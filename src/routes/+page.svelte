@@ -1,9 +1,9 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { onSyncComplete } from '$lib/sync/engine';
+  import { onSyncComplete, authState } from '@prabhask5/stellar-engine/stores';
   import { browser } from '$app/environment';
-  import { authState, userDisplayInfo } from '$lib/stores/authState';
+  import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
   import PWAInstallModal from '$lib/components/PWAInstallModal.svelte';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
   let isLoading = $state(true);
@@ -270,7 +270,7 @@
 
     <!-- Floating Particles -->
     <div class="particles">
-      {#each Array(20) as _, i}
+      {#each Array(20) as _, _i (_i)}
         <span
           class="particle"
           style="
@@ -312,8 +312,14 @@
   }
 
   @keyframes loaderFadeIn {
-    from { opacity: 0; transform: scale(0.8); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .loader-ring {
@@ -345,8 +351,12 @@
   }
 
   @keyframes loaderOrbit {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .loader-core {
@@ -381,12 +391,20 @@
   }
 
   @keyframes loaderCorePulse {
-    0%, 100% { transform: scale(1); opacity: 0.8; }
-    50% { transform: scale(1.15); opacity: 1; }
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+    50% {
+      transform: scale(1.15);
+      opacity: 1;
+    }
   }
 
   @keyframes loaderCoreGlow {
-    0%, 100% {
+    0%,
+    100% {
       transform: scale(1);
       box-shadow:
         0 0 20px rgba(108, 92, 231, 0.8),
@@ -442,27 +460,59 @@
   }
 
   @keyframes loaderParticleOrbit1 {
-    from { transform: rotate(0deg) translateX(54px) rotate(0deg); opacity: 0.9; }
-    50% { opacity: 0.4; }
-    to { transform: rotate(360deg) translateX(54px) rotate(-360deg); opacity: 0.9; }
+    from {
+      transform: rotate(0deg) translateX(54px) rotate(0deg);
+      opacity: 0.9;
+    }
+    50% {
+      opacity: 0.4;
+    }
+    to {
+      transform: rotate(360deg) translateX(54px) rotate(-360deg);
+      opacity: 0.9;
+    }
   }
 
   @keyframes loaderParticleOrbit2 {
-    from { transform: rotate(90deg) translateX(42px) rotate(-90deg); opacity: 0.8; }
-    50% { opacity: 0.3; }
-    to { transform: rotate(450deg) translateX(42px) rotate(-450deg); opacity: 0.8; }
+    from {
+      transform: rotate(90deg) translateX(42px) rotate(-90deg);
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 0.3;
+    }
+    to {
+      transform: rotate(450deg) translateX(42px) rotate(-450deg);
+      opacity: 0.8;
+    }
   }
 
   @keyframes loaderParticleOrbit3 {
-    from { transform: rotate(200deg) translateX(48px) rotate(-200deg); opacity: 0.8; }
-    50% { opacity: 0.3; }
-    to { transform: rotate(560deg) translateX(48px) rotate(-560deg); opacity: 0.8; }
+    from {
+      transform: rotate(200deg) translateX(48px) rotate(-200deg);
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 0.3;
+    }
+    to {
+      transform: rotate(560deg) translateX(48px) rotate(-560deg);
+      opacity: 0.8;
+    }
   }
 
   @keyframes loaderParticleOrbit4 {
-    from { transform: rotate(320deg) translateX(36px) rotate(-320deg); opacity: 0.7; }
-    50% { opacity: 0.2; }
-    to { transform: rotate(680deg) translateX(36px) rotate(-680deg); opacity: 0.7; }
+    from {
+      transform: rotate(320deg) translateX(36px) rotate(-320deg);
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 0.2;
+    }
+    to {
+      transform: rotate(680deg) translateX(36px) rotate(-680deg);
+      opacity: 0.7;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

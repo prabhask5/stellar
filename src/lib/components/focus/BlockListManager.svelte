@@ -1,10 +1,10 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import type { BlockList, BlockedWebsite, DayOfWeek } from '$lib/types';
+  import type { DayOfWeek } from '$lib/types';
   import { blockListStore, blockedWebsitesStore } from '$lib/stores/focus';
   import Modal from '$lib/components/Modal.svelte';
   import BlockListForm from './BlockListForm.svelte';
-  import { remoteChangeAnimation, triggerLocalAnimation } from '$lib/actions/remoteChange';
+  import { remoteChangeAnimation, triggerLocalAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   interface Props {
@@ -39,8 +39,6 @@
   // Local state
   let isOpen = $state(false);
   let editingListId = $state<string | null>(null);
-  let newListName = $state('');
-  let newWebsite = $state('');
   let showCreateModal = $state(false);
 
   // Load block lists on mount
@@ -93,23 +91,8 @@
     await blockListStore.toggle(id);
   }
 
-  async function addWebsite() {
-    if (!newWebsite.trim() || !editingListId) return;
-    await blockedWebsitesStore.create(newWebsite.trim());
-    newWebsite = '';
-  }
-
-  async function removeWebsite(id: string) {
-    await blockedWebsitesStore.delete(id);
-  }
-
   function openEditor(listId: string) {
     goto(`/focus/block-lists/${listId}`);
-  }
-
-  function closeEditor() {
-    editingListId = null;
-    blockedWebsitesStore.clear();
   }
 
   // Helper to check if a block list is active today
@@ -242,7 +225,9 @@
               >
                 <div class="list-details">
                   <span class="list-name" use:truncateTooltip>{list.name}</span>
-                  <span class="list-days" use:truncateTooltip>{getActiveDaysLabel(list.active_days)}</span>
+                  <span class="list-days" use:truncateTooltip
+                    >{getActiveDaysLabel(list.active_days)}</span
+                  >
                 </div>
                 <svg
                   viewBox="0 0 24 24"

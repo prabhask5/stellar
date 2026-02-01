@@ -1,15 +1,11 @@
 import { browser } from '$app/environment';
 import { redirect } from '@sveltejs/kit';
-import { initConfig } from '$lib/config/runtimeConfig';
-import { getSession, isSessionExpired } from '$lib/supabase/auth';
-import { isOnline } from '$lib/stores/network';
-import { startSyncEngine, performSync } from '$lib/sync/engine';
-import { getValidOfflineSession, createOfflineSession } from '$lib/auth/offlineSession';
-import { getOfflineCredentials } from '$lib/auth/offlineCredentials';
-import { callReconnectHandler } from '$lib/auth/reconnectHandler';
-import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
+import { goto } from '$app/navigation';
+import { initEngine, startSyncEngine, supabase } from '@prabhask5/stellar-engine';
+import { initConfig } from '@prabhask5/stellar-engine/config';
+import { resolveAuthState } from '@prabhask5/stellar-engine/auth';
 import type { AuthMode, OfflineCredentials } from '$lib/types';
-import type { Session } from '@supabase/supabase-js';
+import type { Session } from '@prabhask5/stellar-engine/types';
 import type { LayoutLoad } from './$types';
 
 export const ssr = true;
@@ -17,59 +13,347 @@ export const prerender = false;
 
 // Initialize browser-only features once
 if (browser) {
-  // Initialize network status monitoring
-  isOnline.init();
-
-  // Register callback to create offline session when going offline
-  isOnline.onDisconnect(async () => {
-    debugLog('[App] Gone offline - creating offline session if credentials cached');
-
-    try {
-      // Get current Supabase session to verify user
-      const currentSession = await getSession();
-      if (!currentSession?.user?.id) {
-        debugLog('[App] No active Supabase session - skipping offline session creation');
-        return;
+  initEngine({
+    tables: [
+      {
+        supabaseName: 'goal_lists',
+        dexieTable: 'goalLists',
+        columns: 'id,user_id,name,project_id,order,created_at,updated_at,deleted,_version,device_id'
+      },
+      {
+        supabaseName: 'goals',
+        dexieTable: 'goals',
+        columns:
+          'id,goal_list_id,name,type,target_value,current_value,completed,order,created_at,updated_at,deleted,_version,device_id'
+      },
+      {
+        supabaseName: 'daily_routine_goals',
+        dexieTable: 'dailyRoutineGoals',
+        columns:
+          'id,user_id,name,type,target_value,start_target_value,end_target_value,progression_schedule,start_date,end_date,active_days,order,created_at,updated_at,deleted,_version,device_id'
+      },
+      {
+        supabaseName: 'daily_goal_progress',
+        dexieTable: 'dailyGoalProgress',
+        columns:
+          'id,daily_routine_goal_id,date,current_value,completed,updated_at,deleted,_version,device_id'
+      },
+      {
+        supabaseName: 'task_categories',
+        dexieTable: 'taskCategories',
+        columns:
+          'id,user_id,name,color,order,project_id,created_at,updated_at,deleted,_version,device_id'
+      },
+      {
+        supabaseName: 'commitments',
+        dexieTable: 'commitments',
+        columns:
+          'id,user_id,name,section,order,project_id,created_at,updated_at,deleted,_version,device_id'
+      },
+      {
+        supabaseName: 'daily_tasks',
+        dexieTable: 'dailyTasks',
+        columns: 'id,user_id,name,order,completed,created_at,updated_at,deleted,_version,device_id'
+      },
+      {
+        supabaseName: 'long_term_tasks',
+        dexieTable: 'longTermTasks',
+        columns:
+          'id,user_id,name,due_date,category_id,completed,created_at,updated_at,deleted,_version,device_id'
+      },
+      {
+        supabaseName: 'focus_settings',
+        dexieTable: 'focusSettings',
+        columns:
+          'id,user_id,focus_duration,break_duration,long_break_duration,cycles_before_long_break,auto_start_breaks,auto_start_focus,created_at,updated_at,deleted,_version,device_id',
+        isSingleton: true
+      },
+      {
+        supabaseName: 'focus_sessions',
+        dexieTable: 'focusSessions',
+        columns:
+          'id,user_id,started_at,ended_at,phase,status,current_cycle,total_cycles,focus_duration,break_duration,phase_started_at,phase_remaining_ms,elapsed_duration,created_at,updated_at,deleted,_version,device_id'
+      },
+      {
+        supabaseName: 'block_lists',
+        dexieTable: 'blockLists',
+        columns:
+          'id,user_id,name,active_days,is_enabled,order,created_at,updated_at,deleted,_version,device_id'
+      },
+      {
+        supabaseName: 'blocked_websites',
+        dexieTable: 'blockedWebsites',
+        columns: 'id,block_list_id,domain,created_at,updated_at,deleted,_version,device_id'
+      },
+      {
+        supabaseName: 'projects',
+        dexieTable: 'projects',
+        columns:
+          'id,user_id,name,is_current,order,tag_id,commitment_id,goal_list_id,created_at,updated_at,deleted,_version,device_id'
       }
-
-      // Check if we have cached credentials that match the current user
-      const credentials = await getOfflineCredentials();
-      if (!credentials) {
-        debugLog('[App] No cached credentials - skipping offline session creation');
-        return;
+    ],
+    database: {
+      name: 'GoalPlannerDB',
+      versions: [
+        {
+          version: 2,
+          stores: {
+            goalLists: 'id, user_id, created_at, updated_at',
+            goals: 'id, goal_list_id, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at'
+          }
+        },
+        {
+          version: 3,
+          stores: {
+            goalLists: 'id, user_id, created_at, updated_at',
+            goals: 'id, goal_list_id, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at'
+          }
+        },
+        {
+          version: 4,
+          stores: {
+            goalLists: 'id, user_id, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at'
+          },
+          upgrade: async (tx) => {
+            const routines = await tx.table('dailyRoutineGoals').toArray();
+            const sorted = routines.sort(
+              (a: { created_at: string }, b: { created_at: string }) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            for (let i = 0; i < sorted.length; i++) {
+              await tx.table('dailyRoutineGoals').update(sorted[i].id, { order: i });
+            }
+          }
+        },
+        {
+          version: 5,
+          stores: {
+            goalLists: 'id, user_id, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, order, created_at, updated_at',
+            commitments: 'id, user_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at'
+          }
+        },
+        {
+          version: 6,
+          stores: {
+            goalLists: 'id, user_id, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, order, created_at, updated_at',
+            commitments: 'id, user_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at'
+          }
+        },
+        {
+          version: 7,
+          stores: {
+            goalLists: 'id, user_id, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, order, created_at, updated_at',
+            commitments: 'id, user_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+            focusSettings: 'id, user_id, updated_at',
+            focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+            blockLists: 'id, user_id, order, updated_at',
+            blockedWebsites: 'id, block_list_id, updated_at'
+          }
+        },
+        {
+          version: 8,
+          stores: {
+            goalLists: 'id, user_id, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, order, created_at, updated_at',
+            commitments: 'id, user_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+            focusSettings: 'id, user_id, updated_at',
+            focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+            blockLists: 'id, user_id, order, updated_at',
+            blockedWebsites: 'id, block_list_id, updated_at'
+          },
+          upgrade: async (tx) => {
+            const tables = [
+              'goalLists',
+              'goals',
+              'dailyRoutineGoals',
+              'dailyGoalProgress',
+              'taskCategories',
+              'commitments',
+              'dailyTasks',
+              'longTermTasks',
+              'focusSettings',
+              'focusSessions',
+              'blockLists',
+              'blockedWebsites'
+            ];
+            for (const tableName of tables) {
+              const records = await tx.table(tableName).toArray();
+              for (const record of records) {
+                if (record._version === undefined) {
+                  await tx.table(tableName).update(record.id, { _version: 1 });
+                }
+              }
+            }
+          }
+        },
+        {
+          version: 9,
+          stores: {
+            goalLists: 'id, user_id, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, order, created_at, updated_at',
+            commitments: 'id, user_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+            focusSettings: 'id, user_id, updated_at',
+            focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+            blockLists: 'id, user_id, order, updated_at',
+            blockedWebsites: 'id, block_list_id, updated_at'
+          }
+        },
+        {
+          version: 10,
+          stores: {
+            goalLists: 'id, user_id, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, order, created_at, updated_at',
+            commitments: 'id, user_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+            focusSettings: 'id, user_id, updated_at',
+            focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+            blockLists: 'id, user_id, order, updated_at',
+            blockedWebsites: 'id, block_list_id, updated_at'
+          }
+        },
+        {
+          version: 11,
+          stores: {
+            goalLists: 'id, user_id, project_id, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, project_id, order, created_at, updated_at',
+            commitments: 'id, user_id, project_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+            focusSettings: 'id, user_id, updated_at',
+            focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+            blockLists: 'id, user_id, order, updated_at',
+            blockedWebsites: 'id, block_list_id, updated_at',
+            projects: 'id, user_id, is_current, order, created_at, updated_at'
+          }
+        },
+        {
+          version: 12,
+          stores: {
+            goalLists: 'id, user_id, project_id, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, project_id, order, created_at, updated_at',
+            commitments: 'id, user_id, project_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+            focusSettings: 'id, user_id, updated_at',
+            focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+            blockLists: 'id, user_id, order, updated_at',
+            blockedWebsites: 'id, block_list_id, updated_at',
+            projects: 'id, user_id, is_current, order, created_at, updated_at'
+          }
+        },
+        {
+          version: 13,
+          stores: {
+            goalLists: 'id, user_id, project_id, order, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, project_id, order, created_at, updated_at',
+            commitments: 'id, user_id, project_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+            focusSettings: 'id, user_id, updated_at',
+            focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+            blockLists: 'id, user_id, order, updated_at',
+            blockedWebsites: 'id, block_list_id, updated_at',
+            projects: 'id, user_id, is_current, order, created_at, updated_at'
+          },
+          upgrade: async (tx) => {
+            const lists = await tx.table('goalLists').toArray();
+            lists.sort(
+              (a: { created_at: string }, b: { created_at: string }) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            for (let i = 0; i < lists.length; i++) {
+              await tx.table('goalLists').update(lists[i].id, { order: i });
+            }
+          }
+        }
+      ]
+    },
+    supabase,
+    prefix: 'stellar',
+    auth: {
+      profileExtractor: (meta: Record<string, unknown>) => ({
+        firstName: (meta.first_name as string) || '',
+        lastName: (meta.last_name as string) || ''
+      }),
+      profileToMetadata: (p: Record<string, unknown>) => ({
+        first_name: p.firstName,
+        last_name: p.lastName
+      }),
+      confirmRedirectPath: '/confirm',
+      adminCheck: (user) => user?.app_metadata?.is_admin === true
+    },
+    onAuthStateChange: (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        goto('/login');
+      } else if (event === 'SIGNED_IN' && session) {
+        if (!window.location.pathname.startsWith('/login')) {
+          goto(window.location.pathname, { invalidateAll: true });
+        }
       }
-
-      // SECURITY: Only create offline session if credentials match current user (both userId and email)
-      if (
-        credentials.userId !== currentSession.user.id ||
-        credentials.email !== currentSession.user.email
-      ) {
-        debugWarn(
-          '[App] Cached credentials do not match current user - skipping offline session creation'
-        );
-        return;
-      }
-
-      // Check if offline session already exists
-      const existingSession = await getValidOfflineSession();
-      if (!existingSession) {
-        await createOfflineSession(credentials.userId);
-        debugLog('[App] Offline session created from cached credentials');
-      }
-    } catch (e) {
-      debugError('[App] Failed to create offline session:', e);
+    },
+    onAuthKicked: (_message) => {
+      goto('/login');
     }
-  });
-
-  // Register callback to sync when coming back online
-  isOnline.onReconnect(async () => {
-    debugLog('[App] Back online - triggering sync and auth check');
-
-    // First, check auth state on reconnect
-    await callReconnectHandler();
-
-    // Then sync data
-    performSync();
   });
 }
 
@@ -81,86 +365,21 @@ export interface LayoutData {
 
 export const load: LayoutLoad = async ({ url }): Promise<LayoutData> => {
   if (browser) {
-    // Initialize runtime config before anything else
     const config = await initConfig();
 
-    // If not configured and not already on /setup, redirect to setup
     if (!config && url.pathname !== '/setup') {
       redirect(307, '/setup');
     }
 
-    // If not configured and on /setup, return early (no auth exists yet)
     if (!config) {
       return { session: null, authMode: 'none', offlineProfile: null };
     }
 
-    try {
-      const isOffline = !navigator.onLine;
-
-      // EGRESS OPTIMIZATION: Get session once and reuse (avoids duplicate getSession() calls)
-      const session = await getSession();
-      const hasValidSession = session && !isSessionExpired(session);
-
-      // ONLINE: Always use Supabase authentication
-      if (!isOffline) {
-        if (hasValidSession) {
-          // Valid Supabase session - use it
-          await startSyncEngine();
-          return { session, authMode: 'supabase', offlineProfile: null };
-        }
-
-        // No valid Supabase session while online - user needs to login
-        // Do NOT fall back to offline session when online
-        return { session: null, authMode: 'none', offlineProfile: null };
-      }
-
-      // OFFLINE: Try Supabase session from localStorage first, then offline session
-      if (hasValidSession) {
-        // Supabase session still valid in localStorage - use it
-        // Start sync engine even when offline - it will queue operations and sync when online
-        await startSyncEngine();
-        return { session, authMode: 'supabase', offlineProfile: null };
-      }
-
-      // No valid Supabase session - check for offline session
-      const offlineSession = await getValidOfflineSession();
-
-      if (offlineSession) {
-        // SECURITY: Verify offline session matches cached credentials
-        const profile = await getOfflineCredentials();
-        if (profile && profile.userId === offlineSession.userId) {
-          // Valid offline session with matching credentials - use it
-          // Start sync engine even in offline mode - it will:
-          // 1. Queue operations locally
-          // 2. Register event listeners for 'online' event
-          // 3. Sync automatically when connection is restored
-          await startSyncEngine();
-          return { session: null, authMode: 'offline', offlineProfile: profile };
-        }
-        // Mismatch: credentials changed after session created (e.g., different user logged in)
-        // Clear the stale offline session
-        debugWarn(
-          '[Layout] Offline session userId does not match credentials - clearing session'
-        );
-        const { clearOfflineSession } = await import('$lib/auth/offlineSession');
-        await clearOfflineSession();
-      }
-
-      // No valid session while offline
-      return { session: null, authMode: 'none', offlineProfile: null };
-    } catch (e) {
-      // If session retrieval fails completely (corrupted auth state),
-      // clear all Supabase auth data and return no session
-      debugError('[Layout] Failed to get session, clearing auth state:', e);
-      try {
-        // Clear all Supabase auth storage
-        const keys = Object.keys(localStorage).filter((k) => k.startsWith('sb-'));
-        keys.forEach((k) => localStorage.removeItem(k));
-      } catch {
-        // Ignore storage errors
-      }
-      return { session: null, authMode: 'none', offlineProfile: null };
+    const result = await resolveAuthState();
+    if (result.authMode !== 'none') {
+      await startSyncEngine();
     }
+    return result;
   }
   return { session: null, authMode: 'none', offlineProfile: null };
 };

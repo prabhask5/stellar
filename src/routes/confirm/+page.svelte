@@ -17,19 +17,14 @@
     // If this is a confirmation callback from Supabase
     if (tokenHash && type) {
       try {
-        // Import supabase client
-        const { supabase } = await import('$lib/supabase/client');
-
-        // Verify the OTP token
-        const { error } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: type as 'signup' | 'email'
-        });
+        // Verify the OTP token via engine
+        const { verifyOtp } = await import('@prabhask5/stellar-engine');
+        const { error } = await verifyOtp(tokenHash, type as 'signup' | 'email');
 
         if (error) {
           status = 'error';
           // Provide user-friendly error messages for common cases
-          const errorLower = error.message.toLowerCase();
+          const errorLower = error.toLowerCase();
           if (
             errorLower.includes('already') ||
             errorLower.includes('confirmed') ||
@@ -41,7 +36,7 @@
             errorMessage =
               'This confirmation link has expired. Please request a new one from the login page.';
           } else {
-            errorMessage = error.message;
+            errorMessage = error;
           }
           return;
         }
@@ -53,7 +48,7 @@
 
         // Try to focus existing app tab or redirect
         await focusOrRedirect();
-      } catch (err) {
+      } catch {
         status = 'error';
         errorMessage = 'An unexpected error occurred. Please try again.';
       }

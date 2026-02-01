@@ -1,11 +1,15 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { updateProfile, changePassword, getUserProfile } from '$lib/supabase/auth';
-  import { authState, userDisplayInfo } from '$lib/stores/authState';
-  import { isOnline } from '$lib/stores/network';
-  import { isAdmin } from '$lib/auth/admin';
-  import { isDebugMode, setDebugMode } from '$lib/utils/debug';
+  import {
+    updateProfile,
+    changePassword,
+    getUserProfile,
+    isAdmin
+  } from '@prabhask5/stellar-engine/auth';
+  import { authState, isOnline } from '@prabhask5/stellar-engine/stores';
+  import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
+  import { isDebugMode, setDebugMode } from '@prabhask5/stellar-engine/utils';
 
   // Form state
   let firstName = $state('');
@@ -33,8 +37,8 @@
       lastName = $userDisplayInfo.lastName;
     } else if ($page.data.session?.user) {
       const profile = getUserProfile($page.data.session.user);
-      firstName = profile.firstName;
-      lastName = profile.lastName;
+      firstName = (profile.firstName as string) || '';
+      lastName = (profile.lastName as string) || '';
     }
   });
 
@@ -49,9 +53,7 @@
   const changesDisabled = $derived(isOfflineMode || !$isOnline);
 
   // Admin check
-  const userIsAdmin = $derived(
-    $page.data.session?.user ? isAdmin($page.data.session.user) : false
-  );
+  const userIsAdmin = $derived($page.data.session?.user ? isAdmin($page.data.session.user) : false);
 
   async function handleProfileSubmit(e: Event) {
     e.preventDefault();
@@ -64,13 +66,13 @@
     profileError = null;
     profileSuccess = null;
 
-    const result = await updateProfile(firstName.trim(), lastName.trim());
+    const result = await updateProfile({ firstName: firstName.trim(), lastName: lastName.trim() });
 
     if (result.error) {
       profileError = result.error;
     } else {
       // Update auth state to immediately reflect changes in navbar
-      authState.updateUserProfile(firstName.trim(), lastName.trim());
+      authState.updateUserProfile({ first_name: firstName.trim(), last_name: lastName.trim() });
       profileSuccess = 'Profile updated successfully';
       setTimeout(() => (profileSuccess = null), 3000);
     }
@@ -187,7 +189,7 @@
       </div>
     </div>
     <div class="avatar-particles">
-      {#each Array(6) as _, i}
+      {#each Array(6) as _, i (i)}
         <span class="particle" style="--delay: {i * 0.5}s; --angle: {i * 60}deg;"></span>
       {/each}
     </div>
@@ -447,7 +449,10 @@
       <div class="setting-row">
         <div class="setting-info">
           <span class="setting-label">Debug Mode</span>
-          <span class="setting-hint">Enable console logging for troubleshooting (you'll need to refresh for the changes to take effect)</span>
+          <span class="setting-hint"
+            >Enable console logging for troubleshooting (you'll need to refresh for the changes to
+            take effect)</span
+          >
         </div>
         <button
           class="toggle-btn"
@@ -455,6 +460,7 @@
           onclick={toggleDebugMode}
           role="switch"
           aria-checked={debugMode}
+          aria-label="Toggle debug mode"
         >
           <span class="toggle-knob"></span>
         </button>
@@ -472,7 +478,9 @@
           stroke-linejoin="round"
         >
           <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+          />
         </svg>
         Update Supabase Configuration
       </button>

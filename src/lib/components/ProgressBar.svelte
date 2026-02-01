@@ -104,7 +104,7 @@
     <!-- Pulse rings emanating from the end -->
     {#if isCelebrating}
       <div class="pulse-ring-container">
-        {#each rings as ring, i}
+        {#each rings as ring, _i (_i)}
           <div
             class="pulse-ring"
             style="
@@ -120,7 +120,7 @@
     <!-- Starburst particles -->
     {#if celebrationIntensity > 0.1}
       <div class="particle-container">
-        {#each particles as particle, i}
+        {#each particles as particle, _i (_i)}
           <div
             class="starburst-particle"
             style="

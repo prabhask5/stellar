@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { DayOfWeek } from '$lib/types';
-  import { trackEditing } from '$lib/actions/remoteChange';
+  import { trackEditing } from '@prabhask5/stellar-engine/actions';
   import DeferredChangesBanner from '../DeferredChangesBanner.svelte';
 
   interface Props {
@@ -33,6 +33,7 @@
     { short: 'S', full: 'Sat', value: 6 }
   ];
 
+  // svelte-ignore state_referenced_locally
   let name = $state(initialName);
 
   // Track which fields were recently animated for shimmer effect
@@ -40,6 +41,7 @@
 
   // Active days state - null means all days, empty array means no days (invalid)
   // Default to all days selected if null
+  // svelte-ignore state_referenced_locally
   let selectedDays = $state<Set<DayOfWeek>>(
     initialActiveDays === null
       ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
@@ -115,8 +117,7 @@
   const remoteData = $derived.by(() => {
     if (!entityId) return null;
     const hasDiff =
-      initialName !== name ||
-      JSON.stringify(initialActiveDays) !== JSON.stringify(localActiveDays);
+      initialName !== name || JSON.stringify(initialActiveDays) !== JSON.stringify(localActiveDays);
     if (!hasDiff) return null;
     return {
       name: initialName,
@@ -127,16 +128,22 @@
   function loadRemoteData() {
     const fieldsToHighlight: string[] = [];
     if (name !== initialName) fieldsToHighlight.push('name');
-    const currentActiveDays = allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b);
-    if (JSON.stringify(currentActiveDays) !== JSON.stringify(initialActiveDays)) fieldsToHighlight.push('active_days');
+    const currentActiveDays = allDaysSelected
+      ? null
+      : Array.from(selectedDays).sort((a, b) => a - b);
+    if (JSON.stringify(currentActiveDays) !== JSON.stringify(initialActiveDays))
+      fieldsToHighlight.push('active_days');
 
     name = initialName;
-    selectedDays = initialActiveDays === null
-      ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
-      : new Set(initialActiveDays);
+    selectedDays =
+      initialActiveDays === null
+        ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
+        : new Set(initialActiveDays);
 
     highlightedFields = new Set(fieldsToHighlight);
-    setTimeout(() => { highlightedFields = new Set(); }, 1400);
+    setTimeout(() => {
+      highlightedFields = new Set();
+    }, 1400);
   }
 
   function handleSubmit(event: Event) {
@@ -167,7 +174,7 @@
 >
   {#if entityId}
     <DeferredChangesBanner
-      entityId={entityId}
+      {entityId}
       entityType="block_lists"
       {remoteData}
       localData={{
@@ -195,9 +202,14 @@
 
   <!-- Active Days Selector -->
   <div class="form-group">
-    <label>Active Days</label>
-    <div class="days-selector" class:field-changed={highlightedFields.has('active_days')}>
-      {#each dayLabels as day}
+    <span id="blocklist-active-days-label" class="label">Active Days</span>
+    <div
+      class="days-selector"
+      class:field-changed={highlightedFields.has('active_days')}
+      role="group"
+      aria-labelledby="blocklist-active-days-label"
+    >
+      {#each dayLabels as day (day.value)}
         <button
           type="button"
           class="day-btn"
@@ -267,7 +279,8 @@
     gap: 0.625rem;
   }
 
-  .form-group label {
+  .form-group label,
+  .form-group .label {
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--color-text-muted);

@@ -126,7 +126,7 @@
       <div class="form-skeleton-group">
         <div class="form-skeleton-label"></div>
         <div class="form-skeleton-days">
-          {#each Array(7) as _}
+          {#each Array(7) as _, _i (_i)}
             <div class="form-skeleton-day"></div>
           {/each}
         </div>

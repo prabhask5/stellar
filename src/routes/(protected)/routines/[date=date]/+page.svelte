@@ -3,7 +3,12 @@
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import { dailyProgressStore, dailyRoutinesStore } from '$lib/stores/data';
-  import { formatDisplayDate, isPastDay, isTodayDate, getProgressiveTargetForDate } from '$lib/utils/dates';
+  import {
+    formatDisplayDate,
+    isPastDay,
+    isTodayDate,
+    getProgressiveTargetForDate
+  } from '$lib/utils/dates';
   import { calculateGoalProgressCapped } from '$lib/utils/colors';
   import type { DailyRoutineGoal, DailyGoalProgress } from '$lib/types';
   import GoalItem from '$lib/components/GoalItem.svelte';
@@ -31,9 +36,10 @@
   const goalsWithProgress = $derived<GoalWithProgress[]>(
     routines.map((routine) => ({
       ...routine,
-      target_value: routine.type === 'progressive'
-        ? getProgressiveTargetForDate(routine, dateStr)
-        : routine.target_value,
+      target_value:
+        routine.type === 'progressive'
+          ? getProgressiveTargetForDate(routine, dateStr)
+          : routine.target_value,
       progress: progressMap.get(routine.id)
     }))
   );
@@ -164,7 +170,7 @@
       <div class="skeleton-shimmer"></div>
     </div>
     <div class="goals-skeleton">
-      {#each Array(4) as _, i}
+      {#each Array(4) as _, i (i)}
         <div class="goal-skeleton-card" style="--delay: {i * 0.1}s">
           <div class="goal-skeleton-handle"></div>
           <div class="goal-skeleton-content">

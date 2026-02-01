@@ -1,22 +1,13 @@
 import { writable, derived, type Writable, type Readable } from 'svelte/store';
-import type {
-  FocusSettings,
-  FocusSession,
-  FocusPhase,
-  BlockList,
-  BlockedWebsite
-} from '$lib/types';
+import type { FocusSettings, FocusSession, BlockList, BlockedWebsite } from '$lib/types';
 import * as repo from '$lib/db/repositories';
-import * as sync from '$lib/sync/engine';
-import { onRealtimeDataUpdate } from '$lib/sync/realtime';
 import { browser } from '$app/environment';
+import { calculateRemainingMs, getNextPhase } from '$lib/utils/focus';
 import {
-  calculateRemainingMs,
-  getNextPhase,
-  formatTime,
-  DEFAULT_FOCUS_SETTINGS
-} from '$lib/utils/focus';
-import { remoteChangesStore } from '$lib/stores/remoteChanges';
+  onSyncComplete,
+  onRealtimeDataUpdate,
+  remoteChangesStore
+} from '@prabhask5/stellar-engine/stores';
 
 // ============================================================
 // FOCUS TIMER STORE
@@ -172,7 +163,7 @@ function createFocusStore() {
   }
 
   // Handle realtime updates for focus sessions
-  async function handleRealtimeUpdate(table: string, entityId: string) {
+  async function handleRealtimeUpdate(table: string, _entityId: string) {
     if (table !== 'focus_sessions' || !currentUserId || isHandlingRemoteChange) {
       return;
     }
@@ -258,7 +249,7 @@ function createFocusStore() {
   }
 
   // Handle realtime updates for focus settings
-  async function handleSettingsRealtimeUpdate(table: string, entityId: string) {
+  async function handleSettingsRealtimeUpdate(table: string, _entityId: string) {
     if (table !== 'focus_settings' || !currentUserId) {
       return;
     }
@@ -320,7 +311,7 @@ function createFocusStore() {
 
         // Register for sync complete (fallback for when realtime is not available)
         if (browser && !unsubscribeSyncComplete) {
-          unsubscribeSyncComplete = sync.onSyncComplete(async () => {
+          unsubscribeSyncComplete = onSyncComplete(async () => {
             if (currentUserId && !isHandlingRemoteChange) {
               const refreshedSettings = await repo.getFocusSettings(currentUserId);
               const refreshedSession = await repo.getActiveSession(currentUserId);
@@ -639,7 +630,7 @@ function createBlockListStore() {
         set(lists);
 
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
+          unsubscribe = onSyncComplete(async () => {
             if (currentUserId) {
               const refreshed = await repo.getBlockLists(currentUserId);
               set(refreshed);
@@ -734,7 +725,7 @@ function createBlockedWebsitesStore() {
         set(websites);
 
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
+          unsubscribe = onSyncComplete(async () => {
             if (currentBlockListId) {
               const refreshed = await repo.getBlockedWebsites(currentBlockListId);
               set(refreshed);
@@ -802,7 +793,7 @@ function createSingleBlockListStore() {
 
         // Register for sync complete to auto-refresh
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
+          unsubscribe = onSyncComplete(async () => {
             if (currentId) {
               const refreshed = await repo.getBlockList(currentId);
               set(refreshed);

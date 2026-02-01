@@ -1,7 +1,12 @@
-import { db, generateId, now } from '../client';
+import { generateId, now } from '@prabhask5/stellar-engine/utils';
+import {
+  engineCreate,
+  engineUpdate,
+  engineQuery,
+  engineBatchWrite
+} from '@prabhask5/stellar-engine/data';
+import type { BatchOperation } from '@prabhask5/stellar-engine/types';
 import type { DailyRoutineGoal, GoalType, DayOfWeek } from '$lib/types';
-import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function createDailyRoutineGoal(
   name: string,
@@ -20,14 +25,18 @@ export async function createDailyRoutineGoal(
   // Get the current min order to prepend new items at the top
   // This is backwards-compatible: existing items (order 0,1,2...) stay in place,
   // new items get -1,-2,-3... and appear first when sorted ascending
-  const existingRoutines = await db.dailyRoutineGoals.where('user_id').equals(userId).toArray();
+  const existingRoutines = (await engineQuery(
+    'daily_routine_goals',
+    'user_id',
+    userId
+  )) as unknown as DailyRoutineGoal[];
 
   const activeRoutines = existingRoutines.filter((r) => !r.deleted);
   const minOrder =
     activeRoutines.length > 0 ? Math.min(...activeRoutines.map((r) => r.order ?? 0)) : 0;
   const nextOrder = minOrder - 1;
 
-  const newRoutine: DailyRoutineGoal = {
+  const result = await engineCreate('daily_routine_goals', {
     id: generateId(),
     user_id: userId,
     name,
@@ -42,31 +51,9 @@ export async function createDailyRoutineGoal(
     order: nextOrder,
     created_at: timestamp,
     updated_at: timestamp
-  };
-
-  // Use transaction to ensure atomicity of local write + queue operation
-  await db.transaction('rw', [db.dailyRoutineGoals, db.syncQueue], async () => {
-    await db.dailyRoutineGoals.add(newRoutine);
-    await queueCreateOperation('daily_routine_goals', newRoutine.id, {
-      user_id: userId,
-      name,
-      type,
-      target_value: newRoutine.target_value,
-      start_date: startDate,
-      end_date: endDate,
-      active_days: activeDays,
-      start_target_value: newRoutine.start_target_value,
-      end_target_value: newRoutine.end_target_value,
-      progression_schedule: newRoutine.progression_schedule,
-      order: nextOrder,
-      created_at: timestamp,
-      updated_at: timestamp
-    });
   });
-  markEntityModified(newRoutine.id);
-  scheduleSyncPush();
 
-  return newRoutine;
+  return result as unknown as DailyRoutineGoal;
 }
 
 export async function updateDailyRoutineGoal(
@@ -74,95 +61,47 @@ export async function updateDailyRoutineGoal(
   updates: Partial<
     Pick<
       DailyRoutineGoal,
-      'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days' | 'start_target_value' | 'end_target_value' | 'progression_schedule'
+      | 'name'
+      | 'type'
+      | 'target_value'
+      | 'start_date'
+      | 'end_date'
+      | 'active_days'
+      | 'start_target_value'
+      | 'end_target_value'
+      | 'progression_schedule'
     >
   >
 ): Promise<DailyRoutineGoal | undefined> {
-  const timestamp = now();
-
-  // Use transaction to ensure atomicity
-  let updated: DailyRoutineGoal | undefined;
-  await db.transaction('rw', [db.dailyRoutineGoals, db.syncQueue], async () => {
-    await db.dailyRoutineGoals.update(id, { ...updates, updated_at: timestamp });
-    updated = await db.dailyRoutineGoals.get(id);
-    if (updated) {
-      await queueSyncOperation({
-        table: 'daily_routine_goals',
-        entityId: id,
-        operationType: 'set',
-        value: { ...updates, updated_at: timestamp }
-      });
-    }
-  });
-
-  if (updated) {
-    markEntityModified(id);
-    scheduleSyncPush();
-  }
-
-  return updated;
+  const result = await engineUpdate('daily_routine_goals', id, updates as Record<string, unknown>);
+  return result as unknown as DailyRoutineGoal | undefined;
 }
 
 export async function deleteDailyRoutineGoal(id: string): Promise<void> {
-  const timestamp = now();
+  // Get all progress records for this routine to soft delete them
+  const progressRecords = await engineQuery('daily_goal_progress', 'daily_routine_goal_id', id);
 
-  // Get all progress records for this routine to soft delete them (outside transaction for read)
-  const progressRecords = await db.dailyGoalProgress
-    .where('daily_routine_goal_id')
-    .equals(id)
-    .toArray();
-
-  // Use single transaction for all deletes + queue operations (atomic)
-  await db.transaction(
-    'rw',
-    [db.dailyRoutineGoals, db.dailyGoalProgress, db.syncQueue],
-    async () => {
-      // Soft delete all progress records for this routine and queue sync
-      for (const progress of progressRecords) {
-        await db.dailyGoalProgress.update(progress.id, { deleted: true, updated_at: timestamp });
-        await queueDeleteOperation('daily_goal_progress', progress.id);
-      }
-
-      // Tombstone delete the routine and queue sync
-      await db.dailyRoutineGoals.update(id, { deleted: true, updated_at: timestamp });
-      await queueDeleteOperation('daily_routine_goals', id);
+  // Use batch write to atomically delete the routine and all its progress records
+  const ops: BatchOperation[] = [
+    ...progressRecords.map((progress) => ({
+      type: 'delete' as const,
+      table: 'daily_goal_progress',
+      id: (progress as Record<string, unknown>).id as string
+    })),
+    {
+      type: 'delete' as const,
+      table: 'daily_routine_goals',
+      id
     }
-  );
+  ];
 
-  // Mark all deleted entities as modified
-  for (const progress of progressRecords) {
-    markEntityModified(progress.id);
-  }
-  markEntityModified(id);
-  scheduleSyncPush();
+  await engineBatchWrite(ops);
 }
 
 export async function reorderDailyRoutineGoal(
   id: string,
   newOrder: number
 ): Promise<DailyRoutineGoal | undefined> {
-  const timestamp = now();
-
-  // Use transaction to ensure atomicity
-  let updated: DailyRoutineGoal | undefined;
-  await db.transaction('rw', [db.dailyRoutineGoals, db.syncQueue], async () => {
-    await db.dailyRoutineGoals.update(id, { order: newOrder, updated_at: timestamp });
-    updated = await db.dailyRoutineGoals.get(id);
-    if (updated) {
-      await queueSyncOperation({
-        table: 'daily_routine_goals',
-        entityId: id,
-        operationType: 'set',
-        field: 'order',
-        value: newOrder
-      });
-    }
-  });
-
-  if (updated) {
-    markEntityModified(id);
-    scheduleSyncPush();
-  }
-
-  return updated;
+  const result = await engineUpdate('daily_routine_goals', id, { order: newOrder });
+  return result as unknown as DailyRoutineGoal | undefined;
 }

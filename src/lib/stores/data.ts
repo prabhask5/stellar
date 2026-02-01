@@ -12,15 +12,14 @@ import type {
   DailyTask,
   LongTermTask,
   LongTermTaskWithCategory,
-  Project,
   ProjectWithDetails
 } from '$lib/types';
 import * as repo from '$lib/db/repositories';
-import * as sync from '$lib/sync/engine';
+import * as queries from '$lib/db/queries';
 import { calculateGoalProgressCapped } from '$lib/utils/colors';
 import { isRoutineActiveOnDate, getProgressiveTargetForDate } from '$lib/utils/dates';
 import { browser } from '$app/environment';
-import { remoteChangesStore } from '$lib/stores/remoteChanges';
+import { onSyncComplete, remoteChangesStore } from '@prabhask5/stellar-engine/stores';
 
 // ============================================================
 // LOCAL-FIRST STORES
@@ -43,13 +42,13 @@ function createGoalListsStore() {
       loading.set(true);
       try {
         // Always read from local DB
-        const lists = await sync.getGoalLists();
+        const lists = await queries.getGoalLists();
         set(lists);
 
         // Register for sync complete to auto-refresh
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
-            const refreshed = await sync.getGoalLists();
+          unsubscribe = onSyncComplete(async () => {
+            const refreshed = await queries.getGoalLists();
             set(refreshed);
           });
         }
@@ -91,7 +90,7 @@ function createGoalListsStore() {
       return updated;
     },
     refresh: async () => {
-      const lists = await sync.getGoalLists();
+      const lists = await queries.getGoalLists();
       set(lists);
     }
   };
@@ -115,14 +114,14 @@ function createGoalListStore() {
       currentId = id;
       try {
         // Always read from local DB
-        const list = await sync.getGoalList(id);
+        const list = await queries.getGoalList(id);
         set(list);
 
         // Register for sync complete to auto-refresh
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
+          unsubscribe = onSyncComplete(async () => {
             if (currentId) {
-              const refreshed = await sync.getGoalList(currentId);
+              const refreshed = await queries.getGoalList(currentId);
               set(refreshed);
             }
           });
@@ -225,13 +224,13 @@ function createDailyRoutinesStore() {
       loading.set(true);
       try {
         // Always read from local DB
-        const routines = await sync.getDailyRoutineGoals();
+        const routines = await queries.getDailyRoutineGoals();
         set(routines);
 
         // Register for sync complete to auto-refresh
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
-            const refreshed = await sync.getDailyRoutineGoals();
+          unsubscribe = onSyncComplete(async () => {
+            const refreshed = await queries.getDailyRoutineGoals();
             set(refreshed);
           });
         }
@@ -273,7 +272,15 @@ function createDailyRoutinesStore() {
       updates: Partial<
         Pick<
           DailyRoutineGoal,
-          'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days' | 'start_target_value' | 'end_target_value' | 'progression_schedule'
+          | 'name'
+          | 'type'
+          | 'target_value'
+          | 'start_date'
+          | 'end_date'
+          | 'active_days'
+          | 'start_target_value'
+          | 'end_target_value'
+          | 'progression_schedule'
         >
       >
     ) => {
@@ -300,7 +307,7 @@ function createDailyRoutinesStore() {
       return updated;
     },
     refresh: async () => {
-      const routines = await sync.getDailyRoutineGoals();
+      const routines = await queries.getDailyRoutineGoals();
       set(routines);
     }
   };
@@ -323,14 +330,14 @@ function createRoutineStore() {
       currentId = id;
       try {
         // Always read from local DB
-        const routine = await sync.getDailyRoutineGoal(id);
+        const routine = await queries.getDailyRoutineGoal(id);
         set(routine);
 
         // Register for sync complete to auto-refresh
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
+          unsubscribe = onSyncComplete(async () => {
             if (currentId) {
-              const refreshed = await sync.getDailyRoutineGoal(currentId);
+              const refreshed = await queries.getDailyRoutineGoal(currentId);
               set(refreshed);
             }
           });
@@ -344,7 +351,15 @@ function createRoutineStore() {
       updates: Partial<
         Pick<
           DailyRoutineGoal,
-          'name' | 'type' | 'target_value' | 'start_date' | 'end_date' | 'active_days' | 'start_target_value' | 'end_target_value' | 'progression_schedule'
+          | 'name'
+          | 'type'
+          | 'target_value'
+          | 'start_date'
+          | 'end_date'
+          | 'active_days'
+          | 'start_target_value'
+          | 'end_target_value'
+          | 'progression_schedule'
         >
       >
     ) => {
@@ -385,8 +400,8 @@ function createDailyProgressStore() {
       try {
         // Always read from local DB
         const [routines, progressList] = await Promise.all([
-          sync.getActiveRoutinesForDate(date),
-          sync.getDailyProgress(date)
+          queries.getActiveRoutinesForDate(date),
+          queries.getDailyProgress(date)
         ]);
 
         const progressMap = new Map<string, DailyGoalProgress>();
@@ -398,11 +413,11 @@ function createDailyProgressStore() {
 
         // Register for sync complete to auto-refresh
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
+          unsubscribe = onSyncComplete(async () => {
             if (currentDate) {
               const [r, p] = await Promise.all([
-                sync.getActiveRoutinesForDate(currentDate),
-                sync.getDailyProgress(currentDate)
+                queries.getActiveRoutinesForDate(currentDate),
+                queries.getDailyProgress(currentDate)
               ]);
               const pMap = new Map<string, DailyGoalProgress>();
               for (const prog of p) {
@@ -507,8 +522,8 @@ function createMonthProgressStore() {
   async function loadMonthData(year: number, month: number): Promise<MonthProgressState> {
     // Always read from local DB
     const [routines, progressList] = await Promise.all([
-      sync.getDailyRoutineGoals(),
-      sync.getMonthProgress(year, month)
+      queries.getDailyRoutineGoals(),
+      queries.getMonthProgress(year, month)
     ]);
 
     // Group progress by date
@@ -546,9 +561,10 @@ function createMonthProgressStore() {
         const isCompleted = progress?.completed || false;
 
         // For progressive routines, compute the dynamic target for this date
-        const effectiveTarget = routine.type === 'progressive'
-          ? getProgressiveTargetForDate(routine, dateStr)
-          : routine.target_value;
+        const effectiveTarget =
+          routine.type === 'progressive'
+            ? getProgressiveTargetForDate(routine, dateStr)
+            : routine.target_value;
 
         const progressPercent = calculateGoalProgressCapped(
           routine.type,
@@ -558,9 +574,7 @@ function createMonthProgressStore() {
         );
         completedProgress += progressPercent;
 
-        if (
-          routine.type === 'completion' ? isCompleted : currentValue >= (effectiveTarget || 0)
-        ) {
+        if (routine.type === 'completion' ? isCompleted : currentValue >= (effectiveTarget || 0)) {
           completedGoals++;
         }
       }
@@ -589,7 +603,7 @@ function createMonthProgressStore() {
 
         // Register for sync complete to auto-refresh
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
+          unsubscribe = onSyncComplete(async () => {
             if (currentYear !== null && currentMonth !== null) {
               const refreshed = await loadMonthData(currentYear, currentMonth);
               set(refreshed);
@@ -626,12 +640,12 @@ function createTaskCategoriesStore() {
     load: async () => {
       loading.set(true);
       try {
-        const categories = await sync.getTaskCategories();
+        const categories = await queries.getTaskCategories();
         set(categories);
 
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
-            const refreshed = await sync.getTaskCategories();
+          unsubscribe = onSyncComplete(async () => {
+            const refreshed = await queries.getTaskCategories();
             set(refreshed);
           });
         }
@@ -669,7 +683,7 @@ function createTaskCategoriesStore() {
       return updated;
     },
     refresh: async () => {
-      const categories = await sync.getTaskCategories();
+      const categories = await queries.getTaskCategories();
       set(categories);
     }
   };
@@ -689,12 +703,12 @@ function createCommitmentsStore() {
     load: async () => {
       loading.set(true);
       try {
-        const commitments = await sync.getCommitments();
+        const commitments = await queries.getCommitments();
         set(commitments);
 
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
-            const refreshed = await sync.getCommitments();
+          unsubscribe = onSyncComplete(async () => {
+            const refreshed = await queries.getCommitments();
             set(refreshed);
           });
         }
@@ -732,7 +746,7 @@ function createCommitmentsStore() {
       return updated;
     },
     refresh: async () => {
-      const commitments = await sync.getCommitments();
+      const commitments = await queries.getCommitments();
       set(commitments);
     }
   };
@@ -752,12 +766,12 @@ function createDailyTasksStore() {
     load: async () => {
       loading.set(true);
       try {
-        const tasks = await sync.getDailyTasks();
+        const tasks = await queries.getDailyTasks();
         set(tasks);
 
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
-            const refreshed = await sync.getDailyTasks();
+          unsubscribe = onSyncComplete(async () => {
+            const refreshed = await queries.getDailyTasks();
             set(refreshed);
           });
         }
@@ -807,7 +821,7 @@ function createDailyTasksStore() {
       update((tasks) => tasks.filter((t) => !t.completed));
     },
     refresh: async () => {
-      const tasks = await sync.getDailyTasks();
+      const tasks = await queries.getDailyTasks();
       set(tasks);
     }
   };
@@ -827,12 +841,12 @@ function createLongTermTasksStore() {
     load: async () => {
       loading.set(true);
       try {
-        const tasks = await sync.getLongTermTasks();
+        const tasks = await queries.getLongTermTasks();
         set(tasks);
 
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
-            const refreshed = await sync.getLongTermTasks();
+          unsubscribe = onSyncComplete(async () => {
+            const refreshed = await queries.getLongTermTasks();
             set(refreshed);
           });
         }
@@ -845,7 +859,7 @@ function createLongTermTasksStore() {
       // Record for animation before updating store
       remoteChangesStore.recordLocalChange(newTask.id, 'long_term_tasks', 'create');
       // Fetch the task with category for the store
-      const taskWithCategory = await sync.getLongTermTask(newTask.id);
+      const taskWithCategory = await queries.getLongTermTask(newTask.id);
       if (taskWithCategory) {
         update((tasks) => [...tasks, taskWithCategory]);
       }
@@ -858,7 +872,7 @@ function createLongTermTasksStore() {
       const updated = await repo.updateLongTermTask(id, updates);
       if (updated) {
         // Fetch the updated task with category
-        const taskWithCategory = await sync.getLongTermTask(updated.id);
+        const taskWithCategory = await queries.getLongTermTask(updated.id);
         if (taskWithCategory) {
           update((tasks) => tasks.map((t) => (t.id === id ? taskWithCategory : t)));
         }
@@ -868,7 +882,7 @@ function createLongTermTasksStore() {
     toggle: async (id: string) => {
       const updated = await repo.toggleLongTermTaskComplete(id);
       if (updated) {
-        const taskWithCategory = await sync.getLongTermTask(updated.id);
+        const taskWithCategory = await queries.getLongTermTask(updated.id);
         if (taskWithCategory) {
           update((tasks) => tasks.map((t) => (t.id === id ? taskWithCategory : t)));
         }
@@ -880,7 +894,7 @@ function createLongTermTasksStore() {
       update((tasks) => tasks.filter((t) => t.id !== id));
     },
     refresh: async () => {
-      const tasks = await sync.getLongTermTasks();
+      const tasks = await queries.getLongTermTasks();
       set(tasks);
     }
   };
@@ -899,9 +913,9 @@ function createProjectsStore() {
   let unsubscribe: (() => void) | null = null;
 
   async function loadProjectsWithDetails(): Promise<ProjectWithDetails[]> {
-    const projects = await sync.getProjects();
-    const goalLists = await sync.getGoalLists();
-    const categories = await sync.getTaskCategories();
+    const projects = await queries.getProjects();
+    const goalLists = await queries.getGoalLists();
+    const categories = await queries.getTaskCategories();
 
     // Join projects with their goal lists and tags
     return projects.map((project) => {
@@ -929,7 +943,7 @@ function createProjectsStore() {
 
         // One-time migration: sync linked tag/commitment order to match project order
         if (browser && !localStorage.getItem('project-order-sync-v1')) {
-          const commitments = await sync.getCommitments();
+          const commitments = await queries.getCommitments();
           for (const project of projectsWithDetails) {
             if (project.tag_id && project.tag && project.tag.order !== project.order) {
               await repo.reorderTaskCategory(project.tag_id, project.order);
@@ -945,7 +959,7 @@ function createProjectsStore() {
         }
 
         if (browser && !unsubscribe) {
-          unsubscribe = sync.onSyncComplete(async () => {
+          unsubscribe = onSyncComplete(async () => {
             const refreshed = await loadProjectsWithDetails();
             set(refreshed);
           });

@@ -69,9 +69,9 @@
     </div>
 
     <div class="field">
-      <label class="field-label">Color</label>
-      <div class="color-picker">
-        {#each presetColors as presetColor}
+      <span id="color-label" class="field-label">Color</span>
+      <div class="color-picker" role="group" aria-labelledby="color-label">
+        {#each presetColors as presetColor (presetColor)}
           <button
             type="button"
             class="color-btn"

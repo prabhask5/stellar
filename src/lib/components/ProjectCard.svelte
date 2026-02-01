@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ProjectWithDetails } from '$lib/types';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
-  import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   interface Props {
@@ -21,18 +21,17 @@
 
   // Track animation state for star
   let starAnimating = $state(false);
-  let prevIsCurrent = $state(project.is_current);
+  let prevIsCurrent: boolean | undefined = undefined;
 
   // Detect changes to is_current and trigger animation
   $effect(() => {
-    if (project.is_current !== prevIsCurrent) {
+    if (prevIsCurrent !== undefined && project.is_current !== prevIsCurrent) {
       starAnimating = true;
-      prevIsCurrent = project.is_current;
-      // Reset animation state after animation completes
       setTimeout(() => {
         starAnimating = false;
       }, 800);
     }
+    prevIsCurrent = project.is_current;
   });
 
   function handleStarClick(e: MouseEvent) {
@@ -52,7 +51,9 @@
   use:remoteChangeAnimation={{ entityId: project.id, entityType: 'projects' }}
 >
   {#if dragHandleProps}
-    <button class="drag-handle card-drag-handle" {...dragHandleProps} aria-label="Drag to reorder">⋮⋮</button>
+    <button class="drag-handle card-drag-handle" {...dragHandleProps} aria-label="Drag to reorder"
+      >⋮⋮</button
+    >
   {/if}
   <div class="project-header">
     <div class="project-title">
@@ -73,7 +74,7 @@
 
         <!-- Particle burst container -->
         <span class="star-particles">
-          {#each Array(6) as _, i}
+          {#each Array(6) as _, i (i)}
             <span class="particle" style="--i: {i}"></span>
           {/each}
         </span>

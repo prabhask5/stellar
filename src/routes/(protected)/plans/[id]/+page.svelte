@@ -3,8 +3,15 @@
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import { goalListStore, longTermTasksStore, taskCategoriesStore } from '$lib/stores/data';
-  import type { GoalList, Goal, GoalType, LongTermTaskWithCategory, TaskCategory, Project } from '$lib/types';
-  import { getProjects } from '$lib/sync/engine';
+  import type {
+    GoalList,
+    Goal,
+    GoalType,
+    LongTermTaskWithCategory,
+    TaskCategory,
+    Project
+  } from '$lib/types';
+  import { getProjects } from '$lib/db/queries';
   import { calculateGoalProgressCapped } from '$lib/utils/colors';
   import GoalItem from '$lib/components/GoalItem.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
@@ -34,7 +41,7 @@
 
   // Derive editing goal reactively from the store so props update when remote changes arrive
   const editingGoal = $derived(
-    editingGoalId && list ? list.goals.find((g) => g.id === editingGoalId) ?? null : null
+    editingGoalId && list ? (list.goals.find((g) => g.id === editingGoalId) ?? null) : null
   );
   let newListName = $state('');
 
@@ -94,7 +101,7 @@
   const hasAnyTasks = $derived(longTermTasks.length > 0);
 
   const projectCategories = $derived(
-    project?.tag_id ? categories.filter((c) => c.id === project.tag_id) : []
+    project?.tag_id ? categories.filter((c) => c.id === project!.tag_id) : []
   );
 
   // Subscribe to store
@@ -355,7 +362,7 @@
       <div class="skeleton-shimmer"></div>
     </div>
     <div class="goals-skeleton">
-      {#each Array(4) as _, i}
+      {#each Array(4) as _, i (i)}
         <div class="goal-skeleton-card" style="--delay: {i * 0.1}s">
           <div class="goal-skeleton-handle"></div>
           <div class="goal-skeleton-content">
@@ -424,10 +431,7 @@
             <h2 class="tasks-section-title">Tasks</h2>
             <div class="tasks-section-divider"></div>
           </div>
-          <button
-            class="btn btn-primary btn-sm"
-            onclick={() => (showTaskForm = true)}
-          >
+          <button class="btn btn-primary btn-sm" onclick={() => (showTaskForm = true)}>
             + New Task
           </button>
         </div>
@@ -943,12 +947,7 @@
   .tasks-section-divider {
     flex: 1;
     height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(108, 92, 231, 0.3),
-      transparent
-    );
+    background: linear-gradient(90deg, transparent, rgba(108, 92, 231, 0.3), transparent);
   }
 
   .tasks-section-title {

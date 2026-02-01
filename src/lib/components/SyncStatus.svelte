@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { syncStatusStore, type SyncError, type RealtimeState } from '$lib/stores/sync';
-  import { isOnline } from '$lib/stores/network';
-  import { performSync } from '$lib/sync/engine';
-  import { invalidateAll } from '$app/navigation';
+  import { syncStatusStore, isOnline } from '@prabhask5/stellar-engine/stores';
+  import type { SyncError, RealtimeState } from '@prabhask5/stellar-engine/types';
+  import { runFullSync } from '@prabhask5/stellar-engine';
   import type { SyncStatus } from '$lib/types';
 
   let status = $state<SyncStatus>('idle');
@@ -65,7 +64,7 @@
 
   function handleSyncClick() {
     if (online && status !== 'syncing') {
-      performSync();
+      runFullSync(false);
     }
   }
 
@@ -459,7 +458,7 @@
               <div class="error-details-panel">
                 {#if syncErrors.length > 0}
                   <div class="error-list">
-                    {#each syncErrors as error, i}
+                    {#each syncErrors as error, i (i)}
                       <div class="error-item" style="animation-delay: {i * 50}ms">
                         <div class="error-item-header">
                           <span

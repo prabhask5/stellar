@@ -1,11 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import { browser } from '$app/environment';
-import { getSession, isSessionExpired } from '$lib/supabase/auth';
-import { getValidOfflineSession } from '$lib/auth/offlineSession';
-import { getOfflineCredentials } from '$lib/auth/offlineCredentials';
-import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
+import { resolveAuthState } from '@prabhask5/stellar-engine/auth';
 import type { AuthMode, OfflineCredentials } from '$lib/types';
-import type { Session } from '@supabase/supabase-js';
+import type { Session } from '@prabhask5/stellar-engine/types';
 import type { LayoutLoad } from './$types';
 
 export interface ProtectedLayoutData {
@@ -16,27 +13,9 @@ export interface ProtectedLayoutData {
 
 export const load: LayoutLoad = async ({ url }): Promise<ProtectedLayoutData> => {
   if (browser) {
-    const isOffline = !navigator.onLine;
+    const result = await resolveAuthState();
 
-    // EGRESS OPTIMIZATION: Get session once and reuse
-    let session = null;
-    try {
-      session = await getSession();
-    } catch (e) {
-      debugWarn('[Auth] Session check failed:', e);
-    }
-
-    const hasValidSession = session && !isSessionExpired(session);
-
-    // ONLINE: Always use Supabase authentication only
-    if (!isOffline) {
-      if (hasValidSession) {
-        // Valid Supabase session - use it
-        return { session, authMode: 'supabase', offlineProfile: null };
-      }
-
-      // No valid Supabase session while online - redirect to login
-      // Do NOT fall back to offline session when online
+    if (result.authMode === 'none') {
       const returnUrl = url.pathname + url.search;
       const loginUrl =
         returnUrl && returnUrl !== '/'
@@ -45,39 +24,7 @@ export const load: LayoutLoad = async ({ url }): Promise<ProtectedLayoutData> =>
       throw redirect(302, loginUrl);
     }
 
-    // OFFLINE: Try Supabase session from localStorage first, then offline session
-    if (hasValidSession) {
-      // Supabase session still valid in localStorage - use it
-      return { session, authMode: 'supabase', offlineProfile: null };
-    }
-
-    // Check for valid offline session
-    try {
-      const offlineSession = await getValidOfflineSession();
-
-      if (offlineSession) {
-        // SECURITY: Verify offline session matches cached credentials
-        const profile = await getOfflineCredentials();
-        if (profile && profile.userId === offlineSession.userId) {
-          // Valid offline session with matching credentials - use it
-          return { session: null, authMode: 'offline', offlineProfile: profile };
-        }
-        // Mismatch: credentials changed after session created
-        debugWarn('[Auth] Offline session userId does not match credentials - clearing session');
-        const { clearOfflineSession } = await import('$lib/auth/offlineSession');
-        await clearOfflineSession();
-      }
-    } catch (e) {
-      debugWarn('[Auth] Offline session check failed:', e);
-    }
-
-    // No valid session while offline - redirect to login
-    const returnUrl = url.pathname + url.search;
-    const loginUrl =
-      returnUrl && returnUrl !== '/'
-        ? `/login?redirect=${encodeURIComponent(returnUrl)}`
-        : '/login';
-    throw redirect(302, loginUrl);
+    return result;
   }
   return { session: null, authMode: 'none', offlineProfile: null };
 };

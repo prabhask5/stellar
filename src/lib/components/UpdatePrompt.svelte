@@ -1,7 +1,7 @@
 <script lang="ts">
   import { browser } from '$app/environment';
   import { onMount } from 'svelte';
-  import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
+  import { debug } from '@prabhask5/stellar-engine/utils';
 
   let showPrompt = $state(false);
 
@@ -12,7 +12,7 @@
     function checkForWaitingWorker() {
       navigator.serviceWorker.getRegistration().then((registration) => {
         if (registration?.waiting) {
-          debugLog('[UpdatePrompt] Found waiting service worker');
+          debug('log', '[UpdatePrompt] Found waiting service worker');
           showPrompt = true;
         }
       });
@@ -28,7 +28,7 @@
     // Listen for messages from service worker
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data?.type === 'SW_INSTALLED') {
-        debugLog('[UpdatePrompt] Received SW_INSTALLED message');
+        debug('log', '[UpdatePrompt] Received SW_INSTALLED message');
         // Small delay to ensure the worker is in waiting state
         setTimeout(checkForWaitingWorker, 500);
       }
@@ -38,17 +38,17 @@
     navigator.serviceWorker.ready.then((registration) => {
       // Check if there's already a waiting worker
       if (registration.waiting) {
-        debugLog('[UpdatePrompt] Waiting worker found on ready');
+        debug('log', '[UpdatePrompt] Waiting worker found on ready');
         showPrompt = true;
       }
 
       // Listen for update found
       registration.addEventListener('updatefound', () => {
-        debugLog('[UpdatePrompt] Update found');
+        debug('log', '[UpdatePrompt] Update found');
         const newWorker = registration.installing;
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
-            debugLog('[UpdatePrompt] New worker state:', newWorker.state);
+            debug('log', '[UpdatePrompt] New worker state:', newWorker.state);
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               // New service worker is ready but waiting
               showPrompt = true;
@@ -61,7 +61,7 @@
     // Check for updates when app becomes visible (critical for iOS PWA)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        debugLog('[UpdatePrompt] App became visible, checking for updates');
+        debug('log', '[UpdatePrompt] App became visible, checking for updates');
         navigator.serviceWorker.ready.then((registration) => {
           registration.update();
         });

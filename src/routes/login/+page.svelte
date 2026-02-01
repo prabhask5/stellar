@@ -5,15 +5,13 @@
   import {
     signIn,
     signUp,
-    getSession,
     resendConfirmationEmail,
-    isSessionExpired
-  } from '$lib/supabase/auth';
-  import { getOfflineCredentials, verifyOfflineCredentials } from '$lib/auth/offlineCredentials';
-  import { createOfflineSession, getValidOfflineSession } from '$lib/auth/offlineSession';
-  import { isOnline } from '$lib/stores/network';
-  import type { OfflineCredentials } from '$lib/types';
-  import { debugLog, debugWarn, debugError } from '$lib/utils/debug';
+    resolveAuthState,
+    getValidSession,
+    signInOffline,
+    getOfflineLoginInfo
+  } from '@prabhask5/stellar-engine/auth';
+  import { isOnline } from '@prabhask5/stellar-engine/stores';
 
   let mode: 'login' | 'signup' = $state('login');
   let email = $state('');
@@ -28,10 +26,15 @@
   // Get redirect URL from query params
   const redirectUrl = $derived($page.url.searchParams.get('redirect') || '/');
 
-  // Offline login state
-  let cachedCredentials = $state<OfflineCredentials | null>(null);
-  let isOfflineLoginMode = $derived(!$isOnline && cachedCredentials !== null);
-  let showNoInternetMessage = $derived(!$isOnline && cachedCredentials === null);
+  // Offline login state - uses non-sensitive display info instead of full OfflineCredentials
+  let cachedCredentialInfo = $state<{
+    hasCredentials: boolean;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+  } | null>(null);
+  let isOfflineLoginMode = $derived(!$isOnline && cachedCredentialInfo?.hasCredentials === true);
+  let showNoInternetMessage = $derived(!$isOnline && !cachedCredentialInfo?.hasCredentials);
 
   // Resend confirmation email state
   let pendingConfirmationEmail = $state<string | null>(null);
@@ -45,34 +48,16 @@
 
   // Check for cached credentials on mount
   onMount(async () => {
-    const cached = await getOfflineCredentials();
-    cachedCredentials = cached;
-
-    // DON'T redirect here - the layout load function handles auth redirects
-    // Re-checking here causes redirect loops when:
-    // 1. Protected layout redirects to login (no valid session)
-    // 2. Login page checks session and finds one (race condition)
-    // 3. Redirects back to protected page
-    // 4. Loop!
+    cachedCredentialInfo = await getOfflineLoginInfo();
 
     // Only redirect if user manually navigated to /login while authenticated
     // (i.e., no redirect parameter was set by the protected layout)
     const hasRedirectParam = $page.url.searchParams.has('redirect');
     if (!hasRedirectParam) {
-      // User navigated directly to /login - check if they're already authenticated
-      const session = await getSession();
-      if (session && !isSessionExpired(session)) {
+      const { authMode } = await resolveAuthState();
+      if (authMode !== 'none') {
         goto('/', { replaceState: true });
         return;
-      }
-
-      // Check offline session only when offline
-      if (!navigator.onLine) {
-        const offlineSession = await getValidOfflineSession();
-        if (offlineSession && cached && offlineSession.userId === cached.userId) {
-          goto('/', { replaceState: true });
-          return;
-        }
       }
     }
 
@@ -83,9 +68,8 @@
       authChannel.onmessage = async (event) => {
         if (event.data.type === 'FOCUS_REQUEST' && event.data.authConfirmed) {
           // Another tab confirmed auth - check our session independently (don't trust the message)
-          const session = await getSession();
+          const session = await getValidSession();
           if (session) {
-            // Auth is valid, navigate to home
             goto(redirectUrl);
           }
         }
@@ -111,7 +95,7 @@
     success = null;
 
     // Handle offline login
-    if (isOfflineLoginMode && cachedCredentials) {
+    if (isOfflineLoginMode && cachedCredentialInfo) {
       await handleOfflineLogin();
       loading = false;
       return;
@@ -131,7 +115,10 @@
         return;
       }
       const signupEmail = email; // Store before clearing
-      const result = await signUp(email, password, firstName.trim(), lastName.trim());
+      const result = await signUp(email, password, {
+        firstName: firstName.trim(),
+        lastName: lastName.trim()
+      });
       if (result.error) {
         error = result.error;
       } else if (result.session) {
@@ -179,27 +166,10 @@
   }
 
   async function handleOfflineLogin() {
-    if (!cachedCredentials) return;
+    if (!cachedCredentialInfo) return;
 
-    // Re-fetch credentials to ensure they haven't changed since page load
-    // (e.g., another tab might have logged in as different user)
-    const currentCredentials = await getOfflineCredentials();
-
-    // SECURITY: Verify credentials still exist and match what was displayed
-    if (!currentCredentials || currentCredentials.userId !== cachedCredentials.userId) {
-      error = 'Credentials have changed. Please refresh the page.';
-      cachedCredentials = currentCredentials; // Update displayed info
-      return;
-    }
-
-    // Verify email AND password against cached credentials
-    const result = await verifyOfflineCredentials(
-      cachedCredentials.email,
-      password,
-      cachedCredentials.userId
-    );
-    if (!result.valid) {
-      // Provide specific error messages based on failure reason
+    const result = await signInOffline(cachedCredentialInfo.email ?? '', password);
+    if (!result.success) {
       switch (result.reason) {
         case 'no_credentials':
           error = 'No saved credentials found. Please connect to the internet to sign in.';
@@ -211,7 +181,10 @@
         case 'user_mismatch':
         case 'email_mismatch':
           error = 'Credentials have changed. Please refresh the page.';
-          cachedCredentials = await getOfflineCredentials();
+          cachedCredentialInfo = await getOfflineLoginInfo();
+          break;
+        case 'session_failed':
+          error = 'Failed to create offline session. Please try again.';
           break;
         case 'password_mismatch':
         default:
@@ -221,25 +194,9 @@
       return;
     }
 
-    try {
-      // Create offline session (this now includes verification that it was persisted)
-      await createOfflineSession(cachedCredentials.userId);
-
-      // Double-check the session is readable before navigating
-      // This prevents race conditions with layout load functions
-      const verifiedSession = await getValidOfflineSession();
-      if (!verifiedSession) {
-        error = 'Failed to create offline session. Please try again.';
-        return;
-      }
-
-      // Navigate using SvelteKit and invalidate to re-run load functions
-      await invalidateAll();
-      goto(redirectUrl, { replaceState: true });
-    } catch (e) {
-      debugError('[Offline Login] Failed to create session:', e);
-      error = 'Failed to create offline session. Please try again.';
-    }
+    // Navigate using SvelteKit and invalidate to re-run load functions
+    await invalidateAll();
+    goto(redirectUrl, { replaceState: true });
   }
 
   function toggleMode() {
@@ -288,7 +245,7 @@
 
     <!-- Floating Particles -->
     <div class="particles">
-      {#each Array(15) as _, i}
+      {#each Array(15) as _, _i (_i)}
         <span
           class="particle"
           style="
@@ -375,14 +332,16 @@
       </div>
 
       <!-- Offline Login Form (offline with cached credentials) -->
-    {:else if isOfflineLoginMode && cachedCredentials}
+    {:else if isOfflineLoginMode && cachedCredentialInfo}
       <div class="login-card">
         <div class="offline-user-info">
           <div class="offline-avatar">
-            {cachedCredentials.firstName.charAt(0).toUpperCase()}
+            {(cachedCredentialInfo.firstName || cachedCredentialInfo.email || 'U')
+              .charAt(0)
+              .toUpperCase()}
           </div>
-          <h2 class="card-title">Continue as {cachedCredentials.firstName}</h2>
-          <p class="offline-email">{cachedCredentials.email}</p>
+          <h2 class="card-title">Continue as {cachedCredentialInfo.firstName || 'User'}</h2>
+          <p class="offline-email">{cachedCredentialInfo.email}</p>
         </div>
 
         <form onsubmit={handleSubmit}>

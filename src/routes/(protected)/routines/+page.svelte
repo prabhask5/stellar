@@ -16,7 +16,7 @@
   import RoutineForm from '$lib/components/RoutineForm.svelte';
   import DraggableList from '$lib/components/DraggableList.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
-  import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   let currentDate = $state(new Date());
@@ -222,12 +222,12 @@
         <div class="skeleton-nav-btn"></div>
       </div>
       <div class="skeleton-weekdays">
-        {#each Array(7) as _}
+        {#each Array(7) as _, _i (_i)}
           <div class="skeleton-weekday"></div>
         {/each}
       </div>
       <div class="skeleton-grid">
-        {#each Array(35) as _, i}
+        {#each Array(35) as _, i (i)}
           <div class="skeleton-day" style="--delay: {(i % 7) * 0.05}s"></div>
         {/each}
       </div>
@@ -266,7 +266,7 @@
     {#if routinesLoading}
       <!-- Routines Skeleton -->
       <div class="routines-skeleton">
-        {#each Array(3) as _, i}
+        {#each Array(3) as _, i (i)}
           <div class="routine-skeleton-card" style="--delay: {i * 0.1}s">
             <div class="routine-skeleton-handle"></div>
             <div class="routine-skeleton-content">
@@ -316,7 +316,11 @@
                     <h4 use:truncateTooltip>{routine.name}</h4>
                     <div class="routine-meta">
                       <span class="badge type-{routine.type}">
-                        {routine.type === 'completion' ? '✓' : routine.type === 'progressive' ? '↗' : '↑'}
+                        {routine.type === 'completion'
+                          ? '✓'
+                          : routine.type === 'progressive'
+                            ? '↗'
+                            : '↑'}
                         {routine.type === 'incremental'
                           ? routine.target_value + '/day'
                           : routine.type === 'progressive'
@@ -376,7 +380,11 @@
                     <h4 use:truncateTooltip>{routine.name}</h4>
                     <div class="routine-meta">
                       <span class="badge type-{routine.type}">
-                        {routine.type === 'completion' ? '✓' : routine.type === 'progressive' ? '↗' : '↑'}
+                        {routine.type === 'completion'
+                          ? '✓'
+                          : routine.type === 'progressive'
+                            ? '↗'
+                            : '↑'}
                         {routine.type === 'incremental'
                           ? routine.target_value + '/day'
                           : routine.type === 'progressive'

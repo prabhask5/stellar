@@ -2,8 +2,7 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "entry": [
     "src/routes/**/*.{svelte,ts,js}",
-    "src/lib/**/*.{svelte,ts,js}",
-    "src/hooks.{server,client}.{ts,js}"
+    "src/lib/**/*.{svelte,ts,js}"
   ],
   "project": [
     "src/**/*.{svelte,ts,js}"

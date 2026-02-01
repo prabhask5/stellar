@@ -1,10 +1,18 @@
-import { db, generateId, now } from '../client';
+import { generateId, now } from '@prabhask5/stellar-engine/utils';
+import {
+  engineCreate,
+  engineUpdate,
+  engineDelete,
+  engineQuery
+} from '@prabhask5/stellar-engine/data';
 import type { BlockedWebsite } from '$lib/types';
-import { queueCreateOperation, queueDeleteOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
 
 export async function getBlockedWebsites(blockListId: string): Promise<BlockedWebsite[]> {
-  const websites = await db.blockedWebsites.where('block_list_id').equals(blockListId).toArray();
+  const websites = (await engineQuery(
+    'blocked_websites',
+    'block_list_id',
+    blockListId
+  )) as unknown as BlockedWebsite[];
 
   return websites.filter((w) => !w.deleted);
 }
@@ -18,70 +26,29 @@ export async function createBlockedWebsite(
   // Normalize domain (remove protocol, www, trailing slash)
   const normalizedDomain = normalizeDomain(domain);
 
-  const newWebsite: BlockedWebsite = {
+  const result = await engineCreate('blocked_websites', {
     id: generateId(),
     block_list_id: blockListId,
     domain: normalizedDomain,
     created_at: timestamp,
     updated_at: timestamp
-  };
-
-  await db.transaction('rw', [db.blockedWebsites, db.syncQueue], async () => {
-    await db.blockedWebsites.add(newWebsite);
-    await queueCreateOperation('blocked_websites', newWebsite.id, {
-      block_list_id: blockListId,
-      domain: normalizedDomain,
-      created_at: timestamp,
-      updated_at: timestamp
-    });
   });
-  markEntityModified(newWebsite.id);
-  scheduleSyncPush();
 
-  return newWebsite;
+  return result as unknown as BlockedWebsite;
 }
 
 export async function updateBlockedWebsite(
   id: string,
   domain: string
 ): Promise<BlockedWebsite | undefined> {
-  const timestamp = now();
   const normalizedDomain = normalizeDomain(domain);
 
-  // Use transaction to ensure atomicity
-  let updated: BlockedWebsite | undefined;
-  await db.transaction('rw', [db.blockedWebsites, db.syncQueue], async () => {
-    await db.blockedWebsites.update(id, { domain: normalizedDomain, updated_at: timestamp });
-    updated = await db.blockedWebsites.get(id);
-    if (updated) {
-      await queueSyncOperation({
-        table: 'blocked_websites',
-        entityId: id,
-        operationType: 'set',
-        field: 'domain',
-        value: normalizedDomain
-      });
-    }
-  });
-
-  if (updated) {
-    markEntityModified(id);
-    scheduleSyncPush();
-  }
-
-  return updated;
+  const result = await engineUpdate('blocked_websites', id, { domain: normalizedDomain });
+  return result as unknown as BlockedWebsite | undefined;
 }
 
 export async function deleteBlockedWebsite(id: string): Promise<void> {
-  const timestamp = now();
-
-  await db.transaction('rw', [db.blockedWebsites, db.syncQueue], async () => {
-    await db.blockedWebsites.update(id, { deleted: true, updated_at: timestamp });
-    await queueDeleteOperation('blocked_websites', id);
-  });
-
-  markEntityModified(id);
-  scheduleSyncPush();
+  await engineDelete('blocked_websites', id);
 }
 
 // Helper function to normalize domains

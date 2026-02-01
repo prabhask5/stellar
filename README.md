@@ -12,6 +12,7 @@ A self-hosted, offline-first productivity PWA for managing goals, tasks, routine
 |----------|-------------|
 | [FRAMEWORKS.md](./FRAMEWORKS.md) | Complete guide to all frameworks and architectural patterns |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, sync engine, conflict resolution, auth flows |
+| [@stellar/sync-engine](https://github.com/prabhask5/stellar-engine) | Sync engine, auth, conflict resolution, realtime |
 | [stellar-focus/](./stellar-focus/README.md) | Companion browser extension for website blocking |
 
 ---
@@ -38,6 +39,7 @@ A self-hosted, offline-first productivity PWA for managing goals, tasks, routine
 | **Remote Database** | Supabase (PostgreSQL) |
 | **Authentication** | Supabase Auth + offline credential caching |
 | **Real-time** | Supabase Realtime (WebSocket subscriptions) |
+| **Sync Engine** | @stellar/sync-engine (custom) |
 | **Build Tool** | Vite |
 | **Deployment** | Vercel |
 
@@ -233,6 +235,12 @@ These functions are available in the browser console when debug mode is enabled:
 | `window.__stellarTombstones()` | Check soft-deleted record counts across all tables |
 | `window.__stellarTombstones({ cleanup: true })` | Manually trigger tombstone cleanup |
 | `window.__stellarTombstones({ cleanup: true, force: true })` | Force server cleanup (bypasses 24-hour interval) |
+| `window.__stellarSync.forceFullSync()` | Reset sync cursor, clear local data, and re-download everything from server |
+| `window.__stellarSync.resetSyncCursor()` | Clear the stored cursor so the next sync pulls all data |
+| `window.__stellarSync.sync()` | Trigger a manual sync cycle |
+| `window.__stellarSync.getStatus()` | View current sync cursor and pending operation count |
+| `window.__stellarSync.checkConnection()` | Test Supabase connectivity |
+| `window.__stellarSync.realtimeStatus()` | Check realtime connection state and health |
 
 ### PWA Cache Status
 

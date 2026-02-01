@@ -7,21 +7,20 @@
 
 import { browser } from '$app/environment';
 import { redirect } from '@sveltejs/kit';
-import { isConfigured } from '$lib/config/runtimeConfig';
-import { getSession } from '$lib/supabase/auth';
-import { isAdmin } from '$lib/auth/admin';
+import { getConfig } from '@prabhask5/stellar-engine/config';
+import { getValidSession, isAdmin } from '@prabhask5/stellar-engine/auth';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async () => {
   if (!browser) return {};
 
   // If not configured, allow anyone (setup wizard needs to be accessible)
-  if (!isConfigured()) {
+  if (!getConfig()) {
     return { isFirstSetup: true };
   }
 
   // Configured: only admins can access
-  const session = await getSession();
+  const session = await getValidSession();
   if (!session?.user) {
     redirect(307, '/login');
   }

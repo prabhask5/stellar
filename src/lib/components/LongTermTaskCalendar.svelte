@@ -98,17 +98,17 @@
   </div>
 
   <div class="calendar-weekdays">
-    {#each weekdays as day}
+    {#each weekdays as day (day)}
       <div class="weekday">{day}</div>
     {/each}
   </div>
 
   <div class="calendar-grid">
-    {#each Array(firstDayOffset) as _, i}
+    {#each Array(firstDayOffset) as _, _i (_i)}
       <div class="day-cell empty" aria-hidden="true"></div>
     {/each}
 
-    {#each days as day}
+    {#each days as day (day.toISOString())}
       {@const isToday = isTodayDate(day)}
       {@const dayTasks = getTasksForDate(day)}
       {@const hasTasksDue = dayTasks.length > 0}
@@ -127,7 +127,7 @@
         {#if hasTasksDue}
           <!-- Desktop: Show task chips -->
           <div class="task-chips desktop-only">
-            {#each dayTasks.slice(0, 2) as task}
+            {#each dayTasks.slice(0, 2) as task (task.id)}
               <button
                 class="task-chip"
                 class:overdue={isOverdue(task)}

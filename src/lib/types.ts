@@ -65,32 +65,16 @@ export interface DailyGoalProgress {
   device_id?: string; // Device that last modified this record
 }
 
-// Sync-related types - re-export from dedicated module
-export type { OperationType, SyncEntityType, SyncOperationItem } from './sync/types';
-export { isOperationItem } from './sync/types';
+// Sync-related types - re-export from engine
+export type { OperationType, SyncOperationItem } from '@prabhask5/stellar-engine/types';
 
-export type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline';
+export type { SyncStatus } from '@prabhask5/stellar-engine/types';
 
 // ============================================================
 // CONFLICT RESOLUTION TYPES
 // ============================================================
 
-/**
- * Conflict history entry (stored in IndexedDB)
- * Records field-level conflict resolutions for review and potential undo
- */
-export interface ConflictHistoryEntry {
-  id?: number;
-  entityId: string;
-  entityType: string;
-  field: string;
-  localValue: unknown;
-  remoteValue: unknown;
-  resolvedValue: unknown;
-  winner: 'local' | 'remote' | 'merged';
-  strategy: string;
-  timestamp: string;
-}
+export type { ConflictHistoryEntry } from '@prabhask5/stellar-engine/types';
 
 export interface DayProgress {
   date: string;
@@ -174,26 +158,11 @@ export interface LongTermTaskWithCategory extends LongTermTask {
 // OFFLINE AUTHENTICATION TYPES
 // ============================================================
 
-export interface OfflineCredentials {
-  id: string; // 'current_user' - singleton pattern
-  userId: string; // Supabase user ID
-  email: string;
-  password: string; // Plaintext password (user's own password, stored locally)
-  firstName: string;
-  lastName: string;
-  cachedAt: string; // ISO timestamp when credentials were cached
-}
+export type { OfflineCredentials } from '@prabhask5/stellar-engine/types';
 
-export interface OfflineSession {
-  id: string; // 'current_session' - singleton pattern
-  userId: string; // Supabase user ID
-  offlineToken: string; // UUID token for offline session
-  createdAt: string; // ISO timestamp
-  // Note: No expiresAt - sessions don't expire automatically
-  // They are only revoked on: (1) successful online re-auth, (2) logout
-}
+export type { OfflineSession } from '@prabhask5/stellar-engine/types';
 
-export type AuthMode = 'supabase' | 'offline' | 'none';
+export type { AuthMode } from '@prabhask5/stellar-engine/types';
 
 // ============================================================
 // FOCUS FEATURE TYPES

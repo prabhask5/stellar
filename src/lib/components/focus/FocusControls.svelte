@@ -16,7 +16,7 @@
   let {
     session,
     isRunning,
-    remainingMs,
+    remainingMs: _remainingMs,
     stateTransition = null,
     onStart,
     onPause,
@@ -26,17 +26,7 @@
   }: Props = $props();
 
   // Can go back only in first 30 seconds of a phase
-  const canGoBack = $derived(
-    session &&
-      session.status === 'running' &&
-      remainingMs >
-        (session.phase === 'focus'
-          ? session.focus_duration * 60 * 1000 - 30000
-          : session.break_duration * 60 * 1000 - 30000)
-  );
-
   const hasSession = $derived(!!session && session.status !== 'stopped');
-  const isPaused = $derived(session?.status === 'paused');
 </script>
 
 <div

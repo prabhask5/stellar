@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getProgressColor, calculateGoalProgress, getOverflowColor } from '$lib/utils/colors';
-  import { remoteChangeAnimation, triggerLocalAnimation } from '$lib/actions/remoteChange';
+  import { remoteChangeAnimation, triggerLocalAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
   import type { Goal, DailyRoutineGoal, DailyGoalProgress } from '$lib/types';
 
@@ -188,7 +188,7 @@
 
           {#if celebrationIntensity > 0.1}
             <div class="particle-burst">
-              {#each Array(Math.floor(celebrationIntensity * 8)) as _, i}
+              {#each Array(Math.floor(celebrationIntensity * 8)) as _, i (i)}
                 <div
                   class="particle"
                   style="--angle: {i * 45}deg; --delay: {i * 0.15}s; --distance: {20 +
@@ -235,7 +235,11 @@
     </div>
 
     <!-- Row 2 (mobile only): Goal name -->
-    <span class="goal-name mobile-name" class:completed={completed && goal.type === 'completion'} use:truncateTooltip>
+    <span
+      class="goal-name mobile-name"
+      class:completed={completed && goal.type === 'completion'}
+      use:truncateTooltip
+    >
       {goal.name}
     </span>
 
@@ -266,7 +270,7 @@
 
         {#if celebrationIntensity > 0.1}
           <div class="particle-burst">
-            {#each Array(Math.floor(celebrationIntensity * 8)) as _, i}
+            {#each Array(Math.floor(celebrationIntensity * 8)) as _, i (i)}
               <div
                 class="particle"
                 style="--angle: {i * 45}deg; --delay: {i * 0.15}s; --distance: {20 +
@@ -313,7 +317,10 @@
     border: 1px solid rgba(108, 92, 231, 0.15);
     border-left-width: 4px;
     border-radius: var(--radius-xl);
-    transition: border-color 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out), transform 0.35s var(--ease-out);
+    transition:
+      border-color 0.35s var(--ease-out),
+      box-shadow 0.35s var(--ease-out),
+      transform 0.35s var(--ease-out);
     position: relative;
     overflow: hidden;
   }
@@ -520,7 +527,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s,
+      box-shadow 0.15s;
     color: var(--color-text-muted);
     -webkit-tap-highlight-color: transparent;
   }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { remoteChangesStore } from '$lib/stores/remoteChanges';
+  import { remoteChangesStore } from '@prabhask5/stellar-engine/stores';
   import { onMount, onDestroy } from 'svelte';
 
   interface Props {
@@ -99,7 +99,14 @@
   <div class="deferred-banner">
     <div class="banner-header">
       <span class="banner-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          width="16"
+          height="16"
+        >
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -115,11 +122,7 @@
         Dismiss
       </button>
       {#if diffs.length > 0}
-        <button
-          class="toggle-preview"
-          onclick={() => (showPreview = !showPreview)}
-          type="button"
-        >
+        <button class="toggle-preview" onclick={() => (showPreview = !showPreview)} type="button">
           {showPreview ? 'Hide' : 'Show'} changes
           <svg
             class="chevron"
@@ -139,7 +142,7 @@
 
     {#if showPreview && diffs.length > 0}
       <div class="diff-preview">
-        {#each diffs as diff}
+        {#each diffs as diff (diff.label)}
           <div class="diff-row">
             <span class="diff-label">{diff.label}:</span>
             <span class="diff-old">{diff.oldValue}</span>
@@ -178,11 +181,7 @@
   }
 
   .deferred-banner {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 165, 2, 0.12) 0%,
-      rgba(255, 165, 2, 0.06) 100%
-    );
+    background: linear-gradient(135deg, rgba(255, 165, 2, 0.12) 0%, rgba(255, 165, 2, 0.06) 100%);
     border: 1px solid rgba(255, 165, 2, 0.3);
     border-radius: var(--radius-lg);
     padding: 0.75rem 1rem;

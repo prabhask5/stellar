@@ -29,7 +29,7 @@
   <h3 class="schedule-title">Session Schedule</h3>
 
   <div class="schedule-timeline">
-    {#each schedule() as phase, i}
+    {#each schedule() as phase, i (i)}
       <div
         class="phase-item"
         class:focus={phase.type === 'focus'}

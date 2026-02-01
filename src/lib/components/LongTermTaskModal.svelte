@@ -2,7 +2,7 @@
   import Modal from './Modal.svelte';
   import type { LongTermTaskWithCategory, TaskCategory } from '$lib/types';
   import { parseDateString } from '$lib/utils/dates';
-  import { remoteChangeAnimation, trackEditing } from '$lib/actions/remoteChange';
+  import { remoteChangeAnimation, trackEditing } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   interface Props {
@@ -19,7 +19,16 @@
     onDelete: (id: string) => void;
   }
 
-  let { open, task, categories, lockedCategory = false, onClose, onUpdate, onToggle, onDelete }: Props = $props();
+  let {
+    open,
+    task,
+    categories,
+    lockedCategory = false,
+    onClose,
+    onUpdate,
+    onToggle,
+    onDelete
+  }: Props = $props();
 
   // Focus action for accessibility (skip on mobile to avoid keyboard popup)
   function focus(node: HTMLElement) {
@@ -111,16 +120,6 @@
     const taskDueDate = parseDateString(dueDate);
     return taskDueDate.getTime() === today.getTime() && !completed;
   });
-
-  function formatDisplayDate(dateStr: string): string {
-    const date = parseDateString(dateStr);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  }
 </script>
 
 <svelte:window onclick={handleClickOutside} />
@@ -133,26 +132,32 @@
       use:trackEditing={{ entityId: task.id, entityType: 'long_term_tasks', formType: 'auto-save' }}
     >
       <div class="field">
-        <label class="field-label">Name</label>
+        <span id="task-modal-name-label" class="field-label">Name</span>
         {#if editingName}
           <input
             type="text"
             bind:value={name}
             class="field-input"
+            aria-labelledby="task-modal-name-label"
             onblur={handleNameSubmit}
             onkeydown={(e) => e.key === 'Enter' && handleNameSubmit()}
             use:focus
           />
         {:else}
-          <button class="field-value editable" onclick={() => (editingName = true)}>
+          <button
+            class="field-value editable"
+            aria-labelledby="task-modal-name-label"
+            onclick={() => (editingName = true)}
+          >
             {name}
           </button>
         {/if}
       </div>
 
       <div class="field">
-        <label class="field-label">Due Date</label>
+        <label class="field-label" for="task-modal-due-date">Due Date</label>
         <input
+          id="task-modal-due-date"
           type="date"
           bind:value={dueDate}
           class="field-input date-input"
@@ -166,9 +171,9 @@
       </div>
 
       <div class="field">
-        <label class="field-label">Tag</label>
+        <span id="task-modal-tag-label" class="field-label">Tag</span>
         {#if lockedCategory}
-          <div class="field-value locked-tag">
+          <div class="field-value locked-tag" role="group" aria-labelledby="task-modal-tag-label">
             {#if selectedCategory}
               <span class="selected-category" use:truncateTooltip>
                 <span class="cat-dot" style="--cat-color: {selectedCategory.color}"></span>
@@ -250,8 +255,16 @@
                     >
                       <span class="cat-dot" style="--cat-color: {cat.color}"></span>
                       {cat.name}
-                      <svg class="project-star" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      <svg
+                        class="project-star"
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path
+                          d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                        />
                       </svg>
                     </button>
                   {/each}
@@ -263,8 +276,13 @@
       </div>
 
       <div class="field">
-        <label class="field-label">Status</label>
-        <button class="status-toggle" class:completed onclick={handleToggle}>
+        <span id="task-modal-status-label" class="field-label">Status</span>
+        <button
+          class="status-toggle"
+          class:completed
+          onclick={handleToggle}
+          aria-labelledby="task-modal-status-label"
+        >
           {#if completed}
             <svg
               width="18"

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { setConfig } from '$lib/config/runtimeConfig';
-  import { isOnline } from '$lib/stores/network';
+  import { setConfig } from '@prabhask5/stellar-engine/config';
+  import { isOnline } from '@prabhask5/stellar-engine/stores';
 
   // Form state
   let supabaseUrl = $state('');
@@ -15,7 +15,7 @@
   let validateSuccess = $state(false);
   let deployError = $state<string | null>(null);
   let deployStage = $state<'idle' | 'setting-env' | 'deploying' | 'ready'>('idle');
-  let deploymentUrl = $state('');
+  let _deploymentUrl = $state('');
 
   // Access control from load function
   const isFirstSetup = $derived(($page.data as { isFirstSetup?: boolean }).isFirstSetup ?? false);
@@ -83,7 +83,10 @@
         await registration?.update();
 
         // A new SW (different from any pre-existing one) means the new build is live
-        if (registration?.installing || (registration?.waiting && registration.waiting !== existingWaiting)) {
+        if (
+          registration?.installing ||
+          (registration?.waiting && registration.waiting !== existingWaiting)
+        ) {
           deployStage = 'ready';
           return;
         }
@@ -111,7 +114,7 @@
 
       if (data.success) {
         deployStage = 'deploying';
-        deploymentUrl = data.deploymentUrl || '';
+        _deploymentUrl = data.deploymentUrl || '';
         // Poll /api/config until the new deployment is live with the submitted credentials
         await pollForDeployment();
       } else {
@@ -125,8 +128,6 @@
 
     deploying = false;
   }
-
-
 </script>
 
 <svelte:head>
@@ -161,7 +162,17 @@
     <!-- Header -->
     <div class="setup-header">
       <div class="logo-container">
-        <svg class="logo-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="url(#logoGradient)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="logo-icon"
+          width="40"
+          height="40"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="url(#logoGradient)"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <defs>
             <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stop-color="#6c5ce7" />
@@ -169,7 +180,9 @@
             </linearGradient>
           </defs>
           <circle cx="12" cy="12" r="10" />
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          <path
+            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+          />
           <path d="M2 12h20" />
         </svg>
         <h1 class="setup-title">Set Up Your Instance</h1>
@@ -204,263 +217,383 @@
             </div>
             <h2 class="offline-title">Internet Required</h2>
             <p class="offline-description">
-              Setup requires an internet connection to configure your Supabase backend and deploy credentials. Please connect to the internet to continue.
+              Setup requires an internet connection to configure your Supabase backend and deploy
+              credentials. Please connect to the internet to continue.
             </p>
           </div>
         </div>
       </div>
     {:else}
-
-    <!-- Security Warning (only on first setup) -->
-    {#if isFirstSetup}
-      <div class="security-warning">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          <line x1="12" y1="9" x2="12" y2="13" />
-          <line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
-        <div>
-          <strong>This page is publicly accessible</strong> until setup is complete. After your first user signs up and is granted admin privileges, only admins can access this page.
-        </div>
-      </div>
-    {/if}
-
-    <!-- Section 1: Create Supabase Project -->
-    <section class="setup-section">
-      <div class="section-header">
-        <span class="section-number">1</span>
-        <h2 class="section-title">Create a Supabase Project</h2>
-      </div>
-      <div class="section-content">
-        <ol class="instruction-list">
-          <li>Go to <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">supabase.com/dashboard</a> and create a new project</li>
-          <li>Choose a name, set a strong database password, and select a region close to your users</li>
-          <li>Wait for the project to finish provisioning</li>
-        </ol>
-      </div>
-    </section>
-
-    <!-- Section 2: Configure Authentication -->
-    <section class="setup-section">
-      <div class="section-header">
-        <span class="section-number">2</span>
-        <h2 class="section-title">Configure Authentication</h2>
-      </div>
-      <div class="section-content">
-        <ol class="instruction-list">
-          <li>In your Supabase dashboard, go to <strong>Authentication &gt; Providers</strong></li>
-          <li>Ensure <strong>Email</strong> auth is enabled</li>
-          <li>Under <strong>URL Configuration</strong>, set the <strong>Site URL</strong> to your deployment domain (e.g., <code>https://your-app.vercel.app</code>)</li>
-          <li>Add <code>/confirm</code> to the <strong>Redirect URLs</strong> list</li>
-        </ol>
-        <div class="info-note">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="16" x2="12" y2="12" />
-            <line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
-          <span>For production, configure a custom SMTP provider in Authentication &gt; Settings. Supabase's built-in email service has a limit of 2 emails per hour.</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Section 3: Initialize Database -->
-    <section class="setup-section">
-      <div class="section-header">
-        <span class="section-number">3</span>
-        <h2 class="section-title">Initialize Database</h2>
-      </div>
-      <div class="section-content">
-        <ol class="instruction-list">
-          <li>In your Supabase dashboard, go to <strong>SQL Editor</strong></li>
-          <li>Open the <code>supabase-schema.sql</code> file from the Stellar repository</li>
-          <li>Copy the entire contents and paste it into the SQL Editor</li>
-          <li>Click <strong>Run</strong> to create all tables, RLS policies, and functions</li>
-        </ol>
-        <div class="warning-note">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <!-- Security Warning (only on first setup) -->
+      {#if isFirstSetup}
+        <div class="security-warning">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+            />
             <line x1="12" y1="9" x2="12" y2="13" />
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
-          <span>Table names and columns must match exactly. Do not modify the schema.</span>
+          <div>
+            <strong>This page is publicly accessible</strong> until setup is complete. After your first
+            user signs up and is granted admin privileges, only admins can access this page.
+          </div>
         </div>
-      </div>
-    </section>
+      {/if}
 
-    <!-- Section 4: Enter Credentials -->
-    <section class="setup-section">
-      <div class="section-header">
-        <span class="section-number">4</span>
-        <h2 class="section-title">Enter Credentials</h2>
-      </div>
-      <div class="section-content">
-        <p class="section-description">Find these in your Supabase dashboard under <strong>Settings &gt; API</strong>.</p>
-
-        <div class="form-group">
-          <label for="supabaseUrl">Supabase URL</label>
-          <input
-            type="url"
-            id="supabaseUrl"
-            bind:value={supabaseUrl}
-            placeholder="https://your-project.supabase.co"
-            disabled={deploying || deployStage === 'ready'}
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="supabaseAnonKey">Supabase Anon Key</label>
-          <input
-            type="text"
-            id="supabaseAnonKey"
-            bind:value={supabaseAnonKey}
-            placeholder="eyJhbGciOiJIUzI1NiIs..."
-            disabled={deploying || deployStage === 'ready'}
-          />
-          <span class="input-hint">This is your public anon key, safe to use in the browser. RLS policies enforce security.</span>
-        </div>
-
-        {#if validateError}
-          <div class="message error">{validateError}</div>
-        {/if}
-
-        {#if validateSuccess}
-          <div class="message success">Credentials validated successfully</div>
-        {/if}
-
-        <button
-          class="btn btn-secondary"
-          onclick={handleValidate}
-          disabled={!supabaseUrl || !supabaseAnonKey || validating || deploying || deployStage === 'ready'}
-        >
-          {#if validating}
-            <span class="loading-spinner"></span>
-            Validating...
-          {:else}
-            Test Connection
-          {/if}
-        </button>
-      </div>
-    </section>
-
-    <!-- Section 5: Persist Configuration -->
-    <section class="setup-section">
-      <div class="section-header">
-        <span class="section-number">5</span>
-        <h2 class="section-title">Persist Configuration</h2>
-      </div>
-      <div class="section-content">
-        <p class="section-description">
-          To persist your configuration across redeployments, Stellar needs to set environment variables in your Vercel project. This requires a one-time Vercel API token.
-        </p>
-        <ol class="instruction-list">
-          <li>Go to <a href="https://vercel.com/account/tokens" target="_blank" rel="noopener noreferrer">Vercel Settings &gt; Tokens</a></li>
-          <li>Create a new token with a descriptive name (e.g., "Stellar Setup")</li>
-          <li>Copy the token and paste it below</li>
-        </ol>
-
-        <div class="info-note">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="16" x2="12" y2="12" />
-            <line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
-          <span>This token is used once to set environment variables and trigger a redeployment. It is not stored.</span>
-        </div>
-
-        <div class="form-group">
-          <label for="vercelToken">Vercel API Token</label>
-          <input
-            type="password"
-            id="vercelToken"
-            bind:value={vercelToken}
-            placeholder="Enter your Vercel token"
-            disabled={deploying || deployStage === 'ready'}
-          />
-        </div>
-
-        {#if deployError}
-          <div class="message error">{deployError}</div>
-        {/if}
-
-        <button
-          class="btn btn-primary"
-          onclick={handleDeploy}
-          disabled={!validateSuccess || !vercelToken || deploying || deployStage === 'ready'}
-        >
-          {#if deploying}
-            <span class="loading-spinner"></span>
-            Setting up...
-          {:else}
-            Continue
-          {/if}
-        </button>
-      </div>
-    </section>
-
-    <!-- Deployment Progress -->
-    {#if deployStage !== 'idle'}
-      <section class="setup-section deploy-progress">
+      <!-- Section 1: Create Supabase Project -->
+      <section class="setup-section">
         <div class="section-header">
-          <span class="section-number">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="13 17 18 12 13 7" />
-              <polyline points="6 17 11 12 6 7" />
-            </svg>
-          </span>
-          <h2 class="section-title">Deployment</h2>
+          <span class="section-number">1</span>
+          <h2 class="section-title">Create a Supabase Project</h2>
         </div>
         <div class="section-content">
-          <div class="deploy-steps">
-            <div class="deploy-step" class:active={deployStage === 'setting-env'} class:complete={deployStage === 'deploying' || deployStage === 'ready'}>
-              <div class="step-indicator">
-                {#if deployStage === 'setting-env'}
-                  <span class="loading-spinner small"></span>
-                {:else}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                {/if}
-              </div>
-              <span>Setting environment variables...</span>
-            </div>
-            <div class="deploy-step" class:active={deployStage === 'deploying'} class:complete={deployStage === 'ready'}>
-              <div class="step-indicator">
-                {#if deployStage === 'deploying'}
-                  <span class="loading-spinner small"></span>
-                {:else if deployStage === 'ready'}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                {:else}
-                  <div class="step-dot"></div>
-                {/if}
-              </div>
-              <span>Deploying... (might take a bit)</span>
-            </div>
-            <div class="deploy-step" class:active={deployStage === 'ready'}>
-              <div class="step-indicator">
-                {#if deployStage === 'ready'}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                {:else}
-                  <div class="step-dot"></div>
-                {/if}
-              </div>
-              <span>Ready</span>
-            </div>
-          </div>
-
-          {#if deployStage === 'ready'}
-            <div class="message success">
-              Your Stellar instance is configured and the new deployment is live. Use the notification at the bottom of the page to refresh and load the updated version.
-            </div>
-          {/if}
+          <ol class="instruction-list">
+            <li>
+              Go to <a
+                href="https://supabase.com/dashboard"
+                target="_blank"
+                rel="noopener noreferrer">supabase.com/dashboard</a
+              > and create a new project
+            </li>
+            <li>
+              Choose a name, set a strong database password, and select a region close to your users
+            </li>
+            <li>Wait for the project to finish provisioning</li>
+          </ol>
         </div>
       </section>
-    {/if}
 
+      <!-- Section 2: Configure Authentication -->
+      <section class="setup-section">
+        <div class="section-header">
+          <span class="section-number">2</span>
+          <h2 class="section-title">Configure Authentication</h2>
+        </div>
+        <div class="section-content">
+          <ol class="instruction-list">
+            <li>
+              In your Supabase dashboard, go to <strong>Authentication &gt; Providers</strong>
+            </li>
+            <li>Ensure <strong>Email</strong> auth is enabled</li>
+            <li>
+              Under <strong>URL Configuration</strong>, set the <strong>Site URL</strong> to your
+              deployment domain (e.g., <code>https://your-app.vercel.app</code>)
+            </li>
+            <li>Add <code>/confirm</code> to the <strong>Redirect URLs</strong> list</li>
+          </ol>
+          <div class="info-note">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <span
+              >For production, configure a custom SMTP provider in Authentication &gt; Settings.
+              Supabase's built-in email service has a limit of 2 emails per hour.</span
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3: Initialize Database -->
+      <section class="setup-section">
+        <div class="section-header">
+          <span class="section-number">3</span>
+          <h2 class="section-title">Initialize Database</h2>
+        </div>
+        <div class="section-content">
+          <ol class="instruction-list">
+            <li>In your Supabase dashboard, go to <strong>SQL Editor</strong></li>
+            <li>Open the <code>supabase-schema.sql</code> file from the Stellar repository</li>
+            <li>Copy the entire contents and paste it into the SQL Editor</li>
+            <li>Click <strong>Run</strong> to create all tables, RLS policies, and functions</li>
+          </ol>
+          <div class="warning-note">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+              />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>Table names and columns must match exactly. Do not modify the schema.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 4: Enter Credentials -->
+      <section class="setup-section">
+        <div class="section-header">
+          <span class="section-number">4</span>
+          <h2 class="section-title">Enter Credentials</h2>
+        </div>
+        <div class="section-content">
+          <p class="section-description">
+            Find these in your Supabase dashboard under <strong>Settings &gt; API</strong>.
+          </p>
+
+          <div class="form-group">
+            <label for="supabaseUrl">Supabase URL</label>
+            <input
+              type="url"
+              id="supabaseUrl"
+              bind:value={supabaseUrl}
+              placeholder="https://your-project.supabase.co"
+              disabled={deploying || deployStage === 'ready'}
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="supabaseAnonKey">Supabase Anon Key</label>
+            <input
+              type="text"
+              id="supabaseAnonKey"
+              bind:value={supabaseAnonKey}
+              placeholder="eyJhbGciOiJIUzI1NiIs..."
+              disabled={deploying || deployStage === 'ready'}
+            />
+            <span class="input-hint"
+              >This is your public anon key, safe to use in the browser. RLS policies enforce
+              security.</span
+            >
+          </div>
+
+          {#if validateError}
+            <div class="message error">{validateError}</div>
+          {/if}
+
+          {#if validateSuccess}
+            <div class="message success">Credentials validated successfully</div>
+          {/if}
+
+          <button
+            class="btn btn-secondary"
+            onclick={handleValidate}
+            disabled={!supabaseUrl ||
+              !supabaseAnonKey ||
+              validating ||
+              deploying ||
+              deployStage === 'ready'}
+          >
+            {#if validating}
+              <span class="loading-spinner"></span>
+              Validating...
+            {:else}
+              Test Connection
+            {/if}
+          </button>
+        </div>
+      </section>
+
+      <!-- Section 5: Persist Configuration -->
+      <section class="setup-section">
+        <div class="section-header">
+          <span class="section-number">5</span>
+          <h2 class="section-title">Persist Configuration</h2>
+        </div>
+        <div class="section-content">
+          <p class="section-description">
+            To persist your configuration across redeployments, Stellar needs to set environment
+            variables in your Vercel project. This requires a one-time Vercel API token.
+          </p>
+          <ol class="instruction-list">
+            <li>
+              Go to <a
+                href="https://vercel.com/account/tokens"
+                target="_blank"
+                rel="noopener noreferrer">Vercel Settings &gt; Tokens</a
+              >
+            </li>
+            <li>Create a new token with a descriptive name (e.g., "Stellar Setup")</li>
+            <li>Copy the token and paste it below</li>
+          </ol>
+
+          <div class="info-note">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <span
+              >This token is used once to set environment variables and trigger a redeployment. It
+              is not stored.</span
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="vercelToken">Vercel API Token</label>
+            <input
+              type="password"
+              id="vercelToken"
+              bind:value={vercelToken}
+              placeholder="Enter your Vercel token"
+              disabled={deploying || deployStage === 'ready'}
+            />
+          </div>
+
+          {#if deployError}
+            <div class="message error">{deployError}</div>
+          {/if}
+
+          <button
+            class="btn btn-primary"
+            onclick={handleDeploy}
+            disabled={!validateSuccess || !vercelToken || deploying || deployStage === 'ready'}
+          >
+            {#if deploying}
+              <span class="loading-spinner"></span>
+              Setting up...
+            {:else}
+              Continue
+            {/if}
+          </button>
+        </div>
+      </section>
+
+      <!-- Deployment Progress -->
+      {#if deployStage !== 'idle'}
+        <section class="setup-section deploy-progress">
+          <div class="section-header">
+            <span class="section-number">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="13 17 18 12 13 7" />
+                <polyline points="6 17 11 12 6 7" />
+              </svg>
+            </span>
+            <h2 class="section-title">Deployment</h2>
+          </div>
+          <div class="section-content">
+            <div class="deploy-steps">
+              <div
+                class="deploy-step"
+                class:active={deployStage === 'setting-env'}
+                class:complete={deployStage === 'deploying' || deployStage === 'ready'}
+              >
+                <div class="step-indicator">
+                  {#if deployStage === 'setting-env'}
+                    <span class="loading-spinner small"></span>
+                  {:else}
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  {/if}
+                </div>
+                <span>Setting environment variables...</span>
+              </div>
+              <div
+                class="deploy-step"
+                class:active={deployStage === 'deploying'}
+                class:complete={deployStage === 'ready'}
+              >
+                <div class="step-indicator">
+                  {#if deployStage === 'deploying'}
+                    <span class="loading-spinner small"></span>
+                  {:else if deployStage === 'ready'}
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  {:else}
+                    <div class="step-dot"></div>
+                  {/if}
+                </div>
+                <span>Deploying... (might take a bit)</span>
+              </div>
+              <div class="deploy-step" class:active={deployStage === 'ready'}>
+                <div class="step-indicator">
+                  {#if deployStage === 'ready'}
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  {:else}
+                    <div class="step-dot"></div>
+                  {/if}
+                </div>
+                <span>Ready</span>
+              </div>
+            </div>
+
+            {#if deployStage === 'ready'}
+              <div class="message success">
+                Your Stellar instance is configured and the new deployment is live. Use the
+                notification at the bottom of the page to refresh and load the updated version.
+              </div>
+            {/if}
+          </div>
+        </section>
+      {/if}
     {/if}
   </div>
 </div>
@@ -474,7 +607,8 @@
     position: fixed;
     inset: 0;
     z-index: 0;
-    background: radial-gradient(ellipse at 30% 20%, rgba(40, 20, 80, 0.5) 0%, transparent 50%),
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(40, 20, 80, 0.5) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 80%, rgba(20, 10, 60, 0.3) 0%, transparent 50%),
       linear-gradient(180deg, #050510 0%, #0a0a1a 30%, #0d0d25 60%, #080818 100%);
     overflow: hidden;
@@ -488,7 +622,8 @@
   }
 
   .stars-small {
-    background-image: radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.6) 50%, transparent 100%),
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.6) 50%, transparent 100%),
       radial-gradient(1px 1px at 30% 40%, rgba(255, 255, 255, 0.5) 50%, transparent 100%),
       radial-gradient(1px 1px at 50% 10%, rgba(255, 255, 255, 0.4) 50%, transparent 100%),
       radial-gradient(1px 1px at 70% 60%, rgba(255, 255, 255, 0.5) 50%, transparent 100%),
@@ -502,7 +637,8 @@
   }
 
   .stars-medium {
-    background-image: radial-gradient(1.5px 1.5px at 25% 15%, rgba(255, 255, 255, 0.5) 50%, transparent 100%),
+    background-image:
+      radial-gradient(1.5px 1.5px at 25% 15%, rgba(255, 255, 255, 0.5) 50%, transparent 100%),
       radial-gradient(1.5px 1.5px at 55% 45%, rgba(255, 255, 255, 0.4) 50%, transparent 100%),
       radial-gradient(1.5px 1.5px at 75% 25%, rgba(255, 255, 255, 0.5) 50%, transparent 100%),
       radial-gradient(1.5px 1.5px at 85% 75%, rgba(255, 255, 255, 0.4) 50%, transparent 100%),
@@ -511,15 +647,20 @@
   }
 
   .stars-large {
-    background-image: radial-gradient(2px 2px at 35% 35%, rgba(255, 255, 255, 0.4) 50%, transparent 100%),
+    background-image:
+      radial-gradient(2px 2px at 35% 35%, rgba(255, 255, 255, 0.4) 50%, transparent 100%),
       radial-gradient(2px 2px at 65% 55%, rgba(255, 255, 255, 0.3) 50%, transparent 100%),
       radial-gradient(2.5px 2.5px at 20% 80%, rgba(108, 92, 231, 0.5) 50%, transparent 100%);
     animation: twinkle 6s ease-in-out infinite alternate;
   }
 
   @keyframes twinkle {
-    0% { opacity: 0.7; }
-    100% { opacity: 1; }
+    0% {
+      opacity: 0.7;
+    }
+    100% {
+      opacity: 1;
+    }
   }
 
   /* Nebulae */
@@ -558,9 +699,15 @@
   }
 
   @keyframes nebulaDrift {
-    0% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(20px, -10px) scale(1.05); }
-    100% { transform: translate(-10px, 15px) scale(0.95); }
+    0% {
+      transform: translate(0, 0) scale(1);
+    }
+    50% {
+      transform: translate(20px, -10px) scale(1.05);
+    }
+    100% {
+      transform: translate(-10px, 15px) scale(0.95);
+    }
   }
 
   /* Orbital System */
@@ -601,8 +748,12 @@
   }
 
   @keyframes orbitRotate {
-    from { transform: translate(-50%, -50%) rotate(0deg); }
-    to { transform: translate(-50%, -50%) rotate(360deg); }
+    from {
+      transform: translate(-50%, -50%) rotate(0deg);
+    }
+    to {
+      transform: translate(-50%, -50%) rotate(360deg);
+    }
   }
 
   .orbit-particle {
@@ -686,8 +837,12 @@
   }
 
   @keyframes shimmer {
-    0% { background-position: 0% center; }
-    100% { background-position: 200% center; }
+    0% {
+      background-position: 0% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
   }
 
   .setup-subtitle {
@@ -949,7 +1104,11 @@
   }
 
   .error {
-    background: linear-gradient(135deg, rgba(255, 107, 107, 0.15) 0%, rgba(255, 107, 107, 0.05) 100%);
+    background: linear-gradient(
+      135deg,
+      rgba(255, 107, 107, 0.15) 0%,
+      rgba(255, 107, 107, 0.05) 100%
+    );
     color: #ff6b6b;
     border: 1px solid rgba(255, 107, 107, 0.3);
   }
@@ -1029,7 +1188,9 @@
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════

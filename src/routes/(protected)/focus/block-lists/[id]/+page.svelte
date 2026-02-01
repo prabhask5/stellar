@@ -5,7 +5,7 @@
   import { singleBlockListStore, blockedWebsitesStore } from '$lib/stores/focus';
   import type { BlockList, BlockedWebsite, DayOfWeek } from '$lib/types';
   import BlockListForm from '$lib/components/focus/BlockListForm.svelte';
-  import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   let blockList = $state<BlockList | null>(null);
@@ -163,7 +163,7 @@
       <div class="form-skeleton-group">
         <div class="form-skeleton-label"></div>
         <div class="form-skeleton-days">
-          {#each Array(7) as _}
+          {#each Array(7) as _, _i (_i)}
             <div class="form-skeleton-day"></div>
           {/each}
         </div>
@@ -232,7 +232,7 @@
 
       {#if websitesLoading}
         <div class="websites-loading">
-          {#each Array(3) as _}
+          {#each Array(3) as _, _i (_i)}
             <div class="website-skeleton"></div>
           {/each}
         </div>

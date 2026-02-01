@@ -9,7 +9,7 @@
   import DraggableList from '$lib/components/DraggableList.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
-  import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   let error = $state<string | null>(null);
@@ -201,7 +201,9 @@
         <span class="banner-content">
           <span class="banner-star-icon">
             <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" width="18" height="18">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              <path
+                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+              />
             </svg>
           </span>
           <span class="banner-text">
@@ -209,7 +211,16 @@
             <span class="banner-name" use:truncateTooltip>{currentProject.name}</span>
           </span>
           <span class="banner-arrow">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              width="16"
+              height="16"
+            >
               <path d="M9 18l6-6-6-6" />
             </svg>
           </span>
@@ -224,7 +235,7 @@
 
     {#if loadingProjects}
       <div class="lists-grid">
-        {#each Array(2) as _, i}
+        {#each Array(2) as _, i (i)}
           <div class="skeleton-card" style="--delay: {i * 0.15}s">
             <div class="skeleton-header">
               <div class="skeleton-title"></div>
@@ -272,7 +283,7 @@
 
     {#if loadingLists}
       <div class="lists-grid">
-        {#each Array(3) as _, i}
+        {#each Array(3) as _, i (i)}
           <div class="skeleton-card" style="--delay: {i * 0.15}s">
             <div class="skeleton-header">
               <div class="skeleton-title"></div>
@@ -305,7 +316,11 @@
             onkeypress={(e) => e.key === 'Enter' && navigateToList(list.id)}
             use:remoteChangeAnimation={{ entityId: list.id, entityType: 'goal_lists' }}
           >
-            <button class="drag-handle card-drag-handle" {...dragHandleProps} aria-label="Drag to reorder">⋮⋮</button>
+            <button
+              class="drag-handle card-drag-handle"
+              {...dragHandleProps}
+              aria-label="Drag to reorder">⋮⋮</button
+            >
             <div class="list-header">
               <h3 class="list-name" use:truncateTooltip>{list.name}</h3>
               <button
@@ -510,13 +525,21 @@
   }
 
   @keyframes bannerTwinkle1 {
-    0% { opacity: 0.6; }
-    100% { opacity: 1; }
+    0% {
+      opacity: 0.6;
+    }
+    100% {
+      opacity: 1;
+    }
   }
 
   @keyframes bannerTwinkle2 {
-    0% { opacity: 1; }
-    100% { opacity: 0.5; }
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0.5;
+    }
   }
 
   /* Nebula blobs */
@@ -546,13 +569,25 @@
   }
 
   @keyframes nebulaFloat1 {
-    0% { transform: translate(0, 0) scale(1); opacity: 0.5; }
-    100% { transform: translate(15px, 5px) scale(1.15); opacity: 0.8; }
+    0% {
+      transform: translate(0, 0) scale(1);
+      opacity: 0.5;
+    }
+    100% {
+      transform: translate(15px, 5px) scale(1.15);
+      opacity: 0.8;
+    }
   }
 
   @keyframes nebulaFloat2 {
-    0% { transform: translate(0, 0) scale(1); opacity: 0.4; }
-    100% { transform: translate(-10px, -3px) scale(1.1); opacity: 0.7; }
+    0% {
+      transform: translate(0, 0) scale(1);
+      opacity: 0.4;
+    }
+    100% {
+      transform: translate(-10px, -3px) scale(1.1);
+      opacity: 0.7;
+    }
   }
 
   /* Shimmer sweep */
@@ -573,8 +608,13 @@
   }
 
   @keyframes bannerShimmerSweep {
-    0%, 100% { background-position: 200% center; }
-    50% { background-position: -200% center; }
+    0%,
+    100% {
+      background-position: 200% center;
+    }
+    50% {
+      background-position: -200% center;
+    }
   }
 
   /* Content layout */
@@ -602,8 +642,15 @@
   }
 
   @keyframes bannerStarPulse {
-    0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.5)); transform: scale(1); }
-    50% { filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.8)); transform: scale(1.08); }
+    0%,
+    100% {
+      filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.5));
+      transform: scale(1);
+    }
+    50% {
+      filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.8));
+      transform: scale(1.08);
+    }
   }
 
   .banner-text {

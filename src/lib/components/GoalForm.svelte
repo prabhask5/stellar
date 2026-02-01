@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { GoalType } from '$lib/types';
-  import { trackEditing } from '$lib/actions/remoteChange';
+  import { trackEditing } from '@prabhask5/stellar-engine/actions';
   import DeferredChangesBanner from './DeferredChangesBanner.svelte';
 
   interface Props {
@@ -26,8 +26,11 @@
     onCancel
   }: Props = $props();
 
+  // svelte-ignore state_referenced_locally
   let name = $state(initialName);
+  // svelte-ignore state_referenced_locally
   let type = $state<GoalType>(initialType);
+  // svelte-ignore state_referenced_locally
   let targetValue = $state(initialTargetValue ?? 10);
 
   // Track which fields were recently animated for shimmer effect
@@ -63,7 +66,9 @@
     targetValue = initialTargetValue ?? 10;
 
     highlightedFields = new Set(fieldsToHighlight);
-    setTimeout(() => { highlightedFields = new Set(); }, 1400);
+    setTimeout(() => {
+      highlightedFields = new Set();
+    }, 1400);
   }
 
   function handleSubmit(event: Event) {
@@ -85,7 +90,7 @@
 >
   {#if entityId}
     <DeferredChangesBanner
-      entityId={entityId}
+      {entityId}
       {entityType}
       {remoteData}
       localData={{ name, type, target_value: targetValue }}
@@ -97,12 +102,24 @@
 
   <div class="form-group">
     <label for="goal-name">Goal Name</label>
-    <input id="goal-name" type="text" bind:value={name} placeholder="Enter goal name..." required class:field-changed={highlightedFields.has('name')} />
+    <input
+      id="goal-name"
+      type="text"
+      bind:value={name}
+      placeholder="Enter goal name..."
+      required
+      class:field-changed={highlightedFields.has('name')}
+    />
   </div>
 
   <div class="form-group">
-    <label>Goal Type</label>
-    <div class="type-toggle" class:field-changed={highlightedFields.has('type')}>
+    <span id="goal-type-label" class="label">Goal Type</span>
+    <div
+      class="type-toggle"
+      class:field-changed={highlightedFields.has('type')}
+      role="group"
+      aria-labelledby="goal-type-label"
+    >
       <button
         type="button"
         class="type-btn"
@@ -127,7 +144,14 @@
   {#if type === 'incremental'}
     <div class="form-group">
       <label for="target-value">Target Value</label>
-      <input id="target-value" type="number" bind:value={targetValue} min="1" required class:field-changed={highlightedFields.has('target_value')} />
+      <input
+        id="target-value"
+        type="number"
+        bind:value={targetValue}
+        min="1"
+        required
+        class:field-changed={highlightedFields.has('target_value')}
+      />
     </div>
   {/if}
 
@@ -154,7 +178,8 @@
     gap: 0.75rem;
   }
 
-  .form-group label {
+  .form-group label,
+  .form-group .label {
     font-size: 0.75rem;
     font-weight: 700;
     color: var(--color-text-muted);

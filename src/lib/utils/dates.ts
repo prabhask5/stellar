@@ -114,7 +114,12 @@ export function getOccurrenceIndex(
 export function getProgressiveTargetForDate(
   routine: Pick<
     DailyRoutineGoal,
-    'start_date' | 'end_date' | 'active_days' | 'start_target_value' | 'end_target_value' | 'progression_schedule'
+    | 'start_date'
+    | 'end_date'
+    | 'active_days'
+    | 'start_target_value'
+    | 'end_target_value'
+    | 'progression_schedule'
   >,
   date: string
 ): number {
@@ -124,7 +129,11 @@ export function getProgressiveTargetForDate(
 
   if (!routine.end_date) return startVal;
 
-  const totalOccurrences = countActiveOccurrences(routine.start_date, routine.end_date, routine.active_days);
+  const totalOccurrences = countActiveOccurrences(
+    routine.start_date,
+    routine.end_date,
+    routine.active_days
+  );
   if (totalOccurrences <= 1) return startVal;
 
   const totalSteps = Math.floor((totalOccurrences - 1) / schedule);
@@ -137,7 +146,10 @@ export function getProgressiveTargetForDate(
 
   const effectiveTarget = Math.round(startVal + stepIndex * incrementAmount);
 
-  return Math.max(Math.min(startVal, endVal), Math.min(Math.max(startVal, endVal), effectiveTarget));
+  return Math.max(
+    Math.min(startVal, endVal),
+    Math.min(Math.max(startVal, endVal), effectiveTarget)
+  );
 }
 
 /**

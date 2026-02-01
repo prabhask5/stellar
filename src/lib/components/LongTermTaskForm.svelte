@@ -2,7 +2,7 @@
   import Modal from './Modal.svelte';
   import type { TaskCategory } from '$lib/types';
   import { getTodayDateString } from '$lib/utils/dates';
-  import { trackEditing } from '$lib/actions/remoteChange';
+  import { trackEditing } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   interface Props {
@@ -148,10 +148,10 @@
     </div>
 
     <div class="field" class:field-dropdown={!lockedCategory}>
-      <label class="field-label">Tag</label>
+      <span id="task-form-tag-label" class="field-label">Tag</span>
 
       {#if lockedCategory}
-        <div class="locked-tag">
+        <div class="locked-tag" role="group" aria-labelledby="task-form-tag-label">
           {#if selectedCategory}
             <span class="selected-category" use:truncateTooltip>
               <span class="cat-dot" style="--cat-color: {selectedCategory.color}"></span>
@@ -256,8 +256,16 @@
                     <span class="item-content">
                       <span class="cat-dot" style="--cat-color: {cat.color}"></span>
                       {cat.name}
-                      <svg class="project-star" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      <svg
+                        class="project-star"
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path
+                          d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                        />
                       </svg>
                     </span>
                   </button>

@@ -3,7 +3,7 @@
   import { scale } from 'svelte/transition';
   import type { TaskCategory, LongTermTaskWithCategory } from '$lib/types';
   import { parseDateString } from '$lib/utils/dates';
-  import { remoteChangeAnimation } from '$lib/actions/remoteChange';
+  import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   // Available colors for categories (same as CategoryCreateModal)
@@ -239,7 +239,11 @@
                       use:focus
                     />
                   {:else}
-                    <button class="category-name" onclick={() => startEditName(category)} use:truncateTooltip>
+                    <button
+                      class="category-name"
+                      onclick={() => startEditName(category)}
+                      use:truncateTooltip
+                    >
                       {category.name}
                     </button>
                   {/if}
@@ -267,7 +271,7 @@
 
               {#if showColorPicker === category.id}
                 <div class="color-picker" transition:scale={{ duration: 150, start: 0.95 }}>
-                  {#each CATEGORY_COLORS as color}
+                  {#each CATEGORY_COLORS as color (color)}
                     <button
                       class="color-option"
                       class:selected={category.color === color}

@@ -143,7 +143,7 @@
   </div>
 
   <div class="calendar-weekdays">
-    {#each weekdays as day}
+    {#each weekdays as day (day)}
       <div class="weekday">{day}</div>
     {/each}
   </div>
@@ -154,11 +154,11 @@
     class:slide-left={transitionDirection === 'left'}
     class:slide-right={transitionDirection === 'right'}
   >
-    {#each Array(firstDayOffset) as _, i}
+    {#each Array(firstDayOffset) as _, _i (_i)}
       <div class="day-cell empty" aria-hidden="true"></div>
     {/each}
 
-    {#each days as day}
+    {#each days as day (day.toISOString())}
       {@const dateStr = formatDate(day)}
       {@const progress = getDayProgress(day)}
       {@const isPast = isPastDay(day)}

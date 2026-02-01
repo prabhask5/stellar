@@ -27,7 +27,12 @@ async function vercelApi(path: string, token: string, method = 'GET', body?: unk
   return res;
 }
 
-async function setEnvVar(projectId: string, token: string, key: string, value: string): Promise<void> {
+async function setEnvVar(
+  projectId: string,
+  token: string,
+  key: string,
+  value: string
+): Promise<void> {
   // Try to create the env var first
   const createRes = await vercelApi(`/v10/projects/${projectId}/env`, token, 'POST', {
     key,
@@ -66,7 +71,9 @@ async function setEnvVar(projectId: string, token: string, key: string, value: s
       throw new Error(`Env var ${key} reported as existing but not found in list`);
     }
   } else {
-    throw new Error(`Failed to create env var ${key}: ${createData.error?.message || createRes.statusText}`);
+    throw new Error(
+      `Failed to create env var ${key}: ${createData.error?.message || createRes.statusText}`
+    );
   }
 }
 
@@ -84,14 +91,22 @@ export const POST: RequestHandler = async ({ request }) => {
     const projectId = process.env.VERCEL_PROJECT_ID;
     if (!projectId) {
       return json(
-        { success: false, error: 'VERCEL_PROJECT_ID not found. This endpoint only works on Vercel deployments.' },
+        {
+          success: false,
+          error: 'VERCEL_PROJECT_ID not found. This endpoint only works on Vercel deployments.'
+        },
         { status: 400 }
       );
     }
 
     // Set environment variables
     await setEnvVar(projectId, vercelToken, 'PUBLIC_SUPABASE_URL', supabaseUrl);
-    await setEnvVar(projectId, vercelToken, 'PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY', supabaseAnonKey);
+    await setEnvVar(
+      projectId,
+      vercelToken,
+      'PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY',
+      supabaseAnonKey
+    );
 
     // Trigger redeployment
     // Get the current deployment's git info for redeployment

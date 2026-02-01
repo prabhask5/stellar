@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { FocusSettings } from '$lib/types';
-  import { trackEditing } from '$lib/actions/remoteChange';
+  import { trackEditing } from '@prabhask5/stellar-engine/actions';
   import DeferredChangesBanner from '../DeferredChangesBanner.svelte';
   import Modal from '../Modal.svelte';
 
@@ -136,19 +136,39 @@
     // Animate sliders
     if (targets.focus_duration !== focusDuration) {
       fieldsToHighlight.push('focus_duration');
-      animateSliderTo(() => focusDuration, (v) => (focusDuration = v), targets.focus_duration, 15);
+      animateSliderTo(
+        () => focusDuration,
+        (v) => (focusDuration = v),
+        targets.focus_duration,
+        15
+      );
     }
     if (targets.break_duration !== breakDuration) {
       fieldsToHighlight.push('break_duration');
-      animateSliderTo(() => breakDuration, (v) => (breakDuration = v), targets.break_duration, 1);
+      animateSliderTo(
+        () => breakDuration,
+        (v) => (breakDuration = v),
+        targets.break_duration,
+        1
+      );
     }
     if (targets.long_break_duration !== longBreakDuration) {
       fieldsToHighlight.push('long_break_duration');
-      animateSliderTo(() => longBreakDuration, (v) => (longBreakDuration = v), targets.long_break_duration, 5);
+      animateSliderTo(
+        () => longBreakDuration,
+        (v) => (longBreakDuration = v),
+        targets.long_break_duration,
+        5
+      );
     }
     if (targets.cycles_before_long_break !== cyclesBeforeLongBreak) {
       fieldsToHighlight.push('cycles_before_long_break');
-      animateSliderTo(() => cyclesBeforeLongBreak, (v) => (cyclesBeforeLongBreak = v), targets.cycles_before_long_break, 1);
+      animateSliderTo(
+        () => cyclesBeforeLongBreak,
+        (v) => (cyclesBeforeLongBreak = v),
+        targets.cycles_before_long_break,
+        1
+      );
     }
 
     // Toggles update immediately (they have built-in CSS transitions)
@@ -184,11 +204,9 @@
     });
     onClose();
   }
-
-
 </script>
 
-<Modal open={isOpen} title="Focus Settings" onClose={onClose}>
+<Modal open={isOpen} title="Focus Settings" {onClose}>
   <div
     class="modal-body"
     use:trackEditing={{
@@ -348,7 +366,9 @@
     gap: 0.75rem;
     padding: 0.375rem;
     border-radius: var(--radius-md);
-    transition: background 0.3s, box-shadow 0.3s;
+    transition:
+      background 0.3s,
+      box-shadow 0.3s;
   }
 
   /* Cosmic shimmer applied directly on slider/toggle via global .field-changed::after */

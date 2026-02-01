@@ -1,8 +1,5 @@
-import { db, generateId, now } from '../client';
+import { engineUpdate, engineQuery, engineGetOrCreate } from '@prabhask5/stellar-engine/data';
 import type { FocusSettings } from '$lib/types';
-import { queueCreateOperation, queueSyncOperation } from '$lib/sync/queue';
-import { scheduleSyncPush, markEntityModified } from '$lib/sync/engine';
-import { supabase } from '$lib/supabase/client';
 
 // Default focus settings
 const DEFAULT_FOCUS_SETTINGS = {
@@ -15,63 +12,29 @@ const DEFAULT_FOCUS_SETTINGS = {
 };
 
 export async function getFocusSettings(userId: string): Promise<FocusSettings | null> {
-  const settings = await db.focusSettings.where('user_id').equals(userId).first();
+  const results = (await engineQuery(
+    'focus_settings',
+    'user_id',
+    userId
+  )) as unknown as FocusSettings[];
+  const settings = results[0];
 
   if (!settings || settings.deleted) return null;
   return settings;
 }
 
 export async function getOrCreateFocusSettings(userId: string): Promise<FocusSettings> {
-  const existing = await getFocusSettings(userId);
-  if (existing) return existing;
-
-  // Before creating locally, check if the server already has focus settings for this user.
-  // This prevents new devices from generating a different ID than the one on the server,
-  // which would cause duplicate key / RLS errors on sync push.
-  try {
-    const { data: serverSettings } = await supabase
-      .from('focus_settings')
-      .select('*')
-      .eq('user_id', userId)
-      .is('deleted', null)
-      .maybeSingle();
-
-    if (serverSettings) {
-      // Server has settings — store them locally and skip the create queue
-      await db.focusSettings.put(serverSettings as FocusSettings);
-      return serverSettings as FocusSettings;
-    }
-  } catch {
-    // Offline or network error — fall through to local create
-  }
-
-  return createFocusSettings(userId);
-}
-
-async function createFocusSettings(userId: string): Promise<FocusSettings> {
-  const timestamp = now();
-
-  const newSettings: FocusSettings = {
-    id: generateId(),
-    user_id: userId,
-    ...DEFAULT_FOCUS_SETTINGS,
-    created_at: timestamp,
-    updated_at: timestamp
-  };
-
-  await db.transaction('rw', [db.focusSettings, db.syncQueue], async () => {
-    await db.focusSettings.add(newSettings);
-    await queueCreateOperation('focus_settings', newSettings.id, {
-      user_id: userId,
+  const result = await engineGetOrCreate(
+    'focus_settings',
+    'user_id',
+    userId,
+    {
       ...DEFAULT_FOCUS_SETTINGS,
-      created_at: timestamp,
-      updated_at: timestamp
-    });
-  });
-  markEntityModified(newSettings.id);
-  scheduleSyncPush();
-
-  return newSettings;
+      user_id: userId
+    },
+    { checkRemote: true }
+  );
+  return result as unknown as FocusSettings;
 }
 
 export async function updateFocusSettings(
@@ -88,27 +51,6 @@ export async function updateFocusSettings(
     >
   >
 ): Promise<FocusSettings | undefined> {
-  const timestamp = now();
-
-  // Use transaction to ensure atomicity
-  let updated: FocusSettings | undefined;
-  await db.transaction('rw', [db.focusSettings, db.syncQueue], async () => {
-    await db.focusSettings.update(id, { ...updates, updated_at: timestamp });
-    updated = await db.focusSettings.get(id);
-    if (updated) {
-      await queueSyncOperation({
-        table: 'focus_settings',
-        entityId: id,
-        operationType: 'set',
-        value: { ...updates, updated_at: timestamp }
-      });
-    }
-  });
-
-  if (updated) {
-    markEntityModified(id);
-    scheduleSyncPush();
-  }
-
-  return updated;
+  const result = await engineUpdate('focus_settings', id, updates as Record<string, unknown>);
+  return result as unknown as FocusSettings | undefined;
 }

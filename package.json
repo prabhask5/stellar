@@ -35,9 +35,8 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.0",
-    "date-fns": "^4.1.0",
-    "dexie": "^4.2.1"
+    "@prabhask5/stellar-engine": "^1.0.3",
+    "date-fns": "^4.1.0"
   },
   "type": "module"
 }

@@ -1,6 +1,6 @@
 <script lang="ts" generics="T extends { id: string; order: number }">
   import type { Snippet } from 'svelte';
-  import { calculateNewOrder } from '$lib/utils/reorder';
+  import { calculateNewOrder } from '@prabhask5/stellar-engine/utils';
 
   interface Props {
     items: T[];
@@ -82,7 +82,7 @@
     dropTargetIndex = newDropIndex;
   }
 
-  async function handlePointerUp(e: PointerEvent) {
+  async function handlePointerUp(_e: PointerEvent) {
     document.removeEventListener('pointermove', handlePointerMove);
     document.removeEventListener('pointerup', handlePointerUp);
     document.removeEventListener('pointercancel', handlePointerUp);

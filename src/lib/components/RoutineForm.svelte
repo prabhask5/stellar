@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { GoalType, DayOfWeek } from '$lib/types';
   import { formatDate } from '$lib/utils/dates';
-  import { trackEditing } from '$lib/actions/remoteChange';
+  import { trackEditing } from '@prabhask5/stellar-engine/actions';
   import DeferredChangesBanner from './DeferredChangesBanner.svelte';
 
   interface Props {
@@ -60,14 +60,24 @@
     { short: 'S', full: 'Sat', value: 6 }
   ];
 
+  // These form fields intentionally capture the initial prop value for editing.
+  // svelte-ignore state_referenced_locally
   let name = $state(initialName);
+  // svelte-ignore state_referenced_locally
   let type = $state<GoalType>(initialType);
+  // svelte-ignore state_referenced_locally
   let targetValue = $state(initialTargetValue ?? 10);
+  // svelte-ignore state_referenced_locally
   let startTargetValue = $state(initialStartTargetValue ?? 10);
+  // svelte-ignore state_referenced_locally
   let endTargetValue = $state(initialEndTargetValue ?? 50);
+  // svelte-ignore state_referenced_locally
   let progressionSchedule = $state(initialProgressionSchedule ?? 1);
+  // svelte-ignore state_referenced_locally
   let startDate = $state(initialStartDate);
+  // svelte-ignore state_referenced_locally
   let hasEndDate = $state(initialEndDate !== null || initialType === 'progressive');
+  // svelte-ignore state_referenced_locally
   let endDate = $state(initialEndDate ?? formatDate(new Date()));
 
   // Track which fields were recently animated for shimmer effect
@@ -75,6 +85,7 @@
 
   // Active days state - null means all days, empty array means no days (invalid)
   // Default to all days selected if null
+  // svelte-ignore state_referenced_locally
   let selectedDays = $state<Set<DayOfWeek>>(
     initialActiveDays === null
       ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
@@ -188,13 +199,20 @@
     if (name !== initialName) fieldsToHighlight.push('name');
     if (type !== initialType) fieldsToHighlight.push('type');
     if (targetValue !== (initialTargetValue ?? 10)) fieldsToHighlight.push('target_value');
-    if (startTargetValue !== (initialStartTargetValue ?? 10)) fieldsToHighlight.push('start_target_value');
-    if (endTargetValue !== (initialEndTargetValue ?? 50)) fieldsToHighlight.push('end_target_value');
-    if (progressionSchedule !== (initialProgressionSchedule ?? 1)) fieldsToHighlight.push('progression_schedule');
+    if (startTargetValue !== (initialStartTargetValue ?? 10))
+      fieldsToHighlight.push('start_target_value');
+    if (endTargetValue !== (initialEndTargetValue ?? 50))
+      fieldsToHighlight.push('end_target_value');
+    if (progressionSchedule !== (initialProgressionSchedule ?? 1))
+      fieldsToHighlight.push('progression_schedule');
     if (startDate !== initialStartDate) fieldsToHighlight.push('start_date');
-    if (JSON.stringify(hasEndDate ? endDate : null) !== JSON.stringify(initialEndDate)) fieldsToHighlight.push('end_date');
-    const currentActiveDays = allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b);
-    if (JSON.stringify(currentActiveDays) !== JSON.stringify(initialActiveDays)) fieldsToHighlight.push('active_days');
+    if (JSON.stringify(hasEndDate ? endDate : null) !== JSON.stringify(initialEndDate))
+      fieldsToHighlight.push('end_date');
+    const currentActiveDays = allDaysSelected
+      ? null
+      : Array.from(selectedDays).sort((a, b) => a - b);
+    if (JSON.stringify(currentActiveDays) !== JSON.stringify(initialActiveDays))
+      fieldsToHighlight.push('active_days');
 
     name = initialName;
     type = initialType;
@@ -205,12 +223,15 @@
     startDate = initialStartDate;
     hasEndDate = initialEndDate !== null || initialType === 'progressive';
     endDate = initialEndDate ?? formatDate(new Date());
-    selectedDays = initialActiveDays === null
-      ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
-      : new Set(initialActiveDays);
+    selectedDays =
+      initialActiveDays === null
+        ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
+        : new Set(initialActiveDays);
 
     highlightedFields = new Set(fieldsToHighlight);
-    setTimeout(() => { highlightedFields = new Set(); }, 1400);
+    setTimeout(() => {
+      highlightedFields = new Set();
+    }, 1400);
   }
 
   // Force end date when progressive is selected
@@ -251,7 +272,7 @@
 >
   {#if entityId}
     <DeferredChangesBanner
-      entityId={entityId}
+      {entityId}
       {entityType}
       {remoteData}
       localData={{
@@ -285,8 +306,13 @@
   </div>
 
   <div class="form-group">
-    <label>Goal Type</label>
-    <div class="type-toggle" class:field-changed={highlightedFields.has('type')}>
+    <span id="routine-goal-type-label" class="label">Goal Type</span>
+    <div
+      class="type-toggle"
+      class:field-changed={highlightedFields.has('type')}
+      role="group"
+      aria-labelledby="routine-goal-type-label"
+    >
       <button
         type="button"
         class="type-btn"
@@ -320,31 +346,68 @@
   {#if type === 'incremental'}
     <div class="form-group">
       <label for="target-value">Daily Target Value</label>
-      <input id="target-value" type="number" bind:value={targetValue} min="1" required class:field-changed={highlightedFields.has('target_value')} />
+      <input
+        id="target-value"
+        type="number"
+        bind:value={targetValue}
+        min="1"
+        required
+        class:field-changed={highlightedFields.has('target_value')}
+      />
     </div>
   {/if}
 
   {#if type === 'progressive'}
     <div class="form-group">
       <label for="start-target-value">Starting Threshold</label>
-      <input id="start-target-value" type="number" bind:value={startTargetValue} min="1" required class:field-changed={highlightedFields.has('start_target_value')} />
+      <input
+        id="start-target-value"
+        type="number"
+        bind:value={startTargetValue}
+        min="1"
+        required
+        class:field-changed={highlightedFields.has('start_target_value')}
+      />
     </div>
     <div class="form-group">
       <label for="end-target-value">Ending Threshold</label>
-      <input id="end-target-value" type="number" bind:value={endTargetValue} min="1" required class:field-changed={highlightedFields.has('end_target_value')} />
+      <input
+        id="end-target-value"
+        type="number"
+        bind:value={endTargetValue}
+        min="1"
+        required
+        class:field-changed={highlightedFields.has('end_target_value')}
+      />
     </div>
     <div class="form-group">
       <label for="progression-schedule">Milestone Interval</label>
-      <input id="progression-schedule" type="number" bind:value={progressionSchedule} min="1" required class:field-changed={highlightedFields.has('progression_schedule')} />
-      <p class="field-help">The threshold will increase after every {progressionSchedule === 1 ? 'occurrence' : progressionSchedule + ' occurrences'}.</p>
+      <input
+        id="progression-schedule"
+        type="number"
+        bind:value={progressionSchedule}
+        min="1"
+        required
+        class:field-changed={highlightedFields.has('progression_schedule')}
+      />
+      <p class="field-help">
+        The threshold will increase after every {progressionSchedule === 1
+          ? 'occurrence'
+          : progressionSchedule + ' occurrences'}.
+      </p>
     </div>
   {/if}
 
   <!-- Active Days Selector -->
   <div class="form-group">
-    <label>Active Days</label>
-    <div class="days-selector" class:field-changed={highlightedFields.has('active_days')}>
-      {#each dayLabels as day}
+    <span id="routine-active-days-label" class="label">Active Days</span>
+    <div
+      class="days-selector"
+      class:field-changed={highlightedFields.has('active_days')}
+      role="group"
+      aria-labelledby="routine-active-days-label"
+    >
+      {#each dayLabels as day (day.value)}
         <button
           type="button"
           class="day-btn"
@@ -390,12 +453,24 @@
   <div class="form-row">
     <div class="form-group">
       <label for="start-date">Start Date</label>
-      <input id="start-date" type="date" bind:value={startDate} required class:field-changed={highlightedFields.has('start_date')} />
+      <input
+        id="start-date"
+        type="date"
+        bind:value={startDate}
+        required
+        class:field-changed={highlightedFields.has('start_date')}
+      />
     </div>
 
     <div class="form-group">
       <label for="end-date-toggle" class="checkbox-label">
-        <input id="end-date-toggle" type="checkbox" bind:checked={hasEndDate} disabled={type === 'progressive'} class:field-changed={highlightedFields.has('end_date')} />
+        <input
+          id="end-date-toggle"
+          type="checkbox"
+          bind:checked={hasEndDate}
+          disabled={type === 'progressive'}
+          class:field-changed={highlightedFields.has('end_date')}
+        />
         <span>Has End Date{type === 'progressive' ? ' (required)' : ''}</span>
       </label>
       {#if hasEndDate}
@@ -435,7 +510,8 @@
     gap: 0.625rem;
   }
 
-  .form-group label {
+  .form-group label,
+  .form-group .label {
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--color-text-muted);

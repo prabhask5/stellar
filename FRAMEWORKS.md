@@ -10,7 +10,7 @@ Stellar is a self-hosted, offline-first productivity Progressive Web App (PWA) b
 2. [TypeScript (Language)](#2-typescript-language)
 3. [Dexie.js / IndexedDB (Local Database)](#3-dexiejs--indexeddb-local-database)
 4. [Supabase (Backend-as-a-Service)](#4-supabase-backend-as-a-service)
-5. [Sync System (Custom Sync Engine)](#5-sync-system-custom-sync-engine)
+5. [Sync System (@stellar/sync-engine)](#5-sync-system-stellarsync-engine)
 6. [Vite (Build Tool)](#6-vite-build-tool)
 7. [Service Worker / PWA (Offline Support)](#7-service-worker--pwa-offline-support)
 8. [High-Level Architecture Patterns](#8-high-level-architecture-patterns)
@@ -217,9 +217,7 @@ Dexie.js is a wrapper library around IndexedDB that provides a much friendlier A
 
 ### How Stellar uses Dexie
 
-Stellar's entire local data layer is built on Dexie. The database schema is defined in:
-
-**`src/lib/db/schema.ts`** (`/Users/prabhask/Documents/Projects/stellar/src/lib/db/schema.ts`)
+Stellar's entire local data layer is built on Dexie, managed by `@stellar/sync-engine`. The database schema versions are defined inline in the `initEngine()` call in `src/routes/+layout.ts` via the `database` config option. The engine creates the Dexie instance, auto-merges system tables, and handles migrations. Stellar has no direct `dexie` dependency.
 
 The database is called `GoalPlannerDB` and is currently at **schema version 13**. It contains **17 tables** total:
 
@@ -254,6 +252,8 @@ The database is called `GoalPlannerDB` and is currently at **schema version 13**
 | Table | Purpose |
 |-------|---------|
 | `conflictHistory` | Records of past conflict resolutions for review |
+
+> **Note:** The system tables (`syncQueue`, `offlineCredentials`, `offlineSession`) and the `conflictHistory` diagnostic table are managed by the `@stellar/sync-engine` package. Stellar's application code does not interact with these tables directly.
 
 The schema definition looks like this (showing the final version 13):
 
@@ -322,24 +322,16 @@ export async function createGoal(goalListId, name, type, targetValue) {
 
 This pattern is consistent across all repositories. The key insight is that the **local write and sync queue entry are in the same Dexie transaction**, so they either both succeed or both fail. This guarantees that if data is written locally, a sync operation is always queued for it.
 
-### Client Module
+### Client Access
 
-**`src/lib/db/client.ts`** (`/Users/prabhask/Documents/Projects/stellar/src/lib/db/client.ts`):
+The database instance is managed by `@stellar/sync-engine`. Repository files use the engine's generic CRUD APIs and utility functions:
 
 ```typescript
-import { db } from './schema';
-export { db };
-
-export function generateId(): string {
-  return crypto.randomUUID();
-}
-
-export function now(): string {
-  return new Date().toISOString();
-}
+import { generateId, now } from '@stellar/sync-engine/utils';
+import { engineCreate, engineQuery } from '@stellar/sync-engine/data';
 ```
 
-All entity IDs are UUIDs generated client-side. Timestamps are ISO 8601 strings. This is essential for offline-first operation: the client can create entities without consulting the server.
+All entity IDs are UUIDs generated client-side via `generateId()`. Timestamps are ISO 8601 strings via `now()`. This is essential for offline-first operation: the client can create entities without consulting the server.
 
 ---
 
@@ -366,260 +358,25 @@ Supabase serves as the cloud sync layer. While Stellar works fully offline using
 3. **Security** -- Row Level Security ensures that even if someone has the Supabase URL and anon key, they can only access their own data.
 4. **Real-time updates** -- WebSocket subscriptions instantly notify other open tabs/devices of changes.
 
+> **Note:** Supabase client initialization, authentication flows (including offline credential caching and PKCE), and runtime configuration management are handled by the `@stellar/sync-engine` package. See the [engine FRAMEWORKS.md](https://github.com/prabhask5/stellar-engine/blob/main/FRAMEWORKS.md) for implementation details.
+
 ### Runtime Configuration
 
-Stellar uses runtime configuration instead of build-time environment variables. This allows a single build to be deployed with different Supabase instances:
+Stellar uses runtime configuration instead of build-time environment variables. This allows a single build to be deployed with different Supabase instances. The config is:
 
-**`src/lib/config/runtimeConfig.ts`** (`/Users/prabhask/Documents/Projects/stellar/src/lib/config/runtimeConfig.ts`):
-
-```typescript
-export interface StellarConfig {
-  supabaseUrl: string;      // e.g., https://your-project.supabase.co
-  supabaseAnonKey: string;  // Public anonymous key
-  configured: boolean;
-}
-```
-
-The config is:
 1. Fetched from the server (`/api/config` endpoint) on first load
 2. Cached in `localStorage` for instant subsequent loads and offline PWA support
-3. Used to lazily initialize the Supabase client
-
-### Supabase Client Initialization
-
-**`src/lib/supabase/client.ts`** (`/Users/prabhask/Documents/Projects/stellar/src/lib/supabase/client.ts`):
-
-The Supabase client uses a **Proxy-based lazy singleton** pattern:
-
-```typescript
-let realClient: SupabaseClient | null = null;
-
-function getOrCreateClient(): SupabaseClient {
-  if (realClient) return realClient;
-
-  const config = getConfig();
-  realClient = createClient(url, key, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      flowType: 'pkce'         // Secure auth flow for PWAs
-    }
-  });
-  return realClient;
-}
-
-// Proxy delegates all property access to the real client
-export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
-  get(_target, prop, receiver) {
-    const client = getOrCreateClient();
-    return Reflect.get(client, prop, receiver);
-  }
-});
-```
-
-The Proxy pattern means all consumer code simply imports `supabase` and uses it directly. The actual client is created on first access, after the runtime config is available. This avoids initialization-order issues that plague environment-variable approaches.
-
-Key auth features:
-- **PKCE flow** -- More secure than implicit flow, works well with PWAs.
-- **Auto token refresh** -- Tokens are refreshed before expiry.
-- **Corrupted data cleanup** -- On startup, any malformed Supabase auth data in localStorage is detected and cleared.
-- **iOS PWA detection** -- Special handling for iOS standalone mode, which can evict localStorage data.
+3. Used by the engine to lazily initialize the Supabase client
 
 ---
 
-## 5. Sync System (Custom Sync Engine)
+## 5. Sync System (@stellar/sync-engine)
 
-### Overview
+Stellar's sync system is provided by the `@stellar/sync-engine` package, an external dependency hosted at [github.com/prabhask5/stellar-engine](https://github.com/prabhask5/stellar-engine). See the [engine FRAMEWORKS.md](https://github.com/prabhask5/stellar-engine/blob/main/FRAMEWORKS.md) for complete documentation of the sync architecture, Supabase integration, and offline capabilities.
 
-The sync system is Stellar's most complex subsystem. It enables offline-first multi-device operation using an **outbox pattern** with **intent-based operations** and **three-tier conflict resolution**.
+Stellar has zero direct dependencies on `@supabase/supabase-js` or `dexie`. All infrastructure is encapsulated by `@stellar/sync-engine` via its subpath exports (`/data`, `/auth`, `/stores`, `/utils`, `/actions`, `/config`, `/types`).
 
-```
-+------------------+          +-------------------+          +------------------+
-|   User Action    |          |   Sync Engine     |          |   Supabase       |
-|                  |          |                   |          |   (PostgreSQL)   |
-|  1. Write to     |  push    |  3. Read outbox   |  HTTP    |                  |
-|     IndexedDB    |--------->|  4. Transform ops  |--------->|  5. Apply to DB  |
-|  2. Queue to     |          |     to mutations  |          |                  |
-|     syncQueue    |          |                   |  pull    |                  |
-|                  |<---------|  6. Pull changes   |<---------|  7. Return delta |
-|  8. Merge into   |          |     since cursor  |          |                  |
-|     IndexedDB    |          |                   |          |                  |
-+------------------+          +-------------------+          +------------------+
-                                      |
-                                      | WebSocket
-                                      v
-                              +-------------------+
-                              |  Realtime Layer   |
-                              |  (instant push    |
-                              |   from other      |
-                              |   devices)        |
-                              +-------------------+
-```
-
-### The Five Rules of Local-First Sync
-
-From the engine header comment (`/Users/prabhask/Documents/Projects/stellar/src/lib/sync/engine.ts`):
-
-```
-1. All reads come from local DB (IndexedDB)
-2. All writes go to local DB first, immediately
-3. Every write creates a pending operation in the outbox
-4. Sync loop ships outbox to server in background
-5. On refresh, load local state instantly, then run background sync
-```
-
-### Intent-Based Operations (Outbox Pattern)
-
-Instead of syncing raw data diffs, Stellar records the **intent** of each user action. This preserves semantic meaning during conflict resolution.
-
-**`src/lib/sync/operations.ts`** (`/Users/prabhask/Documents/Projects/stellar/src/lib/sync/operations.ts`):
-
-There are four operation types:
-
-| Operation | Intent | Example |
-|-----------|--------|---------|
-| `create` | A new entity was created | User creates a new task |
-| `set` | A field (or fields) were explicitly set to a value | User renames a task |
-| `increment` | A numeric field was incremented by a delta | User taps +1 on a counter goal |
-| `delete` | An entity was soft-deleted | User deletes a task |
-
-The `increment` operation is particularly important. Instead of recording "current_value is now 5," it records "current_value was incremented by +1." This means if two devices both increment the same counter offline, the sync engine can sum the deltas instead of losing one update.
-
-Each operation is stored in the `syncQueue` table:
-
-```typescript
-interface SyncOperationItem {
-  id?: number;           // Auto-increment queue ID
-  table: string;         // Target table (e.g., 'goals')
-  entityId: string;      // UUID of the entity
-  operationType: 'create' | 'set' | 'increment' | 'delete';
-  field?: string;        // Specific field (for set/increment)
-  value?: unknown;       // New value or delta
-  timestamp: string;     // When the operation was created
-  retries: number;       // Number of push attempts
-}
-```
-
-### Operation Coalescing
-
-Before pushing, the queue is coalesced to minimize server requests:
-
-**`src/lib/sync/queue.ts`** (`/Users/prabhask/Documents/Projects/stellar/src/lib/sync/queue.ts`):
-
-```
-Coalescing strategies:
-  CREATE -> DELETE         : Cancel both (entity never existed on server)
-  CREATE -> UPDATE -> DELETE: Cancel all (net effect is nothing)
-  UPDATE(s) -> DELETE      : Keep only delete
-  CREATE -> UPDATE(s)      : Merge updates into create payload
-  Multiple INCREMENTs      : Sum deltas (e.g., +1, +1, +1 = +3)
-  Multiple SETs            : Merge into single set (last value wins)
-```
-
-### Push/Pull Sync Cycle
-
-The sync engine (`/Users/prabhask/Documents/Projects/stellar/src/lib/sync/engine.ts`) runs a push/pull cycle:
-
-```
-SYNC CYCLE
-==========
-
-1. PUSH PHASE (local -> server)
-   a. Coalesce pending operations
-   b. For each operation in the outbox:
-      - Transform to Supabase mutation (insert/update/delete)
-      - Execute against Supabase REST API
-      - On success: remove from outbox
-      - On failure: increment retry counter (max 5 retries)
-
-2. PULL PHASE (server -> local)
-   a. For each entity table:
-      - Query Supabase for records updated after the last sync cursor
-      - For each remote record:
-        * Skip if recently modified locally (protection window)
-        * Skip if recently processed by realtime
-        * Run through conflict resolution
-        * Write merged result to IndexedDB
-   b. Update the sync cursor to the latest timestamp
-
-3. POST-SYNC
-   a. Clean up failed items (> max retries)
-   b. Clean up old conflict history (> 30 days)
-   c. Update sync status store (for UI indicator)
-```
-
-### Three-Tier Conflict Resolution
-
-**`src/lib/sync/conflicts.ts`** (`/Users/prabhask/Documents/Projects/stellar/src/lib/sync/conflicts.ts`):
-
-When the pull phase finds a remote record that conflicts with a local record (both modified since last sync), the conflict resolution engine applies three tiers:
-
-```
-CONFLICT RESOLUTION TIERS
-==========================
-
-Tier 1: NON-OVERLAPPING CHANGES (different entities)
-  -> Auto-merge. No conflict. Each entity is independent.
-
-Tier 2: DIFFERENT FIELDS on the same entity
-  -> Auto-merge fields. If Device A changed "name" and Device B
-     changed "completed," both changes are kept.
-
-Tier 3: SAME FIELD on the same entity
-  -> Apply resolution strategy:
-
-     a. PENDING LOCAL OPS: If the field has pending local operations
-        that haven't been pushed yet, local wins (the push will
-        send the latest local value).
-
-     b. DELETE WINS: If either side deleted the entity, the delete
-        wins. This prevents "resurrection" of deleted entities.
-
-     c. LAST-WRITE-WINS: Compare updated_at timestamps. The more
-        recent write wins. If timestamps are identical, use device_id
-        as a deterministic tiebreaker (lower device_id wins).
-```
-
-Conflict resolutions are recorded in the `conflictHistory` table for diagnostic review:
-
-```typescript
-interface ConflictHistoryEntry {
-  entityId: string;
-  entityType: string;
-  field: string;
-  localValue: unknown;
-  remoteValue: unknown;
-  resolvedValue: unknown;
-  winner: 'local' | 'remote' | 'merged';
-  strategy: 'last_write' | 'numeric_merge' | 'delete_wins' | 'local_pending';
-  timestamp: string;
-}
-```
-
-### Realtime Subscriptions (WebSocket)
-
-**`src/lib/sync/realtime.ts`** (`/Users/prabhask/Documents/Projects/stellar/src/lib/sync/realtime.ts`):
-
-For instant multi-device sync, Stellar subscribes to Supabase Realtime via WebSocket. This provides near-instant updates (typically under 100ms) without waiting for the next poll cycle.
-
-Key design decisions:
-
-1. **Single channel per user** -- One WebSocket channel subscribes to all 13 entity tables.
-2. **Echo suppression** -- Each record carries a `device_id`. Changes from the current device are ignored to prevent echo.
-3. **Duplicate prevention** -- Recently processed entities are tracked with a 2-second TTL to prevent the same change from being applied by both realtime and polling.
-4. **Conflict-aware** -- Incoming realtime changes go through the same conflict resolution engine as polled changes.
-5. **Graceful degradation** -- If WebSocket fails, it retries with exponential backoff (1s, 2s, 4s, 8s, 16s) up to 5 attempts, then falls back to polling only.
-6. **Offline-aware** -- Reconnection attempts are paused while offline and resumed when the browser comes back online.
-
-```typescript
-const REALTIME_TABLES = [
-  'goal_lists', 'goals', 'daily_routine_goals', 'daily_goal_progress',
-  'task_categories', 'commitments', 'daily_tasks', 'long_term_tasks',
-  'focus_settings', 'focus_sessions', 'block_lists', 'blocked_websites',
-  'projects'
-];
-```
+Stellar configures the engine with 13 entity tables in `src/routes/+layout.ts`.
 
 ---
 
@@ -946,8 +703,7 @@ These are the libraries included in the production bundle:
 
 | Package | Version | Purpose | Bundle Chunk |
 |---------|---------|---------|-------------|
-| `@supabase/supabase-js` | ^2.49.0 | Supabase client (REST API, Auth, Realtime WebSocket) | `vendor-supabase` |
-| `dexie` | ^4.2.1 | IndexedDB wrapper (local database, live queries, transactions) | `vendor-dexie` |
+| `@stellar/sync-engine` | ^1.0.0 | Local-first sync engine (manages Supabase, Dexie, auth, sync) | `vendor-supabase`, `vendor-dexie` (transitive) |
 | `date-fns` | ^4.1.0 | Date utility library (formatting, parsing, comparison) | `vendor-date-fns` |
 
-The dependency count is intentionally minimal (only 3 runtime dependencies). This keeps the bundle small and reduces supply chain risk. Each dependency is split into its own vendor chunk by the Vite config for optimal caching.
+The dependency count is intentionally minimal (only 2 direct runtime dependencies). Supabase and Dexie are transitive dependencies provided by `@stellar/sync-engine` -- stellar has no direct imports of either. This keeps the bundle small and reduces supply chain risk.
