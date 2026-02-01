@@ -169,6 +169,7 @@
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(108, 92, 231, 0.25);
     border-radius: var(--radius-2xl);
+    overflow: hidden;
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.03) inset,
       0 16px 48px rgba(0, 0, 0, 0.5),
@@ -303,7 +304,7 @@
     grid-template-columns: repeat(7, 1fr);
     gap: 2px;
     background: rgba(108, 92, 231, 0.03);
-    padding: 4px;
+    padding: 8px;
     position: relative;
     z-index: 1;
   }

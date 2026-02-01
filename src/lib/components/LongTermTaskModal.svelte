@@ -40,6 +40,9 @@
     categoryId ? categories.find((c) => c.id === categoryId) : null
   );
 
+  const standaloneCategories = $derived(categories.filter((c) => !c.project_id));
+  const projectCategories = $derived(categories.filter((c) => !!c.project_id));
+
   $effect(() => {
     if (task) {
       name = task.name;
@@ -224,7 +227,7 @@
                   No tag
                 </button>
 
-                {#each categories as cat (cat.id)}
+                {#each standaloneCategories as cat (cat.id)}
                   <button
                     type="button"
                     class="dropdown-item"
@@ -235,6 +238,24 @@
                     {cat.name}
                   </button>
                 {/each}
+
+                {#if projectCategories.length > 0}
+                  <div class="dropdown-divider"></div>
+                  {#each projectCategories as cat (cat.id)}
+                    <button
+                      type="button"
+                      class="dropdown-item"
+                      class:selected={categoryId === cat.id}
+                      onclick={() => selectCategory(cat.id)}
+                    >
+                      <span class="cat-dot" style="--cat-color: {cat.color}"></span>
+                      {cat.name}
+                      <svg class="project-star" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      </svg>
+                    </button>
+                  {/each}
+                {/if}
               </div>
             {/if}
           </div>
@@ -504,6 +525,19 @@
   .cat-dot.none {
     background: var(--color-text-muted);
     opacity: 0.3;
+  }
+
+  .dropdown-divider {
+    height: 1px;
+    background: rgba(108, 92, 231, 0.15);
+    margin: 0.25rem 0;
+  }
+
+  .project-star {
+    color: #ffd700;
+    opacity: 0.7;
+    flex-shrink: 0;
+    margin-left: auto;
   }
 
   .status-toggle {

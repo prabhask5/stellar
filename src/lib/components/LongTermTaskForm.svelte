@@ -106,6 +106,9 @@
   // Get selected category
   const selectedCategory = $derived(categories.find((c) => c.id === categoryId));
 
+  const standaloneCategories = $derived(categories.filter((c) => !c.project_id));
+  const projectCategories = $derived(categories.filter((c) => !!c.project_id));
+
   // Close dropdown when clicking outside
   function handleClickOutside(e: MouseEvent) {
     const target = e.target as HTMLElement;
@@ -205,8 +208,8 @@
                 </span>
               </button>
 
-              <!-- Category options -->
-              {#each categories as cat (cat.id)}
+              <!-- Standalone tags -->
+              {#each standaloneCategories as cat (cat.id)}
                 <div class="dropdown-item-wrapper">
                   <button
                     type="button"
@@ -240,7 +243,27 @@
                 </div>
               {/each}
 
-              <!-- Divider -->
+              <!-- Project tags -->
+              {#if projectCategories.length > 0}
+                <div class="dropdown-divider"></div>
+                {#each projectCategories as cat (cat.id)}
+                  <button
+                    type="button"
+                    class="dropdown-item"
+                    class:selected={categoryId === cat.id}
+                    onclick={() => selectCategory(cat.id)}
+                  >
+                    <span class="item-content">
+                      <span class="cat-dot" style="--cat-color: {cat.color}"></span>
+                      {cat.name}
+                      <svg class="project-star" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      </svg>
+                    </span>
+                  </button>
+                {/each}
+              {/if}
+
               <div class="dropdown-divider"></div>
 
               <!-- Add Tag Button -->
@@ -488,6 +511,13 @@
     margin: 0.25rem 0;
   }
 
+  .project-star {
+    color: #ffd700;
+    opacity: 0.7;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
   .add-category-btn {
     color: var(--color-primary-light) !important;
     gap: 0.5rem;
@@ -544,6 +574,10 @@
   .submit-btn:not(:disabled):hover {
     transform: scale(1.02);
     box-shadow: 0 0 30px var(--color-primary-glow);
+  }
+
+  .field-dropdown {
+    margin-bottom: 6rem;
   }
 
   /* Mobile adjustments for dropdown */
