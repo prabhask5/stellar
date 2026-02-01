@@ -4,6 +4,7 @@
   import { fade } from 'svelte/transition';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
+  import { browser } from '$app/environment';
   import { signOut, getUserProfile, getSession, signIn } from '$lib/supabase/auth';
   import {
     stopSyncEngine,
@@ -279,12 +280,14 @@
   });
 
   onDestroy(() => {
-    // Cleanup chunk error handler
-    if (chunkErrorHandler) {
-      window.removeEventListener('unhandledrejection', chunkErrorHandler);
+    if (browser) {
+      // Cleanup chunk error handler
+      if (chunkErrorHandler) {
+        window.removeEventListener('unhandledrejection', chunkErrorHandler);
+      }
+      // Cleanup sign out listener
+      window.removeEventListener('stellar:signout', handleSignOut);
     }
-    // Cleanup sign out listener
-    window.removeEventListener('stellar:signout', handleSignOut);
     // Cleanup reconnect handler
     setReconnectHandler(null);
     // Cleanup auth channel
