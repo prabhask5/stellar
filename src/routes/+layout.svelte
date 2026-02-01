@@ -2013,8 +2013,8 @@
     }
 
     .island-brand svg {
-      width: 16px;
-      height: 16px;
+      width: 26px;
+      height: 26px;
     }
   }
 
@@ -2073,8 +2073,8 @@
     }
 
     .island-brand svg {
-      width: 18px;
-      height: 18px;
+      width: 28px;
+      height: 28px;
     }
 
     .tab-bar {
@@ -2128,8 +2128,8 @@
     }
 
     .island-brand svg {
-      width: 20px;
-      height: 20px;
+      width: 30px;
+      height: 30px;
     }
 
     .main {
