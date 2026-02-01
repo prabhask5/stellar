@@ -1,32 +1,30 @@
 # Stellar
 
-A space-themed productivity Progressive Web App featuring offline-first architecture, real-time synchronization, and comprehensive goal/task/focus management.
+A self-hosted, offline-first productivity PWA for managing goals, tasks, routines, and focus sessions. Built with SvelteKit, Dexie.js, and Supabase, Stellar works entirely from your browser with full offline support, real-time multi-device sync, and a space-themed interface.
 
-**Live:** [stellarplanner.vercel.app](https://stellarplanner.vercel.app)
-
----
-
-## Table of Contents
-
-1. [Documentation](#documentation)
-2. [Tech Stack](#tech-stack)
-3. [Features](#features)
-4. [UI Highlights](#ui-highlights)
-5. [Local Development](#local-development)
-6. [Companion Extension](#companion-extension)
+**Demo:** [stellarplanner.vercel.app](https://stellarplanner.vercel.app/)
 
 ---
 
 ## Documentation
 
-For deeper understanding of the codebase:
-
 | Document | Description |
 |----------|-------------|
-| [FRAMEWORKS.md](./FRAMEWORKS.md) | Guide to frameworks and dependencies |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, sync engine, conflict resolution |
-| [TESTING.md](./TESTING.md) | Comprehensive test plan |
-| [stellar-focus/](./stellar-focus/README.md) | Browser extension documentation |
+| [FRAMEWORKS.md](./FRAMEWORKS.md) | Complete guide to all frameworks and architectural patterns |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, sync engine, conflict resolution, auth flows |
+| [stellar-focus/](./stellar-focus/README.md) | Companion browser extension for website blocking |
+
+---
+
+## Table of Contents
+
+1. [Tech Stack](#tech-stack)
+2. [Features](#features)
+3. [Setup Guide](#setup-guide)
+4. [Configuration](#configuration)
+5. [Admin & Debug](#admin--debug)
+6. [Mobile Installation](#mobile-installation)
+7. [Companion Extension](#companion-extension)
 
 ---
 
@@ -38,8 +36,9 @@ For deeper understanding of the codebase:
 | **Language** | TypeScript (strict mode) |
 | **Local Database** | Dexie.js (IndexedDB wrapper) |
 | **Remote Database** | Supabase (PostgreSQL) |
-| **Authentication** | Supabase Auth + custom offline credential caching |
+| **Authentication** | Supabase Auth + offline credential caching |
 | **Real-time** | Supabase Realtime (WebSocket subscriptions) |
+| **Build Tool** | Vite |
 | **Deployment** | Vercel |
 
 ---
@@ -47,90 +46,279 @@ For deeper understanding of the codebase:
 ## Features
 
 ### Task Management
-- **Daily Tasks**: Quick checklist with drag-to-reorder and bulk clear
-- **Long-Term Tasks**: Calendar-based task planning with due dates and categories
-- **Commitments**: Three-pillar organization (Career, Social, Personal) for recurring responsibilities
+- **Daily Tasks**: A daily checklist with drag-to-reorder. Tasks reset each day so you start fresh.
+- **Long-Term Tasks**: Calendar-based task planning with due dates, color-coded categories, and status grouping (overdue, due today, upcoming, completed).
+- **Task Categories**: Create colored tags to organize long-term tasks. Categories are auto-created when you create a project.
+- **Commitments**: Three-pillar organization (Career, Projects, Personal) for ongoing responsibilities. Drag-reorderable within each section.
 
 ### Goal Tracking
-- **Goal Lists**: Named collections with visual progress tracking
-- **Goal Types**: Binary completion or incremental progress (e.g., "Read 20 pages")
-- **Overflow Celebration**: Goals can exceed 100% with space-themed celebration effects that scale with overflow percentage - color transitions from green to cyan to purple with orbiting stars and cosmic glow
+- **Goal Lists**: Named collections of goals with visual progress bars showing completion percentage.
+- **Goal Types**: Three types of goals:
+  - **Completion**: Binary done/not-done goals.
+  - **Incremental**: Progress-based goals with a target value (e.g., "Read 20 pages").
+  - **Progressive**: Goals that automatically increase their target over time on a configured schedule.
+- **Overflow Celebration**: Goals can exceed 100% with animated celebration effects that scale with the overflow percentage.
+
+### Projects
+- **Project Organization**: Group related goal lists, task categories, and commitments under a single project.
+- **Current Project**: Set one project as your current focus, displayed as a banner with animated space effects.
+- **Auto-Generated Resources**: Creating a project automatically creates an associated goal list, task category, and commitment.
 
 ### Daily Routines
-- **Flexible Scheduling**: Set routines for specific days (weekdays, weekends, or custom)
-- **Calendar View**: Month view with color-coded completion (red → yellow → green)
-- **Progress Tracking**: Per-day progress with overflow support and celebration effects
+- **Flexible Scheduling**: Set routines for specific days of the week (weekdays, weekends, or custom).
+- **Calendar View**: Full month calendar with color-coded cells showing daily completion percentage (red to yellow to green).
+- **Three Routine Types**: Completion (did you do it?), incremental (how many reps?), and progressive (auto-increasing targets).
+- **Date Range**: Set start and optional end dates for time-bounded routines.
 
 ### Focus Timer (Pomodoro)
-- **Customizable Sessions**: Configure focus/break durations and cycle counts
-- **Phase Management**: Automatic transitions between focus, break, and long break
-- **Website Blocking**: Integrates with companion browser extension to block distracting sites during focus
+- **Customizable Sessions**: Configure focus duration, short break, long break, and number of sessions before a long break.
+- **Phase Management**: Automatic transitions between focus, break, and long break phases with visual session schedule.
+- **Website Blocking**: Integrates with the Stellar Focus browser extension to block distracting websites during focus phases.
+- **Focus Time Tracking**: Tracks accumulated focus minutes per day.
+
+### Block Lists
+- **Multiple Lists**: Create separate named block lists (e.g., "Social Media", "News", "Entertainment").
+- **Day Scheduling**: Configure each list to be active only on certain days of the week.
+- **Enable/Disable**: Toggle individual lists on and off without deleting them.
+- **Subdomain Matching**: Blocking `youtube.com` automatically blocks `www.youtube.com`, `music.youtube.com`, etc.
 
 ### Offline-First Architecture
-- **Local-First Data**: All reads/writes happen instantly against IndexedDB
-- **Bidirectional Sync**: Changes queue locally and sync when online
-- **Offline Authentication**: PBKDF2-hashed credentials enable offline login
-- **Conflict Resolution**: Pending queue protection with recently-modified grace periods
+- **Local-First Data**: All reads and writes happen instantly against IndexedDB. No loading spinners for data operations.
+- **Background Sync**: Changes queue locally and sync to Supabase automatically when online. The sync engine uses an outbox pattern with intent-based operations.
+- **Offline Authentication**: Credentials are cached locally so you can log in and use the app without internet.
+- **Conflict Resolution**: Field-level conflict resolution with pending-queue protection, recently-modified grace periods, and deterministic device-ID tiebreaking for simultaneous edits.
+- **Real-Time Updates**: Supabase Realtime WebSocket subscriptions provide instant multi-device sync. Falls back to 15-minute polling if WebSocket disconnects.
 
 ### PWA Capabilities
-- **Installable**: Full standalone app experience on desktop and mobile
-- **Offline Fallback**: Space-themed offline page when cached content unavailable
-- **Smart Caching**: Network-first for HTML, cache-first for immutable assets
-- **Update Flow**: Non-intrusive prompts when new versions are available
+- **Installable**: Works as a standalone app on desktop, Android, and iOS. Install prompt appears on the home screen.
+- **Full Offline Navigation**: Background precaching downloads all route chunks after first load, enabling every page to work offline.
+- **Smart Caching**: Network-first for HTML, cache-first for immutable assets, stale-while-revalidate for static resources.
+- **Update Flow**: Non-intrusive prompt when a new version is available. One tap to refresh.
+
+### UI
+- **Space Theme**: Animated starfields, nebula effects, orbital particles, and cosmic color gradients throughout.
+- **Responsive Design**: Optimized layouts for iPhone (including Dynamic Island), Android, tablet, and desktop.
+- **Drag-and-Drop**: All lists support drag-to-reorder with smooth animations.
+- **Sync Indicator**: Real-time visual feedback showing sync status (synced, syncing, pending, offline, error) with detailed error tooltips.
 
 ---
 
-## UI Highlights
-
-- **Space Theme**: Animated starfields, nebula effects, and cosmic color palette throughout
-- **Glassmorphic Design**: Frosted glass cards with subtle blur effects
-- **Pull-to-Refresh**: Mobile-friendly manual sync trigger
-- **Sync Indicator**: Real-time status showing pending changes, sync progress, and errors
-- **Responsive**: Optimized for mobile, tablet, and desktop viewports
-
----
-
-## Local Development
+## Setup Guide
 
 ### Prerequisites
-- Node.js 18+
-- Supabase project
+- A GitHub account
+- A Vercel account (free tier works)
+- A Supabase account (free tier works)
 
-### Setup
-```bash
-git clone <repository-url>
-cd stellar
-npm install
-cp .env.example .env
-# Edit .env with your Supabase credentials
-npm run dev
-```
+### Step 1: Fork the Repository
+
+Fork this repository to your own GitHub account. This gives you your own copy that Vercel can deploy from.
+
+### Step 2: Create a Supabase Project
+
+1. Go to [supabase.com](https://supabase.com) and create a new project.
+2. Choose a region close to you and set a database password.
+3. Once the project is created, go to **Settings > API** and note your:
+   - **Project URL** (e.g., `https://abcdefg.supabase.co`)
+   - **Anon/Public Key** (starts with `eyJ...`)
+
+### Step 3: Set Up the Database Schema
+
+1. In your Supabase project, go to the **SQL Editor**.
+2. Open the `supabase-schema.sql` file from this repository.
+3. Copy the entire contents and paste it into the SQL Editor.
+4. Click **Run**. This creates all tables, indexes, Row Level Security policies, and realtime subscriptions.
+
+### Step 4: Enable Realtime
+
+1. In Supabase, go to **Database > Replication**.
+2. Under "Supabase Realtime", make sure all the entity tables are enabled for realtime. The schema SQL should have done this, but verify that tables like `focus_sessions`, `block_lists`, `goals`, etc. appear in the publication.
+
+### Step 5: Deploy to Vercel
+
+1. Go to [vercel.com](https://vercel.com) and create a new project.
+2. Import your forked GitHub repository.
+3. Set the following environment variables:
+
+| Variable | Value |
+|----------|-------|
+| `PUBLIC_SUPABASE_URL` | Your Supabase project URL |
+| `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | Your Supabase anon key |
+
+4. Deploy. Vercel will build and host your instance automatically.
+
+### Step 6: Run the Setup Wizard
+
+1. Visit your deployed app URL (e.g., `https://your-app.vercel.app`).
+2. On first visit, you'll be redirected to the setup page (`/setup`).
+3. Enter your Supabase URL and Anon Key.
+4. Click **Validate** to test the connection.
+5. Optionally enter a Vercel token to auto-deploy environment variables.
+6. Once validated, the app caches the config locally and you're ready to go.
+
+### Step 7: Create Your Account
+
+1. Navigate to the login page.
+2. Click **Sign Up** and enter your email and password.
+3. Check your email for a confirmation link (Supabase sends this automatically).
+4. Click the confirmation link to verify your account.
+5. Log in and start using Stellar.
+
+---
+
+## Configuration
+
+### Runtime Configuration
+
+Stellar uses runtime configuration rather than build-time environment variables. This means:
+
+- Config is fetched from the server's `/api/config` endpoint on load.
+- Config is cached in localStorage for instant subsequent loads and offline PWA support.
+- The setup wizard at `/setup` handles initial configuration through the UI.
 
 ### Environment Variables
-```
-PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
+
+These are set in your Vercel project settings:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL |
+| `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | Yes | Your Supabase anon/public key |
+
+### Updating Configuration
+
+Admin users can update the Supabase configuration from the **Profile** page without redeploying. This triggers a redeploy with the new environment variables if a Vercel token is configured.
+
+---
+
+## Admin & Debug
+
+### Making a User Admin
+
+Admin status is set in Supabase's auth system via `app_metadata`:
+
+1. Go to your Supabase project's **SQL Editor**.
+2. Run the following SQL, replacing the email with your user's email:
+
+```sql
+UPDATE auth.users
+SET raw_app_meta_data = raw_app_meta_data || '{"is_admin": true}'::jsonb
+WHERE email = 'your-email@example.com';
 ```
 
-### Database Setup
-Execute `supabase-schema.sql` in your Supabase SQL Editor.
+3. The user needs to log out and log back in for the change to take effect.
 
-### Build
-```bash
-npm run build
-npm run preview
+### What Admins Can Do
+
+- **Toggle Debug Mode**: On the Profile page, admins see a debug mode toggle that enables detailed console logging for all sync operations, conflict resolutions, and authentication events.
+- **Update Supabase Config**: Admins can update the Supabase URL and anon key directly from the Profile page.
+
+### Debug Mode
+
+When debug mode is enabled (admin-only), the following information is logged to the browser console:
+
+- `[SYNC]` - Sync cycle details: trigger type, items pushed/pulled, data transfer size, duration
+- `[Auth]` - Authentication events, session management, offline/online transitions
+- `[Tombstone]` - Soft delete cleanup operations
+- `[Conflict]` - Field-level conflict resolution details
+
+### Browser Console Debug Functions
+
+These functions are available in the browser console when debug mode is enabled:
+
+| Function | Description |
+|----------|-------------|
+| `window.__stellarSyncStats()` | View sync cycle statistics (total cycles, recent cycle details, trigger types) |
+| `window.__stellarEgress()` | Monitor data transfer from Supabase (total bytes, per-table breakdown, recent cycles) |
+| `window.__stellarTombstones()` | Check soft-deleted record counts across all tables |
+| `window.__stellarTombstones({ cleanup: true })` | Manually trigger tombstone cleanup |
+| `window.__stellarTombstones({ cleanup: true, force: true })` | Force server cleanup (bypasses 24-hour interval) |
+
+### PWA Cache Status
+
+Check the service worker cache status:
+
+```javascript
+navigator.serviceWorker.controller.postMessage({ type: 'GET_CACHE_STATUS' });
+navigator.serviceWorker.addEventListener('message', e => {
+  if (e.data.cached !== undefined) console.log('Cache:', e.data);
+});
+// Output: { cached: 78, total: 78, ready: true, version: "..." }
 ```
+
+---
+
+## Mobile Installation
+
+### iOS (Safari)
+
+1. Open your Stellar instance in Safari.
+2. Tap the **Share** button (square with arrow).
+3. Scroll down and tap **Add to Home Screen**.
+4. Tap **Add**. Stellar appears as a standalone app with its own icon.
+
+### Android (Chrome)
+
+1. Open your Stellar instance in Chrome.
+2. Tap the three-dot menu.
+3. Tap **Add to Home screen** (or **Install app** if Chrome shows it).
+4. Stellar installs as a standalone app.
+
+### Desktop (Chrome/Edge)
+
+1. Open your Stellar instance.
+2. Click the install icon in the address bar (or use the in-app install prompt on the home page).
+3. Click **Install**.
+
+Once installed, Stellar runs as a standalone window with full offline support. The app automatically prompts installation on the home screen if it detects a compatible browser.
 
 ---
 
 ## Companion Extension
 
-**Stellar Focus** is a browser extension that blocks distracting websites during focus sessions.
+**Stellar Focus** is a browser extension that blocks distracting websites during focus sessions managed in Stellar.
 
+- Blocks sites only during active focus phases (breaks and pauses allow full access)
 - Real-time sync via Supabase Realtime WebSockets
 - Day-of-week scheduling for block lists
-- Beautiful space-themed blocking page with animated galaxy
-- Fail-safe design: never blocks when offline or during breaks
+- Subdomain matching
+- Fail-safe design: never blocks when offline or uncertain
+- Beautiful space-themed blocking page with animated spiral galaxy
 
-See [stellar-focus/README.md](./stellar-focus/README.md) for details.
+**Install:**
+- [Chrome Web Store](https://chromewebstore.google.com/detail/stellar-focus/eppioehchokbecpepjkkcedffakhepfo)
+- [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/stellar-focus/)
 
+See [stellar-focus/README.md](./stellar-focus/README.md) for full documentation.
+
+---
+
+## Local Development
+
+```bash
+git clone <your-fork-url>
+cd stellar
+npm install
+npm run dev
+```
+
+The dev server starts at `http://localhost:5173`. You still need a Supabase project with the schema applied.
+
+### Build Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server with hot reload |
+| `npm run build` | Create production build |
+| `npm run preview` | Preview production build locally |
+| `npm run check` | TypeScript type checking |
+| `npm run lint` | ESLint code linting |
+| `npm run validate` | Run type check + lint + dead code detection |
+
+---
+
+## Privacy
+
+Stellar is fully self-hosted. Your data lives in your own Supabase project. No analytics, tracking, or third-party services are used beyond Supabase (which you control). All data is stored locally in IndexedDB and synced only to your Supabase instance.
+
+See the in-app privacy policy at `/policy` for details.
