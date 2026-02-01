@@ -2,8 +2,9 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { goalListStore } from '$lib/stores/data';
-  import type { GoalList, Goal, GoalType } from '$lib/types';
+  import { goalListStore, longTermTasksStore, taskCategoriesStore } from '$lib/stores/data';
+  import type { GoalList, Goal, GoalType, LongTermTaskWithCategory, TaskCategory, Project } from '$lib/types';
+  import { getProjects } from '$lib/sync/engine';
   import { calculateGoalProgressCapped } from '$lib/utils/colors';
   import GoalItem from '$lib/components/GoalItem.svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
@@ -11,6 +12,9 @@
   import GoalForm from '$lib/components/GoalForm.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import DraggableList from '$lib/components/DraggableList.svelte';
+  import LongTermTaskList from '$lib/components/LongTermTaskList.svelte';
+  import LongTermTaskModal from '$lib/components/LongTermTaskModal.svelte';
+  import LongTermTaskForm from '$lib/components/LongTermTaskForm.svelte';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
   let list = $state<(GoalList & { goals: Goal[] }) | null>(null);
@@ -19,6 +23,14 @@
   let showAddModal = $state(false);
   let editingGoalId = $state<string | null>(null);
   let editingListName = $state(false);
+
+  // Long-term tasks state
+  let project = $state<Project | null>(null);
+  let longTermTasks = $state<LongTermTaskWithCategory[]>([]);
+  let categories = $state<TaskCategory[]>([]);
+  let selectedTask = $state<LongTermTaskWithCategory | null>(null);
+  let showTaskModal = $state(false);
+  let showTaskForm = $state(false);
 
   // Derive editing goal reactively from the store so props update when remote changes arrive
   const editingGoal = $derived(
@@ -51,6 +63,40 @@
     return Math.round(total / list.goals.length);
   });
 
+  function formatDateString(date: Date): string {
+    return date.toISOString().split('T')[0];
+  }
+
+  const today = $derived(formatDateString(new Date()));
+
+  const overdueTasks = $derived(
+    longTermTasks
+      .filter((t) => t.due_date < today && !t.completed)
+      .sort((a, b) => a.due_date.localeCompare(b.due_date))
+  );
+
+  const dueTodayTasks = $derived(
+    longTermTasks
+      .filter((t) => t.due_date === today && !t.completed)
+      .sort((a, b) => a.name.localeCompare(b.name))
+  );
+
+  const upcomingTasks = $derived(
+    longTermTasks
+      .filter((t) => t.due_date > today && !t.completed)
+      .sort((a, b) => a.due_date.localeCompare(b.due_date))
+  );
+
+  const completedTasks = $derived(
+    longTermTasks.filter((t) => t.completed).sort((a, b) => a.due_date.localeCompare(b.due_date))
+  );
+
+  const hasAnyTasks = $derived(longTermTasks.length > 0);
+
+  const projectCategories = $derived(
+    project?.tag_id ? categories.filter((c) => c.id === project.tag_id) : []
+  );
+
   // Subscribe to store
   $effect(() => {
     const unsubList = goalListStore.subscribe((value) => {
@@ -67,8 +113,36 @@
     };
   });
 
+  // Subscribe to long-term tasks store, filtered by project tag
+  $effect(() => {
+    if (!project?.tag_id) return;
+    const tagId = project.tag_id;
+
+    const unsubTasks = longTermTasksStore.subscribe((allTasks) => {
+      longTermTasks = allTasks.filter((t) => t.category_id === tagId);
+    });
+    const unsubCategories = taskCategoriesStore.subscribe((cats) => {
+      categories = cats;
+    });
+
+    return () => {
+      unsubTasks();
+      unsubCategories();
+    };
+  });
+
   onMount(async () => {
     await goalListStore.load(listId);
+
+    // Find the project that owns this goal list
+    const projects = await getProjects();
+    const owningProject = projects.find((p) => p.goal_list_id === listId);
+    if (owningProject) {
+      project = owningProject;
+      if (owningProject.tag_id) {
+        await Promise.all([longTermTasksStore.load(), taskCategoriesStore.load()]);
+      }
+    }
   });
 
   onDestroy(() => {
@@ -163,6 +237,42 @@
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to delete goal';
     }
+  }
+
+  // Long-term task handlers
+  function getUserId(): string {
+    const session = $page.data.session;
+    return session?.user?.id ?? '';
+  }
+
+  async function handleCreateLongTermTask(
+    name: string,
+    dueDate: string,
+    categoryId: string | null
+  ) {
+    const userId = getUserId();
+    if (!userId) return;
+    await longTermTasksStore.create(name, dueDate, categoryId, userId);
+  }
+
+  async function handleToggleLongTermTask(id: string) {
+    await longTermTasksStore.toggle(id);
+  }
+
+  async function handleDeleteLongTermTask(id: string) {
+    await longTermTasksStore.delete(id);
+  }
+
+  async function handleUpdateLongTermTask(
+    id: string,
+    updates: { name?: string; due_date?: string; category_id?: string | null }
+  ) {
+    await longTermTasksStore.update(id, updates);
+  }
+
+  function handleTaskClick(task: LongTermTaskWithCategory) {
+    selectedTask = task;
+    showTaskModal = true;
   }
 
   async function handleUpdateListName() {
@@ -305,6 +415,82 @@
         {/snippet}
       </DraggableList>
     {/if}
+
+    {#if project?.tag_id}
+      <section class="tasks-section">
+        <div class="tasks-section-header">
+          <div class="tasks-section-header-left">
+            <div class="tasks-section-divider"></div>
+            <h2 class="tasks-section-title">Tasks</h2>
+            <div class="tasks-section-divider"></div>
+          </div>
+          <button
+            class="btn btn-primary btn-sm"
+            onclick={() => (showTaskForm = true)}
+          >
+            + New Task
+          </button>
+        </div>
+
+        {#if hasAnyTasks}
+          <div class="tasks-lists">
+            {#if overdueTasks.length > 0}
+              <LongTermTaskList
+                title="Overdue"
+                tasks={overdueTasks}
+                variant="overdue"
+                onTaskClick={handleTaskClick}
+                onToggle={handleToggleLongTermTask}
+                onDelete={handleDeleteLongTermTask}
+              />
+            {/if}
+
+            {#if dueTodayTasks.length > 0}
+              <LongTermTaskList
+                title="Due Today"
+                tasks={dueTodayTasks}
+                variant="due-today"
+                onTaskClick={handleTaskClick}
+                onToggle={handleToggleLongTermTask}
+                onDelete={handleDeleteLongTermTask}
+              />
+            {/if}
+
+            {#if upcomingTasks.length > 0}
+              <LongTermTaskList
+                title="Upcoming"
+                tasks={upcomingTasks}
+                variant="upcoming"
+                onTaskClick={handleTaskClick}
+                onToggle={handleToggleLongTermTask}
+                onDelete={handleDeleteLongTermTask}
+              />
+            {/if}
+
+            {#if completedTasks.length > 0}
+              <LongTermTaskList
+                title="Completed"
+                tasks={completedTasks}
+                variant="completed"
+                onTaskClick={handleTaskClick}
+                onToggle={handleToggleLongTermTask}
+                onDelete={handleDeleteLongTermTask}
+              />
+            {/if}
+          </div>
+        {:else}
+          <EmptyState
+            icon="📅"
+            title="No project tasks yet"
+            description="Add tasks with due dates to track work for this project"
+          >
+            <button class="btn btn-primary" onclick={() => (showTaskForm = true)}>
+              Add First Task
+            </button>
+          </EmptyState>
+        {/if}
+      </section>
+    {/if}
   {/if}
 </div>
 
@@ -326,6 +512,29 @@
     />
   {/if}
 </Modal>
+
+<LongTermTaskModal
+  open={showTaskModal}
+  task={selectedTask}
+  categories={projectCategories}
+  onClose={() => {
+    showTaskModal = false;
+    selectedTask = null;
+  }}
+  onUpdate={handleUpdateLongTermTask}
+  onToggle={handleToggleLongTermTask}
+  onDelete={handleDeleteLongTermTask}
+/>
+
+<LongTermTaskForm
+  open={showTaskForm}
+  categories={projectCategories}
+  initialCategoryId={project?.tag_id ?? null}
+  onClose={() => (showTaskForm = false)}
+  onCreate={handleCreateLongTermTask}
+  onDeleteCategory={() => {}}
+  onRequestCreateCategory={() => {}}
+/>
 
 <style>
   .page-header {
@@ -707,6 +916,54 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
+     TASKS SECTION STYLES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .tasks-section {
+    margin-top: 3rem;
+  }
+
+  .tasks-section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .tasks-section-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .tasks-section-divider {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(108, 92, 231, 0.3),
+      transparent
+    );
+  }
+
+  .tasks-section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+
+  .tasks-lists {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
      MOBILE RESPONSIVE STYLES
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
@@ -788,6 +1045,28 @@
 
     .loading {
       padding: 3rem;
+    }
+
+    .tasks-section {
+      margin-top: 2rem;
+    }
+
+    .tasks-section-header {
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .tasks-section-header-left {
+      gap: 0.75rem;
+    }
+
+    .tasks-section-title {
+      font-size: 1.1rem;
+    }
+
+    .tasks-section-header .btn {
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .goal-with-handle .drag-handle {

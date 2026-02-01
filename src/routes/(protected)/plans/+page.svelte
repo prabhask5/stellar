@@ -181,10 +181,46 @@
       </button>
     </header>
 
-    <div class="current-project-line" class:empty={!currentProject}>
-      <span class="current-label">Current Project:</span>
-      <span class="current-name" use:truncateTooltip>{currentProject?.name || 'None selected'}</span>
-    </div>
+    {#if currentProject}
+      <button
+        class="current-project-banner"
+        onclick={() => currentProject.goal_list_id && navigateToList(currentProject.goal_list_id)}
+      >
+        <!-- Animated star layers -->
+        <span class="banner-stars banner-stars-1"></span>
+        <span class="banner-stars banner-stars-2"></span>
+
+        <!-- Nebula blobs -->
+        <span class="banner-nebula banner-nebula-1"></span>
+        <span class="banner-nebula banner-nebula-2"></span>
+
+        <!-- Shimmer sweep -->
+        <span class="banner-shimmer"></span>
+
+        <!-- Content -->
+        <span class="banner-content">
+          <span class="banner-star-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" width="18" height="18">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </span>
+          <span class="banner-text">
+            <span class="banner-label">Current Project</span>
+            <span class="banner-name" use:truncateTooltip>{currentProject.name}</span>
+          </span>
+          <span class="banner-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </span>
+        </span>
+      </button>
+    {:else}
+      <div class="current-project-line empty">
+        <span class="current-label">Current Project:</span>
+        <span class="current-name">None selected</span>
+      </div>
+    {/if}
 
     {#if loadingProjects}
       <div class="lists-grid">
@@ -400,20 +436,229 @@
     }
   }
 
+  /* ── Current Project Banner (maximalist space theme) ── */
+
+  .current-project-banner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius-xl);
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    background: linear-gradient(
+      135deg,
+      rgba(15, 10, 40, 0.95) 0%,
+      rgba(30, 20, 70, 0.9) 40%,
+      rgba(20, 12, 50, 0.95) 100%
+    );
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.4s var(--ease-out);
+    box-shadow:
+      0 0 20px rgba(255, 215, 0, 0.08),
+      0 4px 24px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 215, 0, 0.1);
+    text-align: left;
+    color: inherit;
+    font-family: inherit;
+  }
+
+  .current-project-banner:hover {
+    border-color: rgba(255, 215, 0, 0.45);
+    box-shadow:
+      0 0 35px rgba(255, 215, 0, 0.15),
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 215, 0, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .current-project-banner:active {
+    transform: translateY(0);
+  }
+
+  /* Tiny twinkling stars - layer 1 (slow) */
+  .banner-stars {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .banner-stars-1 {
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.7) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 70%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 55% 15%, rgba(255, 215, 0, 0.8) 0%, transparent 100%),
+      radial-gradient(1px 1px at 75% 55%, rgba(255, 255, 255, 0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 30%, rgba(255, 255, 255, 0.4) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 20% 85%, rgba(255, 215, 0, 0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 65% 90%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 80%, rgba(255, 255, 255, 0.3) 0%, transparent 100%);
+    animation: bannerTwinkle1 4s ease-in-out infinite alternate;
+  }
+
+  .banner-stars-2 {
+    background-image:
+      radial-gradient(1px 1px at 15% 45%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 40% 30%, rgba(255, 255, 255, 0.4) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 70% 40%, rgba(255, 215, 0, 0.7) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 60%, rgba(255, 255, 255, 0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 95% 15%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 5% 60%, rgba(255, 255, 255, 0.3) 0%, transparent 100%);
+    animation: bannerTwinkle2 5s ease-in-out infinite alternate;
+  }
+
+  @keyframes bannerTwinkle1 {
+    0% { opacity: 0.6; }
+    100% { opacity: 1; }
+  }
+
+  @keyframes bannerTwinkle2 {
+    0% { opacity: 1; }
+    100% { opacity: 0.5; }
+  }
+
+  /* Nebula blobs */
+  .banner-nebula {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(25px);
+  }
+
+  .banner-nebula-1 {
+    width: 120px;
+    height: 60px;
+    top: -15px;
+    left: 10%;
+    background: radial-gradient(ellipse, rgba(108, 92, 231, 0.3) 0%, transparent 70%);
+    animation: nebulaFloat1 8s ease-in-out infinite alternate;
+  }
+
+  .banner-nebula-2 {
+    width: 100px;
+    height: 50px;
+    bottom: -10px;
+    right: 15%;
+    background: radial-gradient(ellipse, rgba(255, 215, 0, 0.15) 0%, transparent 70%);
+    animation: nebulaFloat2 10s ease-in-out infinite alternate;
+  }
+
+  @keyframes nebulaFloat1 {
+    0% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+    100% { transform: translate(15px, 5px) scale(1.15); opacity: 0.8; }
+  }
+
+  @keyframes nebulaFloat2 {
+    0% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+    100% { transform: translate(-10px, -3px) scale(1.1); opacity: 0.7; }
+  }
+
+  /* Shimmer sweep */
+  .banner-shimmer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(255, 215, 0, 0.06) 45%,
+      rgba(255, 215, 0, 0.12) 50%,
+      rgba(255, 215, 0, 0.06) 55%,
+      transparent 60%
+    );
+    background-size: 200% 100%;
+    animation: bannerShimmerSweep 6s ease-in-out infinite;
+  }
+
+  @keyframes bannerShimmerSweep {
+    0%, 100% { background-position: 200% center; }
+    50% { background-position: -200% center; }
+  }
+
+  /* Content layout */
+  .banner-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .banner-star-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: #ffd700;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.2) 0%, transparent 70%);
+    animation: bannerStarPulse 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.5));
+  }
+
+  @keyframes bannerStarPulse {
+    0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.5)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.8)); transform: scale(1.08); }
+  }
+
+  .banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .banner-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255, 215, 0, 0.6);
+  }
+
+  .banner-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+  }
+
+  .banner-arrow {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    color: rgba(255, 215, 0, 0.5);
+    transition: all 0.3s var(--ease-out);
+  }
+
+  .current-project-banner:hover .banner-arrow {
+    color: rgba(255, 215, 0, 0.9);
+    transform: translateX(3px);
+  }
+
+  /* ── Empty state (no current project) ── */
+
   .current-project-line {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 1.5rem;
     padding: 0.75rem 1rem;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.03) 100%);
-    border: 1px solid rgba(255, 215, 0, 0.2);
     border-radius: var(--radius-lg);
   }
 
   .current-project-line.empty {
     background: linear-gradient(135deg, rgba(108, 92, 231, 0.08) 0%, rgba(108, 92, 231, 0.02) 100%);
-    border-color: rgba(108, 92, 231, 0.15);
+    border: 1px solid rgba(108, 92, 231, 0.15);
   }
 
   .current-label {
@@ -424,11 +669,6 @@
 
   .current-name {
     font-size: 0.875rem;
-    font-weight: 700;
-    color: #ffd700;
-  }
-
-  .current-project-line.empty .current-name {
     font-weight: 500;
     color: var(--color-text-muted);
     opacity: 0.6;

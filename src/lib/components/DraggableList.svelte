@@ -16,36 +16,57 @@
   let draggedId = $state<string | null>(null);
   let draggedIndex = $state<number>(-1);
   let dropTargetIndex = $state<number>(-1);
+  let isDragging = $state(false);
   let containerEl: HTMLDivElement;
+
+  // Track pointer start position for movement threshold
+  let startX = 0;
+  let startY = 0;
+  let pendingItem: T | null = null;
+  let pendingIndex = -1;
+
+  const DRAG_THRESHOLD = 8; // px – tolerates touch jitter on mobile
 
   function handlePointerDown(e: PointerEvent, item: T, index: number) {
     if (disabled || items.length <= 1) return;
-
-    // Only handle primary button (left mouse button or touch)
     if (e.button !== 0) return;
 
     e.preventDefault();
-    draggedId = item.id;
-    draggedIndex = index;
-    dropTargetIndex = index;
+    startX = e.clientX;
+    startY = e.clientY;
+    pendingItem = item;
+    pendingIndex = index;
 
     // Capture pointer for tracking outside the element
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
-    // Add document-level listeners
     document.addEventListener('pointermove', handlePointerMove);
     document.addEventListener('pointerup', handlePointerUp);
     document.addEventListener('pointercancel', handlePointerUp);
   }
 
   function handlePointerMove(e: PointerEvent) {
+    // If we haven't crossed the threshold yet, check distance
+    if (!isDragging) {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return;
+
+      // Threshold crossed – activate drag
+      if (pendingItem) {
+        draggedId = pendingItem.id;
+        draggedIndex = pendingIndex;
+        dropTargetIndex = pendingIndex;
+        isDragging = true;
+      }
+    }
+
     if (draggedId === null || !containerEl) return;
 
     // Find which item we're over
-    const containerRect = containerEl.getBoundingClientRect();
     const itemElements = containerEl.querySelectorAll('[data-draggable-item]');
 
-    let newDropIndex = items.length - 1; // Default to end
+    let newDropIndex = items.length - 1;
 
     for (let i = 0; i < itemElements.length; i++) {
       const itemEl = itemElements[i] as HTMLElement;
@@ -66,7 +87,15 @@
     document.removeEventListener('pointerup', handlePointerUp);
     document.removeEventListener('pointercancel', handlePointerUp);
 
-    if (draggedId === null || draggedIndex === -1) {
+    const wasDragging = isDragging;
+
+    // Suppress the click that the browser fires after pointerup.
+    // Use capturing phase so it runs before any card onclick handlers.
+    // Always suppress when the handle was touched – even without drag –
+    // to prevent accidental navigation from tapping the handle.
+    suppressNextClick();
+
+    if (!wasDragging || draggedId === null || draggedIndex === -1) {
       resetDragState();
       return;
     }
@@ -77,17 +106,31 @@
 
     resetDragState();
 
-    // Only reorder if position actually changed
     if (fromIndex !== toIndex) {
       const newOrder = calculateNewOrder(items, fromIndex, toIndex);
       await onReorder(itemId, newOrder);
     }
   }
 
+  function suppressNextClick() {
+    if (!containerEl) return;
+    const handler = (e: Event) => {
+      e.stopPropagation();
+      e.preventDefault();
+      containerEl.removeEventListener('click', handler, true);
+    };
+    containerEl.addEventListener('click', handler, true);
+    // Safety: remove if click never fires (e.g. iOS sometimes doesn't)
+    setTimeout(() => containerEl?.removeEventListener('click', handler, true), 300);
+  }
+
   function resetDragState() {
     draggedId = null;
     draggedIndex = -1;
     dropTargetIndex = -1;
+    isDragging = false;
+    pendingItem = null;
+    pendingIndex = -1;
   }
 
   function getDragHandleProps(item: T, index: number) {
@@ -101,9 +144,9 @@
   {#each items as item, index (item.id)}
     <div
       class="draggable-item-wrapper"
-      class:dragging={draggedId === item.id}
-      class:drop-above={dropTargetIndex === index && draggedIndex > index && draggedId !== null}
-      class:drop-below={dropTargetIndex === index && draggedIndex < index && draggedId !== null}
+      class:dragging={isDragging && draggedId === item.id}
+      class:drop-above={isDragging && dropTargetIndex === index && draggedIndex > index}
+      class:drop-below={isDragging && dropTargetIndex === index && draggedIndex < index}
       data-draggable-item
     >
       {@render renderItem({ item, dragHandleProps: getDragHandleProps(item, index) })}
