@@ -90,6 +90,9 @@
     return !!category.project_id;
   }
 
+  const standaloneCategories = $derived(categories.filter((c) => !isProjectOwned(c)));
+  const projectCategories = $derived(categories.filter((c) => isProjectOwned(c)));
+
   function formatDate(dateStr: string): string {
     const date = parseDateString(dateStr);
     const today = new Date();
@@ -210,60 +213,39 @@
       </div>
     {:else}
       <div class="categories-list">
-        {#each categories as category (category.id)}
-          {@const categoryTasks = tasksByCategory().get(category.id) || []}
-          {@const projectOwned = isProjectOwned(category)}
-          <div
-            class="category-section"
-            class:project-owned={projectOwned}
-            use:remoteChangeAnimation={{ entityId: category.id, entityType: 'task_categories' }}
-          >
-            <div class="category-header">
-              <div class="category-info">
-                <!-- Color button with picker (or static for project-owned) -->
-                {#if projectOwned}
-                  <span
-                    class="category-color-static"
-                    style="background-color: {category.color}"
-                    title="Managed by project"
-                  ></span>
-                  <span class="project-icon" title="Managed by project">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                      <path
-                        d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
-                      />
-                    </svg>
-                  </span>
-                {:else}
+        {#if standaloneCategories.length > 0}
+          {#each standaloneCategories as category (category.id)}
+            {@const categoryTasks = tasksByCategory().get(category.id) || []}
+            <div
+              class="category-section"
+              use:remoteChangeAnimation={{ entityId: category.id, entityType: 'task_categories' }}
+            >
+              <div class="category-header">
+                <div class="category-info">
                   <button
                     class="category-color"
                     style="background-color: {category.color}"
                     onclick={() => toggleColorPicker(category.id)}
                     aria-label="Change color"
                   ></button>
-                {/if}
 
-                <!-- Editable name (only if not project-owned) -->
-                {#if editingCategoryId === category.id && !projectOwned}
-                  <input
-                    type="text"
-                    class="category-name-input"
-                    bind:value={editingCategoryName}
-                    onkeydown={handleNameKeydown}
-                    onblur={saveEditName}
-                    use:focus
-                  />
-                {:else if projectOwned}
-                  <span class="category-name-static" use:truncateTooltip>{category.name}</span>
-                {:else}
-                  <button class="category-name" onclick={() => startEditName(category)} use:truncateTooltip>
-                    {category.name}
-                  </button>
-                {/if}
+                  {#if editingCategoryId === category.id}
+                    <input
+                      type="text"
+                      class="category-name-input"
+                      bind:value={editingCategoryName}
+                      onkeydown={handleNameKeydown}
+                      onblur={saveEditName}
+                      use:focus
+                    />
+                  {:else}
+                    <button class="category-name" onclick={() => startEditName(category)} use:truncateTooltip>
+                      {category.name}
+                    </button>
+                  {/if}
 
-                <span class="task-count">{categoryTasks.length}</span>
-              </div>
-              {#if !projectOwned}
+                  <span class="task-count">{categoryTasks.length}</span>
+                </div>
                 <button
                   class="delete-tag-btn"
                   onclick={() => handleDeleteTag(category.id, category.name, categoryTasks.length)}
@@ -281,77 +263,163 @@
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
+              </div>
+
+              {#if showColorPicker === category.id}
+                <div class="color-picker" transition:scale={{ duration: 150, start: 0.95 }}>
+                  {#each CATEGORY_COLORS as color}
+                    <button
+                      class="color-option"
+                      class:selected={category.color === color}
+                      style="background-color: {color}"
+                      onclick={() => selectColor(category.id, color)}
+                      aria-label="Select {color}"
+                    ></button>
+                  {/each}
+                </div>
+              {/if}
+
+              {#if categoryTasks.length > 0}
+                <div class="tasks-list">
+                  {#each categoryTasks as task (task.id)}
+                    <div
+                      class="task-row"
+                      class:overdue={isOverdue(task.due_date)}
+                      class:due-today={isDueToday(task.due_date)}
+                      use:remoteChangeAnimation={{
+                        entityId: task.id,
+                        entityType: 'long_term_tasks'
+                      }}
+                    >
+                      <button
+                        class="checkbox"
+                        onclick={() => onToggle(task.id)}
+                        aria-label="Mark complete"
+                      ></button>
+
+                      <button class="task-info" onclick={() => onTaskClick(task)}>
+                        <span class="task-name" use:truncateTooltip>{task.name}</span>
+                        <span
+                          class="due-date"
+                          class:overdue={isOverdue(task.due_date)}
+                          class:due-today={isDueToday(task.due_date)}
+                        >
+                          {formatDate(task.due_date)}
+                        </span>
+                      </button>
+
+                      <button
+                        class="delete-btn"
+                        onclick={() => onDelete(task.id)}
+                        aria-label="Delete task"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <div class="no-tasks">No incomplete tasks</div>
               {/if}
             </div>
+          {/each}
+        {/if}
 
-            {#if showColorPicker === category.id}
-              <div class="color-picker" transition:scale={{ duration: 150, start: 0.95 }}>
-                {#each CATEGORY_COLORS as color}
-                  <button
-                    class="color-option"
-                    class:selected={category.color === color}
-                    style="background-color: {color}"
-                    onclick={() => selectColor(category.id, color)}
-                    aria-label="Select {color}"
-                  ></button>
-                {/each}
-              </div>
-            {/if}
-
-            {#if categoryTasks.length > 0}
-              <div class="tasks-list">
-                {#each categoryTasks as task (task.id)}
-                  <div
-                    class="task-row"
-                    class:overdue={isOverdue(task.due_date)}
-                    class:due-today={isDueToday(task.due_date)}
-                    use:remoteChangeAnimation={{
-                      entityId: task.id,
-                      entityType: 'long_term_tasks'
-                    }}
-                  >
-                    <button
-                      class="checkbox"
-                      onclick={() => onToggle(task.id)}
-                      aria-label="Mark complete"
-                    ></button>
-
-                    <button class="task-info" onclick={() => onTaskClick(task)}>
-                      <span class="task-name" use:truncateTooltip>{task.name}</span>
-                      <span
-                        class="due-date"
-                        class:overdue={isOverdue(task.due_date)}
-                        class:due-today={isDueToday(task.due_date)}
-                      >
-                        {formatDate(task.due_date)}
-                      </span>
-                    </button>
-
-                    <button
-                      class="delete-btn"
-                      onclick={() => onDelete(task.id)}
-                      aria-label="Delete task"
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            {:else}
-              <div class="no-tasks">No incomplete tasks</div>
-            {/if}
+        {#if projectCategories.length > 0}
+          <div class="section-divider">
+            <span class="section-label">Projects</span>
           </div>
-        {/each}
+
+          {#each projectCategories as category (category.id)}
+            {@const categoryTasks = tasksByCategory().get(category.id) || []}
+            <div
+              class="category-section project-owned"
+              use:remoteChangeAnimation={{ entityId: category.id, entityType: 'task_categories' }}
+            >
+              <div class="category-header">
+                <div class="category-info">
+                  <span
+                    class="category-color-static"
+                    style="background-color: {category.color}"
+                    title="Managed by project"
+                  ></span>
+                  <span class="project-icon" title="Managed by project">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                      />
+                    </svg>
+                  </span>
+                  <span class="category-name-static" use:truncateTooltip>{category.name}</span>
+                  <span class="task-count">{categoryTasks.length}</span>
+                </div>
+              </div>
+
+              {#if categoryTasks.length > 0}
+                <div class="tasks-list">
+                  {#each categoryTasks as task (task.id)}
+                    <div
+                      class="task-row"
+                      class:overdue={isOverdue(task.due_date)}
+                      class:due-today={isDueToday(task.due_date)}
+                      use:remoteChangeAnimation={{
+                        entityId: task.id,
+                        entityType: 'long_term_tasks'
+                      }}
+                    >
+                      <button
+                        class="checkbox"
+                        onclick={() => onToggle(task.id)}
+                        aria-label="Mark complete"
+                      ></button>
+
+                      <button class="task-info" onclick={() => onTaskClick(task)}>
+                        <span class="task-name" use:truncateTooltip>{task.name}</span>
+                        <span
+                          class="due-date"
+                          class:overdue={isOverdue(task.due_date)}
+                          class:due-today={isDueToday(task.due_date)}
+                        >
+                          {formatDate(task.due_date)}
+                        </span>
+                      </button>
+
+                      <button
+                        class="delete-btn"
+                        onclick={() => onDelete(task.id)}
+                        aria-label="Delete task"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <div class="no-tasks">No incomplete tasks</div>
+              {/if}
+            </div>
+          {/each}
+        {/if}
 
         <!-- Untagged tasks -->
         {#if (tasksByCategory().get(null) || []).length > 0}
@@ -459,6 +527,30 @@
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+  }
+
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.25rem 0;
+  }
+
+  .section-divider::before,
+  .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.2), transparent);
+  }
+
+  .section-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 215, 0, 0.5);
+    white-space: nowrap;
   }
 
   .category-section {
