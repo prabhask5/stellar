@@ -171,7 +171,9 @@
     resetting = true;
     try {
       await resetDatabase();
-      window.location.href = '/login';
+      // Reload the page — session is preserved in localStorage, so the app
+      // will re-create the DB, fetch config from Supabase, and re-hydrate.
+      window.location.reload();
     } catch (err) {
       alert('Reset failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
       resetting = false;
