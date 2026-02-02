@@ -412,7 +412,7 @@
 </script>
 
 <svelte:head>
-  <title>{singleUserSetUp ? 'Unlock' : 'Welcome'} - Stellar</title>
+  <title>{singleUserSetUp ? 'Unlock' : 'Welcome'} - Stellar Planner</title>
 </svelte:head>
 
 <div class="login-page" class:mounted>

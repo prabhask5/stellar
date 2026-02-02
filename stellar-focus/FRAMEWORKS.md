@@ -22,7 +22,7 @@ This document explains every framework and dependency used in the Stellar Focus 
 
 ## 1. Overview: Extension vs Main App
 
-Stellar Focus is a browser extension that blocks distracting websites during Pomodoro focus sessions. It is a **completely separate codebase** from the main Stellar web app. They share the same Supabase backend but differ in everything else.
+Stellar Focus is a browser extension that blocks distracting websites during Pomodoro focus sessions. It is a **completely separate codebase** from Stellar Planner. They share the same Supabase backend but differ in everything else.
 
 | Aspect | Main App | Extension |
 |---|---|---|
@@ -156,7 +156,7 @@ The `onBeforeNavigate` event fires for every navigation. The handler checks if t
 
 #### Tabs API
 
-The Tabs API manipulates browser tabs. The extension uses it to redirect blocked navigations and to open or focus the main Stellar app.
+The Tabs API manipulates browser tabs. The extension uses it to redirect blocked navigations and to open or focus Stellar Planner.
 
 ```ts
 // Redirect a tab to the blocked page
@@ -217,7 +217,7 @@ Message passing is central to the extension's architecture. The popup never quer
 
 ### What Supabase Is
 
-Supabase is an open-source backend-as-a-service (like Firebase). It provides a PostgreSQL database, authentication, and realtime subscriptions over WebSockets. Both the main Stellar app and the extension connect to the same Supabase project.
+Supabase is an open-source backend-as-a-service (like Firebase). It provides a PostgreSQL database, authentication, and realtime subscriptions over WebSockets. Both Stellar Planner and the extension connect to the same Supabase project.
 
 ### The Service Worker Problem
 
@@ -277,7 +277,7 @@ The three methods (`getItem`, `setItem`, `removeItem`) match the `localStorage` 
 
 ### Realtime Subscription Setup
 
-The service worker subscribes to Supabase Realtime to receive instant updates when the user starts a focus session, updates block lists, or adds blocked websites in the main app.
+The service worker subscribes to Supabase Realtime to receive instant updates when the user starts a focus session, updates block lists, or adds blocked websites in Stellar Planner.
 
 A single consolidated channel handles all three tables (an egress optimization -- fewer connections means less data transfer):
 
@@ -375,7 +375,7 @@ esbuild is a JavaScript/TypeScript bundler written in Go. It compiles TypeScript
 
 ### Why esbuild Instead of Vite
 
-The main Stellar app uses Vite, which provides a dev server with hot module replacement (HMR) for a live-reloading development experience. Extensions do not benefit from this because:
+Stellar Planner uses Vite, which provides a dev server with hot module replacement (HMR) for a live-reloading development experience. Extensions do not benefit from this because:
 
 1. **No dev server needed** -- Extensions are loaded from static files on disk. You reload the extension in the browser after each build.
 2. **Simpler configuration** -- esbuild needs about 20 lines of config. Vite with SvelteKit needs multiple config files and plugins.
@@ -652,7 +652,7 @@ The options page is where the user configures which Supabase instance to connect
 
 - **Supabase URL** -- the project URL (e.g., `https://abc123.supabase.co`)
 - **Supabase Anon Key** -- the public anonymous key
-- **App URL** -- the main Stellar web app URL
+- **App URL** -- Stellar Planner URL
 
 On save, the options page validates the connection by making a test query, stores the config in `browser.storage.local`, and notifies the service worker to re-initialize via `browser.runtime.sendMessage({ type: 'CONFIG_UPDATED' })`.
 
@@ -837,7 +837,7 @@ IndexedDB is a browser-native database that stores structured data as key-value 
 
 ### Raw IndexedDB (No Dexie)
 
-The main Stellar app uses **Dexie.js**, a wrapper library that makes IndexedDB feel like a simple ORM. The extension uses the **raw IndexedDB API** instead because:
+Stellar Planner uses **Dexie.js**, a wrapper library that makes IndexedDB feel like a simple ORM. The extension uses the **raw IndexedDB API** instead because:
 
 1. Fewer dependencies means a smaller bundle
 2. The extension only needs basic CRUD operations on 3 stores
@@ -1003,7 +1003,7 @@ export const focusSessionCacheStore = {
 
 ### No Direct Communication
 
-The extension and the main Stellar web app **never communicate directly**. There are no content scripts, no postMessage calls, and no shared state in the browser. They are completely independent codebases that happen to connect to the same Supabase project.
+The extension and Stellar Planner **never communicate directly**. There are no content scripts, no postMessage calls, and no shared state in the browser. They are completely independent codebases that happen to connect to the same Supabase project.
 
 ### Shared Supabase Backend
 
@@ -1012,7 +1012,7 @@ All communication flows through the Supabase database:
 ```
 +-------------------+         +-------------------+         +-------------------+
 |                   |         |                   |         |                   |
-|   Stellar App     |  write  |     Supabase      | realtime|   Extension       |
+| Stellar Planner   |  write  |     Supabase      | realtime|   Extension       |
 |   (SvelteKit)     | ------> |   (PostgreSQL)    | ------> |   (Service Worker)|
 |                   |         |                   |         |                   |
 |  User starts a    |         |  focus_sessions   |         |  Receives update  |
@@ -1023,7 +1023,7 @@ All communication flows through the Supabase database:
 
 ### The Flow in Detail
 
-1. **User starts a focus session** in the main Stellar web app
+1. **User starts a focus session** in Stellar Planner
 2. The app **writes a row** to the `focus_sessions` table in Supabase with `status: 'running'` and `phase: 'focus'`
 3. Supabase **broadcasts the change** over a WebSocket to all subscribed clients
 4. The extension's service worker **receives the realtime event** and updates its local state
@@ -1032,7 +1032,7 @@ All communication flows through the Supabase database:
 
 The same flow applies for block list changes:
 
-1. User **creates or edits a block list** in the main app
+1. User **creates or edits a block list** in Stellar Planner
 2. The app writes to `block_lists` and `blocked_websites` tables
 3. Extension receives the change via realtime
 4. Extension **updates its IndexedDB cache** directly from the realtime payload (no re-fetch needed)
@@ -1133,7 +1133,7 @@ npm run package
 
 1. Configure the extension via the options page (Supabase URL, anon key, app URL)
 2. Log in via the popup
-3. Start a focus session in the main Stellar app
+3. Start a focus session in Stellar Planner
 4. The extension receives the update via realtime (watch the sync indicator in the popup)
 5. Navigate to a domain in your block lists -- you should see the blocked page with the galaxy animation
 

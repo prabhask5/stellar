@@ -190,7 +190,7 @@
 </script>
 
 <svelte:head>
-  <title>Calendar - Stellar</title>
+  <title>Calendar - Stellar Planner</title>
 </svelte:head>
 
 <div class="container">

@@ -254,7 +254,7 @@
 </script>
 
 <svelte:head>
-  <title>Tasks - Stellar</title>
+  <title>Tasks - Stellar Planner</title>
 </svelte:head>
 
 <div class="container">

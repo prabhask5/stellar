@@ -305,7 +305,7 @@
 </script>
 
 <svelte:head>
-  <title>Profile - Stellar</title>
+  <title>Profile - Stellar Planner</title>
 </svelte:head>
 
 <div class="profile-page">

@@ -144,7 +144,7 @@
 </script>
 
 <svelte:head>
-  <title>Focus - Stellar</title>
+  <title>Focus - Stellar Planner</title>
 </svelte:head>
 
 <div class="container">

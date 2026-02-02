@@ -1,4 +1,4 @@
-# Stellar -- Tech Stack & Framework Documentation
+# Stellar Planner -- Tech Stack & Framework Documentation
 
 Stellar is a self-hosted, offline-first productivity Progressive Web App (PWA) built with modern web technologies. It lets users manage tasks, plans, routines, and focus sessions across multiple devices. The app works fully offline using a local IndexedDB database, syncs to a Supabase PostgreSQL backend when online, and uses a custom intent-based sync engine with three-tier conflict resolution for multi-device consistency. The entire frontend is a single-page application powered by Svelte 5 and SvelteKit 2, bundled by Vite, and served as an installable PWA via a custom service worker.
 

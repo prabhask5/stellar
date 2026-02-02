@@ -9,7 +9,7 @@
 </script>
 
 <svelte:head>
-  <title>Privacy - Stellar</title>
+  <title>Privacy - Stellar Planner</title>
   <meta name="description" content="Stellar Privacy Policy" />
 </svelte:head>
 

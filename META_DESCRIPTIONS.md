@@ -1,4 +1,4 @@
-# Stellar - Marketing Copy & Store Listing Descriptions
+# Stellar Planner - Marketing Copy & Store Listing Descriptions
 
 ---
 
@@ -15,7 +15,7 @@
 
 ## Keywords for Discoverability
 
-**Stellar (main app):**
+**Stellar Planner (main app):**
 productivity, PWA, offline-first, self-hosted, goal tracking, task manager, daily planner, Pomodoro timer, focus timer, project management, routines, commitments, SvelteKit, Dexie.js, Supabase, drag-and-drop, real-time sync, space theme, open source
 
 **Stellar Focus (browser extension):**
@@ -62,7 +62,7 @@ HOW TO USE:
 2. Install this extension and open the options page
 3. Enter your Supabase URL and anon key (found in your Stellar deployment)
 4. Sign in with your Stellar account credentials
-5. Configure your block lists in the Stellar web app under Focus settings
+5. Configure your block lists in Stellar Planner under Focus settings
 6. Start a focus session in Stellar — blocked sites are enforced automatically
 
 PRIVACY:
@@ -96,7 +96,7 @@ HOW TO USE:
 2. Install Stellar Focus and open the extension options page
 3. Enter your Supabase URL and anon key from your Stellar deployment
 4. Sign in with your Stellar account credentials
-5. Configure block lists in the Stellar web app under Focus settings
+5. Configure block lists in Stellar Planner under Focus settings
 6. Start a Pomodoro focus session in Stellar — blocked sites are enforced automatically
 7. When your focus phase ends, all sites are unblocked instantly
 

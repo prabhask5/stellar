@@ -97,7 +97,7 @@
 </script>
 
 <svelte:head>
-  <title>Confirming... - Stellar</title>
+  <title>Confirming... - Stellar Planner</title>
 </svelte:head>
 
 <div class="confirm-page">

@@ -1,4 +1,4 @@
-# Stellar: Backend Architecture & System Design
+# Stellar Planner: Backend Architecture & System Design
 
 ## Table of Contents
 1. [System Overview](#1-system-overview)

@@ -131,7 +131,7 @@
 </script>
 
 <svelte:head>
-  <title>Set Up Stellar</title>
+  <title>Set Up Stellar Planner</title>
 </svelte:head>
 
 <!-- Cosmic Background -->

@@ -377,7 +377,7 @@ two alarms offset by 30 seconds, the extension achieves ~30-second wake-ups.
 ### State Flow Sequence
 
 ```
-  Stellar App             Supabase                    Extension
+  Stellar Planner             Supabase                    Extension
   (PWA)                   (Backend)                   (Service Worker)
        |                       |                            |
        |  INSERT/UPDATE        |                            |
@@ -692,7 +692,7 @@ profile) is discovered via the `get_extension_config()` RPC function.
 sign in via Supabase. Once signed in, the session is persisted in
 `browser.storage.local` and remains valid across restarts. If the
 gate config has never been fetched (fresh install, user hasn't set up
-in the main app yet), the extension shows a "Setup Required" screen
+Stellar Planner yet), the extension shows a "Setup Required" screen
 and periodically retries via `get_extension_config()` RPC.
 
 ---
@@ -1012,7 +1012,7 @@ egress:
 Complete end-to-end sequence from user action to blocking enforcement:
 
 ```
-  User              Stellar App       Supabase            Extension SW         Browser
+  User              Stellar Planner       Supabase            Extension SW         Browser
   (person)          (PWA)             (Backend)           (background)         (tab)
     |                  |                  |                    |                  |
     |  Click "Start    |                  |                    |                  |

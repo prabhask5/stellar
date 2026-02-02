@@ -92,7 +92,7 @@
 </script>
 
 <svelte:head>
-  <title>Edit Block List - Stellar</title>
+  <title>Edit Block List - Stellar Planner</title>
 </svelte:head>
 
 <div class="container">

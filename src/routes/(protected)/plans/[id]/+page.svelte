@@ -303,7 +303,7 @@
 </script>
 
 <svelte:head>
-  <title>{list?.name ?? 'Goal List'} - Stellar</title>
+  <title>{list?.name ?? 'Goal List'} - Stellar Planner</title>
 </svelte:head>
 
 <div class="container">

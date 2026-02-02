@@ -83,7 +83,7 @@
 </script>
 
 <svelte:head>
-  <title>Edit Routine - Stellar</title>
+  <title>Edit Routine - Stellar Planner</title>
 </svelte:head>
 
 <div class="container">

@@ -2,7 +2,7 @@
 
 **Version 1.0.6** | Companion browser extension for [Stellar](../README.md)
 
-Stellar Focus is a companion browser extension for the Stellar self-hosted productivity PWA. It blocks distracting websites during active Pomodoro focus sessions managed in the Stellar app. The extension and Stellar communicate exclusively through a shared Supabase backend -- there is no direct communication between them. With only two runtime dependencies, Stellar Focus is lightweight by design and built around a fail-safe blocking philosophy: when in doubt, it allows navigation rather than risking a false block.
+Stellar Focus is a companion browser extension for the Stellar self-hosted productivity PWA. It blocks distracting websites during active Pomodoro focus sessions managed in Stellar Planner. The extension and Stellar communicate exclusively through a shared Supabase backend -- there is no direct communication between them. With only two runtime dependencies, Stellar Focus is lightweight by design and built around a fail-safe blocking philosophy: when in doubt, it allows navigation rather than risking a false block.
 
 ---
 
@@ -37,7 +37,7 @@ Stellar Focus is a companion browser extension for the Stellar self-hosted produ
 8. [Build Commands](#build-commands)
 9. [Permissions](#permissions)
 10. [Privacy](#privacy)
-11. [Stellar App](#stellar-app)
+11. [Stellar Planner](#stellar-app)
 
 ---
 
@@ -88,7 +88,7 @@ When a site is blocked during an active focus session, users see an immersive sp
 
 - An animated spiral galaxy with 5,000+ twinkling stars across 2 spiral arms
 - Encouraging messages to stay focused on the current task
-- A quick-return link to the Stellar app
+- A quick-return link to Stellar Planner
 
 ### Popup UI
 
@@ -107,7 +107,7 @@ A dedicated options page for configuring the extension's connection to the Stell
 
 - Supabase project URL
 - Supabase anonymous key
-- Stellar app URL
+- Stellar Planner URL
 
 ---
 
@@ -188,7 +188,7 @@ You will need three values from your Supabase project:
 |---------|-------------|---------|
 | **Supabase URL** | Your Supabase project URL | `https://your-project.supabase.co` |
 | **Supabase Anon Key** | Your Supabase anonymous/public key | `eyJhbGciOiJIUzI1NiIs...` |
-| **App URL** | The URL where your Stellar app is hosted | `https://stellar.prabhas.io` |
+| **App URL** | The URL where Stellar Planner is hosted | `https://stellar.prabhas.io` |
 
 Alternatively, for development you can create a local config file:
 
@@ -242,6 +242,6 @@ Stellar Focus is designed with user privacy as a priority:
 
 ---
 
-## Stellar App
+## Stellar Planner
 
-Stellar Focus is a companion to the main [Stellar](../README.md) self-hosted productivity app. Focus sessions, block lists, and scheduling are all managed within the Stellar web app. This extension simply enforces the blocking rules during active focus sessions.
+Stellar Focus is a companion to the main [Stellar](../README.md) self-hosted productivity app. Focus sessions, block lists, and scheduling are all managed within Stellar Planner. This extension simply enforces the blocking rules during active focus sessions.

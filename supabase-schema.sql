@@ -1,4 +1,4 @@
--- Stellar Database Schema for Supabase
+-- Stellar Planner Database Schema for Supabase
 -- Copy and paste this entire file into your Supabase SQL Editor to set up a fresh database
 
 -- ============================================================

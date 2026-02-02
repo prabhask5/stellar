@@ -161,7 +161,7 @@
 </script>
 
 <svelte:head>
-  <title>Plans - Stellar</title>
+  <title>Plans - Stellar Planner</title>
 </svelte:head>
 
 <div class="container">

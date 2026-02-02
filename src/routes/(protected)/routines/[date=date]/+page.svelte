@@ -133,7 +133,7 @@
 </script>
 
 <svelte:head>
-  <title>{displayDate} - Stellar</title>
+  <title>{displayDate} - Stellar Planner</title>
 </svelte:head>
 
 <div class="container">
