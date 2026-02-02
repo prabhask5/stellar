@@ -188,7 +188,7 @@ You will need three values from your Supabase project:
 |---------|-------------|---------|
 | **Supabase URL** | Your Supabase project URL | `https://your-project.supabase.co` |
 | **Supabase Anon Key** | Your Supabase anonymous/public key | `eyJhbGciOiJIUzI1NiIs...` |
-| **App URL** | The URL where your Stellar app is hosted | `https://stellarplanner.vercel.app` |
+| **App URL** | The URL where your Stellar app is hosted | `https://stellar.prabhas.io` |
 
 Alternatively, for development you can create a local config file:
 
@@ -201,7 +201,7 @@ Then edit `src/config.local.ts`:
 ```typescript
 export const SUPABASE_URL = 'https://your-project.supabase.co';
 export const SUPABASE_ANON_KEY = 'your-anon-key';
-export const APP_URL = 'https://stellarplanner.vercel.app';
+export const APP_URL = 'https://stellar.prabhas.io';
 ```
 
 ---
