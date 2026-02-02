@@ -279,13 +279,13 @@ The engine is initialized in `src/routes/+layout.ts` with Stellar's 13 entity ta
 
 ## 5. Single-User Auth Mode
 
-Stellar operates in **single-user mode**, meaning there is no email registration or password-based multi-user authentication. Instead, the app uses a local 4-digit PIN code gate backed by an anonymous Supabase session. All engine-level details (hashing, anonymous auth, offline fallback) are documented in the [engine's Single-User Auth Mode section](https://github.com/prabhask5/stellar-engine/blob/main/ARCHITECTURE.md#2-single-user-auth-mode).
+Stellar operates in **single-user mode** with a 4-digit PIN code gate backed by real Supabase email/password auth. The user provides an email during first-time setup; the PIN is padded and used as the actual Supabase password via `signUp()`. Optional email confirmation blocks setup until the email is verified. Optional device verification requires OTP on untrusted devices. Email changes are supported via `changeSingleUserEmail()`. All engine-level details (PIN padding, email/password auth, device verification, email change flow, offline fallback) are documented in the [engine's Single-User Auth Mode section](https://github.com/prabhask5/stellar-engine/blob/main/ARCHITECTURE.md#2-single-user-auth-mode).
 
 ### 5.1 Configuration
 
 **File**: `src/routes/+layout.ts`
 
-Single-user mode is configured at engine initialization (schema version 14):
+Single-user mode is configured at engine initialization:
 
 ```typescript
 auth: {
@@ -302,15 +302,21 @@ auth: {
     first_name: p.firstName,
     last_name: p.lastName
   }),
-  enableOfflineAuth: true
+  enableOfflineAuth: true,
+  emailConfirmation: { enabled: true },
+  deviceVerification: { enabled: true },
 }
 ```
 
-The version 14 schema adds the `singleUserConfig` system table to IndexedDB for storing the hashed PIN and user profile.
+The `singleUserConfig` system table in IndexedDB stores the PIN hash (for offline fallback), email, profile, and Supabase user ID.
 
 ### 5.2 Supabase Requirement
 
-Single-user mode uses `supabase.auth.signInAnonymously()` to obtain JWT sessions for RLS compliance. This requires **"Allow anonymous sign-ins"** to be enabled in the Supabase dashboard under Authentication > Settings.
+Single-user mode uses real Supabase email/password auth (`signUp()` / `signInWithPassword()`) with the PIN padded to meet the minimum password length. This gives the user a proper `auth.uid()` for RLS compliance.
+
+If `emailConfirmation` is enabled, Supabase email templates must be configured. See [EMAIL_TEMPLATES.md](https://github.com/prabhask5/stellar-engine/blob/main/EMAIL_TEMPLATES.md) for the full HTML templates for signup confirmation, email change confirmation, and device verification emails.
+
+If `deviceVerification` is enabled, a `trusted_devices` table is required in Supabase (see [engine README](https://github.com/prabhask5/stellar-engine/blob/main/README.md) for the SQL schema).
 
 ### 5.3 Login Page: Setup & Unlock Modes
 
@@ -320,7 +326,7 @@ The login page has two modes, determined by the `singleUserSetUp` flag from `res
 
 | `singleUserSetUp` | Mode | UI |
 |-------------------|------|-----|
-| `false` | **Setup** | First name, last name, create 4-digit code + confirm code |
+| `false` | **Setup** | First name, last name, email, create 4-digit code + confirm code |
 | `true` | **Unlock** | Shows user avatar/name, enter 4-digit code |
 
 ```
@@ -331,8 +337,9 @@ First visit (/login)             Return visit (/login)
 |                        |       | Enter your code        |
 | First Name [________]  |       | [ ] [ ] [ ] [ ]        |
 | Last Name  [________]  |       |                        |
-|                        |       | [    Unlock    ]       |
-| Create a 4-digit code  |       +------------------------+
+| Email      [________]  |       | [    Unlock    ]       |
+|                        |       +------------------------+
+| Create a 4-digit code  |
 | [ ] [ ] [ ] [ ]        |
 |                        |
 | Confirm your code       |
@@ -342,7 +349,11 @@ First visit (/login)             Return visit (/login)
 +------------------------+
 ```
 
-On setup, the page calls `setupSingleUser(code, { firstName, lastName })`. On unlock, it calls `unlockSingleUser(code)`. Both functions are imported from `@prabhask5/stellar-engine/auth`.
+On setup, the page calls `setupSingleUser(code, { firstName, lastName }, email)`. If `emailConfirmation` is enabled, setup returns `{ confirmationRequired: true }` and the page shows a "check your email" modal. After the user clicks the email link, `completeSingleUserSetup()` finalizes setup.
+
+On unlock, the page calls `unlockSingleUser(code)`. If `deviceVerification` is enabled and the device is untrusted, unlock returns `{ deviceVerificationRequired: true, maskedEmail }` and shows a "verify your device" modal. After the user clicks the email link, `completeDeviceVerification()` finalizes the session.
+
+Both functions are imported from `@prabhask5/stellar-engine/auth`.
 
 Incorrect codes on unlock trigger a shake animation and clear the digit inputs.
 
@@ -378,19 +389,27 @@ The `onAuthKicked` callback also calls `lockSingleUser()` and redirects to `/log
 
 Instead of a password change form, the profile page provides a **code change** interface using `changeSingleUserGate(oldCode, newCode)`. The user enters their current 4-digit code and a new 4-digit code. Profile name editing uses `updateSingleUserProfile(profile)`.
 
-### 5.6 Confirm Page Disabled
+### 5.6 Confirm Page
 
 **File**: `src/routes/confirm/+page.svelte`
 
-Email confirmation is not used in single-user mode. The confirm page immediately redirects to `/login` on mount:
+The confirm page handles three types of email confirmations via the `type` URL parameter:
 
-```typescript
-onMount(() => {
-  goto('/login', { replaceState: true });
-});
-```
+| `type` | Purpose | Triggered By |
+|--------|---------|-------------|
+| `signup` | Email confirmation after initial setup | `setupSingleUser()` |
+| `email_change` | Confirm a new email address | `changeSingleUserEmail()` |
+| `email` | Device verification OTP | `sendDeviceVerification()` |
 
-### 5.7 Admin Privileges
+The page calls `verifyOtp({ token_hash, type })`, sends the result via BroadcastChannel (`AUTH_CONFIRMED`), and auto-closes the tab. The originating tab (login page or profile page) listens for the broadcast and calls the appropriate completion function.
+
+### 5.7 Profile Page: Email Change
+
+**File**: `src/routes/(protected)/profile/+page.svelte`
+
+The profile page includes an email change card that calls `changeSingleUserEmail(newEmail)`. On success, a confirmation modal appears with a resend button (30-second cooldown). A BroadcastChannel listener waits for `AUTH_CONFIRMED` with `verificationType === 'email_change'`, then calls `completeSingleUserEmailChange()` to update the local config and display.
+
+### 5.8 Admin Privileges
 
 In single-user mode, `isAdmin()` always returns `true`. The single user has full access to all admin-gated features without any additional configuration.
 
@@ -627,7 +646,7 @@ The controlled update flow (no `skipWaiting()` during install) prevents jarring 
 | **Offline-first architecture** | Full CRUD with IndexedDB, seamless online/offline transitions |
 | **Intent-based outbox** | 4 operation types, aggressive coalescing (11 rules), cross-operation optimization |
 | **Three-tier conflict resolution** | Field-level merging, device ID tiebreakers, audit trail |
-| **Single-user auth mode** | Anonymous Supabase auth + local PIN gate, lock/unlock instead of sign-in/sign-out |
+| **Single-user auth mode** | Real Supabase email/password auth + PIN gate, email confirmation, device verification, email change, lock/unlock instead of sign-in/sign-out |
 | **Realtime + polling hybrid** | WebSocket for instant sync, polling as fallback, deduplication |
 | **Tombstone lifecycle** | Soft deletes, multi-device propagation, timed hard-delete cleanup |
 | **Egress optimization** | Column selection, coalescing, realtime-first, cursor-based, validation caching |

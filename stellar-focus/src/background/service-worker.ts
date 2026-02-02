@@ -13,7 +13,7 @@
 import browser from 'webextension-polyfill';
 import { type RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase, getSession, resetSupabase } from '../auth/supabase';
-import { isConfigured, getConfig, isUnlocked } from '../config';
+import { isConfigured, getConfig, getGateConfig, setGateConfig, isUnlocked } from '../config';
 import { blockListsCache, blockedWebsitesCache, focusSessionCacheStore, type FocusSessionCache } from '../lib/storage';
 import { getNetworkStatus, checkConnectivity } from '../lib/network';
 import { debugLog, debugWarn, debugError, initDebugMode, setDebugModeCache } from '../lib/debug';
@@ -97,7 +97,14 @@ browser.alarms.onAlarm.addListener((alarm: browser.Alarms.Alarm) => {
 async function handleAlarmWake() {
   // Skip if not unlocked
   const unlocked = await isUnlocked();
-  if (!unlocked) return;
+  if (!unlocked) {
+    // If not unlocked and no gate config, try fetching it
+    const gateConfig = await getGateConfig();
+    if (!gateConfig) {
+      await tryFetchGateConfig();
+    }
+    return;
+  }
 
   // If realtime is down, try to reconnect it
   if (!realtimeHealthy) {
@@ -117,6 +124,36 @@ async function pollFocusSessionThrottled() {
   }
   lastPollTime = now;
   await pollFocusSession();
+}
+
+/**
+ * Try to fetch gate config from Supabase RPC.
+ * Used when the extension is configured but no gate config is cached yet.
+ */
+async function tryFetchGateConfig() {
+  try {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase.rpc('get_extension_config');
+    if (error || !data || !data.email) return;
+
+    const gateConfig = {
+      gateType: data.gateType || 'code',
+      codeLength: data.codeLength || 6,
+      email: data.email,
+      profile: data.profile || {}
+    };
+    await setGateConfig(gateConfig);
+    debugLog('[Stellar Focus] Gate config fetched from RPC:', gateConfig.email);
+
+    // Notify popup if open
+    try {
+      await browser.runtime.sendMessage({ type: 'GATE_CONFIG_UPDATED', gateConfig });
+    } catch {
+      // Popup not open — that's fine
+    }
+  } catch (e) {
+    debugWarn('[Stellar Focus] Failed to fetch gate config:', e);
+  }
 }
 
 // Listen for network changes
@@ -163,6 +200,12 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
   if (message.type === 'FOCUS_SESSION_UPDATED') {
     // Refresh focus session state (throttled to prevent spam)
     pollFocusSessionThrottled();
+    return;
+  }
+
+  if (message.type === 'REFRESH_GATE_CONFIG') {
+    debugLog('[Stellar Focus] Gate config refresh requested');
+    tryFetchGateConfig();
     return;
   }
 
@@ -316,6 +359,12 @@ async function init() {
   if (!configured) {
     debugLog('[Stellar Focus] Not configured - skipping init');
     return;
+  }
+
+  // Try to fetch gate config if not cached (so popup can show PIN screen)
+  const gateConfig = await getGateConfig();
+  if (!gateConfig) {
+    tryFetchGateConfig();
   }
 
   // Check if unlocked

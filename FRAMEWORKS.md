@@ -601,10 +601,13 @@ AUTHENTICATION MODES
 ====================
 
 1. SUPABASE AUTH (online)
-   - Email + password via Supabase Auth
+   - Email + password via Supabase Auth (PIN padded in single-user mode)
    - PKCE flow for security
    - Session stored in localStorage
    - Auto token refresh
+   - Optional email confirmation on signup
+   - Optional device verification via OTP on untrusted devices
+   - Email change via changeSingleUserEmail() + confirmation flow
 
 2. OFFLINE AUTH
    - Credentials cached in IndexedDB (offlineCredentials table)
@@ -619,6 +622,13 @@ AUTHENTICATION MODES
      * Sync is blocked until validation succeeds
      * This prevents unauthorized data modification if
        the password was changed on another device while offline
+
+4. DEVICE VERIFICATION (optional)
+   - On untrusted devices, unlockSingleUser() triggers OTP via signInWithOtp()
+   - User receives a verification email and clicks the link
+   - /confirm page verifies the OTP and sends AUTH_CONFIRMED via BroadcastChannel
+   - completeDeviceVerification() trusts the device and starts sync
+   - Trusted devices are tracked in the Supabase trusted_devices table
 ```
 
 ### Multi-Device Sync Timeline

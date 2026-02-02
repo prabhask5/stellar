@@ -1,6 +1,6 @@
 {
   "name": "stellar-focus-extension",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "description": "Browser extension to block distracting websites during Stellar focus sessions",
   "type": "module",
   "scripts": {
@@ -9,7 +9,8 @@
     "build:chrome": "node build.js chrome",
     "clean": "rm -rf dist-firefox dist-chrome",
     "typecheck": "tsc --noEmit",
-    "package": "npm run build && cd dist-firefox && zip -r ../stellar-focus-firefox.zip . && cd ../dist-chrome && zip -r ../stellar-focus-chrome.zip . && cd .."
+    "package": "npm run build && cd dist-firefox && zip -r ../stellar-focus-firefox.zip . && cd ../dist-chrome && zip -r ../stellar-focus-chrome.zip . && cd ..",
+    "release": "node release.js"
   },
   "devDependencies": {
     "@types/webextension-polyfill": "^0.10.7",

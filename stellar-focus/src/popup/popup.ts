@@ -147,6 +147,11 @@ async function init() {
 
   // No cached gate config — user needs to set up via the main app first
   showNotSetUp();
+
+  // Ask service worker to try fetching gate config from RPC
+  if (isOnline) {
+    browser.runtime.sendMessage({ type: 'REFRESH_GATE_CONFIG' }).catch(() => {});
+  }
 }
 
 // ============================================================
@@ -233,12 +238,12 @@ function handlePinDigitInput(index: number) {
     // Update wrapper filled state
     input.closest('.pin-digit-wrapper')?.classList.add('filled');
 
-    if (index < 3 && pinDigits[index + 1]) {
+    if (index < pinDigits.length - 1 && pinDigits[index + 1]) {
       pinDigits[index + 1].focus();
     }
 
-    // Auto-submit when all 4 digits are filled (with brief delay for visual feedback)
-    if (index === 3) {
+    // Auto-submit when all digits are filled (with brief delay for visual feedback)
+    if (index === pinDigits.length - 1) {
       const allFilled = Array.from(pinDigits).every(d => d.value.length === 1);
       if (allFilled) {
         setTimeout(() => handlePinSubmit(), 300);
@@ -266,17 +271,17 @@ function handlePinDigitKeydown(index: number, event: KeyboardEvent) {
 function handlePinPaste(event: ClipboardEvent) {
   event.preventDefault();
   const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '');
-  for (let i = 0; i < 4 && i < pasted.length; i++) {
+  for (let i = 0; i < pinDigits.length && i < pasted.length; i++) {
     pinDigits[i].value = pasted[i];
     if (pasted[i]) {
       pinDigits[i].closest('.pin-digit-wrapper')?.classList.add('filled');
     }
   }
-  const focusIndex = Math.min(pasted.length, 3);
+  const focusIndex = Math.min(pasted.length, pinDigits.length - 1);
   if (pinDigits[focusIndex]) pinDigits[focusIndex].focus();
 
-  // Auto-submit if all 4 digits pasted (with brief delay for visual feedback)
-  if (pasted.length >= 4) {
+  // Auto-submit if all digits pasted (with brief delay for visual feedback)
+  if (pasted.length >= pinDigits.length) {
     const allFilled = Array.from(pinDigits).every(d => d.value.length === 1);
     if (allFilled) {
       setTimeout(() => handlePinSubmit(), 300);
@@ -297,7 +302,7 @@ async function handlePinSubmit() {
   hidePinError();
 
   const pin = Array.from(pinDigits).map(d => d.value).join('');
-  if (pin.length !== 4) return;
+  if (pin.length !== pinDigits.length) return;
 
   // Show loading, hide digits
   pinInputGroup?.classList.add('hidden');
@@ -405,7 +410,7 @@ function updateUserInfoFromGateConfig(gateConfig: GateConfig) {
 // ============================================================
 
 function setupServiceWorkerMessageListener() {
-  browser.runtime.onMessage.addListener((message: { type: string }) => {
+  browser.runtime.onMessage.addListener((message: { type: string; gateConfig?: GateConfig }) => {
     if (message.type === 'FOCUS_STATUS_CHANGED') {
       debugLog('[Stellar Focus] Received focus status update from service worker');
       loadFocusStatus();
@@ -418,6 +423,28 @@ function setupServiceWorkerMessageListener() {
       loadBlockLists();
       setSyncStatus('syncing');
       setTimeout(() => setSyncStatus('synced'), 800);
+    }
+    if (message.type === 'GATE_CONFIG_UPDATED' && message.gateConfig) {
+      debugLog('[Stellar Focus] Gate config updated from service worker');
+      currentGateConfig = message.gateConfig;
+      // If currently showing "not set up", switch to PIN section
+      if (!notSetUpSection?.classList.contains('hidden')) {
+        showPinSection(message.gateConfig);
+      }
+    }
+  });
+
+  // Backup: listen for gate config changes in storage
+  browser.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.stellar_gate_config?.newValue) {
+      const newConfig = changes.stellar_gate_config.newValue as GateConfig;
+      if (newConfig.email && !currentGateConfig) {
+        debugLog('[Stellar Focus] Gate config detected via storage change');
+        currentGateConfig = newConfig;
+        if (!notSetUpSection?.classList.contains('hidden')) {
+          showPinSection(newConfig);
+        }
+      }
     }
   });
 }

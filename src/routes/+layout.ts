@@ -384,7 +384,7 @@ if (browser) {
       mode: 'single-user',
       singleUser: {
         gateType: 'code',
-        codeLength: 4
+        codeLength: 6
       },
       emailConfirmation: { enabled: true },
       deviceVerification: { enabled: true, trustDurationDays: 90 },

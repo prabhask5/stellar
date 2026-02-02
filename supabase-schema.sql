@@ -693,3 +693,62 @@ alter table block_lists add column if not exists device_id text;
 alter table blocked_websites add column if not exists device_id text;
 alter table projects add column if not exists device_id text;
 
+-- ============================================================
+-- RPC: Extension config discovery (unauthenticated)
+-- Returns the first user's email, gate config, and profile
+-- so the browser extension can discover the Supabase user.
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION get_extension_config()
+RETURNS json LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT json_build_object(
+    'email', u.email,
+    'gateType', 'code',
+    'codeLength', COALESCE((u.raw_user_meta_data->>'code_length')::int, 6),
+    'profile', json_build_object(
+      'firstName', COALESCE(u.raw_user_meta_data->>'first_name', ''),
+      'lastName', COALESCE(u.raw_user_meta_data->>'last_name', '')
+    )
+  )
+  FROM auth.users u
+  WHERE u.email IS NOT NULL
+  ORDER BY u.created_at ASC LIMIT 1;
+$$;
+GRANT EXECUTE ON FUNCTION get_extension_config() TO anon, authenticated;
+
+-- ============================================================
+-- RPC: Reset single user (for codeLength migration)
+-- Deletes all user data and the auth user itself.
+-- Safe because Stellar is self-hosted, single-user.
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION reset_single_user()
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  target_uid uuid;
+BEGIN
+  SELECT id INTO target_uid FROM auth.users ORDER BY created_at ASC LIMIT 1;
+  IF target_uid IS NULL THEN RETURN; END IF;
+
+  -- Delete all user data
+  DELETE FROM blocked_websites WHERE block_list_id IN (SELECT id FROM block_lists WHERE user_id = target_uid);
+  DELETE FROM block_lists WHERE user_id = target_uid;
+  DELETE FROM focus_sessions WHERE user_id = target_uid;
+  DELETE FROM focus_settings WHERE user_id = target_uid;
+  DELETE FROM projects WHERE user_id = target_uid;
+  DELETE FROM daily_goal_progress WHERE daily_routine_goal_id IN (SELECT id FROM daily_routine_goals WHERE user_id = target_uid);
+  DELETE FROM daily_routine_goals WHERE user_id = target_uid;
+  DELETE FROM goals WHERE goal_list_id IN (SELECT id FROM goal_lists WHERE user_id = target_uid);
+  DELETE FROM goal_lists WHERE user_id = target_uid;
+  DELETE FROM daily_tasks WHERE user_id = target_uid;
+  DELETE FROM long_term_tasks WHERE user_id = target_uid;
+  DELETE FROM commitments WHERE user_id = target_uid;
+  DELETE FROM task_categories WHERE user_id = target_uid;
+  DELETE FROM trusted_devices WHERE user_id = target_uid;
+
+  -- Delete the auth user
+  DELETE FROM auth.users WHERE id = target_uid;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION reset_single_user() TO anon, authenticated;
+

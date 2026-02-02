@@ -102,17 +102,21 @@ between the extension and the main app -- they share a Supabase backend.
 |                                                                           |
 |  +----------------------------------------------------------------+      |
 |  |   Auth (GoTrue)                                                |      |
-|  |   - Anonymous sign-in (signInAnonymously)                      |      |
+|  |   - Real email/password auth (signInWithPassword)              |      |
 |  |   - JWT access tokens                                          |      |
 |  |   - Session persistence via browser.storage.local adapter      |      |
 |  +----------------------------------------------------------------+      |
 |                                                                           |
 |  +----------------------------------------------------------------+      |
-|  |   single_user_config                                           |      |
-|  |   +-------------------+                                        |      |
-|  |   | pin_hash (text)   |  SHA-256 hash of the user's PIN       |      |
-|  |   | updated_at        |  Timestamp of last config update       |      |
-|  |   +-------------------+                                        |      |
+|  |   RPC Functions                                                |      |
+|  |                                                                |      |
+|  |   get_extension_config()  Returns email, gateType, codeLength, |      |
+|  |                           and profile for the first auth user. |      |
+|  |                           Called by the extension to discover   |      |
+|  |                           the Stellar user without auth.       |      |
+|  |                                                                |      |
+|  |   reset_single_user()     Deletes all user data and the auth   |      |
+|  |                           user. Used for PIN length migration. |      |
 |  +----------------------------------------------------------------+      |
 |                                                                           |
 +===========================================================================+
@@ -620,7 +624,7 @@ this gap with a custom adapter that maps to `browser.storage.local`.
 |   |  Also stores:                 |                                       |
 |   |  - stellar_config             |                                       |
 |   |  - stellar_debug_mode         |                                       |
-|   |  - stellar_pin_config         |  (cached PIN hash from Supabase)      |
+|   |  - stellar_gate_config        |  (cached gate config from RPC)        |
 |   +-------------------------------+                                       |
 |                                                                           |
 +===========================================================================+
@@ -628,62 +632,68 @@ this gap with a custom adapter that maps to `browser.storage.local`.
 
 Both the service worker and the popup create their own Supabase client
 instances, each with the same storage adapter pattern. Because they both read
-from `browser.storage.local`, they share the same anonymous auth session.
+from `browser.storage.local`, they share the same authenticated session.
 
 ### Authentication Flow (PIN-Based)
 
-The extension uses anonymous Supabase authentication rather than
-email/password login. The full auth and PIN gate flow is:
+The extension uses real Supabase email/password authentication. The
+user's PIN is padded (e.g., `123456_stellar`) and used as the Supabase
+password via `signInWithPassword()`. The gate config (email, PIN length,
+profile) is discovered via the `get_extension_config()` RPC function.
 
 ```
   Extension startup (service worker init)
             |
             v
   +---------------------+
-  | signInAnonymously() |  Creates anonymous Supabase session
-  +----------+----------+  (or resumes existing from storage)
+  | isConfigured()?     |  Check browser.storage.local for Supabase
+  +----------+----------+  URL, anon key, and app URL
              |
              v
   +---------------------+
-  | Fetch PIN config    |  SELECT pin_hash FROM single_user_config
-  | from Supabase       |  Cache result in browser.storage.local
-  +----------+----------+  (key: stellar_pin_config)
-             |
+  | Fetch gate config   |  supabase.rpc('get_extension_config')
+  | via RPC             |  Returns: email, gateType, codeLength, profile
+  +----------+----------+  Cache result in browser.storage.local
+             |             (key: stellar_gate_config)
              v
   +---------------------+
   | Extension locked    |  Service worker in LOCKED state
   | (awaiting PIN)      |  Blocking engine active regardless
   +----------+----------+
              |
-             |  User opens popup, enters PIN
+             |  User opens popup, enters 6-digit PIN
              v
   +---------------------+
-  | SHA-256 hash of     |  All verification is local:
-  | entered PIN         |  hash(input) === cached pin_hash
+  | signInWithPassword  |  email from gate config
+  | (email, pin_stellar)|  password = PIN + '_stellar' suffix
   +----------+----------+
              |
         +----+----+
         |         |
-     Match     No match
+     Success   Auth error
         |         |
         v         v
   +-----------+  +------------+
-  | Send      |  | Show error |
-  | UNLOCKED  |  | message    |
-  | to SW     |  +------------+
+  | Cache     |  | Show error |
+  | gate cfg  |  | message    |
+  | Send      |  +------------+
+  | UNLOCKED  |
+  | to SW     |
   +-----------+
         |
         v
   +---------------------+
   | Extension unlocked  |  Full popup UI accessible
-  | Normal operation    |  PIN config re-checked periodically
+  | Normal operation    |  Same auth.uid() as main app
   +---------------------+
 ```
 
-**Offline behavior:** If the PIN config is already cached in
-`browser.storage.local`, PIN verification works fully offline. If the
-config has never been cached (e.g., fresh install), the extension
-requires an online connection to fetch it from `single_user_config`.
+**Offline behavior:** The extension requires an online connection to
+sign in via Supabase. Once signed in, the session is persisted in
+`browser.storage.local` and remains valid across restarts. If the
+gate config has never been fetched (fresh install, user hasn't set up
+in the main app yet), the extension shows a "Setup Required" screen
+and periodically retries via `get_extension_config()` RPC.
 
 ---
 
@@ -735,6 +745,11 @@ service worker's cache.
 |                        |                     |  locked; require PIN   |
 |                        |                     |  entry before use      |
 |                        |                     |                        |
+|  REFRESH_GATE      ----|-------------------->|  Action:               |
+|  _CONFIG               |                     |  tryFetchGateConfig()  |
+|                        |                     |  via get_extension_    |
+|                        |                     |  config() RPC          |
+|                        |                     |                        |
 +========================+                     +========================+
 
 +========================+                     +========================+
@@ -750,6 +765,11 @@ service worker's cache.
 |  BLOCK_LISTS       ----|<--------------------|  Sent when:            |
 |  _CHANGED              |                     |  Realtime update to    |
 |                        |                     |  block_lists           |
+|                        |                     |                        |
+|  GATE_CONFIG       ----|<--------------------|  Sent when:            |
+|  _UPDATED              |                     |  Gate config fetched   |
+|                        |                     |  via RPC (new user     |
+|                        |                     |  discovered)           |
 |                        |                     |                        |
 +========================+                     +========================+
 ```
@@ -771,8 +791,10 @@ service worker's cache.
 | FOCUS_SESSION_UPDATED     | P -> SW   | Force refresh session (throttled)|
 | UNLOCKED                  | P -> SW   | PIN verified; unlock extension   |
 | LOCKED                    | P -> SW   | Lock extension; require PIN      |
+| REFRESH_GATE_CONFIG       | P -> SW   | Fetch gate config via RPC        |
 | FOCUS_STATUS_CHANGED      | SW -> P   | Notify popup of session change   |
 | BLOCK_LISTS_CHANGED       | SW -> P   | Notify popup of list change      |
+| GATE_CONFIG_UPDATED       | SW -> P   | Notify popup of gate config      |
 +---------------------------+-----------+----------------------------------+
 
 P = Popup, SW = Service Worker
@@ -944,21 +966,16 @@ egress:
 |                | Token refresh fails        | getSession() returns null         |
 |                |                            | Same recovery as expired session  |
 |                |                            |                                   |
-|                | Anonymous auth recovery    | Service worker calls              |
-|                |                            | signInAnonymously() on init       |
-|                |                            | New anonymous session created     |
-|                |                            | Realtime re-established           |
-|                |                            |                                   |
 +----------------+----------------------------+-----------------------------------+
 |                |                            |                                   |
-| PIN GATE       | PIN config cached          | PIN verification works offline    |
-|                |                            | SHA-256 hash compared locally     |
-|                |                            | No network request needed         |
+| PIN GATE       | Gate config cached         | PIN screen shown immediately      |
+|                |                            | signInWithPassword() used to      |
+|                |                            | verify PIN against Supabase       |
 |                |                            |                                   |
-|                | PIN config not cached      | Requires online to fetch from     |
-|                |                            | single_user_config via Supabase   |
-|                |                            | If offline: PIN gate unavailable, |
-|                |                            | extension remains locked          |
+|                | Gate config not cached     | Service worker calls              |
+|                |                            | get_extension_config() RPC        |
+|                |                            | If offline or no user set up:     |
+|                |                            | "Setup Required" screen shown     |
 |                |                            |                                   |
 +----------------+----------------------------+-----------------------------------+
 |                |                            |                                   |

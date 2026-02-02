@@ -747,7 +747,7 @@ body {
 .pin-input-group {
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .pin-digit-wrapper {
@@ -771,8 +771,8 @@ body {
 }
 
 .pin-digit {
-  width: 48px;
-  height: 56px;
+  width: 40px;
+  height: 48px;
   text-align: center;
   font-size: 1.25rem;
   font-weight: 700;

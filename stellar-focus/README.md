@@ -1,6 +1,6 @@
 # Stellar Focus
 
-**Version 1.0.4** | Companion browser extension for [Stellar](../README.md)
+**Version 1.0.6** | Companion browser extension for [Stellar](../README.md)
 
 Stellar Focus is a companion browser extension for the Stellar self-hosted productivity PWA. It blocks distracting websites during active Pomodoro focus sessions managed in the Stellar app. The extension and Stellar communicate exclusively through a shared Supabase backend -- there is no direct communication between them. With only two runtime dependencies, Stellar Focus is lightweight by design and built around a fail-safe blocking philosophy: when in doubt, it allows navigation rather than risking a false block.
 
@@ -180,7 +180,7 @@ npm run build:chrome
 
 After installing, open the extension's options page to connect it to your Stellar backend.
 
-> **Note:** The extension uses anonymous Supabase auth combined with PIN verification -- no email or password is needed. Users unlock the extension by entering their PIN, which is verified against a locally cached gate hash.
+> **Note:** The extension uses real Supabase email/password auth with a PIN-based gate. On first use, the extension discovers the Stellar user via the `get_extension_config()` RPC function and presents a PIN screen. The PIN is combined with a suffix and used as the Supabase password for `signInWithPassword()`. No anonymous auth is used.
 
 You will need three values from your Supabase project:
 
@@ -234,7 +234,7 @@ export const APP_URL = 'https://stellar.prabhas.io';
 
 Stellar Focus is designed with user privacy as a priority:
 
-- **PIN-based authentication** -- gate hash cached locally for offline verification; anonymous Supabase auth for read-only data access
+- **PIN-based authentication** -- real Supabase email/password auth using a 6-digit PIN; gate config fetched via `get_extension_config()` RPC
 - **No browsing history** -- the extension does not track, record, or transmit any browsing history
 - **No third-party data sharing** -- the extension communicates only with your self-hosted Supabase project; no data is sent to Anthropic, analytics services, or any other third party
 - **Minimal data in transit** -- only focus session state and block list configuration are synced with Supabase

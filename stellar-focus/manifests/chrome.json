@@ -29,8 +29,14 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["pages/blocked.html", "pages/blocked.css", "pages/blocked.js"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "pages/blocked.html",
+        "pages/blocked.css",
+        "pages/blocked.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "options_page": "options/options.html",

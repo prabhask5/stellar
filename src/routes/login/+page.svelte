@@ -7,7 +7,9 @@
     unlockSingleUser,
     getSingleUserInfo,
     completeSingleUserSetup,
-    completeDeviceVerification
+    completeDeviceVerification,
+    fetchRemoteGateConfig,
+    linkSingleUserDevice
   } from '@prabhask5/stellar-engine/auth';
   import { sendDeviceVerification } from '@prabhask5/stellar-engine';
 
@@ -27,16 +29,24 @@
   let email = $state('');
   let firstName = $state('');
   let lastName = $state('');
-  let codeDigits = $state(['', '', '', '']);
-  let confirmDigits = $state(['', '', '', '']);
+  let codeDigits = $state(['', '', '', '', '', '']);
+  let confirmDigits = $state(['', '', '', '', '', '']);
   const code = $derived(codeDigits.join(''));
   const confirmCode = $derived(confirmDigits.join(''));
   let setupStep = $state(1); // 1 = email + name, 2 = code
 
   // Unlock mode state
-  let unlockDigits = $state(['', '', '', '']);
+  let unlockDigits = $state(['', '', '', '', '', '']);
   const unlockCode = $derived(unlockDigits.join(''));
   let userInfo = $state<{ firstName: string; lastName: string } | null>(null);
+
+  // Link device mode state (new device, existing remote user)
+  let linkDigits = $state(['', '', '', '', '', '']);
+  const linkCode = $derived(linkDigits.join(''));
+  let remoteUser = $state<{ email: string; gateType: string; codeLength: number; profile: Record<string, unknown> } | null>(null);
+  let linkMode = $state(false);
+  let linkLoading = $state(false);
+  let offlineNoSetup = $state(false);
 
   // Modal state
   let showConfirmationModal = $state(false);
@@ -49,6 +59,7 @@
   let codeInputs: HTMLInputElement[] = $state([]);
   let confirmInputs: HTMLInputElement[] = $state([]);
   let unlockInputs: HTMLInputElement[] = $state([]);
+  let linkInputs: HTMLInputElement[] = $state([]);
 
   // BroadcastChannel for cross-tab communication
   let authChannel: BroadcastChannel | null = null;
@@ -62,6 +73,22 @@
           firstName: (info.profile.firstName as string) || '',
           lastName: (info.profile.lastName as string) || ''
         };
+      }
+    } else {
+      // Not set up locally — check if there's a remote user to link to
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        offlineNoSetup = true;
+      } else {
+        try {
+          const remote = await fetchRemoteGateConfig();
+          if (remote) {
+            remoteUser = remote;
+            linkMode = true;
+          }
+        } catch {
+          // No remote user found — show normal setup
+        }
       }
     }
 
@@ -150,11 +177,11 @@
       digits[index] = value.charAt(value.length - 1);
       input.value = digits[index];
       // Auto-focus next input
-      if (index < 3 && inputs[index + 1]) {
+      if (index < digits.length - 1 && inputs[index + 1]) {
         inputs[index + 1].focus();
       }
-      // Auto-submit when all 4 digits are filled (brief delay for visual feedback)
-      if (index === 3 && onComplete && digits.every(d => d !== '')) {
+      // Auto-submit when all digits are filled (brief delay for visual feedback)
+      if (index === digits.length - 1 && onComplete && digits.every(d => d !== '')) {
         setTimeout(() => onComplete(), 300);
       }
     } else {
@@ -181,14 +208,14 @@
   function handleDigitPaste(digits: string[], event: ClipboardEvent, inputs: HTMLInputElement[], onComplete?: () => void) {
     event.preventDefault();
     const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '');
-    for (let i = 0; i < 4 && i < pasted.length; i++) {
+    for (let i = 0; i < digits.length && i < pasted.length; i++) {
       digits[i] = pasted[i];
       if (inputs[i]) inputs[i].value = pasted[i];
     }
-    const focusIndex = Math.min(pasted.length, 3);
+    const focusIndex = Math.min(pasted.length, digits.length - 1);
     if (inputs[focusIndex]) inputs[focusIndex].focus();
-    // Auto-submit if all 4 digits were pasted
-    if (pasted.length >= 4 && onComplete && digits.every(d => d !== '')) {
+    // Auto-submit if all digits were pasted
+    if (pasted.length >= digits.length && onComplete && digits.every(d => d !== '')) {
       onComplete();
     }
   }
@@ -230,8 +257,8 @@
 
     error = null;
 
-    if (code.length !== 4) {
-      error = 'Please enter a 4-digit code';
+    if (code.length !== 6) {
+      error = 'Please enter a 6-digit code';
       return;
     }
 
@@ -242,7 +269,7 @@
         shaking = false;
       }, 500);
       // Clear confirm digits, refocus first confirm input
-      confirmDigits = ['', '', '', ''];
+      confirmDigits = ['', '', '', '', '', ''];
       if (confirmInputs[0]) confirmInputs[0].focus();
       return;
     }
@@ -260,8 +287,8 @@
         setTimeout(() => {
           shaking = false;
         }, 500);
-        codeDigits = ['', '', '', ''];
-        confirmDigits = ['', '', '', ''];
+        codeDigits = ['', '', '', '', '', ''];
+        confirmDigits = ['', '', '', '', '', ''];
         if (codeInputs[0]) codeInputs[0].focus();
         return;
       }
@@ -279,8 +306,8 @@
       setTimeout(() => {
         shaking = false;
       }, 500);
-      codeDigits = ['', '', '', ''];
-      confirmDigits = ['', '', '', ''];
+      codeDigits = ['', '', '', '', '', ''];
+      confirmDigits = ['', '', '', '', '', ''];
       if (codeInputs[0]) codeInputs[0].focus();
     } finally {
       loading = false;
@@ -292,8 +319,8 @@
 
     error = null;
 
-    if (unlockCode.length !== 4) {
-      error = 'Please enter your 4-digit code';
+    if (unlockCode.length !== 6) {
+      error = 'Please enter your 6-digit code';
       return;
     }
 
@@ -307,7 +334,7 @@
         setTimeout(() => {
           shaking = false;
         }, 500);
-        unlockDigits = ['', '', '', ''];
+        unlockDigits = ['', '', '', '', '', ''];
         if (unlockInputs[0]) unlockInputs[0].focus();
         return;
       }
@@ -326,10 +353,60 @@
       setTimeout(() => {
         shaking = false;
       }, 500);
-      unlockDigits = ['', '', '', ''];
+      unlockDigits = ['', '', '', '', '', ''];
       if (unlockInputs[0]) unlockInputs[0].focus();
     } finally {
       loading = false;
+    }
+  }
+
+  function autoSubmitLink() {
+    if (linkDigits.every(d => d !== '')) {
+      handleLink();
+    }
+  }
+
+  async function handleLink() {
+    if (linkLoading || !remoteUser) return;
+
+    error = null;
+
+    if (linkCode.length !== remoteUser.codeLength) {
+      error = `Please enter a ${remoteUser.codeLength}-digit code`;
+      return;
+    }
+
+    linkLoading = true;
+    try {
+      const result = await linkSingleUserDevice(remoteUser.email, linkCode);
+      if (result.error) {
+        error = result.error;
+        shaking = true;
+        setTimeout(() => {
+          shaking = false;
+        }, 500);
+        linkDigits = Array(remoteUser.codeLength).fill('');
+        if (linkInputs[0]) linkInputs[0].focus();
+        return;
+      }
+      if (result.deviceVerificationRequired) {
+        maskedEmail = result.maskedEmail || '';
+        showDeviceVerificationModal = true;
+        startResendCooldown();
+        return;
+      }
+      await invalidateAll();
+      goto(redirectUrl);
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Incorrect code';
+      shaking = true;
+      setTimeout(() => {
+        shaking = false;
+      }, 500);
+      linkDigits = Array(remoteUser.codeLength).fill('');
+      if (linkInputs[0]) linkInputs[0].focus();
+    } finally {
+      linkLoading = false;
     }
   }
 </script>
@@ -496,6 +573,89 @@
           </div>
         </div>
       </div>
+    {:else if linkMode && remoteUser}
+      <!-- Link Device Mode -->
+      <div class="login-card" class:shake={shaking}>
+        <div class="card-glow"></div>
+        <div class="card-inner">
+          <div class="unlock-user-info">
+            <div class="avatar-wrapper">
+              <div class="avatar-ring-outer"></div>
+              <div class="avatar-ring-inner"></div>
+              <div class="avatar">
+                {((remoteUser.profile?.firstName as string) || 'U').charAt(0).toUpperCase()}
+              </div>
+            </div>
+            <h2 class="card-title">
+              Welcome back{remoteUser.profile?.firstName ? `, ${remoteUser.profile.firstName}` : ''}
+            </h2>
+            <p class="card-subtitle">Enter your code to link this device</p>
+          </div>
+
+          <div class="form-fields">
+            <div class="form-group">
+              <div class="code-label">Access Code</div>
+              {#if linkLoading}
+                <div class="code-loading">
+                  <span class="loading-spinner"></span>
+                </div>
+              {:else}
+                <div class="code-input-group">
+                  {#each linkDigits as digit, i (i)}
+                    <div class="code-digit-wrapper" class:filled={digit !== ''}>
+                      <input
+                        class="code-digit"
+                        type="tel"
+                        inputmode="numeric"
+                        pattern="[0-9]"
+                        maxlength="1"
+                        bind:this={linkInputs[i]}
+                        value={digit}
+                        oninput={(e) => handleDigitInput(linkDigits, i, e, linkInputs, autoSubmitLink)}
+                        onkeydown={(e) => handleDigitKeydown(linkDigits, i, e, linkInputs)}
+                        onpaste={(e) => handleDigitPaste(linkDigits, e, linkInputs, autoSubmitLink)}
+                        disabled={linkLoading}
+                        autocomplete="off"
+                      />
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+
+            {#if error}
+              <div class="message error">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{error}</span>
+              </div>
+            {/if}
+          </div>
+        </div>
+      </div>
+    {:else if offlineNoSetup}
+      <!-- Offline, no setup -->
+      <div class="login-card">
+        <div class="card-glow"></div>
+        <div class="card-inner">
+          <div class="unlock-user-info">
+            <h2 class="card-title">Setup Required</h2>
+            <p class="card-subtitle">An internet connection is required to set up this device</p>
+          </div>
+        </div>
+      </div>
     {:else}
       <!-- Setup Mode -->
       <div class="login-card">
@@ -639,7 +799,7 @@
 
               <h2 class="card-title">Create Your Code</h2>
               <p class="card-subtitle">
-                Choose a 4-digit code to secure your account, {firstName.trim()}
+                Choose a 6-digit code to secure your account, {firstName.trim()}
               </p>
 
               <div class="form-fields">
@@ -1621,7 +1781,7 @@
   .code-input-group {
     display: flex;
     justify-content: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
   }
 
   .code-digit-wrapper {
@@ -1645,10 +1805,10 @@
   }
 
   .code-digit {
-    width: 56px;
-    height: 64px;
+    width: 48px;
+    height: 56px;
     text-align: center;
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     font-weight: 700;
     letter-spacing: 0;
     caret-color: var(--color-primary-light);
@@ -1683,7 +1843,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 64px;
+    height: 56px;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -2006,6 +2166,15 @@
       height: 72px;
       font-size: 1.75rem;
     }
+
+    .code-digit {
+      width: 40px;
+      height: 48px;
+      font-size: 1.25rem;
+    }
+    .code-input-group {
+      gap: 0.375rem;
+    }
   }
 
   /* iPhone 16 Pro Max / 15 Pro Max (430px width) */
@@ -2039,9 +2208,12 @@
     }
 
     .code-digit {
-      width: 60px;
-      height: 68px;
-      font-size: 1.625rem;
+      width: 44px;
+      height: 52px;
+      font-size: 1.375rem;
+    }
+    .code-input-group {
+      gap: 0.4375rem;
     }
   }
 
@@ -2091,12 +2263,12 @@
     }
 
     .code-digit {
-      width: 48px;
-      height: 56px;
-      font-size: 1.25rem;
+      width: 36px;
+      height: 44px;
+      font-size: 1.125rem;
     }
     .code-input-group {
-      gap: 0.5rem;
+      gap: 0.25rem;
     }
 
     .step-line {
