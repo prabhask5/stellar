@@ -91,7 +91,7 @@ const UNLOCKED_KEY = 'stellar_unlocked';
 export interface GateConfig {
   gateType: 'code' | 'password';
   codeLength?: number;
-  gateHash: string;
+  email: string;
   profile: Record<string, unknown>;
 }
 
@@ -102,7 +102,7 @@ export async function getGateConfig(): Promise<GateConfig | null> {
   try {
     const result = await browser.storage.local.get(GATE_CONFIG_KEY);
     const stored = result[GATE_CONFIG_KEY];
-    if (stored && stored.gateHash) {
+    if (stored && stored.email) {
       return stored as GateConfig;
     }
   } catch (e) {

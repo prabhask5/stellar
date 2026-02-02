@@ -8,8 +8,7 @@
 
 import browser from 'webextension-polyfill';
 import { getConfig, getGateConfig, setGateConfig, isUnlocked, setUnlocked, type GateConfig } from '../config';
-import { signInAnonymouslyIfNeeded, fetchGateConfig } from '../auth/supabase';
-import { hashValue } from '../lib/crypto';
+import { signInWithCredentials } from '../auth/supabase';
 import { debugLog, debugWarn, debugError, initDebugMode } from '../lib/debug';
 
 // Types
@@ -146,32 +145,8 @@ async function init() {
     return;
   }
 
-  // No cached gate config — try to fetch from Supabase
-  if (isOnline) {
-    try {
-      const { error } = await signInAnonymouslyIfNeeded();
-      if (error) {
-        debugError('[Stellar Focus] Anonymous sign-in failed:', error);
-        showNotSetUp();
-        return;
-      }
-
-      const gateConfig = await fetchGateConfig();
-      if (gateConfig) {
-        currentGateConfig = gateConfig;
-        await setGateConfig(gateConfig);
-        showPinSection(gateConfig);
-      } else {
-        showNotSetUp();
-      }
-    } catch (e) {
-      debugError('[Stellar Focus] Failed to fetch gate config:', e);
-      showNotSetUp();
-    }
-  } else {
-    // Offline and never been set up
-    showNotSetUp();
-  }
+  // No cached gate config — user needs to set up via the main app first
+  showNotSetUp();
 }
 
 // ============================================================
@@ -329,10 +304,20 @@ async function handlePinSubmit() {
   pinLoading?.classList.remove('hidden');
 
   try {
-    const inputHash = await hashValue(pin);
+    if (!isOnline) {
+      // Offline — can't verify PIN without Supabase
+      pinLoading?.classList.add('hidden');
+      pinInputGroup?.classList.remove('hidden');
+      clearPinDigits();
+      showPinError('You must be online to sign in');
+      if (pinDigits[0]) pinDigits[0].focus();
+      return;
+    }
 
-    if (inputHash === currentGateConfig.gateHash) {
-      // Match — unlock
+    const { session, error } = await signInWithCredentials(currentGateConfig.email, pin);
+
+    if (session) {
+      // Success — unlock
       await setUnlocked(true);
 
       // Notify service worker
@@ -342,11 +327,9 @@ async function handlePinSubmit() {
       updateUserInfoFromGateConfig(currentGateConfig);
       showMain();
 
-      if (isOnline) {
-        await loadData();
-      }
+      await loadData();
     } else {
-      // Mismatch — shake, clear, show error
+      // Auth failed — shake, clear, show error
       pinLoading?.classList.add('hidden');
       pinInputGroup?.classList.remove('hidden');
 
@@ -356,7 +339,7 @@ async function handlePinSubmit() {
       }, 500);
 
       clearPinDigits();
-      showPinError('Incorrect code');
+      showPinError(error === 'Invalid login credentials' ? 'Incorrect code' : (error || 'Verification failed'));
 
       if (pinDigits[0]) pinDigits[0].focus();
     }

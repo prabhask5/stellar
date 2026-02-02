@@ -12,7 +12,7 @@
 
 import browser from 'webextension-polyfill';
 import { type RealtimeChannel } from '@supabase/supabase-js';
-import { getSupabase, getSession, resetSupabase, signInAnonymouslyIfNeeded } from '../auth/supabase';
+import { getSupabase, getSession, resetSupabase } from '../auth/supabase';
 import { isConfigured, getConfig, isUnlocked } from '../config';
 import { blockListsCache, blockedWebsitesCache, focusSessionCacheStore, type FocusSessionCache } from '../lib/storage';
 import { getNetworkStatus, checkConnectivity } from '../lib/network';
@@ -338,10 +338,10 @@ async function init() {
     return;
   }
 
-  // Sign in anonymously if needed
-  const { error } = await signInAnonymouslyIfNeeded();
-  if (error) {
-    debugError('[Stellar Focus] Anonymous sign-in failed:', error);
+  // Check for existing session (user signs in via popup)
+  const session = await getSession();
+  if (!session) {
+    debugLog('[Stellar Focus] No auth session - waiting for user to sign in via popup');
     return;
   }
 

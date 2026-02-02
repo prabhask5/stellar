@@ -386,6 +386,9 @@ if (browser) {
         gateType: 'code',
         codeLength: 4
       },
+      emailConfirmation: { enabled: true },
+      deviceVerification: { enabled: true, trustDurationDays: 90 },
+      confirmRedirectPath: '/confirm',
       profileExtractor: (meta: Record<string, unknown>) => ({
         firstName: (meta.first_name as string) || '',
         lastName: (meta.last_name as string) || ''

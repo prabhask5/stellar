@@ -1,12 +1,15 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/stores';
   import {
     setupSingleUser,
     unlockSingleUser,
-    getSingleUserInfo
+    getSingleUserInfo,
+    completeSingleUserSetup,
+    completeDeviceVerification
   } from '@prabhask5/stellar-engine/auth';
+  import { sendDeviceVerification } from '@prabhask5/stellar-engine';
 
   // Layout data
   const singleUserSetUp = $derived($page.data.singleUserSetUp);
@@ -21,23 +24,34 @@
   let mounted = $state(false);
 
   // Setup mode state
+  let email = $state('');
   let firstName = $state('');
   let lastName = $state('');
   let codeDigits = $state(['', '', '', '']);
   let confirmDigits = $state(['', '', '', '']);
   const code = $derived(codeDigits.join(''));
   const confirmCode = $derived(confirmDigits.join(''));
-  let setupStep = $state(1); // 1 = name, 2 = code
+  let setupStep = $state(1); // 1 = email + name, 2 = code
 
   // Unlock mode state
   let unlockDigits = $state(['', '', '', '']);
   const unlockCode = $derived(unlockDigits.join(''));
   let userInfo = $state<{ firstName: string; lastName: string } | null>(null);
 
+  // Modal state
+  let showConfirmationModal = $state(false);
+  let showDeviceVerificationModal = $state(false);
+  let maskedEmail = $state('');
+  let resendCooldown = $state(0);
+  let resendTimer: ReturnType<typeof setInterval> | null = null;
+
   // Input refs
   let codeInputs: HTMLInputElement[] = $state([]);
   let confirmInputs: HTMLInputElement[] = $state([]);
   let unlockInputs: HTMLInputElement[] = $state([]);
+
+  // BroadcastChannel for cross-tab communication
+  let authChannel: BroadcastChannel | null = null;
 
   onMount(async () => {
     mounted = true;
@@ -50,7 +64,75 @@
         };
       }
     }
+
+    // Listen for auth confirmation from /confirm page
+    try {
+      authChannel = new BroadcastChannel('stellar-auth-channel');
+      authChannel.onmessage = async (event) => {
+        if (event.data?.type === 'AUTH_CONFIRMED') {
+          if (showConfirmationModal) {
+            // Setup confirmation complete
+            const result = await completeSingleUserSetup();
+            if (!result.error) {
+              showConfirmationModal = false;
+              await invalidateAll();
+              goto('/');
+            } else {
+              error = result.error;
+              showConfirmationModal = false;
+            }
+          } else if (showDeviceVerificationModal) {
+            // Device verification complete
+            const result = await completeDeviceVerification();
+            if (!result.error) {
+              showDeviceVerificationModal = false;
+              await invalidateAll();
+              goto(redirectUrl);
+            } else {
+              error = result.error;
+              showDeviceVerificationModal = false;
+            }
+          }
+        }
+      };
+    } catch {
+      // BroadcastChannel not supported — user will need to manually refresh
+    }
   });
+
+  onDestroy(() => {
+    authChannel?.close();
+    if (resendTimer) clearInterval(resendTimer);
+  });
+
+  function startResendCooldown() {
+    resendCooldown = 30;
+    if (resendTimer) clearInterval(resendTimer);
+    resendTimer = setInterval(() => {
+      resendCooldown--;
+      if (resendCooldown <= 0 && resendTimer) {
+        clearInterval(resendTimer);
+        resendTimer = null;
+      }
+    }, 1000);
+  }
+
+  async function handleResendEmail() {
+    if (resendCooldown > 0) return;
+    startResendCooldown();
+    // For setup confirmation, resend signup email
+    if (showConfirmationModal) {
+      const { resendConfirmationEmail } = await import('@prabhask5/stellar-engine');
+      await resendConfirmationEmail(email);
+    }
+    // For device verification, resend OTP
+    if (showDeviceVerificationModal) {
+      const info = await getSingleUserInfo();
+      if (info?.email) {
+        await sendDeviceVerification(info.email);
+      }
+    }
+  }
 
   function handleDigitInput(
     digits: string[],
@@ -110,6 +192,10 @@
   }
 
   function goToCodeStep() {
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      error = 'Please enter a valid email address';
+      return;
+    }
     if (!firstName.trim()) {
       error = 'First name is required';
       return;
@@ -165,7 +251,7 @@
       const result = await setupSingleUser(code, {
         firstName: firstName.trim(),
         lastName: lastName.trim()
-      });
+      }, email.trim());
       if (result.error) {
         error = result.error;
         shaking = true;
@@ -175,6 +261,12 @@
         codeDigits = ['', '', '', ''];
         confirmDigits = ['', '', '', ''];
         if (codeInputs[0]) codeInputs[0].focus();
+        return;
+      }
+      if (result.confirmationRequired) {
+        // Show email confirmation modal
+        showConfirmationModal = true;
+        startResendCooldown();
         return;
       }
       await invalidateAll();
@@ -209,26 +301,29 @@
       const result = await unlockSingleUser(unlockCode);
       if (result.error) {
         error = result.error;
-        // Trigger shake animation
         shaking = true;
         setTimeout(() => {
           shaking = false;
         }, 500);
-        // Clear digits
         unlockDigits = ['', '', '', ''];
         if (unlockInputs[0]) unlockInputs[0].focus();
+        return;
+      }
+      if (result.deviceVerificationRequired) {
+        // Show device verification modal
+        maskedEmail = result.maskedEmail || '';
+        showDeviceVerificationModal = true;
+        startResendCooldown();
         return;
       }
       await invalidateAll();
       goto(redirectUrl);
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Incorrect code';
-      // Trigger shake animation
       shaking = true;
       setTimeout(() => {
         shaking = false;
       }, 500);
-      // Clear digits
       unlockDigits = ['', '', '', ''];
       if (unlockInputs[0]) unlockInputs[0].focus();
     } finally {
@@ -405,7 +500,7 @@
         <div class="card-glow"></div>
         <div class="card-inner">
           {#if setupStep === 1}
-            <!-- Step 1: Name -->
+            <!-- Step 1: Email + Name -->
             <div class="setup-step">
               <div class="step-indicator">
                 <div class="step-dot active"></div>
@@ -414,9 +509,24 @@
               </div>
 
               <h2 class="card-title">Welcome to Stellar</h2>
-              <p class="card-subtitle">Let's get you set up. What's your name?</p>
+              <p class="card-subtitle">Let's get you set up</p>
 
               <div class="form-fields">
+                <div class="form-group">
+                  <label for="email">Email</label>
+                  <div class="input-wrapper">
+                    <input
+                      type="email"
+                      id="email"
+                      bind:value={email}
+                      required
+                      disabled={loading}
+                      placeholder="you@example.com"
+                    />
+                    <div class="input-glow"></div>
+                  </div>
+                </div>
+
                 <div class="name-row">
                   <div class="form-group">
                     <label for="firstName">First Name</label>
@@ -611,6 +721,75 @@
       </div>
     {/if}
   </div>
+
+  <!-- Email Confirmation Modal (after setup) -->
+  {#if showConfirmationModal}
+    <div class="modal-overlay">
+      <div class="modal-card">
+        <div class="card-glow"></div>
+        <div class="card-inner">
+          <div class="modal-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="url(#mailGrad)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="M22 7l-8.97 5.7a1.94 1.94 0 01-2.06 0L2 7" />
+              <defs>
+                <linearGradient id="mailGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#6c5ce7" />
+                  <stop offset="100%" stop-color="#00d4ff" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <h2 class="card-title">Check your email</h2>
+          <p class="card-subtitle">
+            We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
+          </p>
+          <button
+            type="button"
+            class="btn btn-primary submit-btn"
+            onclick={handleResendEmail}
+            disabled={resendCooldown > 0}
+          >
+            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend email'}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Device Verification Modal (after unlock on untrusted device) -->
+  {#if showDeviceVerificationModal}
+    <div class="modal-overlay">
+      <div class="modal-card">
+        <div class="card-glow"></div>
+        <div class="card-inner">
+          <div class="modal-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="url(#shieldGrad)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <defs>
+                <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ff79c6" />
+                  <stop offset="100%" stop-color="#6c5ce7" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <h2 class="card-title">New device detected</h2>
+          <p class="card-subtitle">
+            We sent a verification link to <strong>{maskedEmail}</strong>. Click it to trust this device.
+          </p>
+          <button
+            type="button"
+            class="btn btn-primary submit-btn"
+            onclick={handleResendEmail}
+            disabled={resendCooldown > 0}
+          >
+            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend email'}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -2019,5 +2198,80 @@
     .code-digit:focus {
       transform: none;
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MODAL OVERLAY — Confirmation / Device Verification
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 1.5rem;
+    animation: modalFadeIn 0.3s ease-out;
+  }
+
+  @keyframes modalFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .modal-card {
+    width: 100%;
+    max-width: 400px;
+    position: relative;
+    border-radius: var(--radius-2xl);
+    padding: 2px;
+    background: linear-gradient(
+      135deg,
+      rgba(108, 92, 231, 0.5),
+      rgba(255, 121, 198, 0.3),
+      rgba(0, 212, 255, 0.3),
+      rgba(108, 92, 231, 0.5)
+    );
+    background-size: 300% 300%;
+    animation: borderGlow 6s ease-in-out infinite;
+  }
+
+  .modal-card .card-inner {
+    text-align: center;
+  }
+
+  .modal-icon {
+    margin: 0 auto 1.25rem;
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(108, 92, 231, 0.1);
+    border-radius: 50%;
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    animation: modalIconPulse 3s ease-in-out infinite;
+  }
+
+  @keyframes modalIconPulse {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(108, 92, 231, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(108, 92, 231, 0.4);
+    }
+  }
+
+  .modal-card .card-subtitle strong {
+    color: var(--color-text);
+    font-weight: 600;
   }
 </style>

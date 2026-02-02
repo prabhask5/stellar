@@ -8,7 +8,8 @@
   import { authState } from '@prabhask5/stellar-engine/stores';
   import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
   import { isDebugMode, setDebugMode } from '@prabhask5/stellar-engine/utils';
-  import { resetDatabase } from '@prabhask5/stellar-engine';
+  import { resetDatabase, getTrustedDevices, removeTrustedDevice, getCurrentDeviceId } from '@prabhask5/stellar-engine';
+  import type { TrustedDevice } from '@prabhask5/stellar-engine';
   import { onMount } from 'svelte';
 
   // Form state
@@ -38,6 +39,12 @@
   let debugMode = $state(isDebugMode());
   let resetting = $state(false);
 
+  // Trusted devices state
+  let trustedDevices = $state<TrustedDevice[]>([]);
+  let currentDeviceId = $state('');
+  let devicesLoading = $state(true);
+  let removingDeviceId = $state<string | null>(null);
+
   // Get initial values from user data
   onMount(async () => {
     const info = await getSingleUserInfo();
@@ -48,6 +55,18 @@
       firstName = $userDisplayInfo.firstName;
       lastName = $userDisplayInfo.lastName;
     }
+
+    // Load trusted devices
+    currentDeviceId = getCurrentDeviceId();
+    try {
+      const session = $authState?.session;
+      if (session?.user?.id) {
+        trustedDevices = await getTrustedDevices(session.user.id);
+      }
+    } catch {
+      // Ignore errors loading devices
+    }
+    devicesLoading = false;
   });
 
   // Digit input helpers (same pattern as login page)
@@ -178,6 +197,17 @@
       alert('Reset failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
       resetting = false;
     }
+  }
+
+  async function handleRemoveDevice(id: string) {
+    removingDeviceId = id;
+    try {
+      await removeTrustedDevice(id);
+      trustedDevices = trustedDevices.filter((d) => d.id !== id);
+    } catch {
+      // Ignore errors
+    }
+    removingDeviceId = null;
   }
 
   function handleMobileSignOut() {
@@ -373,6 +403,57 @@
         {/if}
       </button>
     </form>
+  </div>
+
+  <!-- Trusted Devices -->
+  <div class="profile-card">
+    <div class="card-header">
+      <h2 class="card-title">Trusted Devices</h2>
+      <p class="card-subtitle">Devices that can access your account without email verification</p>
+    </div>
+
+    {#if devicesLoading}
+      <div class="devices-loading">
+        <span class="loading-spinner"></span>
+      </div>
+    {:else if trustedDevices.length === 0}
+      <p class="setting-hint">No trusted devices found.</p>
+    {:else}
+      <div class="devices-list">
+        {#each trustedDevices as device (device.id)}
+          <div class="device-item" class:current={device.deviceId === currentDeviceId}>
+            <div class="device-info">
+              <span class="device-label">
+                {device.deviceLabel || 'Unknown device'}
+                {#if device.deviceId === currentDeviceId}
+                  <span class="device-badge">This device</span>
+                {/if}
+              </span>
+              <span class="device-meta">
+                Last used {new Date(device.lastUsedAt).toLocaleDateString()}
+              </span>
+            </div>
+            {#if device.deviceId !== currentDeviceId}
+              <button
+                class="device-remove-btn"
+                onclick={() => handleRemoveDevice(device.id)}
+                disabled={removingDeviceId === device.id}
+                aria-label="Remove device"
+              >
+                {#if removingDeviceId === device.id}
+                  <span class="loading-spinner small"></span>
+                {:else}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                {/if}
+              </button>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
   </div>
 
   <!-- Administration -->
@@ -1190,5 +1271,95 @@
     .loading-spinner {
       animation: none;
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     TRUSTED DEVICES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .devices-loading {
+    display: flex;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+
+  .devices-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .device-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1rem;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: border-color 0.2s ease;
+  }
+
+  .device-item.current {
+    border-color: var(--color-primary);
+    background: rgba(108, 92, 231, 0.05);
+  }
+
+  .device-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  .device-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .device-badge {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-primary-light);
+    background: rgba(108, 92, 231, 0.15);
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .device-meta {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  .device-remove-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .device-remove-btn:hover {
+    color: var(--color-red);
+    border-color: rgba(255, 107, 107, 0.3);
+    background: rgba(255, 107, 107, 0.1);
+  }
+
+  .loading-spinner.small {
+    width: 14px;
+    height: 14px;
   }
 </style>

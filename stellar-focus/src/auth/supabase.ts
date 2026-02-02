@@ -65,23 +65,35 @@ export async function getUser() {
 }
 
 /**
- * Sign in anonymously if no session exists.
- * Returns the session and user, or an error.
+ * Pad a PIN to meet Supabase's minimum password length.
+ * Must match the engine's padPin() implementation.
  */
-export async function signInAnonymouslyIfNeeded(): Promise<{
-  session: Awaited<ReturnType<typeof getSession>>;
-  error: string | null;
-}> {
+function padPin(pin: string): string {
+  return `${pin}_stellar`;
+}
+
+/**
+ * Sign in with email + PIN (real Supabase email/password auth).
+ * The same user as the main app — same auth.uid(), same RLS access.
+ */
+export async function signInWithCredentials(
+  email: string,
+  pin: string
+): Promise<{ session: Awaited<ReturnType<typeof getSession>>; error: string | null }> {
   const supabase = await getSupabase();
 
-  // Check for existing session first
+  // Check for existing valid session first
   const { data: sessionData } = await supabase.auth.getSession();
   if (sessionData?.session) {
     return { session: sessionData.session, error: null };
   }
 
-  // No session — sign in anonymously
-  const { data, error } = await supabase.auth.signInAnonymously();
+  // Sign in with real credentials
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: padPin(pin),
+  });
+
   if (error) {
     return { session: null, error: error.message };
   }
@@ -90,31 +102,9 @@ export async function signInAnonymouslyIfNeeded(): Promise<{
 }
 
 /**
- * Fetch gate config from Supabase single_user_config table.
- * Returns null if the table is empty or not set up.
+ * Sign out of Supabase
  */
-export async function fetchGateConfig(): Promise<{
-  gateType: 'code' | 'password';
-  codeLength?: number;
-  gateHash: string;
-  profile: Record<string, unknown>;
-} | null> {
+export async function signOut(): Promise<void> {
   const supabase = await getSupabase();
-
-  const { data, error } = await supabase
-    .from('single_user_config')
-    .select('gate_type, code_length, gate_hash, profile')
-    .eq('id', 'config')
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
-  return {
-    gateType: data.gate_type as 'code' | 'password',
-    codeLength: data.code_length ?? undefined,
-    gateHash: data.gate_hash,
-    profile: (data.profile as Record<string, unknown>) || {},
-  };
+  await supabase.auth.signOut();
 }
