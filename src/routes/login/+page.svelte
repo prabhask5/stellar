@@ -133,10 +133,14 @@
     loading = true;
 
     try {
-      await setupSingleUser(code, {
+      const result = await setupSingleUser(code, {
         firstName: firstName.trim(),
         lastName: lastName.trim()
       });
+      if (result.error) {
+        error = result.error;
+        return;
+      }
       await invalidateAll();
       goto('/');
     } catch (err: any) {
@@ -160,7 +164,19 @@
     loading = true;
 
     try {
-      await unlockSingleUser(unlockCode);
+      const result = await unlockSingleUser(unlockCode);
+      if (result.error) {
+        error = result.error;
+        // Trigger shake animation
+        shaking = true;
+        setTimeout(() => {
+          shaking = false;
+        }, 500);
+        // Clear digits
+        unlockDigits = ['', '', '', ''];
+        if (unlockInputs[0]) unlockInputs[0].focus();
+        return;
+      }
       await invalidateAll();
       goto(redirectUrl);
     } catch (err: any) {
@@ -601,7 +617,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow-y: auto;
+    overflow: hidden auto;
     background: radial-gradient(
       ellipse at center,
       rgba(15, 15, 35, 1) 0%,
@@ -972,7 +988,8 @@
     align-items: center;
     justify-content: center;
     gap: 2rem;
-    padding: 2rem;
+    padding: calc(2rem + env(safe-area-inset-top, 0px)) 2rem
+      calc(2rem + env(safe-area-inset-bottom, 0px));
     width: 100%;
     max-width: 440px;
     margin: auto;
