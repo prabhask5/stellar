@@ -262,11 +262,11 @@ function handlePinDigitInput(index: number) {
       pinDigits[index + 1].focus();
     }
 
-    // Auto-submit when all 4 digits are filled
+    // Auto-submit when all 4 digits are filled (with brief delay for visual feedback)
     if (index === 3) {
       const allFilled = Array.from(pinDigits).every(d => d.value.length === 1);
       if (allFilled) {
-        handlePinSubmit();
+        setTimeout(() => handlePinSubmit(), 300);
       }
     }
   } else {
@@ -300,11 +300,11 @@ function handlePinPaste(event: ClipboardEvent) {
   const focusIndex = Math.min(pasted.length, 3);
   if (pinDigits[focusIndex]) pinDigits[focusIndex].focus();
 
-  // Auto-submit if all 4 digits pasted
+  // Auto-submit if all 4 digits pasted (with brief delay for visual feedback)
   if (pasted.length >= 4) {
     const allFilled = Array.from(pinDigits).every(d => d.value.length === 1);
     if (allFilled) {
-      handlePinSubmit();
+      setTimeout(() => handlePinSubmit(), 300);
     }
   }
 }
@@ -834,7 +834,6 @@ async function focusOrOpenApp() {
     if (!config) return;
 
     const tabs = await browser.tabs.query({
-      currentWindow: true,
       url: `${config.appUrl}/*`
     });
 
@@ -861,7 +860,6 @@ async function navigateToApp(url: string) {
     if (!config) return;
 
     const tabs = await browser.tabs.query({
-      currentWindow: true,
       url: `${config.appUrl}/*`
     });
 

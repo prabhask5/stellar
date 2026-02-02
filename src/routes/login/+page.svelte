@@ -69,9 +69,9 @@
       if (index < 3 && inputs[index + 1]) {
         inputs[index + 1].focus();
       }
-      // Auto-submit when all 4 digits are filled
+      // Auto-submit when all 4 digits are filled (brief delay for visual feedback)
       if (index === 3 && onComplete && digits.every(d => d !== '')) {
-        onComplete();
+        setTimeout(() => onComplete(), 300);
       }
     } else {
       digits[index] = '';
