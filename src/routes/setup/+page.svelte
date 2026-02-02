@@ -282,14 +282,9 @@
         <div class="section-content">
           <ol class="instruction-list">
             <li>
-              In your Supabase dashboard, go to <strong>Authentication &gt; Providers</strong>
+              In your Supabase dashboard, go to <strong>Authentication &gt; Settings</strong>
             </li>
-            <li>Ensure <strong>Email</strong> auth is enabled</li>
-            <li>
-              Under <strong>URL Configuration</strong>, set the <strong>Site URL</strong> to your
-              deployment domain (e.g., <code>https://your-app.vercel.app</code>)
-            </li>
-            <li>Add <code>/confirm</code> to the <strong>Redirect URLs</strong> list</li>
+            <li>Enable <strong>Allow anonymous sign-ins</strong></li>
           </ol>
           <div class="info-note">
             <svg

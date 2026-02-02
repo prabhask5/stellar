@@ -1,120 +1,160 @@
 <script lang="ts">
-  import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import {
-    updateProfile,
-    changePassword,
-    getUserProfile,
-    isAdmin
+    changeSingleUserGate,
+    updateSingleUserProfile,
+    getSingleUserInfo
   } from '@prabhask5/stellar-engine/auth';
-  import { authState, isOnline } from '@prabhask5/stellar-engine/stores';
+  import { authState } from '@prabhask5/stellar-engine/stores';
   import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
   import { isDebugMode, setDebugMode } from '@prabhask5/stellar-engine/utils';
+  import { onMount } from 'svelte';
 
   // Form state
   let firstName = $state('');
   let lastName = $state('');
-  let currentPassword = $state('');
-  let newPassword = $state('');
-  let confirmPassword = $state('');
+
+  // Gate change state - using digit arrays like login page
+  let oldCodeDigits = $state(['', '', '', '']);
+  let newCodeDigits = $state(['', '', '', '']);
+  let confirmCodeDigits = $state(['', '', '', '']);
+  const oldCode = $derived(oldCodeDigits.join(''));
+  const newCode = $derived(newCodeDigits.join(''));
+  const confirmNewCode = $derived(confirmCodeDigits.join(''));
+
+  // Input refs for digit inputs
+  let oldCodeInputs: HTMLInputElement[] = $state([]);
+  let newCodeInputs: HTMLInputElement[] = $state([]);
+  let confirmCodeInputs: HTMLInputElement[] = $state([]);
 
   // UI state
   let profileLoading = $state(false);
-  let passwordLoading = $state(false);
+  let codeLoading = $state(false);
   let profileError = $state<string | null>(null);
   let profileSuccess = $state<string | null>(null);
-  let passwordError = $state<string | null>(null);
-  let passwordSuccess = $state<string | null>(null);
-  let showCurrentPassword = $state(false);
-  let showNewPassword = $state(false);
-  let showConfirmPassword = $state(false);
+  let codeError = $state<string | null>(null);
+  let codeSuccess = $state<string | null>(null);
   let debugMode = $state(isDebugMode());
 
   // Get initial values from user data
-  $effect(() => {
-    if ($userDisplayInfo) {
+  onMount(async () => {
+    const info = await getSingleUserInfo();
+    if (info) {
+      firstName = (info.profile.firstName as string) || '';
+      lastName = (info.profile.lastName as string) || '';
+    } else if ($userDisplayInfo) {
       firstName = $userDisplayInfo.firstName;
       lastName = $userDisplayInfo.lastName;
-    } else if ($page.data.session?.user) {
-      const profile = getUserProfile($page.data.session.user);
-      firstName = (profile.firstName as string) || '';
-      lastName = (profile.lastName as string) || '';
     }
   });
 
-  // Get email (read-only)
-  const email = $derived(() => {
-    if ($userDisplayInfo?.email) return $userDisplayInfo.email;
-    return $page.data.session?.user?.email || '';
-  });
+  // Digit input helpers (same pattern as login page)
+  function handleDigitInput(
+    digits: string[],
+    index: number,
+    event: Event,
+    inputs: HTMLInputElement[]
+  ) {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/[^0-9]/g, '');
+    if (value.length > 0) {
+      digits[index] = value.charAt(value.length - 1);
+      input.value = digits[index];
+      if (index < 3 && inputs[index + 1]) {
+        inputs[index + 1].focus();
+      }
+    } else {
+      digits[index] = '';
+    }
+  }
 
-  // Check if changes should be disabled (offline mode OR network offline)
-  const isOfflineMode = $derived($authState.mode === 'offline');
-  const changesDisabled = $derived(isOfflineMode || !$isOnline);
+  function handleDigitKeydown(
+    digits: string[],
+    index: number,
+    event: KeyboardEvent,
+    inputs: HTMLInputElement[]
+  ) {
+    if (event.key === 'Backspace') {
+      if (digits[index] === '' && index > 0 && inputs[index - 1]) {
+        inputs[index - 1].focus();
+        digits[index - 1] = '';
+      } else {
+        digits[index] = '';
+      }
+    }
+  }
 
-  // Admin check
-  const userIsAdmin = $derived($page.data.session?.user ? isAdmin($page.data.session.user) : false);
+  function handleDigitPaste(
+    digits: string[],
+    event: ClipboardEvent,
+    inputs: HTMLInputElement[]
+  ) {
+    event.preventDefault();
+    const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '');
+    for (let i = 0; i < 4 && i < pasted.length; i++) {
+      digits[i] = pasted[i];
+      if (inputs[i]) inputs[i].value = pasted[i];
+    }
+    const focusIndex = Math.min(pasted.length, 3);
+    if (inputs[focusIndex]) inputs[focusIndex].focus();
+  }
 
   async function handleProfileSubmit(e: Event) {
     e.preventDefault();
-    if (changesDisabled) {
-      profileError = 'Profile changes require an internet connection';
-      return;
-    }
-
     profileLoading = true;
     profileError = null;
     profileSuccess = null;
 
-    const result = await updateProfile({ firstName: firstName.trim(), lastName: lastName.trim() });
-
-    if (result.error) {
-      profileError = result.error;
-    } else {
+    try {
+      await updateSingleUserProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim()
+      });
       // Update auth state to immediately reflect changes in navbar
       authState.updateUserProfile({ first_name: firstName.trim(), last_name: lastName.trim() });
       profileSuccess = 'Profile updated successfully';
       setTimeout(() => (profileSuccess = null), 3000);
+    } catch (err: any) {
+      profileError = err?.message || 'Failed to update profile';
     }
 
     profileLoading = false;
   }
 
-  async function handlePasswordSubmit(e: Event) {
+  async function handleCodeSubmit(e: Event) {
     e.preventDefault();
-    if (changesDisabled) {
-      passwordError = 'Password changes require an internet connection';
+
+    if (oldCode.length !== 4) {
+      codeError = 'Please enter your current 4-digit code';
       return;
     }
 
-    // Validate
-    if (newPassword !== confirmPassword) {
-      passwordError = 'New passwords do not match';
+    if (newCode.length !== 4) {
+      codeError = 'Please enter a new 4-digit code';
       return;
     }
 
-    if (newPassword.length < 6) {
-      passwordError = 'New password must be at least 6 characters';
+    if (newCode !== confirmNewCode) {
+      codeError = 'New codes do not match';
       return;
     }
 
-    passwordLoading = true;
-    passwordError = null;
-    passwordSuccess = null;
+    codeLoading = true;
+    codeError = null;
+    codeSuccess = null;
 
-    const result = await changePassword(currentPassword, newPassword);
-
-    if (result.error) {
-      passwordError = result.error;
-    } else {
-      passwordSuccess = 'Password changed successfully';
-      currentPassword = '';
-      newPassword = '';
-      confirmPassword = '';
-      setTimeout(() => (passwordSuccess = null), 3000);
+    try {
+      await changeSingleUserGate(oldCode, newCode);
+      codeSuccess = 'Code changed successfully';
+      oldCodeDigits = ['', '', '', ''];
+      newCodeDigits = ['', '', '', ''];
+      confirmCodeDigits = ['', '', '', ''];
+      setTimeout(() => (codeSuccess = null), 3000);
+    } catch (err: any) {
+      codeError = err?.message || 'Failed to change code';
     }
 
-    passwordLoading = false;
+    codeLoading = false;
   }
 
   function toggleDebugMode() {
@@ -158,28 +198,6 @@
     <div class="header-spacer"></div>
   </header>
 
-  <!-- Offline Warning -->
-  {#if isOfflineMode || !$isOnline}
-    <div class="offline-warning">
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <line x1="1" y1="1" x2="23" y2="23"></line>
-        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
-        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
-        <line x1="12" y1="20" x2="12.01" y2="20"></line>
-      </svg>
-      <span>You're offline. Changes require an internet connection.</span>
-    </div>
-  {/if}
-
   <!-- Profile Avatar -->
   <div class="profile-avatar-section">
     <div class="avatar-container">
@@ -203,12 +221,6 @@
     </div>
 
     <form onsubmit={handleProfileSubmit}>
-      <div class="form-group">
-        <label for="email">Email</label>
-        <input type="email" id="email" value={email()} disabled class="input-disabled" />
-        <span class="input-hint">Email cannot be changed</span>
-      </div>
-
       <div class="form-row">
         <div class="form-group">
           <label for="firstName">First Name</label>
@@ -216,7 +228,7 @@
             type="text"
             id="firstName"
             bind:value={firstName}
-            disabled={profileLoading || changesDisabled}
+            disabled={profileLoading}
             required
             placeholder="John"
           />
@@ -228,7 +240,7 @@
             type="text"
             id="lastName"
             bind:value={lastName}
-            disabled={profileLoading || changesDisabled}
+            disabled={profileLoading}
             placeholder="Doe"
           />
         </div>
@@ -242,7 +254,7 @@
         <div class="message success">{profileSuccess}</div>
       {/if}
 
-      <button type="submit" class="btn btn-primary" disabled={profileLoading || changesDisabled}>
+      <button type="submit" class="btn btn-primary" disabled={profileLoading}>
         {#if profileLoading}
           <span class="loading-spinner"></span>
           Saving...
@@ -253,194 +265,104 @@
     </form>
   </div>
 
-  <!-- Password Change Card -->
+  <!-- Change Code Card -->
   <div class="profile-card">
     <div class="card-header">
-      <h2 class="card-title">Change Password</h2>
-      <p class="card-subtitle">Update your account password</p>
+      <h2 class="card-title">Change Code</h2>
+      <p class="card-subtitle">Update your 4-digit access code</p>
     </div>
 
-    <form onsubmit={handlePasswordSubmit}>
+    <form onsubmit={handleCodeSubmit}>
       <div class="form-group">
-        <label for="currentPassword">Current Password</label>
-        <div class="password-input-wrapper">
-          <input
-            type={showCurrentPassword ? 'text' : 'password'}
-            id="currentPassword"
-            bind:value={currentPassword}
-            disabled={passwordLoading || changesDisabled}
-            required
-            autocomplete="current-password"
-          />
-          <button
-            type="button"
-            class="password-toggle"
-            onclick={() => (showCurrentPassword = !showCurrentPassword)}
-            aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
-          >
-            {#if showCurrentPassword}
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
-                />
-                <line x1="1" y1="1" x2="23" y2="23" />
-              </svg>
-            {:else}
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            {/if}
-          </button>
+        <label for="oldCode0">Current Code</label>
+        <div class="code-input-group">
+          {#each oldCodeDigits as digit, i (i)}
+            <input
+              class="code-digit"
+              type="tel"
+              inputmode="numeric"
+              pattern="[0-9]"
+              maxlength="1"
+              id={`oldCode${i}`}
+              bind:this={oldCodeInputs[i]}
+              value={digit}
+              oninput={(e) => handleDigitInput(oldCodeDigits, i, e, oldCodeInputs)}
+              onkeydown={(e) => handleDigitKeydown(oldCodeDigits, i, e, oldCodeInputs)}
+              onpaste={(e) => handleDigitPaste(oldCodeDigits, e, oldCodeInputs)}
+              disabled={codeLoading}
+              autocomplete="off"
+            />
+          {/each}
         </div>
       </div>
 
       <div class="form-group">
-        <label for="newPassword">New Password</label>
-        <div class="password-input-wrapper">
-          <input
-            type={showNewPassword ? 'text' : 'password'}
-            id="newPassword"
-            bind:value={newPassword}
-            disabled={passwordLoading || changesDisabled}
-            required
-            minlength="6"
-            autocomplete="new-password"
-            placeholder="Min 6 characters"
-          />
-          <button
-            type="button"
-            class="password-toggle"
-            onclick={() => (showNewPassword = !showNewPassword)}
-            aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-          >
-            {#if showNewPassword}
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
-                />
-                <line x1="1" y1="1" x2="23" y2="23" />
-              </svg>
-            {:else}
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            {/if}
-          </button>
+        <label for="newCode0">New Code</label>
+        <div class="code-input-group">
+          {#each newCodeDigits as digit, i (i)}
+            <input
+              class="code-digit"
+              type="tel"
+              inputmode="numeric"
+              pattern="[0-9]"
+              maxlength="1"
+              id={`newCode${i}`}
+              bind:this={newCodeInputs[i]}
+              value={digit}
+              oninput={(e) => handleDigitInput(newCodeDigits, i, e, newCodeInputs)}
+              onkeydown={(e) => handleDigitKeydown(newCodeDigits, i, e, newCodeInputs)}
+              onpaste={(e) => handleDigitPaste(newCodeDigits, e, newCodeInputs)}
+              disabled={codeLoading}
+              autocomplete="off"
+            />
+          {/each}
         </div>
       </div>
 
       <div class="form-group">
-        <label for="confirmPassword">Confirm New Password</label>
-        <div class="password-input-wrapper">
-          <input
-            type={showConfirmPassword ? 'text' : 'password'}
-            id="confirmPassword"
-            bind:value={confirmPassword}
-            disabled={passwordLoading || changesDisabled}
-            required
-            autocomplete="new-password"
-          />
-          <button
-            type="button"
-            class="password-toggle"
-            onclick={() => (showConfirmPassword = !showConfirmPassword)}
-            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-          >
-            {#if showConfirmPassword}
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
-                />
-                <line x1="1" y1="1" x2="23" y2="23" />
-              </svg>
-            {:else}
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            {/if}
-          </button>
+        <label for="confirmCode0">Confirm New Code</label>
+        <div class="code-input-group">
+          {#each confirmCodeDigits as digit, i (i)}
+            <input
+              class="code-digit"
+              type="tel"
+              inputmode="numeric"
+              pattern="[0-9]"
+              maxlength="1"
+              id={`confirmCode${i}`}
+              bind:this={confirmCodeInputs[i]}
+              value={digit}
+              oninput={(e) => handleDigitInput(confirmCodeDigits, i, e, confirmCodeInputs)}
+              onkeydown={(e) => handleDigitKeydown(confirmCodeDigits, i, e, confirmCodeInputs)}
+              onpaste={(e) => handleDigitPaste(confirmCodeDigits, e, confirmCodeInputs)}
+              disabled={codeLoading}
+              autocomplete="off"
+            />
+          {/each}
         </div>
       </div>
 
-      {#if passwordError}
-        <div class="message error">{passwordError}</div>
+      {#if codeError}
+        <div class="message error">{codeError}</div>
       {/if}
 
-      {#if passwordSuccess}
-        <div class="message success">{passwordSuccess}</div>
+      {#if codeSuccess}
+        <div class="message success">{codeSuccess}</div>
       {/if}
 
-      <button type="submit" class="btn btn-secondary" disabled={passwordLoading || changesDisabled}>
-        {#if passwordLoading}
+      <button type="submit" class="btn btn-secondary" disabled={codeLoading}>
+        {#if codeLoading}
           <span class="loading-spinner"></span>
           Updating...
         {:else}
-          Update Password
+          Update Code
         {/if}
       </button>
     </form>
   </div>
 
-  <!-- Administration (admin only) -->
-  {#if userIsAdmin}
-    <div class="profile-card">
+  <!-- Administration -->
+  <div class="profile-card">
       <div class="card-header">
         <h2 class="card-title">Administration</h2>
         <p class="card-subtitle">Manage your Stellar instance</p>
@@ -485,7 +407,6 @@
         Update Supabase Configuration
       </button>
     </div>
-  {/if}
 
   <!-- Sign Out (Mobile only — desktop has sign out in the navbar) -->
   <div class="mobile-signout">
@@ -504,7 +425,7 @@
         <polyline points="16 17 21 12 16 7" />
         <line x1="21" y1="12" x2="9" y2="12" />
       </svg>
-      Sign Out
+      Lock
     </button>
   </div>
 
@@ -582,23 +503,6 @@
 
   .header-spacer {
     width: 80px;
-  }
-
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     OFFLINE WARNING
-     ═══════════════════════════════════════════════════════════════════════════════════ */
-
-  .offline-warning {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.875rem 1rem;
-    margin-bottom: 1.5rem;
-    background: rgba(255, 165, 2, 0.1);
-    border: 1px solid rgba(255, 165, 2, 0.3);
-    border-radius: var(--radius-lg);
-    color: var(--color-orange);
-    font-size: 0.875rem;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -790,54 +694,6 @@
   input:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-  }
-
-  .input-disabled {
-    background: rgba(10, 10, 18, 0.3);
-    border-color: rgba(108, 92, 231, 0.1);
-  }
-
-  .input-hint {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    opacity: 0.7;
-  }
-
-  .password-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-
-  .password-input-wrapper input {
-    padding-right: 3rem;
-  }
-
-  .password-toggle {
-    position: absolute;
-    right: 0.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    background: none;
-    border: none;
-    border-radius: var(--radius-md);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .password-toggle:hover {
-    color: var(--color-text);
-    background: rgba(108, 92, 231, 0.15);
-  }
-
-  .password-toggle:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--color-primary-glow);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -1233,6 +1089,43 @@
 
   .signout-btn:active {
     transform: scale(0.98);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     CODE INPUT
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .code-input-group {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .code-digit {
+    width: 56px;
+    height: 64px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    caret-color: var(--color-primary-light);
+    padding: 0;
+  }
+
+  .code-digit:focus {
+    border-color: rgba(108, 92, 231, 0.6);
+    box-shadow: 0 0 24px var(--color-primary-glow), 0 0 0 2px rgba(108, 92, 231, 0.2);
+  }
+
+  @media (max-width: 389px) {
+    .code-digit {
+      width: 48px;
+      height: 56px;
+      font-size: 1.25rem;
+    }
+    .code-input-group {
+      gap: 0.5rem;
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════

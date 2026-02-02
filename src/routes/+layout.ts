@@ -3,7 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import { goto } from '$app/navigation';
 import { initEngine, startSyncEngine, supabase } from '@prabhask5/stellar-engine';
 import { initConfig } from '@prabhask5/stellar-engine/config';
-import { resolveAuthState } from '@prabhask5/stellar-engine/auth';
+import { resolveAuthState, lockSingleUser } from '@prabhask5/stellar-engine/auth';
 import type { AuthMode, OfflineCredentials } from '$lib/types';
 import type { Session } from '@prabhask5/stellar-engine/types';
 import type { LayoutLoad } from './$types';
@@ -17,77 +17,64 @@ if (browser) {
     tables: [
       {
         supabaseName: 'goal_lists',
-        dexieTable: 'goalLists',
         columns: 'id,user_id,name,project_id,order,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'goals',
-        dexieTable: 'goals',
         columns:
           'id,goal_list_id,name,type,target_value,current_value,completed,order,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'daily_routine_goals',
-        dexieTable: 'dailyRoutineGoals',
         columns:
           'id,user_id,name,type,target_value,start_target_value,end_target_value,progression_schedule,start_date,end_date,active_days,order,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'daily_goal_progress',
-        dexieTable: 'dailyGoalProgress',
         columns:
           'id,daily_routine_goal_id,date,current_value,completed,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'task_categories',
-        dexieTable: 'taskCategories',
         columns:
           'id,user_id,name,color,order,project_id,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'commitments',
-        dexieTable: 'commitments',
         columns:
           'id,user_id,name,section,order,project_id,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'daily_tasks',
-        dexieTable: 'dailyTasks',
         columns: 'id,user_id,name,order,completed,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'long_term_tasks',
-        dexieTable: 'longTermTasks',
         columns:
           'id,user_id,name,due_date,category_id,completed,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'focus_settings',
-        dexieTable: 'focusSettings',
         columns:
           'id,user_id,focus_duration,break_duration,long_break_duration,cycles_before_long_break,auto_start_breaks,auto_start_focus,created_at,updated_at,deleted,_version,device_id',
         isSingleton: true
       },
       {
         supabaseName: 'focus_sessions',
-        dexieTable: 'focusSessions',
         columns:
           'id,user_id,started_at,ended_at,phase,status,current_cycle,total_cycles,focus_duration,break_duration,phase_started_at,phase_remaining_ms,elapsed_duration,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'block_lists',
-        dexieTable: 'blockLists',
         columns:
           'id,user_id,name,active_days,is_enabled,order,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'blocked_websites',
-        dexieTable: 'blockedWebsites',
         columns: 'id,block_list_id,domain,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'projects',
-        dexieTable: 'projects',
         columns:
           'id,user_id,name,is_current,order,tag_id,commitment_id,goal_list_id,created_at,updated_at,deleted,_version,device_id'
       }
@@ -325,12 +312,36 @@ if (browser) {
               await tx.table('goalLists').update(lists[i].id, { order: i });
             }
           }
+        },
+        {
+          version: 14,
+          stores: {
+            goalLists: 'id, user_id, project_id, order, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, project_id, order, created_at, updated_at',
+            commitments: 'id, user_id, project_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+            focusSettings: 'id, user_id, updated_at',
+            focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+            blockLists: 'id, user_id, order, updated_at',
+            blockedWebsites: 'id, block_list_id, updated_at',
+            projects: 'id, user_id, is_current, order, created_at, updated_at'
+          }
         }
       ]
     },
     supabase,
     prefix: 'stellar',
     auth: {
+      mode: 'single-user',
+      singleUser: {
+        gateType: 'code',
+        codeLength: 4
+      },
       profileExtractor: (meta: Record<string, unknown>) => ({
         firstName: (meta.first_name as string) || '',
         lastName: (meta.last_name as string) || ''
@@ -339,19 +350,19 @@ if (browser) {
         first_name: p.firstName,
         last_name: p.lastName
       }),
-      confirmRedirectPath: '/confirm',
-      adminCheck: (user) => user?.app_metadata?.is_admin === true
+      enableOfflineAuth: true
     },
     onAuthStateChange: (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        goto('/login');
-      } else if (event === 'SIGNED_IN' && session) {
+      // In single-user mode, SIGNED_IN events refresh the page to pick up the session.
+      // SIGNED_OUT is handled by lockSingleUser, not by Supabase auth events.
+      if (event === 'SIGNED_IN' && session) {
         if (!window.location.pathname.startsWith('/login')) {
           goto(window.location.pathname, { invalidateAll: true });
         }
       }
     },
-    onAuthKicked: (_message) => {
+    onAuthKicked: async (_message) => {
+      await lockSingleUser();
       goto('/login');
     }
   });
@@ -361,6 +372,7 @@ export interface LayoutData {
   session: Session | null;
   authMode: AuthMode;
   offlineProfile: OfflineCredentials | null;
+  singleUserSetUp?: boolean;
 }
 
 export const load: LayoutLoad = async ({ url }): Promise<LayoutData> => {
@@ -372,7 +384,7 @@ export const load: LayoutLoad = async ({ url }): Promise<LayoutData> => {
     }
 
     if (!config) {
-      return { session: null, authMode: 'none', offlineProfile: null };
+      return { session: null, authMode: 'none', offlineProfile: null, singleUserSetUp: false };
     }
 
     const result = await resolveAuthState();
@@ -381,5 +393,5 @@ export const load: LayoutLoad = async ({ url }): Promise<LayoutData> => {
     }
     return result;
   }
-  return { session: null, authMode: 'none', offlineProfile: null };
+  return { session: null, authMode: 'none', offlineProfile: null, singleUserSetUp: false };
 };

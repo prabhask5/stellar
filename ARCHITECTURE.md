@@ -5,8 +5,9 @@
 2. [Local Database (Dexie.js / IndexedDB)](#2-local-database-dexiejs--indexeddb)
 3. [Supabase Backend](#3-supabase-backend)
 4. [Sync Engine (@stellar/sync-engine)](#4-sync-engine-stellarsync-engine)
-5. [Focus Timer State Machine](#5-focus-timer-state-machine)
-6. [PWA Architecture](#6-pwa-architecture)
+5. [Single-User Auth Mode](#5-single-user-auth-mode)
+6. [Focus Timer State Machine](#6-focus-timer-state-machine)
+7. [PWA Architecture](#7-pwa-architecture)
 
 ---
 
@@ -44,7 +45,7 @@ Stellar is a **local-first, offline-capable Progressive Web Application** built 
 |  |  (IndexedDB)     |    |   (syncQueue)    |                    |
 |  |                  |    |                  |                    |
 |  | 13 Entity Tables |    | Intent-Based Ops |                    |
-|  |  3 System Tables |    | create/set/inc/  |                    |
+|  |  4 System Tables |    | create/set/inc/  |                    |
 |  |  1 History Table |    | delete           |                    |
 |  +--------+---------+    +--------+---------+                    |
 |           |                       |                              |
@@ -89,7 +90,7 @@ Stellar is a **local-first, offline-capable Progressive Web Application** built 
 
 | Layer | File | Purpose |
 |-------|------|---------|
-| Database Schema | `src/routes/+layout.ts` (database config) | 13 schema versions passed to `initEngine()` |
+| Database Schema | `src/routes/+layout.ts` (database config) | 14 schema versions passed to `initEngine()` |
 | Sync Engine | `@stellar/sync-engine` | Manages Dexie, Supabase, sync — see [engine docs](https://github.com/prabhask5/stellar-engine/blob/main/ARCHITECTURE.md) |
 | Focus Utils | `src/lib/utils/focus.ts` | Timer calculations, phase transitions |
 | Focus Store | `src/lib/stores/focus.ts` | Focus timer state machine |
@@ -102,7 +103,7 @@ Stellar is a **local-first, offline-capable Progressive Web Application** built 
 
 **Configured in**: `src/routes/+layout.ts` via `initEngine({ database: { ... } })`
 
-Stellar uses **Dexie.js** (managed by `@stellar/sync-engine`) as an ORM over the browser's IndexedDB. The database has evolved through **13 schema versions** with data migrations. The engine creates the Dexie instance and automatically merges system tables (`syncQueue`, `conflictHistory`, `offlineCredentials`, `offlineSession`) into every version. Stellar has no direct `dexie` or `@supabase/supabase-js` dependencies -- all access is through the engine.
+Stellar uses **Dexie.js** (managed by `@stellar/sync-engine`) as an ORM over the browser's IndexedDB. The database has evolved through **14 schema versions** with data migrations. The engine creates the Dexie instance and automatically merges system tables (`syncQueue`, `conflictHistory`, `offlineCredentials`, `offlineSession`, `singleUserConfig`) into every version. Stellar has no direct `dexie` or `@supabase/supabase-js` dependencies -- all access is through the engine.
 
 ### 2.1 Entity Tables (13)
 
@@ -134,7 +135,7 @@ Stellar uses **Dexie.js** (managed by `@stellar/sync-engine`) as an ORM over the
 +--------------------+--------------------------------------------------+
 ```
 
-### 2.2 System Tables (3)
+### 2.2 System Tables (4)
 
 ```
 +--------------------+-----------------------------------------------+
@@ -147,6 +148,8 @@ Stellar uses **Dexie.js** (managed by `@stellar/sync-engine`) as an ORM over the
 |                    | login. Key: 'current_user'                    |
 | offlineSession     | Singleton: offline session token.              |
 |                    | Key: 'current_session'                        |
+| singleUserConfig   | Singleton: PIN hash + profile for single-user  |
+|                    | gate. Key: 'config'                           |
 +--------------------+-----------------------------------------------+
 ```
 
@@ -176,6 +179,7 @@ Stellar uses **Dexie.js** (managed by `@stellar/sync-engine`) as an ORM over the
 | v11 | Projects table + project_id foreign keys |
 | v12 | Progressive routine columns (start_target_value, etc.) |
 | v13 | `order` index on goalLists for reordering + migration |
+| v14 | Single-user auth: `singleUserConfig` system table for local PIN gate |
 
 ### 2.5 Hidden Columns (Not Indexed)
 
@@ -259,7 +263,7 @@ This enables WebSocket-based real-time change streaming to connected clients.
 
 Stellar uses the `@stellar/sync-engine` package (an external dependency hosted at [github.com/prabhask5/stellar-engine](https://github.com/prabhask5/stellar-engine)) for all backend synchronization, authentication, conflict resolution, and realtime updates. See the [engine documentation](https://github.com/prabhask5/stellar-engine/blob/main/ARCHITECTURE.md) for complete technical details.
 
-The engine is initialized in `src/routes/+layout.ts` with Stellar's 13 entity table definitions, auth configuration, and lifecycle hooks. All repository files use the engine's generic CRUD APIs (`engineCreate`, `engineUpdate`, `engineDelete`, `engineBatchWrite`, `engineIncrement`) and query APIs (`engineGet`, `engineQuery`, `engineQueryRange`, etc.) rather than direct Dexie or Supabase calls.
+The engine is initialized in `src/routes/+layout.ts` with Stellar's 13 entity table definitions, auth configuration, and lifecycle hooks. Each table definition in the engine's `TableConfig` requires only `supabaseName` and `columns` (plus optional fields like `isSingleton`). The Dexie table name is automatically derived from `supabaseName` via the engine's `snakeToCamel()` conversion (e.g., `goal_lists` becomes `goalLists`, `daily_goal_progress` becomes `dailyGoalProgress`). There is no separate `dexieTable` field. All repository files use the engine's generic CRUD APIs (`engineCreate`, `engineUpdate`, `engineDelete`, `engineBatchWrite`, `engineIncrement`) and query APIs (`engineGet`, `engineQuery`, `engineQueryRange`, etc.) rather than direct Dexie or Supabase calls.
 
 ### Key Engine Capabilities
 
@@ -273,11 +277,130 @@ The engine is initialized in `src/routes/+layout.ts` with Stellar's 13 entity ta
 
 ---
 
-## 5. Focus Timer State Machine
+## 5. Single-User Auth Mode
+
+Stellar operates in **single-user mode**, meaning there is no email registration or password-based multi-user authentication. Instead, the app uses a local 4-digit PIN code gate backed by an anonymous Supabase session. All engine-level details (hashing, anonymous auth, offline fallback) are documented in the [engine's Single-User Auth Mode section](https://github.com/prabhask5/stellar-engine/blob/main/ARCHITECTURE.md#2-single-user-auth-mode).
+
+### 5.1 Configuration
+
+**File**: `src/routes/+layout.ts`
+
+Single-user mode is configured at engine initialization (schema version 14):
+
+```typescript
+auth: {
+  mode: 'single-user',
+  singleUser: {
+    gateType: 'code',
+    codeLength: 4
+  },
+  profileExtractor: (meta) => ({
+    firstName: meta.first_name || '',
+    lastName: meta.last_name || ''
+  }),
+  profileToMetadata: (p) => ({
+    first_name: p.firstName,
+    last_name: p.lastName
+  }),
+  enableOfflineAuth: true
+}
+```
+
+The version 14 schema adds the `singleUserConfig` system table to IndexedDB for storing the hashed PIN and user profile.
+
+### 5.2 Supabase Requirement
+
+Single-user mode uses `supabase.auth.signInAnonymously()` to obtain JWT sessions for RLS compliance. This requires **"Allow anonymous sign-ins"** to be enabled in the Supabase dashboard under Authentication > Settings.
+
+### 5.3 Login Page: Setup & Unlock Modes
+
+**File**: `src/routes/login/+page.svelte`
+
+The login page has two modes, determined by the `singleUserSetUp` flag from `resolveAuthState()`:
+
+| `singleUserSetUp` | Mode | UI |
+|-------------------|------|-----|
+| `false` | **Setup** | First name, last name, create 4-digit code + confirm code |
+| `true` | **Unlock** | Shows user avatar/name, enter 4-digit code |
+
+```
+First visit (/login)             Return visit (/login)
++------------------------+       +------------------------+
+| Welcome to Stellar     |       | Welcome back, John     |
+| Set up your account    |       |                        |
+|                        |       | Enter your code        |
+| First Name [________]  |       | [ ] [ ] [ ] [ ]        |
+| Last Name  [________]  |       |                        |
+|                        |       | [    Unlock    ]       |
+| Create a 4-digit code  |       +------------------------+
+| [ ] [ ] [ ] [ ]        |
+|                        |
+| Confirm your code       |
+| [ ] [ ] [ ] [ ]        |
+|                        |
+| [  Get Started  ]      |
++------------------------+
+```
+
+On setup, the page calls `setupSingleUser(code, { firstName, lastName })`. On unlock, it calls `unlockSingleUser(code)`. Both functions are imported from `@prabhask5/stellar-engine/auth`.
+
+Incorrect codes on unlock trigger a shake animation and clear the digit inputs.
+
+### 5.4 Sign-Out Replaced with Lock
+
+**File**: `src/routes/+layout.svelte`
+
+In single-user mode, "Sign Out" is replaced with a **Lock** action. The layout's sign-out handler calls `lockSingleUser()` instead of the standard Supabase `signOut()`:
+
+```
+User taps "Lock" in sidebar
+  |
+  v
+250ms delay (for nav animation)
+  |
+  v
+lockSingleUser()
+  |  --> stopSyncEngine()
+  |  --> syncStatusStore.reset()
+  |  --> authState.setNoAuth()
+  |
+  v
+window.location.href = '/login'
+```
+
+Locking does NOT destroy the anonymous Supabase session, user data, or IndexedDB config. The user can unlock again by entering their PIN code.
+
+The `onAuthKicked` callback also calls `lockSingleUser()` and redirects to `/login` when a session is invalidated server-side.
+
+### 5.5 Profile Page: Code Change
+
+**File**: `src/routes/(protected)/profile/+page.svelte`
+
+Instead of a password change form, the profile page provides a **code change** interface using `changeSingleUserGate(oldCode, newCode)`. The user enters their current 4-digit code and a new 4-digit code. Profile name editing uses `updateSingleUserProfile(profile)`.
+
+### 5.6 Confirm Page Disabled
+
+**File**: `src/routes/confirm/+page.svelte`
+
+Email confirmation is not used in single-user mode. The confirm page immediately redirects to `/login` on mount:
+
+```typescript
+onMount(() => {
+  goto('/login', { replaceState: true });
+});
+```
+
+### 5.7 Admin Privileges
+
+In single-user mode, `isAdmin()` always returns `true`. The single user has full access to all admin-gated features without any additional configuration.
+
+---
+
+## 6. Focus Timer State Machine
 
 **Files**: `src/lib/utils/focus.ts`, `src/lib/stores/focus.ts`
 
-### 5.1 State Diagram
+### 7.1 State Diagram
 
 ```
                     start()
@@ -316,7 +439,7 @@ The engine is initialized in `src/routes/+layout.ts` with Stellar's 13 entity ta
          +---------+              +---------+
 ```
 
-### 5.2 Phase Transitions
+### 7.2 Phase Transitions
 
 ```typescript
 function getNextPhase(session, settings): { phase, cycle, durationMs } {
@@ -341,7 +464,7 @@ function getNextPhase(session, settings): { phase, cycle, durationMs } {
 }
 ```
 
-### 5.3 Timer Precision
+### 7.3 Timer Precision
 
 The focus store uses a **100ms tick interval** for smooth countdown display:
 
@@ -360,7 +483,7 @@ function calculateRemainingMs(session: FocusSession): number {
 }
 ```
 
-### 5.4 Cross-Device Sync
+### 7.4 Cross-Device Sync
 
 When a focus session is started/paused/stopped on Device A, Device B receives the update via realtime and plays appropriate transition animations:
 
@@ -384,11 +507,11 @@ Device B: handleRealtimeUpdate() <------------------+
 
 ---
 
-## 6. PWA Architecture
+## 7. PWA Architecture
 
 **File**: `static/sw.js`
 
-### 6.1 Cache Strategy Overview
+### 7.1 Cache Strategy Overview
 
 ```
 +------------------------------------------------------------------+
@@ -431,7 +554,7 @@ Device B: handleRealtimeUpdate() <------------------+
 +------------------------------------------------------------------+
 ```
 
-### 6.2 Dual-Cache Architecture
+### 7.2 Dual-Cache Architecture
 
 ```
 stellar-assets-v1          (PERSISTENT - survives deploys)
@@ -449,7 +572,7 @@ stellar-shell-{APP_VERSION} (VERSIONED - one per deploy)
   +---> Old versions deleted on activate
 ```
 
-### 6.3 Background Precaching
+### 7.3 Background Precaching
 
 After activation, the service worker fetches an `asset-manifest.json` and precaches all application assets:
 
@@ -472,7 +595,7 @@ backgroundPrecache()
   +---> Notify clients: { type: 'PRECACHE_COMPLETE' }
 ```
 
-### 6.4 Update Flow
+### 7.4 Update Flow
 
 ```
 New deploy detected (new SW installed)
@@ -504,13 +627,13 @@ The controlled update flow (no `skipWaiting()` during install) prevents jarring 
 | **Offline-first architecture** | Full CRUD with IndexedDB, seamless online/offline transitions |
 | **Intent-based outbox** | 4 operation types, aggressive coalescing (11 rules), cross-operation optimization |
 | **Three-tier conflict resolution** | Field-level merging, device ID tiebreakers, audit trail |
-| **Dual-mode authentication** | Supabase + offline credential cache, reconnection security |
+| **Single-user auth mode** | Anonymous Supabase auth + local PIN gate, lock/unlock instead of sign-in/sign-out |
 | **Realtime + polling hybrid** | WebSocket for instant sync, polling as fallback, deduplication |
 | **Tombstone lifecycle** | Soft deletes, multi-device propagation, timed hard-delete cleanup |
 | **Egress optimization** | Column selection, coalescing, realtime-first, cursor-based, validation caching |
 | **PWA with dual caches** | Immutable asset persistence, versioned shell, background precaching |
 | **Focus timer FSM** | Phase transitions, cross-device sync, 100ms precision ticks |
-| **13-version schema evolution** | Data migrations, index additions, new tables without data loss |
+| **14-version schema evolution** | Data migrations, index additions, new tables without data loss |
 | **Mutex-protected sync** | Promise-based lock with stale detection, operation timeouts |
 | **Network state machine** | iOS PWA visibility handling, sequential reconnect callbacks |
 

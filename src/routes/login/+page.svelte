@@ -1,220 +1,193 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/stores';
   import {
-    signIn,
-    signUp,
-    resendConfirmationEmail,
-    resolveAuthState,
-    getValidSession,
-    signInOffline,
-    getOfflineLoginInfo
+    setupSingleUser,
+    unlockSingleUser,
+    getSingleUserInfo
   } from '@prabhask5/stellar-engine/auth';
-  import { isOnline } from '@prabhask5/stellar-engine/stores';
 
-  let mode: 'login' | 'signup' = $state('login');
-  let email = $state('');
-  let password = $state('');
-  let firstName = $state('');
-  let lastName = $state('');
-  let loading = $state(false);
-  let error = $state<string | null>(null);
-  let success = $state<string | null>(null);
-  let showPassword = $state(false);
+  // Layout data
+  const singleUserSetUp = $derived($page.data.singleUserSetUp);
 
-  // Get redirect URL from query params
+  // Redirect URL from query params
   const redirectUrl = $derived($page.url.searchParams.get('redirect') || '/');
 
-  // Offline login state - uses non-sensitive display info instead of full OfflineCredentials
-  let cachedCredentialInfo = $state<{
-    hasCredentials: boolean;
-    email?: string;
-    firstName?: string;
-    lastName?: string;
-  } | null>(null);
-  let isOfflineLoginMode = $derived(!$isOnline && cachedCredentialInfo?.hasCredentials === true);
-  let showNoInternetMessage = $derived(!$isOnline && !cachedCredentialInfo?.hasCredentials);
+  // Shared state
+  let loading = $state(false);
+  let error = $state<string | null>(null);
+  let shaking = $state(false);
+  let mounted = $state(false);
 
-  // Resend confirmation email state
-  let pendingConfirmationEmail = $state<string | null>(null);
-  let resendCooldown = $state(0);
-  let resendLoading = $state(false);
-  let resendIntervalId: ReturnType<typeof setInterval> | null = null;
+  // Setup mode state
+  let firstName = $state('');
+  let lastName = $state('');
+  let codeDigits = $state(['', '', '', '']);
+  let confirmDigits = $state(['', '', '', '']);
+  const code = $derived(codeDigits.join(''));
+  const confirmCode = $derived(confirmDigits.join(''));
+  let setupStep = $state(1); // 1 = name, 2 = code
 
-  // BroadcastChannel for inter-tab communication
-  const AUTH_CHANNEL_NAME = 'stellar-auth-channel';
-  let authChannel: BroadcastChannel | null = null;
+  // Unlock mode state
+  let unlockDigits = $state(['', '', '', '']);
+  const unlockCode = $derived(unlockDigits.join(''));
+  let userInfo = $state<{ firstName: string; lastName: string } | null>(null);
 
-  // Check for cached credentials on mount
+  // Input refs
+  let codeInputs: HTMLInputElement[] = $state([]);
+  let confirmInputs: HTMLInputElement[] = $state([]);
+  let unlockInputs: HTMLInputElement[] = $state([]);
+
   onMount(async () => {
-    cachedCredentialInfo = await getOfflineLoginInfo();
-
-    // Only redirect if user manually navigated to /login while authenticated
-    // (i.e., no redirect parameter was set by the protected layout)
-    const hasRedirectParam = $page.url.searchParams.has('redirect');
-    if (!hasRedirectParam) {
-      const { authMode } = await resolveAuthState();
-      if (authMode !== 'none') {
-        goto('/', { replaceState: true });
-        return;
+    mounted = true;
+    if (singleUserSetUp) {
+      const info = await getSingleUserInfo();
+      if (info) {
+        userInfo = {
+          firstName: (info.profile.firstName as string) || '',
+          lastName: (info.profile.lastName as string) || ''
+        };
       }
     }
-
-    // Listen for auth confirmation from other tabs
-    if ('BroadcastChannel' in window) {
-      authChannel = new BroadcastChannel(AUTH_CHANNEL_NAME);
-
-      authChannel.onmessage = async (event) => {
-        if (event.data.type === 'FOCUS_REQUEST' && event.data.authConfirmed) {
-          // Another tab confirmed auth - check our session independently (don't trust the message)
-          const session = await getValidSession();
-          if (session) {
-            goto(redirectUrl);
-          }
-        }
-      };
-    }
   });
 
-  onDestroy(() => {
-    authChannel?.close();
-    if (resendIntervalId) {
-      clearInterval(resendIntervalId);
-    }
-  });
+  function handleDigitInput(
+    digits: string[],
+    index: number,
+    event: Event,
+    inputs: HTMLInputElement[]
+  ) {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/[^0-9]/g, '');
 
-  async function handleSubmit(e: Event) {
+    if (value.length > 0) {
+      digits[index] = value.charAt(value.length - 1);
+      input.value = digits[index];
+      // Auto-focus next input
+      if (index < 3 && inputs[index + 1]) {
+        inputs[index + 1].focus();
+      }
+    } else {
+      digits[index] = '';
+    }
+  }
+
+  function handleDigitKeydown(
+    digits: string[],
+    index: number,
+    event: KeyboardEvent,
+    inputs: HTMLInputElement[]
+  ) {
+    if (event.key === 'Backspace') {
+      if (digits[index] === '' && index > 0 && inputs[index - 1]) {
+        inputs[index - 1].focus();
+        digits[index - 1] = '';
+      } else {
+        digits[index] = '';
+      }
+    }
+  }
+
+  function handleDigitPaste(
+    digits: string[],
+    event: ClipboardEvent,
+    inputs: HTMLInputElement[]
+  ) {
+    event.preventDefault();
+    const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '');
+    for (let i = 0; i < 4 && i < pasted.length; i++) {
+      digits[i] = pasted[i];
+      if (inputs[i]) inputs[i].value = pasted[i];
+    }
+    const focusIndex = Math.min(pasted.length, 3);
+    if (inputs[focusIndex]) inputs[focusIndex].focus();
+  }
+
+  function goToCodeStep() {
+    if (!firstName.trim()) {
+      error = 'First name is required';
+      return;
+    }
+    error = null;
+    setupStep = 2;
+  }
+
+  function goBackToNameStep() {
+    setupStep = 1;
+    error = null;
+  }
+
+  async function handleSetup(e: Event) {
     e.preventDefault();
-
-    // Prevent double-submit
     if (loading) return;
 
-    loading = true;
     error = null;
-    success = null;
 
-    // Handle offline login
-    if (isOfflineLoginMode && cachedCredentialInfo) {
-      await handleOfflineLogin();
-      loading = false;
+    if (code.length !== 4) {
+      error = 'Please enter a 4-digit code';
       return;
     }
 
-    if (mode === 'login') {
-      const result = await signIn(email, password);
-      if (result.error) {
-        error = result.error;
-      } else {
-        goto(redirectUrl);
-      }
-    } else {
-      if (!firstName.trim()) {
-        error = 'First name is required';
-        loading = false;
-        return;
-      }
-      const signupEmail = email; // Store before clearing
-      const result = await signUp(email, password, {
+    if (code !== confirmCode) {
+      error = 'Codes do not match';
+      return;
+    }
+
+    loading = true;
+
+    try {
+      await setupSingleUser(code, {
         firstName: firstName.trim(),
         lastName: lastName.trim()
       });
-      if (result.error) {
-        error = result.error;
-      } else if (result.session) {
-        goto(redirectUrl);
-      } else {
-        success = 'Check your email for the confirmation link!';
-        pendingConfirmationEmail = signupEmail;
-        mode = 'login';
-        // Clear form fields
-        email = '';
-        password = '';
-        firstName = '';
-        lastName = '';
-      }
+      await invalidateAll();
+      goto('/');
+    } catch (err: any) {
+      error = err?.message || 'Setup failed. Please try again.';
+    } finally {
+      loading = false;
     }
-
-    loading = false;
   }
 
-  async function handleResendEmail() {
-    if (!pendingConfirmationEmail || resendCooldown > 0 || resendLoading) return;
+  async function handleUnlock(e: Event) {
+    e.preventDefault();
+    if (loading) return;
 
-    resendLoading = true;
     error = null;
 
-    const result = await resendConfirmationEmail(pendingConfirmationEmail);
-
-    if (result.error) {
-      error = result.error;
-    } else {
-      // Start 30 second cooldown
-      resendCooldown = 30;
-      resendIntervalId = setInterval(() => {
-        resendCooldown--;
-        if (resendCooldown <= 0) {
-          if (resendIntervalId) {
-            clearInterval(resendIntervalId);
-            resendIntervalId = null;
-          }
-        }
-      }, 1000);
-    }
-
-    resendLoading = false;
-  }
-
-  async function handleOfflineLogin() {
-    if (!cachedCredentialInfo) return;
-
-    const result = await signInOffline(cachedCredentialInfo.email ?? '', password);
-    if (!result.success) {
-      switch (result.reason) {
-        case 'no_credentials':
-          error = 'No saved credentials found. Please connect to the internet to sign in.';
-          break;
-        case 'no_stored_password':
-          error =
-            'Saved credentials are incomplete. Please connect to the internet to sign in again.';
-          break;
-        case 'user_mismatch':
-        case 'email_mismatch':
-          error = 'Credentials have changed. Please refresh the page.';
-          cachedCredentialInfo = await getOfflineLoginInfo();
-          break;
-        case 'session_failed':
-          error = 'Failed to create offline session. Please try again.';
-          break;
-        case 'password_mismatch':
-        default:
-          error = 'Invalid password';
-          break;
-      }
+    if (unlockCode.length !== 4) {
+      error = 'Please enter your 4-digit code';
       return;
     }
 
-    // Navigate using SvelteKit and invalidate to re-run load functions
-    await invalidateAll();
-    goto(redirectUrl, { replaceState: true });
-  }
+    loading = true;
 
-  function toggleMode() {
-    // Don't allow toggling to signup when offline
-    if (!$isOnline && mode === 'login') {
-      return;
+    try {
+      await unlockSingleUser(unlockCode);
+      await invalidateAll();
+      goto(redirectUrl);
+    } catch (err: any) {
+      error = err?.message || 'Incorrect code';
+      // Trigger shake animation
+      shaking = true;
+      setTimeout(() => {
+        shaking = false;
+      }, 500);
+      // Clear digits
+      unlockDigits = ['', '', '', ''];
+      if (unlockInputs[0]) unlockInputs[0].focus();
+    } finally {
+      loading = false;
     }
-    mode = mode === 'login' ? 'signup' : 'login';
-    error = null;
-    success = null;
   }
 </script>
 
 <svelte:head>
-  <title>{mode === 'login' ? 'Sign In' : 'Sign Up'} - Stellar</title>
+  <title>{singleUserSetUp ? 'Unlock' : 'Welcome'} - Stellar</title>
 </svelte:head>
 
-<div class="login-page">
+<div class="login-page" class:mounted>
   <!-- Starfield (fixed, always covers viewport even when scrolling) -->
   <div class="starfield">
     <div class="stars stars-small"></div>
@@ -266,6 +239,7 @@
     <!-- Brand -->
     <div class="brand">
       <div class="brand-icon">
+        <div class="brand-glow"></div>
         <svg width="48" height="48" viewBox="0 0 100 100" fill="none">
           <circle
             cx="50"
@@ -299,341 +273,241 @@
       <p class="brand-tagline">Your universe of productivity awaits</p>
     </div>
 
-    <!-- No Internet Message (offline with no cached credentials) -->
-    {#if showNoInternetMessage}
-      <div class="login-card">
-        <div class="offline-message">
-          <div class="offline-icon">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="1" y1="1" x2="23" y2="23"></line>
-              <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
-              <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
-              <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
-              <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
-              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-              <line x1="12" y1="20" x2="12.01" y2="20"></line>
-            </svg>
-          </div>
-          <h2 class="card-title">Internet Required</h2>
-          <p class="offline-description">
-            Please connect to the internet to sign in. Once you've signed in online first, you'll be
-            able to sign in offline in the future.
-          </p>
-        </div>
-      </div>
-
-      <!-- Offline Login Form (offline with cached credentials) -->
-    {:else if isOfflineLoginMode && cachedCredentialInfo}
-      <div class="login-card">
-        <div class="offline-user-info">
-          <div class="offline-avatar">
-            {(cachedCredentialInfo.firstName || cachedCredentialInfo.email || 'U')
-              .charAt(0)
-              .toUpperCase()}
-          </div>
-          <h2 class="card-title">Continue as {cachedCredentialInfo.firstName || 'User'}</h2>
-          <p class="offline-email">{cachedCredentialInfo.email}</p>
-        </div>
-
-        <form onsubmit={handleSubmit}>
-          <div class="form-group">
-            <label for="password">Password</label>
-            <div class="password-input-wrapper">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                bind:value={password}
-                required
-                disabled={loading}
-                minlength="6"
-                placeholder="Enter your password"
-                autocomplete="current-password"
-              />
-              <button
-                type="button"
-                class="password-toggle"
-                onclick={() => (showPassword = !showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {#if showPassword}
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path
-                      d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
-                    />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </svg>
-                {:else}
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                {/if}
-              </button>
-            </div>
-          </div>
-
-          <p class="offline-hint">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="1" y1="1" x2="23" y2="23"></line>
-              <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
-              <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
-              <line x1="12" y1="20" x2="12.01" y2="20"></line>
-            </svg>
-            You're offline. Enter your password to continue.
-          </p>
-
-          {#if error}
-            <div class="message error">{error}</div>
-          {/if}
-
-          <button type="submit" class="btn btn-primary submit-btn" disabled={loading}>
-            {#if loading}
-              <span class="loading-spinner"></span>
-              Signing in...
-            {:else}
-              Continue Offline
-            {/if}
-          </button>
-        </form>
-
-        <div class="offline-switch-account">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-          Different account? Connect to internet to switch.
-        </div>
-      </div>
-
-      <!-- Normal Online Login/Signup Form -->
-    {:else}
-      <div class="login-card">
-        <h2 class="card-title">{mode === 'login' ? 'Welcome Back' : 'Sign up'}</h2>
-
-        <form onsubmit={handleSubmit}>
-          {#if mode === 'signup'}
-            <div class="name-row">
-              <div class="form-group">
-                <label for="firstName">First Name</label>
-                <input
-                  type="text"
-                  id="firstName"
-                  bind:value={firstName}
-                  required
-                  disabled={loading}
-                  placeholder="John"
-                />
-              </div>
-
-              <div class="form-group">
-                <label for="lastName">Last Name</label>
-                <input
-                  type="text"
-                  id="lastName"
-                  bind:value={lastName}
-                  disabled={loading}
-                  placeholder="Doe"
-                />
+    {#if singleUserSetUp}
+      <!-- Unlock Mode -->
+      <div class="login-card" class:shake={shaking}>
+        <div class="card-glow"></div>
+        <div class="card-inner">
+          <div class="unlock-user-info">
+            <div class="avatar-wrapper">
+              <div class="avatar-ring-outer"></div>
+              <div class="avatar-ring-inner"></div>
+              <div class="avatar">
+                {(userInfo?.firstName || 'U').charAt(0).toUpperCase()}
               </div>
             </div>
-          {/if}
-
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              bind:value={email}
-              required
-              disabled={loading}
-              placeholder="you@example.com"
-            />
+            <h2 class="card-title">Welcome back{userInfo?.firstName ? `, ${userInfo.firstName}` : ''}</h2>
+            <p class="card-subtitle">Enter your code to continue</p>
           </div>
 
-          <div class="form-group">
-            <label for="password">Password</label>
-            <div class="password-input-wrapper">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                bind:value={password}
-                required
-                disabled={loading}
-                minlength="6"
-                placeholder="Min 6 characters"
-              />
-              <button
-                type="button"
-                class="password-toggle"
-                onclick={() => (showPassword = !showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {#if showPassword}
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path
-                      d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+          <form onsubmit={handleUnlock}>
+            <div class="form-group">
+              <div class="code-label">Access Code</div>
+              <div class="code-input-group">
+                {#each unlockDigits as digit, i (i)}
+                  <div class="code-digit-wrapper" class:filled={digit !== ''}>
+                    <input
+                      class="code-digit"
+                      type="tel"
+                      inputmode="numeric"
+                      pattern="[0-9]"
+                      maxlength="1"
+                      bind:this={unlockInputs[i]}
+                      value={digit}
+                      oninput={(e) => handleDigitInput(unlockDigits, i, e, unlockInputs)}
+                      onkeydown={(e) => handleDigitKeydown(unlockDigits, i, e, unlockInputs)}
+                      onpaste={(e) => handleDigitPaste(unlockDigits, e, unlockInputs)}
+                      disabled={loading}
+                      autocomplete="off"
                     />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </svg>
-                {:else}
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                {/if}
-              </button>
+                  </div>
+                {/each}
+              </div>
             </div>
-          </div>
 
-          {#if error}
-            <div class="message error">{error}</div>
-          {/if}
-
-          {#if success}
-            <div class="message success">
-              <div class="success-content">
-                <svg
-                  class="success-icon"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
+            {#if error}
+              <div class="message error">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <span>{success}</span>
+                <span>{error}</span>
               </div>
-              {#if pendingConfirmationEmail}
-                <div class="resend-section">
-                  <span class="resend-text">Didn't receive it?</span>
-                  <button
-                    type="button"
-                    class="resend-btn"
-                    onclick={handleResendEmail}
-                    disabled={resendCooldown > 0 || resendLoading}
-                  >
-                    {#if resendLoading}
-                      <span class="resend-spinner"></span>
-                      Sending...
-                    {:else if resendCooldown > 0}
-                      Resend in {resendCooldown}s
-                    {:else}
-                      Resend email
-                    {/if}
-                  </button>
-                </div>
+            {/if}
+
+            <button type="submit" class="btn btn-primary submit-btn" disabled={loading}>
+              {#if loading}
+                <span class="loading-spinner"></span>
+                Unlocking...
+              {:else}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                </svg>
+                Unlock
               {/if}
+            </button>
+          </form>
+        </div>
+      </div>
+    {:else}
+      <!-- Setup Mode -->
+      <div class="login-card">
+        <div class="card-glow"></div>
+        <div class="card-inner">
+          {#if setupStep === 1}
+            <!-- Step 1: Name -->
+            <div class="setup-step">
+              <div class="step-indicator">
+                <div class="step-dot active"></div>
+                <div class="step-line"></div>
+                <div class="step-dot"></div>
+              </div>
+
+              <h2 class="card-title">Welcome to Stellar</h2>
+              <p class="card-subtitle">Let's get you set up. What's your name?</p>
+
+              <div class="form-fields">
+                <div class="name-row">
+                  <div class="form-group">
+                    <label for="firstName">First Name</label>
+                    <div class="input-wrapper">
+                      <input
+                        type="text"
+                        id="firstName"
+                        bind:value={firstName}
+                        required
+                        disabled={loading}
+                        placeholder="John"
+                      />
+                      <div class="input-glow"></div>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="lastName">Last Name</label>
+                    <div class="input-wrapper">
+                      <input
+                        type="text"
+                        id="lastName"
+                        bind:value={lastName}
+                        disabled={loading}
+                        placeholder="Doe"
+                      />
+                      <div class="input-glow"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {#if error}
+                  <div class="message error">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{error}</span>
+                  </div>
+                {/if}
+
+                <button type="button" class="btn btn-primary submit-btn" onclick={goToCodeStep}>
+                  Continue
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14" />
+                    <path d="M12 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
             </div>
-          {/if}
-
-          <button type="submit" class="btn btn-primary submit-btn" disabled={loading}>
-            {#if loading}
-              <span class="loading-spinner"></span>
-              {mode === 'login' ? 'Signing in...' : 'Creating account...'}
-            {:else}
-              {mode === 'login' ? 'Log In' : 'Sign Up'}
-            {/if}
-          </button>
-        </form>
-
-        <div class="toggle-mode">
-          {#if mode === 'login'}
-            Don't have an account?
-            {#if $isOnline}
-              <button type="button" class="link-btn" onclick={toggleMode}>Create account</button>
-            {:else}
-              <span class="signup-disabled">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <line x1="1" y1="1" x2="23" y2="23"></line>
-                  <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
-                  <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
-                  <line x1="12" y1="20" x2="12.01" y2="20"></line>
-                </svg>
-                Internet required to create account
-              </span>
-            {/if}
           {:else}
-            Already have an account?
-            <button type="button" class="link-btn" onclick={toggleMode}>Log in</button>
+            <!-- Step 2: Code -->
+            <div class="setup-step">
+              <div class="step-indicator">
+                <div class="step-dot completed">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                <div class="step-line active"></div>
+                <div class="step-dot active"></div>
+              </div>
+
+              <button type="button" class="back-link" onclick={goBackToNameStep}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 12H5" />
+                  <path d="M12 19l-7-7 7-7" />
+                </svg>
+                Back
+              </button>
+
+              <h2 class="card-title">Create Your Code</h2>
+              <p class="card-subtitle">Choose a 4-digit code to secure your account, {firstName.trim()}</p>
+
+              <form onsubmit={handleSetup}>
+                <div class="form-group">
+                  <div class="code-label">Your Code</div>
+                  <div class="code-input-group">
+                    {#each codeDigits as digit, i (i)}
+                      <div class="code-digit-wrapper" class:filled={digit !== ''}>
+                        <input
+                          class="code-digit"
+                          type="tel"
+                          inputmode="numeric"
+                          pattern="[0-9]"
+                          maxlength="1"
+                          bind:this={codeInputs[i]}
+                          value={digit}
+                          oninput={(e) => handleDigitInput(codeDigits, i, e, codeInputs)}
+                          onkeydown={(e) => handleDigitKeydown(codeDigits, i, e, codeInputs)}
+                          onpaste={(e) => handleDigitPaste(codeDigits, e, codeInputs)}
+                          disabled={loading}
+                          autocomplete="off"
+                        />
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <div class="code-label">Confirm Code</div>
+                  <div class="code-input-group">
+                    {#each confirmDigits as digit, i (i)}
+                      <div class="code-digit-wrapper" class:filled={digit !== ''}>
+                        <input
+                          class="code-digit"
+                          type="tel"
+                          inputmode="numeric"
+                          pattern="[0-9]"
+                          maxlength="1"
+                          bind:this={confirmInputs[i]}
+                          value={digit}
+                          oninput={(e) => handleDigitInput(confirmDigits, i, e, confirmInputs)}
+                          onkeydown={(e) => handleDigitKeydown(confirmDigits, i, e, confirmInputs)}
+                          onpaste={(e) => handleDigitPaste(confirmDigits, e, confirmInputs)}
+                          disabled={loading}
+                          autocomplete="off"
+                        />
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+
+                {#if error}
+                  <div class="message error">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{error}</span>
+                  </div>
+                {/if}
+
+                <button type="submit" class="btn btn-primary submit-btn" disabled={loading}>
+                  {#if loading}
+                    <span class="loading-spinner"></span>
+                    Setting up...
+                  {:else}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                    Get Started
+                  {/if}
+                </button>
+              </form>
+            </div>
           {/if}
         </div>
       </div>
@@ -648,15 +522,14 @@
 
   .login-page {
     inset: 0;
-    z-index: 200; /* Above navbar to prevent any flickering */
+    z-index: 200;
     position: fixed;
-    /* Extend into safe areas */
     height: calc(100vh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
     margin-top: calc(-1 * env(safe-area-inset-top, 0px));
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow-y: auto; /* Allow scrolling when content is larger than viewport */
+    overflow-y: auto;
     background: radial-gradient(
       ellipse at center,
       rgba(15, 15, 35, 1) 0%,
@@ -665,7 +538,6 @@
     );
   }
 
-  /* Background effects container - clips decorative elements without affecting content */
   .background-effects {
     position: absolute;
     inset: 0;
@@ -725,22 +597,13 @@
   }
 
   @keyframes starsDrift {
-    from {
-      transform: translateY(0) translateX(0);
-    }
-    to {
-      transform: translateY(-100px) translateX(-50px);
-    }
+    from { transform: translateY(0) translateX(0); }
+    to { transform: translateY(-100px) translateX(-50px); }
   }
 
   @keyframes starsTwinkle {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.6;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -761,9 +624,7 @@
     top: -250px;
     right: -200px;
     background: radial-gradient(ellipse, rgba(108, 92, 231, 0.6) 0%, transparent 70%);
-    animation:
-      nebulaPulse 8s ease-in-out infinite,
-      nebulaFloat 20s ease-in-out infinite;
+    animation: nebulaPulse 8s ease-in-out infinite, nebulaFloat 20s ease-in-out infinite;
   }
 
   .nebula-2 {
@@ -772,9 +633,7 @@
     bottom: -200px;
     left: -150px;
     background: radial-gradient(ellipse, rgba(255, 121, 198, 0.5) 0%, transparent 70%);
-    animation:
-      nebulaPulse 10s ease-in-out infinite 2s,
-      nebulaFloat 25s ease-in-out infinite reverse;
+    animation: nebulaPulse 10s ease-in-out infinite 2s, nebulaFloat 25s ease-in-out infinite reverse;
   }
 
   .nebula-3 {
@@ -788,28 +647,14 @@
   }
 
   @keyframes nebulaPulse {
-    0%,
-    100% {
-      opacity: 0.4;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.6;
-      transform: scale(1.1);
-    }
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.1); }
   }
 
   @keyframes nebulaFloat {
-    0%,
-    100% {
-      transform: translate(0, 0);
-    }
-    33% {
-      transform: translate(30px, -20px);
-    }
-    66% {
-      transform: translate(-20px, 30px);
-    }
+    0%, 100% { transform: translate(0, 0); }
+    33% { transform: translate(30px, -20px); }
+    66% { transform: translate(-20px, 30px); }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -833,33 +678,13 @@
     transform: translate(-50%, -50%);
   }
 
-  .orbit-1 {
-    width: 400px;
-    height: 400px;
-    animation: orbitRotate 40s linear infinite;
-  }
-
-  .orbit-2 {
-    width: 600px;
-    height: 600px;
-    border-color: rgba(255, 121, 198, 0.08);
-    animation: orbitRotate 60s linear infinite reverse;
-  }
-
-  .orbit-3 {
-    width: 800px;
-    height: 800px;
-    border-color: rgba(38, 222, 129, 0.06);
-    animation: orbitRotate 80s linear infinite;
-  }
+  .orbit-1 { width: 400px; height: 400px; animation: orbitRotate 40s linear infinite; }
+  .orbit-2 { width: 600px; height: 600px; border-color: rgba(255, 121, 198, 0.08); animation: orbitRotate 60s linear infinite reverse; }
+  .orbit-3 { width: 800px; height: 800px; border-color: rgba(38, 222, 129, 0.06); animation: orbitRotate 80s linear infinite; }
 
   @keyframes orbitRotate {
-    from {
-      transform: translate(-50%, -50%) rotate(0deg);
-    }
-    to {
-      transform: translate(-50%, -50%) rotate(360deg);
-    }
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
   }
 
   .orbit-particle {
@@ -873,17 +698,13 @@
 
   .particle-1 {
     background: var(--color-primary);
-    box-shadow:
-      0 0 15px var(--color-primary-glow),
-      0 0 30px var(--color-primary-glow);
+    box-shadow: 0 0 15px var(--color-primary-glow), 0 0 30px var(--color-primary-glow);
     animation: orbitParticle1 40s linear infinite;
   }
 
   .particle-2 {
     background: var(--color-accent);
-    box-shadow:
-      0 0 15px var(--color-accent-glow),
-      0 0 30px var(--color-accent-glow);
+    box-shadow: 0 0 15px var(--color-accent-glow), 0 0 30px var(--color-accent-glow);
     animation: orbitParticle2 60s linear infinite reverse;
     width: 4px;
     height: 4px;
@@ -891,39 +712,23 @@
 
   .particle-3 {
     background: var(--color-success);
-    box-shadow:
-      0 0 15px var(--color-success-glow),
-      0 0 30px var(--color-success-glow);
+    box-shadow: 0 0 15px var(--color-success-glow), 0 0 30px var(--color-success-glow);
     animation: orbitParticle3 80s linear infinite;
     width: 5px;
     height: 5px;
   }
 
   @keyframes orbitParticle1 {
-    from {
-      transform: rotate(0deg) translateX(200px) rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg) translateX(200px) rotate(-360deg);
-    }
+    from { transform: rotate(0deg) translateX(200px) rotate(0deg); }
+    to { transform: rotate(360deg) translateX(200px) rotate(-360deg); }
   }
-
   @keyframes orbitParticle2 {
-    from {
-      transform: rotate(0deg) translateX(300px) rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg) translateX(300px) rotate(-360deg);
-    }
+    from { transform: rotate(0deg) translateX(300px) rotate(0deg); }
+    to { transform: rotate(360deg) translateX(300px) rotate(-360deg); }
   }
-
   @keyframes orbitParticle3 {
-    from {
-      transform: rotate(0deg) translateX(400px) rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg) translateX(400px) rotate(-360deg);
-    }
+    from { transform: rotate(0deg) translateX(400px) rotate(0deg); }
+    to { transform: rotate(360deg) translateX(400px) rotate(-360deg); }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -934,12 +739,7 @@
     position: absolute;
     width: 120px;
     height: 2px;
-    background: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.8) 50%,
-      rgba(108, 92, 231, 1) 100%
-    );
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 50%, rgba(108, 92, 231, 1) 100%);
     border-radius: 100px;
     opacity: 0;
     pointer-events: none;
@@ -960,23 +760,10 @@
   }
 
   @keyframes shootingStar {
-    0%,
-    90%,
-    100% {
-      opacity: 0;
-      transform: rotate(-35deg) translateX(0);
-    }
-    92% {
-      opacity: 1;
-    }
-    95% {
-      opacity: 1;
-      transform: rotate(-35deg) translateX(350px);
-    }
-    96% {
-      opacity: 0;
-      transform: rotate(-35deg) translateX(400px);
-    }
+    0%, 90%, 100% { opacity: 0; transform: rotate(-35deg) translateX(0); }
+    92% { opacity: 1; }
+    95% { opacity: 1; transform: rotate(-35deg) translateX(350px); }
+    96% { opacity: 0; transform: rotate(-35deg) translateX(400px); }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -1003,21 +790,10 @@
   }
 
   @keyframes particleFloat {
-    0%,
-    100% {
-      transform: translateY(0) translateX(0);
-      opacity: var(--opacity);
-    }
-    25% {
-      transform: translateY(-30px) translateX(15px);
-    }
-    50% {
-      transform: translateY(-50px) translateX(-10px);
-      opacity: calc(var(--opacity) * 1.5);
-    }
-    75% {
-      transform: translateY(-20px) translateX(20px);
-    }
+    0%, 100% { transform: translateY(0) translateX(0); opacity: var(--opacity); }
+    25% { transform: translateY(-30px) translateX(15px); }
+    50% { transform: translateY(-50px) translateX(-10px); opacity: calc(var(--opacity) * 1.5); }
+    75% { transform: translateY(-20px) translateX(20px); }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -1030,24 +806,23 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center; /* Center children vertically */
+    justify-content: center;
     gap: 2rem;
     padding: 2rem;
     width: 100%;
     max-width: 440px;
     margin: auto;
-    animation: contentReveal 1s ease-out forwards;
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+
+  .mounted .login-content {
+    animation: contentReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   @keyframes contentReveal {
-    0% {
-      opacity: 0;
-      transform: translateY(30px) scale(0.95);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
+    0% { opacity: 0; transform: translateY(40px) scale(0.95); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -1063,29 +838,33 @@
   }
 
   .brand-icon {
+    position: relative;
     animation: brandFloat 4s ease-in-out infinite;
     filter: drop-shadow(0 0 30px var(--color-primary-glow));
   }
 
+  .brand-glow {
+    position: absolute;
+    inset: -20px;
+    background: radial-gradient(circle, rgba(108, 92, 231, 0.4) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: brandGlowPulse 3s ease-in-out infinite;
+  }
+
+  @keyframes brandGlowPulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.2); }
+  }
+
   @keyframes brandFloat {
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-8px);
-    }
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
   }
 
   .brand-title {
     font-size: 2.5rem;
     font-weight: 800;
-    background: linear-gradient(
-      135deg,
-      var(--color-text) 0%,
-      var(--color-primary-light) 50%,
-      var(--color-text) 100%
-    );
+    background: linear-gradient(135deg, var(--color-text) 0%, var(--color-primary-light) 50%, var(--color-text) 100%);
     background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -1096,12 +875,8 @@
   }
 
   @keyframes textShimmer {
-    0% {
-      background-position: 0% center;
-    }
-    100% {
-      background-position: 200% center;
-    }
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
   }
 
   .brand-tagline {
@@ -1113,52 +888,244 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     LOGIN CARD
+     LOGIN CARD — Cinematic glass card with animated border
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .login-card {
     width: 100%;
-    padding: 2.5rem;
-    background: linear-gradient(165deg, rgba(15, 15, 30, 0.9) 0%, rgba(20, 20, 40, 0.85) 100%);
-    border: 1px solid rgba(108, 92, 231, 0.25);
+    position: relative;
     border-radius: var(--radius-2xl);
+    padding: 2px; /* Space for animated gradient border */
+    background: linear-gradient(
+      135deg,
+      rgba(108, 92, 231, 0.5),
+      rgba(255, 121, 198, 0.3),
+      rgba(38, 222, 129, 0.2),
+      rgba(0, 212, 255, 0.3),
+      rgba(108, 92, 231, 0.5)
+    );
+    background-size: 300% 300%;
+    animation: borderGlow 6s ease-in-out infinite;
+  }
+
+  @keyframes borderGlow {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .card-glow {
+    position: absolute;
+    inset: -40px;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(108, 92, 231, 0.15) 0%,
+      transparent 70%
+    );
+    border-radius: 50%;
+    pointer-events: none;
+    animation: cardGlowPulse 4s ease-in-out infinite;
+  }
+
+  @keyframes cardGlowPulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  .card-inner {
+    background: linear-gradient(165deg, rgba(15, 15, 30, 0.95) 0%, rgba(20, 20, 40, 0.92) 100%);
+    border-radius: calc(var(--radius-2xl) - 2px);
+    padding: 2.5rem;
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     box-shadow:
       0 32px 80px rgba(0, 0, 0, 0.5),
-      0 0 0 1px rgba(255, 255, 255, 0.03) inset,
-      0 0 100px rgba(108, 92, 231, 0.1);
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
     position: relative;
+    overflow: hidden;
   }
 
-  /* Top glow line */
-  .login-card::before {
+  /* Subtle inner light streaks */
+  .card-inner::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 15%;
-    right: 15%;
+    left: 10%;
+    right: 10%;
     height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(108, 92, 231, 0.5),
-      rgba(255, 255, 255, 0.3),
-      rgba(255, 121, 198, 0.4),
-      transparent
-    );
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), rgba(108, 92, 231, 0.3), rgba(255, 255, 255, 0.15), transparent);
+  }
+
+  .card-inner::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 20%;
+    right: 20%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 121, 198, 0.15), transparent);
   }
 
   .card-title {
     text-align: center;
-    margin: 0 0 2rem 0;
+    margin: 0 0 0.5rem 0;
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--color-text);
     letter-spacing: -0.02em;
   }
 
+  .card-subtitle {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.9375rem;
+    margin: 0 0 2rem 0;
+    opacity: 0.8;
+    line-height: 1.5;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     UNLOCK MODE — Avatar & User Info
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .unlock-user-info {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .avatar-wrapper {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.25rem;
+  }
+
+  .avatar {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gradient-primary);
+    color: white;
+    font-weight: 700;
+    font-size: 2rem;
+    border-radius: 50%;
+    position: relative;
+    z-index: 2;
+    box-shadow:
+      0 4px 20px var(--color-primary-glow),
+      0 0 40px rgba(108, 92, 231, 0.2);
+  }
+
+  .avatar-ring-outer {
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    border: 1px solid rgba(108, 92, 231, 0.3);
+    animation: avatarRingPulse 3s ease-in-out infinite;
+  }
+
+  .avatar-ring-inner {
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1px solid rgba(108, 92, 231, 0.5);
+    animation: avatarRingPulse 3s ease-in-out infinite 0.5s;
+  }
+
+  @keyframes avatarRingPulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.05); opacity: 0.3; }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     SETUP MODE — Step Indicator & Transitions
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .setup-step {
+    animation: stepFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes stepFadeIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 1.75rem;
+  }
+
+  .step-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(108, 92, 231, 0.1);
+    border: 2px solid rgba(108, 92, 231, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .step-dot.active {
+    background: var(--gradient-primary);
+    border-color: rgba(108, 92, 231, 0.6);
+    box-shadow: 0 0 20px var(--color-primary-glow);
+  }
+
+  .step-dot.completed {
+    background: linear-gradient(135deg, rgba(38, 222, 129, 0.8), rgba(0, 212, 255, 0.6));
+    border-color: rgba(38, 222, 129, 0.6);
+    box-shadow: 0 0 15px rgba(38, 222, 129, 0.3);
+    color: white;
+  }
+
+  .step-line {
+    width: 60px;
+    height: 2px;
+    background: rgba(108, 92, 231, 0.15);
+    transition: all 0.3s ease;
+  }
+
+  .step-line.active {
+    background: linear-gradient(90deg, rgba(38, 222, 129, 0.6), rgba(108, 92, 231, 0.6));
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem 0;
+    margin-bottom: 1rem;
+    transition: color 0.2s ease;
+  }
+
+  .back-link:hover {
+    color: var(--color-primary-light);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     FORM ELEMENTS
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .form-fields {
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
@@ -1184,132 +1151,144 @@
     letter-spacing: 0.1em;
   }
 
+  .input-wrapper {
+    position: relative;
+  }
+
+  .input-glow {
+    position: absolute;
+    inset: -1px;
+    border-radius: var(--radius-lg);
+    opacity: 0;
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.4), rgba(255, 121, 198, 0.3));
+    filter: blur(8px);
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .input-wrapper:focus-within .input-glow {
+    opacity: 1;
+  }
+
   input {
     width: 100%;
     padding: 0.875rem 1rem;
-    font-size: 1rem;
-  }
-
-  .password-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-
-  .password-input-wrapper input {
-    padding-right: 3rem;
-  }
-
-  .password-toggle {
-    position: absolute;
-    right: 0.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    background: none;
-    border: none;
-    border-radius: var(--radius-md);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .password-toggle:hover {
+    font-size: 16px; /* Prevents iOS zoom */
     color: var(--color-text);
-    background: rgba(108, 92, 231, 0.15);
+    background: rgba(10, 10, 18, 0.6);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-radius: var(--radius-lg);
+    transition: all 0.3s ease;
+    position: relative;
   }
 
-  .password-toggle:focus {
+  input:focus {
     outline: none;
-    box-shadow: 0 0 0 2px var(--color-primary-glow);
+    border-color: rgba(108, 92, 231, 0.5);
+    box-shadow: 0 0 24px var(--color-primary-glow);
+    background: rgba(10, 10, 18, 0.8);
   }
+
+  input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     PIN CODE INPUTS — Glowing digit boxes
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .code-input-group {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .code-digit-wrapper {
+    position: relative;
+  }
+
+  .code-digit-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: calc(var(--radius-lg) + 2px);
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.3), rgba(255, 121, 198, 0.2));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+    filter: blur(6px);
+  }
+
+  .code-digit-wrapper.filled::after {
+    opacity: 1;
+  }
+
+  .code-digit {
+    width: 56px;
+    height: 64px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    caret-color: var(--color-primary-light);
+    padding: 0;
+    transition: all 0.3s ease;
+  }
+
+  .code-digit:focus {
+    border-color: rgba(108, 92, 231, 0.6);
+    box-shadow: 0 0 24px var(--color-primary-glow), 0 0 0 2px rgba(108, 92, 231, 0.2);
+    transform: translateY(-2px);
+  }
+
+  .code-digit-wrapper.filled .code-digit {
+    border-color: rgba(108, 92, 231, 0.4);
+    background: rgba(108, 92, 231, 0.08);
+  }
+
+  .code-label {
+    text-align: center;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.75rem;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     MESSAGES
+     ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .message {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     padding: 1rem;
     border-radius: var(--radius-lg);
     font-size: 0.875rem;
     font-weight: 600;
     backdrop-filter: blur(16px);
+    animation: messageFadeIn 0.3s ease-out;
+  }
+
+  @keyframes messageFadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .error {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 107, 107, 0.2) 0%,
-      rgba(255, 107, 107, 0.06) 100%
-    );
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.2) 0%, rgba(255, 107, 107, 0.06) 100%);
     color: var(--color-red);
     border: 1px solid rgba(255, 107, 107, 0.4);
     box-shadow: 0 0 20px rgba(255, 107, 107, 0.1);
   }
 
-  .success {
-    background: linear-gradient(135deg, rgba(38, 222, 129, 0.2) 0%, rgba(38, 222, 129, 0.06) 100%);
-    color: var(--color-green);
-    border: 1px solid rgba(38, 222, 129, 0.4);
-    box-shadow: 0 0 20px rgba(38, 222, 129, 0.1);
-  }
-
-  .success-content {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .success-icon {
-    flex-shrink: 0;
-  }
-
-  .resend-section {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid rgba(38, 222, 129, 0.2);
-  }
-
-  .resend-text {
-    font-size: 0.8125rem;
-    opacity: 0.9;
-  }
-
-  .resend-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.75rem;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--color-green);
-    background: rgba(38, 222, 129, 0.15);
-    border: 1px solid rgba(38, 222, 129, 0.3);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .resend-btn:hover:not(:disabled) {
-    background: rgba(38, 222, 129, 0.25);
-    border-color: rgba(38, 222, 129, 0.5);
-  }
-
-  .resend-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .resend-spinner {
-    width: 12px;
-    height: 12px;
-    border: 2px solid rgba(38, 222, 129, 0.3);
-    border-top-color: var(--color-green);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     BUTTONS
+     ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .submit-btn {
     width: 100%;
@@ -1320,6 +1299,30 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Shimmer effect on button */
+  .submit-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    animation: buttonShimmer 3s ease-in-out infinite;
+  }
+
+  @keyframes buttonShimmer {
+    0% { left: -100%; }
+    50%, 100% { left: 100%; }
   }
 
   .submit-btn:disabled {
@@ -1327,6 +1330,10 @@
     cursor: not-allowed;
     transform: none !important;
     box-shadow: none !important;
+  }
+
+  .submit-btn:disabled::after {
+    display: none;
   }
 
   .loading-spinner {
@@ -1339,230 +1346,95 @@
   }
 
   @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  .toggle-mode {
-    text-align: center;
-    margin-top: 1.75rem;
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
-    padding-top: 1.75rem;
-    border-top: 1px solid rgba(108, 92, 231, 0.15);
-  }
-
-  .link-btn {
-    color: var(--color-primary-light);
-    font-weight: 700;
-    padding: 0.375rem 0.75rem;
-    margin-left: 0.25rem;
-    border-radius: var(--radius-lg);
-    transition: all 0.3s var(--ease-spring);
-    border: 1px solid transparent;
-  }
-
-  .link-btn:hover {
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.2) 0%, rgba(108, 92, 231, 0.1) 100%);
-    border-color: rgba(108, 92, 231, 0.3);
-    box-shadow: 0 0 20px var(--color-primary-glow);
-    transform: scale(1.05);
+    to { transform: rotate(360deg); }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     RESPONSIVE - Large Screens and Tablets
+     SHAKE ANIMATION
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
-  /* Large screens - more dramatic effects */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+    20%, 40%, 60%, 80% { transform: translateX(6px); }
+  }
+
+  .shake {
+    animation: shake 0.5s ease-in-out;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     RESPONSIVE — Large Screens
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   @media (min-width: 1200px) {
-    .login-content {
-      max-width: 480px;
-    }
-
-    .brand-icon svg {
-      width: 56px;
-      height: 56px;
-    }
-
-    .brand-title {
-      font-size: 3rem;
-    }
-
-    .brand-tagline {
-      font-size: 1.125rem;
-    }
-
-    .login-card {
-      padding: 3rem;
-    }
-
-    .orbit-1 {
-      width: 500px;
-      height: 500px;
-    }
-    .orbit-2 {
-      width: 750px;
-      height: 750px;
-    }
-    .orbit-3 {
-      width: 1000px;
-      height: 1000px;
-    }
-
-    .nebula-1 {
-      width: 800px;
-      height: 800px;
-    }
-    .nebula-2 {
-      width: 700px;
-      height: 700px;
-    }
-    .nebula-3 {
-      width: 600px;
-      height: 600px;
-    }
+    .login-content { max-width: 480px; }
+    .brand-icon svg { width: 56px; height: 56px; }
+    .brand-title { font-size: 3rem; }
+    .brand-tagline { font-size: 1.125rem; }
+    .card-inner { padding: 3rem; }
+    .orbit-1 { width: 500px; height: 500px; }
+    .orbit-2 { width: 750px; height: 750px; }
+    .orbit-3 { width: 1000px; height: 1000px; }
+    .nebula-1 { width: 800px; height: 800px; }
+    .nebula-2 { width: 700px; height: 700px; }
+    .nebula-3 { width: 600px; height: 600px; }
   }
 
   /* Tablets */
   @media (min-width: 768px) and (max-width: 1199px) {
-    .login-content {
-      max-width: 460px;
-    }
-
-    .brand-icon svg {
-      width: 52px;
-      height: 52px;
-    }
-
-    .brand-title {
-      font-size: 2.75rem;
-    }
-
-    .login-card {
-      padding: 2.75rem;
-    }
+    .login-content { max-width: 460px; }
+    .brand-icon svg { width: 52px; height: 52px; }
+    .brand-title { font-size: 2.75rem; }
+    .card-inner { padding: 2.75rem; }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     RESPONSIVE - Mobile Devices
+     RESPONSIVE — Mobile Devices
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @media (max-width: 767px) {
-    .login-content {
-      padding: 1.5rem;
-      gap: 1.5rem;
-    }
+    .login-content { padding: 1.5rem; gap: 1.5rem; }
+    .brand-icon svg { width: 44px; height: 44px; }
+    .brand-title { font-size: 2.25rem; }
+    .brand-tagline { font-size: 0.9375rem; }
+    .card-inner { padding: 2rem; }
+    .card-title { font-size: 1.375rem; }
 
-    .brand-icon svg {
-      width: 44px;
-      height: 44px;
-    }
-
-    .brand-title {
-      font-size: 2.25rem;
-    }
-
-    .brand-tagline {
-      font-size: 0.9375rem;
-    }
-
-    .login-card {
-      padding: 2rem;
-    }
-
-    .card-title {
-      font-size: 1.375rem;
-      margin-bottom: 1.75rem;
-    }
-
-    .orbit-1 {
-      width: 320px;
-      height: 320px;
-    }
-    .orbit-2 {
-      width: 480px;
-      height: 480px;
-    }
-    .orbit-3 {
-      width: 640px;
-      height: 640px;
-    }
+    .orbit-1 { width: 320px; height: 320px; }
+    .orbit-2 { width: 480px; height: 480px; }
+    .orbit-3 { width: 640px; height: 640px; }
 
     @keyframes orbitParticle1 {
-      from {
-        transform: rotate(0deg) translateX(160px) rotate(0deg);
-      }
-      to {
-        transform: rotate(360deg) translateX(160px) rotate(-360deg);
-      }
+      from { transform: rotate(0deg) translateX(160px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(160px) rotate(-360deg); }
     }
-
     @keyframes orbitParticle2 {
-      from {
-        transform: rotate(0deg) translateX(240px) rotate(0deg);
-      }
-      to {
-        transform: rotate(360deg) translateX(240px) rotate(-360deg);
-      }
+      from { transform: rotate(0deg) translateX(240px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(240px) rotate(-360deg); }
     }
-
     @keyframes orbitParticle3 {
-      from {
-        transform: rotate(0deg) translateX(320px) rotate(0deg);
-      }
-      to {
-        transform: rotate(360deg) translateX(320px) rotate(-360deg);
-      }
+      from { transform: rotate(0deg) translateX(320px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(320px) rotate(-360deg); }
     }
 
-    .nebula-1 {
-      width: 500px;
-      height: 500px;
-    }
-    .nebula-2 {
-      width: 450px;
-      height: 450px;
-    }
-    .nebula-3 {
-      width: 400px;
-      height: 400px;
-    }
+    .nebula-1 { width: 500px; height: 500px; }
+    .nebula-2 { width: 450px; height: 450px; }
+    .nebula-3 { width: 400px; height: 400px; }
   }
 
   /* iPhone 16 Pro / 15 Pro / 14 Pro (393px width) */
   @media (min-width: 390px) and (max-width: 429px) {
-    .login-content {
-      padding: 1.25rem;
-      gap: 1.75rem;
-    }
-
-    .brand-icon svg {
-      width: 48px;
-      height: 48px;
-    }
-
-    .brand-title {
-      font-size: 2.5rem;
-    }
-
-    .brand-tagline {
-      font-size: 1rem;
-    }
-
-    .login-card {
-      padding: 2rem;
-      border-radius: 24px;
-    }
-
-    .card-title {
-      font-size: 1.5rem;
-      margin-bottom: 1.75rem;
-    }
+    .login-content { padding: 1.25rem; gap: 1.75rem; }
+    .brand-icon svg { width: 48px; height: 48px; }
+    .brand-title { font-size: 2.5rem; }
+    .brand-tagline { font-size: 1rem; }
+    .card-inner { padding: 2rem; border-radius: 22px; }
+    .card-title { font-size: 1.5rem; }
+    .login-card { border-radius: 24px; }
 
     input {
       padding: 1rem 1.125rem;
-      font-size: 1rem;
       border-radius: 14px;
     }
 
@@ -1572,264 +1444,93 @@
       border-radius: 14px;
     }
 
-    .offline-avatar {
-      width: 72px;
-      height: 72px;
-      font-size: 1.75rem;
-    }
-
-    .offline-hint {
-      padding: 1rem;
-      font-size: 0.875rem;
-    }
+    .avatar-wrapper { width: 72px; height: 72px; }
+    .avatar { width: 72px; height: 72px; font-size: 1.75rem; }
   }
 
   /* iPhone 16 Pro Max / 15 Pro Max (430px width) */
   @media (min-width: 430px) and (max-width: 480px) {
-    .login-content {
-      padding: 1.5rem;
-      gap: 2rem;
-    }
+    .login-content { padding: 1.5rem; gap: 2rem; }
+    .brand-icon svg { width: 52px; height: 52px; }
+    .brand-title { font-size: 2.75rem; }
+    .card-inner { padding: 2.25rem; }
+    .card-title { font-size: 1.5rem; }
 
-    .brand-icon svg {
-      width: 52px;
-      height: 52px;
-    }
+    .avatar-wrapper { width: 80px; height: 80px; }
+    .avatar { width: 80px; height: 80px; font-size: 2rem; }
 
-    .brand-title {
-      font-size: 2.75rem;
-    }
-
-    .login-card {
-      padding: 2.25rem;
-    }
-
-    .card-title {
-      font-size: 1.5rem;
-    }
-
-    .offline-avatar {
-      width: 76px;
-      height: 76px;
-      font-size: 1.875rem;
-    }
+    .code-digit { width: 60px; height: 68px; font-size: 1.625rem; }
   }
 
   /* Small devices (iPhone SE, older phones) */
   @media (max-width: 389px) {
-    .login-content {
-      padding: 1rem;
-      gap: 1.25rem;
-    }
+    .login-content { padding: 1rem; gap: 1.25rem; }
+    .brand-icon svg { width: 40px; height: 40px; }
+    .brand-title { font-size: 2rem; }
+    .brand-tagline { font-size: 0.8125rem; }
+    .card-inner { padding: 1.5rem; }
+    .card-title { font-size: 1.25rem; }
+    .card-subtitle { font-size: 0.8125rem; }
 
-    .brand-icon svg {
-      width: 40px;
-      height: 40px;
-    }
-
-    .brand-title {
-      font-size: 2rem;
-    }
-
-    .brand-tagline {
-      font-size: 0.8125rem;
-    }
-
-    .login-card {
-      padding: 1.5rem;
-    }
-
-    .card-title {
-      font-size: 1.25rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .name-row {
-      grid-template-columns: 1fr;
-    }
-
-    input {
-      padding: 0.75rem 0.875rem;
-      font-size: 0.9375rem;
-    }
+    .name-row { grid-template-columns: 1fr; }
 
     .submit-btn {
       padding: 0.875rem;
       font-size: 0.9375rem;
     }
 
-    .offline-avatar {
-      width: 56px;
-      height: 56px;
-      font-size: 1.375rem;
-    }
+    .avatar-wrapper { width: 60px; height: 60px; }
+    .avatar { width: 60px; height: 60px; font-size: 1.5rem; }
 
-    .offline-hint {
-      font-size: 0.75rem;
-      padding: 0.625rem;
-    }
+    .code-digit { width: 48px; height: 56px; font-size: 1.25rem; }
+    .code-input-group { gap: 0.5rem; }
 
-    .orbit-1 {
-      width: 240px;
-      height: 240px;
-    }
-    .orbit-2 {
-      width: 360px;
-      height: 360px;
-    }
-    .orbit-3 {
-      width: 480px;
-      height: 480px;
-    }
+    .step-line { width: 40px; }
+
+    .orbit-1 { width: 240px; height: 240px; }
+    .orbit-2 { width: 360px; height: 360px; }
+    .orbit-3 { width: 480px; height: 480px; }
 
     @keyframes orbitParticle1 {
-      from {
-        transform: rotate(0deg) translateX(120px) rotate(0deg);
-      }
-      to {
-        transform: rotate(360deg) translateX(120px) rotate(-360deg);
-      }
+      from { transform: rotate(0deg) translateX(120px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
     }
-
     @keyframes orbitParticle2 {
-      from {
-        transform: rotate(0deg) translateX(180px) rotate(0deg);
-      }
-      to {
-        transform: rotate(360deg) translateX(180px) rotate(-360deg);
-      }
+      from { transform: rotate(0deg) translateX(180px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(180px) rotate(-360deg); }
     }
-
     @keyframes orbitParticle3 {
-      from {
-        transform: rotate(0deg) translateX(240px) rotate(0deg);
-      }
-      to {
-        transform: rotate(360deg) translateX(240px) rotate(-360deg);
-      }
+      from { transform: rotate(0deg) translateX(240px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(240px) rotate(-360deg); }
     }
 
-    .nebula-1 {
-      width: 350px;
-      height: 350px;
-    }
-    .nebula-2 {
-      width: 300px;
-      height: 300px;
-    }
-    .nebula-3 {
-      width: 250px;
-      height: 250px;
-    }
-  }
-
-  /* Reduced motion */
-  @media (prefers-reduced-motion: reduce) {
-    .stars,
-    .nebula,
-    .orbit,
-    .orbit-particle,
-    .shooting-star,
-    .particle,
-    .brand-icon {
-      animation: none;
-    }
-
-    .brand-title {
-      animation: none;
-    }
-
-    .login-content {
-      animation: none;
-      opacity: 1;
-    }
+    .nebula-1 { width: 350px; height: 350px; }
+    .nebula-2 { width: 300px; height: 300px; }
+    .nebula-3 { width: 250px; height: 250px; }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     OFFLINE LOGIN STYLES
+     REDUCED MOTION
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
-  .offline-message {
-    text-align: center;
-    padding: 1rem 0;
-  }
+  @media (prefers-reduced-motion: reduce) {
+    .stars, .nebula, .orbit, .orbit-particle, .shooting-star,
+    .particle, .brand-icon, .brand-glow, .card-glow,
+    .avatar-ring-outer, .avatar-ring-inner {
+      animation: none;
+    }
 
-  .offline-icon {
-    color: var(--color-text-muted);
-    margin-bottom: 1.5rem;
-    opacity: 0.7;
-  }
+    .brand-title { animation: none; }
+    .login-card { animation: none; background: rgba(108, 92, 231, 0.3); }
+    .submit-btn::after { animation: none; display: none; }
+    .setup-step { animation: none; opacity: 1; }
 
-  .offline-description {
-    color: var(--color-text-muted);
-    font-size: 0.9375rem;
-    line-height: 1.6;
-    margin: 1rem 0 0;
-  }
+    .login-content, .mounted .login-content {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
 
-  .offline-user-info {
-    text-align: center;
-    margin-bottom: 1.5rem;
-  }
-
-  .offline-avatar {
-    width: 64px;
-    height: 64px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--gradient-primary);
-    color: white;
-    font-weight: 700;
-    font-size: 1.5rem;
-    border-radius: 50%;
-    margin: 0 auto 1rem;
-    box-shadow: 0 4px 20px var(--color-primary-glow);
-  }
-
-  .offline-email {
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
-    margin: 0.5rem 0 0;
-  }
-
-  .offline-hint {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    color: var(--color-text-muted);
-    font-size: 0.8125rem;
-    margin: 0.5rem 0 1rem;
-    padding: 0.75rem;
-    background: rgba(108, 92, 231, 0.1);
-    border-radius: var(--radius-lg);
-    border: 1px solid rgba(108, 92, 231, 0.2);
-  }
-
-  .offline-switch-account {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 1.75rem;
-    padding-top: 1.75rem;
-    border-top: 1px solid rgba(108, 92, 231, 0.15);
-    color: var(--color-text-muted);
-    font-size: 0.8125rem;
-  }
-
-  .signup-disabled {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    color: var(--color-text-muted);
-    font-size: 0.8125rem;
-    opacity: 0.7;
-    margin-left: 0.25rem;
-  }
-
-  .offline-user-info .card-title {
-    margin-bottom: 0;
+    .code-digit:focus { transform: none; }
   }
 </style>

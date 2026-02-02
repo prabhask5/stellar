@@ -4,7 +4,7 @@
   import { fade } from 'svelte/transition';
   import { page } from '$app/stores';
   import { browser } from '$app/environment';
-  import { signOut, getUserProfile } from '@prabhask5/stellar-engine/auth';
+  import { lockSingleUser, getUserProfile } from '@prabhask5/stellar-engine/auth';
   import { authState } from '@prabhask5/stellar-engine/stores';
   import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
   import { debug } from '@prabhask5/stellar-engine/utils';
@@ -41,9 +41,6 @@
     }
   });
 
-  const AUTH_CHANNEL_NAME = 'stellar-auth-channel';
-  let authChannel: BroadcastChannel | null = null;
-
   onMount(() => {
     // Handle chunk loading failures during offline navigation
     // When navigating offline to a page whose JS chunks aren't cached,
@@ -74,32 +71,6 @@
 
     // Listen for sign out requests from child pages (e.g. mobile profile page)
     window.addEventListener('stellar:signout', handleSignOut);
-
-    // Listen for focus requests from confirmation page
-    // This allows the confirmation tab to communicate with any open Stellar tab
-    if ('BroadcastChannel' in window) {
-      authChannel = new BroadcastChannel(AUTH_CHANNEL_NAME);
-
-      authChannel.onmessage = async (event) => {
-        if (event.data.type === 'FOCUS_REQUEST') {
-          // Respond that this tab is present
-          authChannel?.postMessage({ type: 'TAB_PRESENT' });
-          // Focus this window/tab
-          window.focus();
-          // If auth was just confirmed, handle the auth state update
-          if (event.data.authConfirmed) {
-            // The login page has its own handler that navigates to home
-            // For other pages, we need to check auth and navigate/reload appropriately
-            const isOnLoginPage = window.location.pathname.startsWith('/login');
-            if (!isOnLoginPage) {
-              // On protected pages, reload to refresh auth state
-              window.location.reload();
-            }
-            // Login page handles its own navigation via its own BroadcastChannel listener
-          }
-        }
-      };
-    }
 
     // Proactively cache all app chunks for full offline support
     // This runs in the background after page load, so it doesn't affect Lighthouse scores
@@ -168,8 +139,6 @@
       // Cleanup sign out listener
       window.removeEventListener('stellar:signout', handleSignOut);
     }
-    // Cleanup auth channel
-    authChannel?.close();
   });
 
   // Get user's first name from appropriate source
@@ -203,10 +172,9 @@
   // Hide navbar on login page (it has its own full-screen layout)
   // Also hide during initial loading to prevent flicker
   const isOnLoginPage = $derived($page.url.pathname.startsWith('/login'));
-  const isOnConfirmPage = $derived($page.url.pathname.startsWith('/confirm'));
   const isOnSetupPage = $derived($page.url.pathname.startsWith('/setup'));
   const isSetupNoAuth = $derived(isOnSetupPage && data.authMode === 'none');
-  const isAuthPage = $derived(isOnLoginPage || isOnConfirmPage || isSetupNoAuth);
+  const isAuthPage = $derived(isOnLoginPage || isSetupNoAuth);
   const isAuthenticated = $derived(
     data.authMode !== 'none' && !isAuthPage && !$authState.isLoading
   );
@@ -225,12 +193,10 @@
     // Wait for overlay to fully appear
     await new Promise((resolve) => setTimeout(resolve, 250));
 
-    // Engine's signOut handles ALL cleanup:
-    // stop engine, clear queue, clear cache, clear offline session/credentials,
-    // Supabase signOut, clear sb-* localStorage, reset stores
-    await signOut({ preserveOfflineCredentials: !navigator.onLine });
+    // Lock the single-user session (stops engine, resets auth state, does NOT destroy data)
+    await lockSingleUser();
 
-    // Navigate to login - overlay stays visible during navigation
+    // Navigate to login
     window.location.href = '/login';
   }
 
@@ -296,7 +262,7 @@
             </defs>
           </svg>
         </div>
-        <p class="signout-text">Signing out...</p>
+        <p class="signout-text">Locking...</p>
       </div>
     </div>
   {/if}
