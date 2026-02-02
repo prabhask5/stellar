@@ -89,11 +89,7 @@
     }
   }
 
-  function handleDigitPaste(
-    digits: string[],
-    event: ClipboardEvent,
-    inputs: HTMLInputElement[]
-  ) {
+  function handleDigitPaste(digits: string[], event: ClipboardEvent, inputs: HTMLInputElement[]) {
     event.preventDefault();
     const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '');
     for (let i = 0; i < 4 && i < pasted.length; i++) {
@@ -286,7 +282,9 @@
                 {(userInfo?.firstName || 'U').charAt(0).toUpperCase()}
               </div>
             </div>
-            <h2 class="card-title">Welcome back{userInfo?.firstName ? `, ${userInfo.firstName}` : ''}</h2>
+            <h2 class="card-title">
+              Welcome back{userInfo?.firstName ? `, ${userInfo.firstName}` : ''}
+            </h2>
             <p class="card-subtitle">Enter your code to continue</p>
           </div>
 
@@ -317,7 +315,16 @@
 
             {#if error}
               <div class="message error">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -331,7 +338,16 @@
                 <span class="loading-spinner"></span>
                 Unlocking...
               {:else}
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0 1 9.9-1" />
                 </svg>
@@ -392,7 +408,16 @@
 
                 {#if error}
                   <div class="message error">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
                       <circle cx="12" cy="12" r="10" />
                       <line x1="12" y1="8" x2="12" y2="12" />
                       <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -403,7 +428,16 @@
 
                 <button type="button" class="btn btn-primary submit-btn" onclick={goToCodeStep}>
                   Continue
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
                     <path d="M5 12h14" />
                     <path d="M12 5l7 7-7 7" />
                   </svg>
@@ -415,7 +449,16 @@
             <div class="setup-step">
               <div class="step-indicator">
                 <div class="step-dot completed">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
@@ -424,7 +467,16 @@
               </div>
 
               <button type="button" class="back-link" onclick={goBackToNameStep}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
                   <path d="M19 12H5" />
                   <path d="M12 19l-7-7 7-7" />
                 </svg>
@@ -432,7 +484,9 @@
               </button>
 
               <h2 class="card-title">Create Your Code</h2>
-              <p class="card-subtitle">Choose a 4-digit code to secure your account, {firstName.trim()}</p>
+              <p class="card-subtitle">
+                Choose a 4-digit code to secure your account, {firstName.trim()}
+              </p>
 
               <form onsubmit={handleSetup}>
                 <div class="form-group">
@@ -485,7 +539,16 @@
 
                 {#if error}
                   <div class="message error">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
                       <circle cx="12" cy="12" r="10" />
                       <line x1="12" y1="8" x2="12" y2="12" />
                       <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -499,7 +562,16 @@
                     <span class="loading-spinner"></span>
                     Setting up...
                   {:else}
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
                       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                       <polyline points="22 4 12 14.01 9 11.01" />
                     </svg>
@@ -597,13 +669,22 @@
   }
 
   @keyframes starsDrift {
-    from { transform: translateY(0) translateX(0); }
-    to { transform: translateY(-100px) translateX(-50px); }
+    from {
+      transform: translateY(0) translateX(0);
+    }
+    to {
+      transform: translateY(-100px) translateX(-50px);
+    }
   }
 
   @keyframes starsTwinkle {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -624,7 +705,9 @@
     top: -250px;
     right: -200px;
     background: radial-gradient(ellipse, rgba(108, 92, 231, 0.6) 0%, transparent 70%);
-    animation: nebulaPulse 8s ease-in-out infinite, nebulaFloat 20s ease-in-out infinite;
+    animation:
+      nebulaPulse 8s ease-in-out infinite,
+      nebulaFloat 20s ease-in-out infinite;
   }
 
   .nebula-2 {
@@ -633,7 +716,9 @@
     bottom: -200px;
     left: -150px;
     background: radial-gradient(ellipse, rgba(255, 121, 198, 0.5) 0%, transparent 70%);
-    animation: nebulaPulse 10s ease-in-out infinite 2s, nebulaFloat 25s ease-in-out infinite reverse;
+    animation:
+      nebulaPulse 10s ease-in-out infinite 2s,
+      nebulaFloat 25s ease-in-out infinite reverse;
   }
 
   .nebula-3 {
@@ -647,14 +732,28 @@
   }
 
   @keyframes nebulaPulse {
-    0%, 100% { opacity: 0.4; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(1.1); }
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(1.1);
+    }
   }
 
   @keyframes nebulaFloat {
-    0%, 100% { transform: translate(0, 0); }
-    33% { transform: translate(30px, -20px); }
-    66% { transform: translate(-20px, 30px); }
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+    33% {
+      transform: translate(30px, -20px);
+    }
+    66% {
+      transform: translate(-20px, 30px);
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -678,13 +777,31 @@
     transform: translate(-50%, -50%);
   }
 
-  .orbit-1 { width: 400px; height: 400px; animation: orbitRotate 40s linear infinite; }
-  .orbit-2 { width: 600px; height: 600px; border-color: rgba(255, 121, 198, 0.08); animation: orbitRotate 60s linear infinite reverse; }
-  .orbit-3 { width: 800px; height: 800px; border-color: rgba(38, 222, 129, 0.06); animation: orbitRotate 80s linear infinite; }
+  .orbit-1 {
+    width: 400px;
+    height: 400px;
+    animation: orbitRotate 40s linear infinite;
+  }
+  .orbit-2 {
+    width: 600px;
+    height: 600px;
+    border-color: rgba(255, 121, 198, 0.08);
+    animation: orbitRotate 60s linear infinite reverse;
+  }
+  .orbit-3 {
+    width: 800px;
+    height: 800px;
+    border-color: rgba(38, 222, 129, 0.06);
+    animation: orbitRotate 80s linear infinite;
+  }
 
   @keyframes orbitRotate {
-    from { transform: translate(-50%, -50%) rotate(0deg); }
-    to { transform: translate(-50%, -50%) rotate(360deg); }
+    from {
+      transform: translate(-50%, -50%) rotate(0deg);
+    }
+    to {
+      transform: translate(-50%, -50%) rotate(360deg);
+    }
   }
 
   .orbit-particle {
@@ -698,13 +815,17 @@
 
   .particle-1 {
     background: var(--color-primary);
-    box-shadow: 0 0 15px var(--color-primary-glow), 0 0 30px var(--color-primary-glow);
+    box-shadow:
+      0 0 15px var(--color-primary-glow),
+      0 0 30px var(--color-primary-glow);
     animation: orbitParticle1 40s linear infinite;
   }
 
   .particle-2 {
     background: var(--color-accent);
-    box-shadow: 0 0 15px var(--color-accent-glow), 0 0 30px var(--color-accent-glow);
+    box-shadow:
+      0 0 15px var(--color-accent-glow),
+      0 0 30px var(--color-accent-glow);
     animation: orbitParticle2 60s linear infinite reverse;
     width: 4px;
     height: 4px;
@@ -712,23 +833,37 @@
 
   .particle-3 {
     background: var(--color-success);
-    box-shadow: 0 0 15px var(--color-success-glow), 0 0 30px var(--color-success-glow);
+    box-shadow:
+      0 0 15px var(--color-success-glow),
+      0 0 30px var(--color-success-glow);
     animation: orbitParticle3 80s linear infinite;
     width: 5px;
     height: 5px;
   }
 
   @keyframes orbitParticle1 {
-    from { transform: rotate(0deg) translateX(200px) rotate(0deg); }
-    to { transform: rotate(360deg) translateX(200px) rotate(-360deg); }
+    from {
+      transform: rotate(0deg) translateX(200px) rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg) translateX(200px) rotate(-360deg);
+    }
   }
   @keyframes orbitParticle2 {
-    from { transform: rotate(0deg) translateX(300px) rotate(0deg); }
-    to { transform: rotate(360deg) translateX(300px) rotate(-360deg); }
+    from {
+      transform: rotate(0deg) translateX(300px) rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg) translateX(300px) rotate(-360deg);
+    }
   }
   @keyframes orbitParticle3 {
-    from { transform: rotate(0deg) translateX(400px) rotate(0deg); }
-    to { transform: rotate(360deg) translateX(400px) rotate(-360deg); }
+    from {
+      transform: rotate(0deg) translateX(400px) rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg) translateX(400px) rotate(-360deg);
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -739,7 +874,12 @@
     position: absolute;
     width: 120px;
     height: 2px;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 50%, rgba(108, 92, 231, 1) 100%);
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.8) 50%,
+      rgba(108, 92, 231, 1) 100%
+    );
     border-radius: 100px;
     opacity: 0;
     pointer-events: none;
@@ -760,10 +900,23 @@
   }
 
   @keyframes shootingStar {
-    0%, 90%, 100% { opacity: 0; transform: rotate(-35deg) translateX(0); }
-    92% { opacity: 1; }
-    95% { opacity: 1; transform: rotate(-35deg) translateX(350px); }
-    96% { opacity: 0; transform: rotate(-35deg) translateX(400px); }
+    0%,
+    90%,
+    100% {
+      opacity: 0;
+      transform: rotate(-35deg) translateX(0);
+    }
+    92% {
+      opacity: 1;
+    }
+    95% {
+      opacity: 1;
+      transform: rotate(-35deg) translateX(350px);
+    }
+    96% {
+      opacity: 0;
+      transform: rotate(-35deg) translateX(400px);
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -790,10 +943,21 @@
   }
 
   @keyframes particleFloat {
-    0%, 100% { transform: translateY(0) translateX(0); opacity: var(--opacity); }
-    25% { transform: translateY(-30px) translateX(15px); }
-    50% { transform: translateY(-50px) translateX(-10px); opacity: calc(var(--opacity) * 1.5); }
-    75% { transform: translateY(-20px) translateX(20px); }
+    0%,
+    100% {
+      transform: translateY(0) translateX(0);
+      opacity: var(--opacity);
+    }
+    25% {
+      transform: translateY(-30px) translateX(15px);
+    }
+    50% {
+      transform: translateY(-50px) translateX(-10px);
+      opacity: calc(var(--opacity) * 1.5);
+    }
+    75% {
+      transform: translateY(-20px) translateX(20px);
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -821,8 +985,14 @@
   }
 
   @keyframes contentReveal {
-    0% { opacity: 0; transform: translateY(40px) scale(0.95); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
+    0% {
+      opacity: 0;
+      transform: translateY(40px) scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -852,19 +1022,36 @@
   }
 
   @keyframes brandGlowPulse {
-    0%, 100% { opacity: 0.5; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.2); }
+    0%,
+    100% {
+      opacity: 0.5;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.8;
+      transform: scale(1.2);
+    }
   }
 
   @keyframes brandFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
   }
 
   .brand-title {
     font-size: 2.5rem;
     font-weight: 800;
-    background: linear-gradient(135deg, var(--color-text) 0%, var(--color-primary-light) 50%, var(--color-text) 100%);
+    background: linear-gradient(
+      135deg,
+      var(--color-text) 0%,
+      var(--color-primary-light) 50%,
+      var(--color-text) 100%
+    );
     background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -875,8 +1062,12 @@
   }
 
   @keyframes textShimmer {
-    0% { background-position: 0% center; }
-    100% { background-position: 200% center; }
+    0% {
+      background-position: 0% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
   }
 
   .brand-tagline {
@@ -909,26 +1100,32 @@
   }
 
   @keyframes borderGlow {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
   }
 
   .card-glow {
     position: absolute;
     inset: -40px;
-    background: radial-gradient(
-      ellipse at center,
-      rgba(108, 92, 231, 0.15) 0%,
-      transparent 70%
-    );
+    background: radial-gradient(ellipse at center, rgba(108, 92, 231, 0.15) 0%, transparent 70%);
     border-radius: 50%;
     pointer-events: none;
     animation: cardGlowPulse 4s ease-in-out infinite;
   }
 
   @keyframes cardGlowPulse {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 1; }
+    0%,
+    100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 1;
+    }
   }
 
   .card-inner {
@@ -952,7 +1149,14 @@
     left: 10%;
     right: 10%;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), rgba(108, 92, 231, 0.3), rgba(255, 255, 255, 0.15), transparent);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.15),
+      rgba(108, 92, 231, 0.3),
+      rgba(255, 255, 255, 0.15),
+      transparent
+    );
   }
 
   .card-inner::after {
@@ -1034,8 +1238,15 @@
   }
 
   @keyframes avatarRingPulse {
-    0%, 100% { transform: scale(1); opacity: 0.6; }
-    50% { transform: scale(1.05); opacity: 0.3; }
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.3;
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -1047,8 +1258,14 @@
   }
 
   @keyframes stepFadeIn {
-    from { opacity: 0; transform: translateX(20px); }
-    to { opacity: 1; transform: translateX(0); }
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
   .step-indicator {
@@ -1239,7 +1456,9 @@
 
   .code-digit:focus {
     border-color: rgba(108, 92, 231, 0.6);
-    box-shadow: 0 0 24px var(--color-primary-glow), 0 0 0 2px rgba(108, 92, 231, 0.2);
+    box-shadow:
+      0 0 24px var(--color-primary-glow),
+      0 0 0 2px rgba(108, 92, 231, 0.2);
     transform: translateY(-2px);
   }
 
@@ -1275,12 +1494,22 @@
   }
 
   @keyframes messageFadeIn {
-    from { opacity: 0; transform: translateY(-8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .error {
-    background: linear-gradient(135deg, rgba(255, 107, 107, 0.2) 0%, rgba(255, 107, 107, 0.06) 100%);
+    background: linear-gradient(
+      135deg,
+      rgba(255, 107, 107, 0.2) 0%,
+      rgba(255, 107, 107, 0.06) 100%
+    );
     color: var(--color-red);
     border: 1px solid rgba(255, 107, 107, 0.4);
     box-shadow: 0 0 20px rgba(255, 107, 107, 0.1);
@@ -1311,18 +1540,18 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.1),
-      transparent
-    );
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
     animation: buttonShimmer 3s ease-in-out infinite;
   }
 
   @keyframes buttonShimmer {
-    0% { left: -100%; }
-    50%, 100% { left: 100%; }
+    0% {
+      left: -100%;
+    }
+    50%,
+    100% {
+      left: 100%;
+    }
   }
 
   .submit-btn:disabled {
@@ -1346,7 +1575,9 @@
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -1354,9 +1585,23 @@
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
-    20%, 40%, 60%, 80% { transform: translateX(6px); }
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+      transform: translateX(-6px);
+    }
+    20%,
+    40%,
+    60%,
+    80% {
+      transform: translateX(6px);
+    }
   }
 
   .shake {
@@ -1368,25 +1613,63 @@
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @media (min-width: 1200px) {
-    .login-content { max-width: 480px; }
-    .brand-icon svg { width: 56px; height: 56px; }
-    .brand-title { font-size: 3rem; }
-    .brand-tagline { font-size: 1.125rem; }
-    .card-inner { padding: 3rem; }
-    .orbit-1 { width: 500px; height: 500px; }
-    .orbit-2 { width: 750px; height: 750px; }
-    .orbit-3 { width: 1000px; height: 1000px; }
-    .nebula-1 { width: 800px; height: 800px; }
-    .nebula-2 { width: 700px; height: 700px; }
-    .nebula-3 { width: 600px; height: 600px; }
+    .login-content {
+      max-width: 480px;
+    }
+    .brand-icon svg {
+      width: 56px;
+      height: 56px;
+    }
+    .brand-title {
+      font-size: 3rem;
+    }
+    .brand-tagline {
+      font-size: 1.125rem;
+    }
+    .card-inner {
+      padding: 3rem;
+    }
+    .orbit-1 {
+      width: 500px;
+      height: 500px;
+    }
+    .orbit-2 {
+      width: 750px;
+      height: 750px;
+    }
+    .orbit-3 {
+      width: 1000px;
+      height: 1000px;
+    }
+    .nebula-1 {
+      width: 800px;
+      height: 800px;
+    }
+    .nebula-2 {
+      width: 700px;
+      height: 700px;
+    }
+    .nebula-3 {
+      width: 600px;
+      height: 600px;
+    }
   }
 
   /* Tablets */
   @media (min-width: 768px) and (max-width: 1199px) {
-    .login-content { max-width: 460px; }
-    .brand-icon svg { width: 52px; height: 52px; }
-    .brand-title { font-size: 2.75rem; }
-    .card-inner { padding: 2.75rem; }
+    .login-content {
+      max-width: 460px;
+    }
+    .brand-icon svg {
+      width: 52px;
+      height: 52px;
+    }
+    .brand-title {
+      font-size: 2.75rem;
+    }
+    .card-inner {
+      padding: 2.75rem;
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -1394,44 +1677,105 @@
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @media (max-width: 767px) {
-    .login-content { padding: 1.5rem; gap: 1.5rem; }
-    .brand-icon svg { width: 44px; height: 44px; }
-    .brand-title { font-size: 2.25rem; }
-    .brand-tagline { font-size: 0.9375rem; }
-    .card-inner { padding: 2rem; }
-    .card-title { font-size: 1.375rem; }
+    .login-content {
+      padding: 1.5rem;
+      gap: 1.5rem;
+    }
+    .brand-icon svg {
+      width: 44px;
+      height: 44px;
+    }
+    .brand-title {
+      font-size: 2.25rem;
+    }
+    .brand-tagline {
+      font-size: 0.9375rem;
+    }
+    .card-inner {
+      padding: 2rem;
+    }
+    .card-title {
+      font-size: 1.375rem;
+    }
 
-    .orbit-1 { width: 320px; height: 320px; }
-    .orbit-2 { width: 480px; height: 480px; }
-    .orbit-3 { width: 640px; height: 640px; }
+    .orbit-1 {
+      width: 320px;
+      height: 320px;
+    }
+    .orbit-2 {
+      width: 480px;
+      height: 480px;
+    }
+    .orbit-3 {
+      width: 640px;
+      height: 640px;
+    }
 
     @keyframes orbitParticle1 {
-      from { transform: rotate(0deg) translateX(160px) rotate(0deg); }
-      to { transform: rotate(360deg) translateX(160px) rotate(-360deg); }
+      from {
+        transform: rotate(0deg) translateX(160px) rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg) translateX(160px) rotate(-360deg);
+      }
     }
     @keyframes orbitParticle2 {
-      from { transform: rotate(0deg) translateX(240px) rotate(0deg); }
-      to { transform: rotate(360deg) translateX(240px) rotate(-360deg); }
+      from {
+        transform: rotate(0deg) translateX(240px) rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg) translateX(240px) rotate(-360deg);
+      }
     }
     @keyframes orbitParticle3 {
-      from { transform: rotate(0deg) translateX(320px) rotate(0deg); }
-      to { transform: rotate(360deg) translateX(320px) rotate(-360deg); }
+      from {
+        transform: rotate(0deg) translateX(320px) rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg) translateX(320px) rotate(-360deg);
+      }
     }
 
-    .nebula-1 { width: 500px; height: 500px; }
-    .nebula-2 { width: 450px; height: 450px; }
-    .nebula-3 { width: 400px; height: 400px; }
+    .nebula-1 {
+      width: 500px;
+      height: 500px;
+    }
+    .nebula-2 {
+      width: 450px;
+      height: 450px;
+    }
+    .nebula-3 {
+      width: 400px;
+      height: 400px;
+    }
   }
 
   /* iPhone 16 Pro / 15 Pro / 14 Pro (393px width) */
   @media (min-width: 390px) and (max-width: 429px) {
-    .login-content { padding: 1.25rem; gap: 1.75rem; }
-    .brand-icon svg { width: 48px; height: 48px; }
-    .brand-title { font-size: 2.5rem; }
-    .brand-tagline { font-size: 1rem; }
-    .card-inner { padding: 2rem; border-radius: 22px; }
-    .card-title { font-size: 1.5rem; }
-    .login-card { border-radius: 24px; }
+    .login-content {
+      padding: 1.25rem;
+      gap: 1.75rem;
+    }
+    .brand-icon svg {
+      width: 48px;
+      height: 48px;
+    }
+    .brand-title {
+      font-size: 2.5rem;
+    }
+    .brand-tagline {
+      font-size: 1rem;
+    }
+    .card-inner {
+      padding: 2rem;
+      border-radius: 22px;
+    }
+    .card-title {
+      font-size: 1.5rem;
+    }
+    .login-card {
+      border-radius: 24px;
+    }
 
     input {
       padding: 1rem 1.125rem;
@@ -1444,69 +1788,162 @@
       border-radius: 14px;
     }
 
-    .avatar-wrapper { width: 72px; height: 72px; }
-    .avatar { width: 72px; height: 72px; font-size: 1.75rem; }
+    .avatar-wrapper {
+      width: 72px;
+      height: 72px;
+    }
+    .avatar {
+      width: 72px;
+      height: 72px;
+      font-size: 1.75rem;
+    }
   }
 
   /* iPhone 16 Pro Max / 15 Pro Max (430px width) */
   @media (min-width: 430px) and (max-width: 480px) {
-    .login-content { padding: 1.5rem; gap: 2rem; }
-    .brand-icon svg { width: 52px; height: 52px; }
-    .brand-title { font-size: 2.75rem; }
-    .card-inner { padding: 2.25rem; }
-    .card-title { font-size: 1.5rem; }
+    .login-content {
+      padding: 1.5rem;
+      gap: 2rem;
+    }
+    .brand-icon svg {
+      width: 52px;
+      height: 52px;
+    }
+    .brand-title {
+      font-size: 2.75rem;
+    }
+    .card-inner {
+      padding: 2.25rem;
+    }
+    .card-title {
+      font-size: 1.5rem;
+    }
 
-    .avatar-wrapper { width: 80px; height: 80px; }
-    .avatar { width: 80px; height: 80px; font-size: 2rem; }
+    .avatar-wrapper {
+      width: 80px;
+      height: 80px;
+    }
+    .avatar {
+      width: 80px;
+      height: 80px;
+      font-size: 2rem;
+    }
 
-    .code-digit { width: 60px; height: 68px; font-size: 1.625rem; }
+    .code-digit {
+      width: 60px;
+      height: 68px;
+      font-size: 1.625rem;
+    }
   }
 
   /* Small devices (iPhone SE, older phones) */
   @media (max-width: 389px) {
-    .login-content { padding: 1rem; gap: 1.25rem; }
-    .brand-icon svg { width: 40px; height: 40px; }
-    .brand-title { font-size: 2rem; }
-    .brand-tagline { font-size: 0.8125rem; }
-    .card-inner { padding: 1.5rem; }
-    .card-title { font-size: 1.25rem; }
-    .card-subtitle { font-size: 0.8125rem; }
+    .login-content {
+      padding: 1rem;
+      gap: 1.25rem;
+    }
+    .brand-icon svg {
+      width: 40px;
+      height: 40px;
+    }
+    .brand-title {
+      font-size: 2rem;
+    }
+    .brand-tagline {
+      font-size: 0.8125rem;
+    }
+    .card-inner {
+      padding: 1.5rem;
+    }
+    .card-title {
+      font-size: 1.25rem;
+    }
+    .card-subtitle {
+      font-size: 0.8125rem;
+    }
 
-    .name-row { grid-template-columns: 1fr; }
+    .name-row {
+      grid-template-columns: 1fr;
+    }
 
     .submit-btn {
       padding: 0.875rem;
       font-size: 0.9375rem;
     }
 
-    .avatar-wrapper { width: 60px; height: 60px; }
-    .avatar { width: 60px; height: 60px; font-size: 1.5rem; }
+    .avatar-wrapper {
+      width: 60px;
+      height: 60px;
+    }
+    .avatar {
+      width: 60px;
+      height: 60px;
+      font-size: 1.5rem;
+    }
 
-    .code-digit { width: 48px; height: 56px; font-size: 1.25rem; }
-    .code-input-group { gap: 0.5rem; }
+    .code-digit {
+      width: 48px;
+      height: 56px;
+      font-size: 1.25rem;
+    }
+    .code-input-group {
+      gap: 0.5rem;
+    }
 
-    .step-line { width: 40px; }
+    .step-line {
+      width: 40px;
+    }
 
-    .orbit-1 { width: 240px; height: 240px; }
-    .orbit-2 { width: 360px; height: 360px; }
-    .orbit-3 { width: 480px; height: 480px; }
+    .orbit-1 {
+      width: 240px;
+      height: 240px;
+    }
+    .orbit-2 {
+      width: 360px;
+      height: 360px;
+    }
+    .orbit-3 {
+      width: 480px;
+      height: 480px;
+    }
 
     @keyframes orbitParticle1 {
-      from { transform: rotate(0deg) translateX(120px) rotate(0deg); }
-      to { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
+      from {
+        transform: rotate(0deg) translateX(120px) rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg) translateX(120px) rotate(-360deg);
+      }
     }
     @keyframes orbitParticle2 {
-      from { transform: rotate(0deg) translateX(180px) rotate(0deg); }
-      to { transform: rotate(360deg) translateX(180px) rotate(-360deg); }
+      from {
+        transform: rotate(0deg) translateX(180px) rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg) translateX(180px) rotate(-360deg);
+      }
     }
     @keyframes orbitParticle3 {
-      from { transform: rotate(0deg) translateX(240px) rotate(0deg); }
-      to { transform: rotate(360deg) translateX(240px) rotate(-360deg); }
+      from {
+        transform: rotate(0deg) translateX(240px) rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg) translateX(240px) rotate(-360deg);
+      }
     }
 
-    .nebula-1 { width: 350px; height: 350px; }
-    .nebula-2 { width: 300px; height: 300px; }
-    .nebula-3 { width: 250px; height: 250px; }
+    .nebula-1 {
+      width: 350px;
+      height: 350px;
+    }
+    .nebula-2 {
+      width: 300px;
+      height: 300px;
+    }
+    .nebula-3 {
+      width: 250px;
+      height: 250px;
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -1514,23 +1951,45 @@
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @media (prefers-reduced-motion: reduce) {
-    .stars, .nebula, .orbit, .orbit-particle, .shooting-star,
-    .particle, .brand-icon, .brand-glow, .card-glow,
-    .avatar-ring-outer, .avatar-ring-inner {
+    .stars,
+    .nebula,
+    .orbit,
+    .orbit-particle,
+    .shooting-star,
+    .particle,
+    .brand-icon,
+    .brand-glow,
+    .card-glow,
+    .avatar-ring-outer,
+    .avatar-ring-inner {
       animation: none;
     }
 
-    .brand-title { animation: none; }
-    .login-card { animation: none; background: rgba(108, 92, 231, 0.3); }
-    .submit-btn::after { animation: none; display: none; }
-    .setup-step { animation: none; opacity: 1; }
+    .brand-title {
+      animation: none;
+    }
+    .login-card {
+      animation: none;
+      background: rgba(108, 92, 231, 0.3);
+    }
+    .submit-btn::after {
+      animation: none;
+      display: none;
+    }
+    .setup-step {
+      animation: none;
+      opacity: 1;
+    }
 
-    .login-content, .mounted .login-content {
+    .login-content,
+    .mounted .login-content {
       animation: none;
       opacity: 1;
       transform: none;
     }
 
-    .code-digit:focus { transform: none; }
+    .code-digit:focus {
+      transform: none;
+    }
   }
 </style>

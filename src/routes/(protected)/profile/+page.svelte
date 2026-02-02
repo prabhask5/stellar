@@ -84,11 +84,7 @@
     }
   }
 
-  function handleDigitPaste(
-    digits: string[],
-    event: ClipboardEvent,
-    inputs: HTMLInputElement[]
-  ) {
+  function handleDigitPaste(digits: string[], event: ClipboardEvent, inputs: HTMLInputElement[]) {
     event.preventDefault();
     const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '');
     for (let i = 0; i < 4 && i < pasted.length; i++) {
@@ -363,50 +359,50 @@
 
   <!-- Administration -->
   <div class="profile-card">
-      <div class="card-header">
-        <h2 class="card-title">Administration</h2>
-        <p class="card-subtitle">Manage your Stellar instance</p>
-      </div>
+    <div class="card-header">
+      <h2 class="card-title">Administration</h2>
+      <p class="card-subtitle">Manage your Stellar instance</p>
+    </div>
 
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">Debug Mode</span>
-          <span class="setting-hint"
-            >Enable console logging for troubleshooting (you'll need to refresh for the changes to
-            take effect)</span
-          >
-        </div>
-        <button
-          class="toggle-btn"
-          class:active={debugMode}
-          onclick={toggleDebugMode}
-          role="switch"
-          aria-checked={debugMode}
-          aria-label="Toggle debug mode"
+    <div class="setting-row">
+      <div class="setting-info">
+        <span class="setting-label">Debug Mode</span>
+        <span class="setting-hint"
+          >Enable console logging for troubleshooting (you'll need to refresh for the changes to
+          take effect)</span
         >
-          <span class="toggle-knob"></span>
-        </button>
       </div>
-
-      <button class="btn btn-secondary" onclick={() => goto('/setup')}>
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <circle cx="12" cy="12" r="3" />
-          <path
-            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-          />
-        </svg>
-        Update Supabase Configuration
+      <button
+        class="toggle-btn"
+        class:active={debugMode}
+        onclick={toggleDebugMode}
+        role="switch"
+        aria-checked={debugMode}
+        aria-label="Toggle debug mode"
+      >
+        <span class="toggle-knob"></span>
       </button>
     </div>
+
+    <button class="btn btn-secondary" onclick={() => goto('/setup')}>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+        />
+      </svg>
+      Update Supabase Configuration
+    </button>
+  </div>
 
   <!-- Sign Out (Mobile only — desktop has sign out in the navbar) -->
   <div class="mobile-signout">
@@ -1114,7 +1110,9 @@
 
   .code-digit:focus {
     border-color: rgba(108, 92, 231, 0.6);
-    box-shadow: 0 0 24px var(--color-primary-glow), 0 0 0 2px rgba(108, 92, 231, 0.2);
+    box-shadow:
+      0 0 24px var(--color-primary-glow),
+      0 0 0 2px rgba(108, 92, 231, 0.2);
   }
 
   @media (max-width: 389px) {
