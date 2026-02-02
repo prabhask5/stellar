@@ -83,8 +83,7 @@ function initGalaxy() {
   const canvas = document.getElementById('galaxyCanvas') as HTMLCanvasElement;
   if (!canvas) return;
 
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  const ctx = canvas.getContext('2d')!;
 
   let width: number, height: number, centerX: number, centerY: number;
   let rotation = 0;
@@ -270,8 +269,7 @@ function initStarfield() {
   const canvas = document.getElementById('starfieldCanvas') as HTMLCanvasElement;
   if (!canvas) return;
 
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  const ctx = canvas.getContext('2d')!;
 
   let width: number, height: number;
   let stars: BackgroundStar[] = [];

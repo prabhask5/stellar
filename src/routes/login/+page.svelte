@@ -56,7 +56,8 @@
     digits: string[],
     index: number,
     event: Event,
-    inputs: HTMLInputElement[]
+    inputs: HTMLInputElement[],
+    onComplete?: () => void
   ) {
     const input = event.target as HTMLInputElement;
     const value = input.value.replace(/[^0-9]/g, '');
@@ -67,6 +68,10 @@
       // Auto-focus next input
       if (index < 3 && inputs[index + 1]) {
         inputs[index + 1].focus();
+      }
+      // Auto-submit when all 4 digits are filled
+      if (index === 3 && onComplete && digits.every(d => d !== '')) {
+        onComplete();
       }
     } else {
       digits[index] = '';
@@ -89,7 +94,7 @@
     }
   }
 
-  function handleDigitPaste(digits: string[], event: ClipboardEvent, inputs: HTMLInputElement[]) {
+  function handleDigitPaste(digits: string[], event: ClipboardEvent, inputs: HTMLInputElement[], onComplete?: () => void) {
     event.preventDefault();
     const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '');
     for (let i = 0; i < 4 && i < pasted.length; i++) {
@@ -98,6 +103,10 @@
     }
     const focusIndex = Math.min(pasted.length, 3);
     if (inputs[focusIndex]) inputs[focusIndex].focus();
+    // Auto-submit if all 4 digits were pasted
+    if (pasted.length >= 4 && onComplete && digits.every(d => d !== '')) {
+      onComplete();
+    }
   }
 
   function goToCodeStep() {
@@ -114,8 +123,21 @@
     error = null;
   }
 
-  async function handleSetup(e: Event) {
-    e.preventDefault();
+  function autoFocusConfirm() {
+    if (confirmInputs[0]) confirmInputs[0].focus();
+  }
+
+  function autoSubmitSetup() {
+    if (confirmDigits.every(d => d !== '')) {
+      handleSetup();
+    }
+  }
+
+  function autoSubmitUnlock() {
+    handleUnlock();
+  }
+
+  async function handleSetup() {
     if (loading) return;
 
     error = null;
@@ -127,6 +149,13 @@
 
     if (code !== confirmCode) {
       error = 'Codes do not match';
+      shaking = true;
+      setTimeout(() => {
+        shaking = false;
+      }, 500);
+      // Clear confirm digits, refocus first confirm input
+      confirmDigits = ['', '', '', ''];
+      if (confirmInputs[0]) confirmInputs[0].focus();
       return;
     }
 
@@ -139,19 +168,32 @@
       });
       if (result.error) {
         error = result.error;
+        shaking = true;
+        setTimeout(() => {
+          shaking = false;
+        }, 500);
+        codeDigits = ['', '', '', ''];
+        confirmDigits = ['', '', '', ''];
+        if (codeInputs[0]) codeInputs[0].focus();
         return;
       }
       await invalidateAll();
       goto('/');
-    } catch (err: any) {
-      error = err?.message || 'Setup failed. Please try again.';
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Setup failed. Please try again.';
+      shaking = true;
+      setTimeout(() => {
+        shaking = false;
+      }, 500);
+      codeDigits = ['', '', '', ''];
+      confirmDigits = ['', '', '', ''];
+      if (codeInputs[0]) codeInputs[0].focus();
     } finally {
       loading = false;
     }
   }
 
-  async function handleUnlock(e: Event) {
-    e.preventDefault();
+  async function handleUnlock() {
     if (loading) return;
 
     error = null;
@@ -179,8 +221,8 @@
       }
       await invalidateAll();
       goto(redirectUrl);
-    } catch (err: any) {
-      error = err?.message || 'Incorrect code';
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Incorrect code';
       // Trigger shake animation
       shaking = true;
       setTimeout(() => {
@@ -304,29 +346,35 @@
             <p class="card-subtitle">Enter your code to continue</p>
           </div>
 
-          <form onsubmit={handleUnlock}>
+          <div class="form-fields">
             <div class="form-group">
               <div class="code-label">Access Code</div>
-              <div class="code-input-group">
-                {#each unlockDigits as digit, i (i)}
-                  <div class="code-digit-wrapper" class:filled={digit !== ''}>
-                    <input
-                      class="code-digit"
-                      type="tel"
-                      inputmode="numeric"
-                      pattern="[0-9]"
-                      maxlength="1"
-                      bind:this={unlockInputs[i]}
-                      value={digit}
-                      oninput={(e) => handleDigitInput(unlockDigits, i, e, unlockInputs)}
-                      onkeydown={(e) => handleDigitKeydown(unlockDigits, i, e, unlockInputs)}
-                      onpaste={(e) => handleDigitPaste(unlockDigits, e, unlockInputs)}
-                      disabled={loading}
-                      autocomplete="off"
-                    />
-                  </div>
-                {/each}
-              </div>
+              {#if loading}
+                <div class="code-loading">
+                  <span class="loading-spinner"></span>
+                </div>
+              {:else}
+                <div class="code-input-group">
+                  {#each unlockDigits as digit, i (i)}
+                    <div class="code-digit-wrapper" class:filled={digit !== ''}>
+                      <input
+                        class="code-digit"
+                        type="tel"
+                        inputmode="numeric"
+                        pattern="[0-9]"
+                        maxlength="1"
+                        bind:this={unlockInputs[i]}
+                        value={digit}
+                        oninput={(e) => handleDigitInput(unlockDigits, i, e, unlockInputs, autoSubmitUnlock)}
+                        onkeydown={(e) => handleDigitKeydown(unlockDigits, i, e, unlockInputs)}
+                        onpaste={(e) => handleDigitPaste(unlockDigits, e, unlockInputs, autoSubmitUnlock)}
+                        disabled={loading}
+                        autocomplete="off"
+                      />
+                    </div>
+                  {/each}
+                </div>
+              {/if}
             </div>
 
             {#if error}
@@ -348,29 +396,7 @@
                 <span>{error}</span>
               </div>
             {/if}
-
-            <button type="submit" class="btn btn-primary submit-btn" disabled={loading}>
-              {#if loading}
-                <span class="loading-spinner"></span>
-                Unlocking...
-              {:else}
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-                </svg>
-                Unlock
-              {/if}
-            </button>
-          </form>
+          </div>
         </div>
       </div>
     {:else}
@@ -462,7 +488,7 @@
             </div>
           {:else}
             <!-- Step 2: Code -->
-            <div class="setup-step">
+            <div class="setup-step" class:shake={shaking}>
               <div class="step-indicator">
                 <div class="step-dot completed">
                   <svg
@@ -504,7 +530,7 @@
                 Choose a 4-digit code to secure your account, {firstName.trim()}
               </p>
 
-              <form onsubmit={handleSetup}>
+              <div class="form-fields">
                 <div class="form-group">
                   <div class="code-label">Your Code</div>
                   <div class="code-input-group">
@@ -518,9 +544,9 @@
                           maxlength="1"
                           bind:this={codeInputs[i]}
                           value={digit}
-                          oninput={(e) => handleDigitInput(codeDigits, i, e, codeInputs)}
+                          oninput={(e) => handleDigitInput(codeDigits, i, e, codeInputs, autoFocusConfirm)}
                           onkeydown={(e) => handleDigitKeydown(codeDigits, i, e, codeInputs)}
-                          onpaste={(e) => handleDigitPaste(codeDigits, e, codeInputs)}
+                          onpaste={(e) => handleDigitPaste(codeDigits, e, codeInputs, autoFocusConfirm)}
                           disabled={loading}
                           autocomplete="off"
                         />
@@ -531,26 +557,32 @@
 
                 <div class="form-group">
                   <div class="code-label">Confirm Code</div>
-                  <div class="code-input-group">
-                    {#each confirmDigits as digit, i (i)}
-                      <div class="code-digit-wrapper" class:filled={digit !== ''}>
-                        <input
-                          class="code-digit"
-                          type="tel"
-                          inputmode="numeric"
-                          pattern="[0-9]"
-                          maxlength="1"
-                          bind:this={confirmInputs[i]}
-                          value={digit}
-                          oninput={(e) => handleDigitInput(confirmDigits, i, e, confirmInputs)}
-                          onkeydown={(e) => handleDigitKeydown(confirmDigits, i, e, confirmInputs)}
-                          onpaste={(e) => handleDigitPaste(confirmDigits, e, confirmInputs)}
-                          disabled={loading}
-                          autocomplete="off"
-                        />
-                      </div>
-                    {/each}
-                  </div>
+                  {#if loading}
+                    <div class="code-loading">
+                      <span class="loading-spinner"></span>
+                    </div>
+                  {:else}
+                    <div class="code-input-group">
+                      {#each confirmDigits as digit, i (i)}
+                        <div class="code-digit-wrapper" class:filled={digit !== ''}>
+                          <input
+                            class="code-digit"
+                            type="tel"
+                            inputmode="numeric"
+                            pattern="[0-9]"
+                            maxlength="1"
+                            bind:this={confirmInputs[i]}
+                            value={digit}
+                            oninput={(e) => handleDigitInput(confirmDigits, i, e, confirmInputs, autoSubmitSetup)}
+                            onkeydown={(e) => handleDigitKeydown(confirmDigits, i, e, confirmInputs)}
+                            onpaste={(e) => handleDigitPaste(confirmDigits, e, confirmInputs, autoSubmitSetup)}
+                            disabled={loading}
+                            autocomplete="off"
+                          />
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
                 </div>
 
                 {#if error}
@@ -572,29 +604,7 @@
                     <span>{error}</span>
                   </div>
                 {/if}
-
-                <button type="submit" class="btn btn-primary submit-btn" disabled={loading}>
-                  {#if loading}
-                    <span class="loading-spinner"></span>
-                    Setting up...
-                  {:else}
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                      <polyline points="22 4 12 14.01 9 11.01" />
-                    </svg>
-                    Get Started
-                  {/if}
-                </button>
-              </form>
+              </div>
             </div>
           {/if}
         </div>
@@ -1353,12 +1363,6 @@
      FORM ELEMENTS
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
-  form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
   .form-fields {
     display: flex;
     flex-direction: column;
@@ -1492,6 +1496,13 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin-bottom: 0.75rem;
+  }
+
+  .code-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 64px;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════

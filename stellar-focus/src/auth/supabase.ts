@@ -63,3 +63,58 @@ export async function getUser() {
   const { data } = await supabase.auth.getUser();
   return data?.user || null;
 }
+
+/**
+ * Sign in anonymously if no session exists.
+ * Returns the session and user, or an error.
+ */
+export async function signInAnonymouslyIfNeeded(): Promise<{
+  session: Awaited<ReturnType<typeof getSession>>;
+  error: string | null;
+}> {
+  const supabase = await getSupabase();
+
+  // Check for existing session first
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (sessionData?.session) {
+    return { session: sessionData.session, error: null };
+  }
+
+  // No session — sign in anonymously
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error) {
+    return { session: null, error: error.message };
+  }
+
+  return { session: data.session, error: null };
+}
+
+/**
+ * Fetch gate config from Supabase single_user_config table.
+ * Returns null if the table is empty or not set up.
+ */
+export async function fetchGateConfig(): Promise<{
+  gateType: 'code' | 'password';
+  codeLength?: number;
+  gateHash: string;
+  profile: Record<string, unknown>;
+} | null> {
+  const supabase = await getSupabase();
+
+  const { data, error } = await supabase
+    .from('single_user_config')
+    .select('gate_type, code_length, gate_hash, profile')
+    .eq('id', 'config')
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return {
+    gateType: data.gate_type as 'code' | 'password',
+    codeLength: data.code_length ?? undefined,
+    gateHash: data.gate_hash,
+    profile: (data.profile as Record<string, unknown>) || {},
+  };
+}

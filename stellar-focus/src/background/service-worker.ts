@@ -12,8 +12,8 @@
 
 import browser from 'webextension-polyfill';
 import { type RealtimeChannel } from '@supabase/supabase-js';
-import { getSupabase, getSession, resetSupabase } from '../auth/supabase';
-import { isConfigured, getConfig } from '../config';
+import { getSupabase, getSession, resetSupabase, signInAnonymouslyIfNeeded } from '../auth/supabase';
+import { isConfigured, getConfig, isUnlocked } from '../config';
 import { blockListsCache, blockedWebsitesCache, focusSessionCacheStore, type FocusSessionCache } from '../lib/storage';
 import { getNetworkStatus, checkConnectivity } from '../lib/network';
 import { debugLog, debugWarn, debugError, initDebugMode, setDebugModeCache } from '../lib/debug';
@@ -95,6 +95,10 @@ browser.alarms.onAlarm.addListener((alarm: browser.Alarms.Alarm) => {
 });
 
 async function handleAlarmWake() {
+  // Skip if not unlocked
+  const unlocked = await isUnlocked();
+  if (!unlocked) return;
+
   // If realtime is down, try to reconnect it
   if (!realtimeHealthy) {
     debugLog('[Stellar Focus] Alarm wake - realtime unhealthy, reconnecting');
@@ -162,6 +166,20 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
     return;
   }
 
+  if (message.type === 'UNLOCKED') {
+    debugLog('[Stellar Focus] Extension unlocked - initializing');
+    init();
+    return;
+  }
+
+  if (message.type === 'LOCKED') {
+    debugLog('[Stellar Focus] Extension locked - cleaning up');
+    cleanupRealtimeSubscriptions();
+    currentFocusSession = null;
+    focusSessionCacheStore.clear();
+    return;
+  }
+
   if (message.type === 'GET_STATUS') {
     sendResponse({
       isOnline,
@@ -205,10 +223,10 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
         today.setHours(0, 0, 0, 0);
         const todayStr = today.toISOString();
 
+        // No user_id filter — RLS handles access (single-user app)
         const { data: sessions, error } = await supabase
           .from('focus_sessions')
           .select(COLUMNS.focus_sessions + ',started_at,elapsed_duration,deleted')
-          .eq('user_id', session.user.id)
           .gte('started_at', todayStr)
           .order('created_at', { ascending: false });
 
@@ -221,13 +239,13 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
         let totalMs = 0;
         let hasRunningSession = false;
 
-        for (const s of (sessions || [])) {
+        for (const s of (sessions as unknown as Record<string, unknown>[] || [])) {
           if (s.deleted) continue;
-          totalMs += (s.elapsed_duration || 0) * 60 * 1000;
+          totalMs += ((s.elapsed_duration as number) || 0) * 60 * 1000;
           if (!s.ended_at && s.phase === 'focus' && s.status === 'running') {
             hasRunningSession = true;
-            const currentElapsed = Date.now() - new Date(s.phase_started_at).getTime();
-            totalMs += Math.min(currentElapsed, s.focus_duration * 60 * 1000);
+            const currentElapsed = Date.now() - new Date(s.phase_started_at as string).getTime();
+            totalMs += Math.min(currentElapsed, (s.focus_duration as number) * 60 * 1000);
           }
         }
 
@@ -300,11 +318,32 @@ async function init() {
     return;
   }
 
+  // Check if unlocked
+  const unlocked = await isUnlocked();
+  if (!unlocked) {
+    debugLog('[Stellar Focus] Not unlocked - skipping init (alarms still running)');
+    return;
+  }
+
   const extConfig = await getConfig();
   if (!extConfig) return;
 
   // Check online status
   isOnline = await checkConnectivity(extConfig.supabaseUrl);
+
+  if (!isOnline) {
+    debugLog('[Stellar Focus] Offline - loading cached data only');
+    const cached = await focusSessionCacheStore.get('current');
+    if (cached) currentFocusSession = cached;
+    return;
+  }
+
+  // Sign in anonymously if needed
+  const { error } = await signInAnonymouslyIfNeeded();
+  if (error) {
+    debugError('[Stellar Focus] Anonymous sign-in failed:', error);
+    return;
+  }
 
   // Load cached focus session
   const cached = await focusSessionCacheStore.get('current');
@@ -330,10 +369,6 @@ async function setupRealtimeSubscriptions() {
   const session = await getSession();
   if (!session) return;
 
-  // Use session.user instead of separate getUser() call (egress optimization)
-  const user = session.user;
-  if (!user) return;
-
   const supabase = await getSupabase();
 
   // Clean up existing subscriptions
@@ -345,16 +380,16 @@ async function setupRealtimeSubscriptions() {
   const timestamp = Date.now();
 
   // EGRESS OPTIMIZATION: Single consolidated channel for all tables
+  // No user_id filters — RLS handles access (single-user app)
   realtimeChannel = supabase
-    .channel(`stellar-ext-${user.id}-${timestamp}`)
+    .channel(`stellar-ext-${timestamp}`)
     // Focus sessions subscription
     .on(
       'postgres_changes',
       {
         event: '*',
         schema: 'public',
-        table: 'focus_sessions',
-        filter: `user_id=eq.${user.id}`
+        table: 'focus_sessions'
       },
       (payload) => {
         debugLog('[Stellar Focus] Real-time: Focus session update', payload.eventType);
@@ -404,8 +439,7 @@ async function setupRealtimeSubscriptions() {
       {
         event: '*',
         schema: 'public',
-        table: 'block_lists',
-        filter: `user_id=eq.${user.id}`
+        table: 'block_lists'
       },
       (payload) => {
         debugLog('[Stellar Focus] Real-time: Block list update', payload.eventType);
@@ -583,11 +617,11 @@ async function pollFocusSession() {
     if (!user) return;
 
     // Query active focus session with explicit columns (egress optimization)
+    // No user_id filter — RLS handles access (single-user app)
     const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('focus_sessions')
       .select(COLUMNS.focus_sessions)
-      .eq('user_id', user.id)
       .is('ended_at', null)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -648,10 +682,10 @@ async function refreshBlockLists() {
     const supabase = await getSupabase();
 
     // Fetch block lists with explicit columns (egress optimization)
+    // No user_id filter — RLS handles access (single-user app)
     const { data: lists, error: listsError } = await supabase
       .from('block_lists')
       .select(COLUMNS.block_lists)
-      .eq('user_id', user.id)
       .eq('deleted', false)
       .eq('is_enabled', true);
 

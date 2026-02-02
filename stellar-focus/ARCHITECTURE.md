@@ -39,7 +39,7 @@ between the extension and the main app -- they share a Supabase backend.
 |  +---------------------------+      +-------------------------------+     |
 |  |     Service Worker        |      |        Popup (UI)             |     |
 |  |     (background)          |      |                               |     |
-|  |                           |      |  - Login / Logout             |     |
+|  |                           |      |  - PIN gate / Unlock          |     |
 |  |  +---------------------+ |      |  - Focus status display       |     |
 |  |  | Blocking Engine     | | msg  |  - Block list viewer          |     |
 |  |  |                     |<-------+  - Focus time today            |     |
@@ -102,9 +102,17 @@ between the extension and the main app -- they share a Supabase backend.
 |                                                                           |
 |  +----------------------------------------------------------------+      |
 |  |   Auth (GoTrue)                                                |      |
-|  |   - Email/password sign-in                                     |      |
+|  |   - Anonymous sign-in (signInAnonymously)                      |      |
 |  |   - JWT access tokens                                          |      |
 |  |   - Session persistence via browser.storage.local adapter      |      |
+|  +----------------------------------------------------------------+      |
+|                                                                           |
+|  +----------------------------------------------------------------+      |
+|  |   single_user_config                                           |      |
+|  |   +-------------------+                                        |      |
+|  |   | pin_hash (text)   |  SHA-256 hash of the user's PIN       |      |
+|  |   | updated_at        |  Timestamp of last config update       |      |
+|  |   +-------------------+                                        |      |
 |  +----------------------------------------------------------------+      |
 |                                                                           |
 +===========================================================================+
@@ -612,6 +620,7 @@ this gap with a custom adapter that maps to `browser.storage.local`.
 |   |  Also stores:                 |                                       |
 |   |  - stellar_config             |                                       |
 |   |  - stellar_debug_mode         |                                       |
+|   |  - stellar_pin_config         |  (cached PIN hash from Supabase)      |
 |   +-------------------------------+                                       |
 |                                                                           |
 +===========================================================================+
@@ -619,7 +628,62 @@ this gap with a custom adapter that maps to `browser.storage.local`.
 
 Both the service worker and the popup create their own Supabase client
 instances, each with the same storage adapter pattern. Because they both read
-from `browser.storage.local`, they share the same auth session.
+from `browser.storage.local`, they share the same anonymous auth session.
+
+### Authentication Flow (PIN-Based)
+
+The extension uses anonymous Supabase authentication rather than
+email/password login. The full auth and PIN gate flow is:
+
+```
+  Extension startup (service worker init)
+            |
+            v
+  +---------------------+
+  | signInAnonymously() |  Creates anonymous Supabase session
+  +----------+----------+  (or resumes existing from storage)
+             |
+             v
+  +---------------------+
+  | Fetch PIN config    |  SELECT pin_hash FROM single_user_config
+  | from Supabase       |  Cache result in browser.storage.local
+  +----------+----------+  (key: stellar_pin_config)
+             |
+             v
+  +---------------------+
+  | Extension locked    |  Service worker in LOCKED state
+  | (awaiting PIN)      |  Blocking engine active regardless
+  +----------+----------+
+             |
+             |  User opens popup, enters PIN
+             v
+  +---------------------+
+  | SHA-256 hash of     |  All verification is local:
+  | entered PIN         |  hash(input) === cached pin_hash
+  +----------+----------+
+             |
+        +----+----+
+        |         |
+     Match     No match
+        |         |
+        v         v
+  +-----------+  +------------+
+  | Send      |  | Show error |
+  | UNLOCKED  |  | message    |
+  | to SW     |  +------------+
+  +-----------+
+        |
+        v
+  +---------------------+
+  | Extension unlocked  |  Full popup UI accessible
+  | Normal operation    |  PIN config re-checked periodically
+  +---------------------+
+```
+
+**Offline behavior:** If the PIN config is already cached in
+`browser.storage.local`, PIN verification works fully offline. If the
+config has never been cached (e.g., fresh install), the extension
+requires an online connection to fetch it from `single_user_config`.
 
 ---
 
@@ -661,6 +725,16 @@ service worker's cache.
 |  BLOCK_LIST_UPDATED----|-------------------->|  Action:               |
 |                        |                     |  refreshBlockLists()   |
 |                        |                     |                        |
+|  UNLOCKED          ----|-------------------->|  Action:               |
+|                        |                     |  Mark PIN gate as      |
+|                        |                     |  unlocked; allow       |
+|                        |                     |  normal operation      |
+|                        |                     |                        |
+|  LOCKED            ----|-------------------->|  Action:               |
+|                        |                     |  Mark PIN gate as      |
+|                        |                     |  locked; require PIN   |
+|                        |                     |  entry before use      |
+|                        |                     |                        |
 +========================+                     +========================+
 
 +========================+                     +========================+
@@ -695,6 +769,8 @@ service worker's cache.
 | CHECK_UPDATE              | P -> SW   | Check for extension updates      |
 | GET_STATUS                | P -> SW   | Legacy: simple online/active     |
 | FOCUS_SESSION_UPDATED     | P -> SW   | Force refresh session (throttled)|
+| UNLOCKED                  | P -> SW   | PIN verified; unlock extension   |
+| LOCKED                    | P -> SW   | Lock extension; require PIN      |
 | FOCUS_STATUS_CHANGED      | SW -> P   | Notify popup of session change   |
 | BLOCK_LISTS_CHANGED       | SW -> P   | Notify popup of list change      |
 +---------------------------+-----------+----------------------------------+
@@ -862,10 +938,27 @@ egress:
 |                |                            | focusSessionCache cleared         |
 |                |                            | Blocking disabled (no session)    |
 |                |                            | Realtime cleaned up               |
-|                |                            | User must re-login via popup      |
+|                |                            | Service worker re-authenticates   |
+|                |                            | anonymously on next init          |
 |                |                            |                                   |
 |                | Token refresh fails        | getSession() returns null         |
 |                |                            | Same recovery as expired session  |
+|                |                            |                                   |
+|                | Anonymous auth recovery    | Service worker calls              |
+|                |                            | signInAnonymously() on init       |
+|                |                            | New anonymous session created     |
+|                |                            | Realtime re-established           |
+|                |                            |                                   |
++----------------+----------------------------+-----------------------------------+
+|                |                            |                                   |
+| PIN GATE       | PIN config cached          | PIN verification works offline    |
+|                |                            | SHA-256 hash compared locally     |
+|                |                            | No network request needed         |
+|                |                            |                                   |
+|                | PIN config not cached      | Requires online to fetch from     |
+|                |                            | single_user_config via Supabase   |
+|                |                            | If offline: PIN gate unavailable, |
+|                |                            | extension remains locked          |
 |                |                            |                                   |
 +----------------+----------------------------+-----------------------------------+
 |                |                            |                                   |

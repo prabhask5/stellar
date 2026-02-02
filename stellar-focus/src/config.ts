@@ -73,10 +73,73 @@ export const config = new Proxy(
   {
     get(_target, prop: string) {
       if (cachedConfig) {
-        return (cachedConfig as Record<string, string>)[prop];
+        return (cachedConfig as unknown as Record<string, string>)[prop];
       }
       // Return empty strings as fallback — callers should use async getConfig() for reliability
       return '';
     }
   }
 );
+
+// ============================================================
+// Gate Config (PIN-based auth for extension)
+// ============================================================
+
+const GATE_CONFIG_KEY = 'stellar_gate_config';
+const UNLOCKED_KEY = 'stellar_unlocked';
+
+export interface GateConfig {
+  gateType: 'code' | 'password';
+  codeLength?: number;
+  gateHash: string;
+  profile: Record<string, unknown>;
+}
+
+/**
+ * Get cached gate config from browser.storage.local
+ */
+export async function getGateConfig(): Promise<GateConfig | null> {
+  try {
+    const result = await browser.storage.local.get(GATE_CONFIG_KEY);
+    const stored = result[GATE_CONFIG_KEY];
+    if (stored && stored.gateHash) {
+      return stored as GateConfig;
+    }
+  } catch (e) {
+    debugError('[Stellar Focus] Failed to read gate config:', e);
+  }
+  return null;
+}
+
+/**
+ * Save gate config to browser.storage.local
+ */
+export async function setGateConfig(config: GateConfig): Promise<void> {
+  await browser.storage.local.set({ [GATE_CONFIG_KEY]: config });
+}
+
+/**
+ * Clear cached gate config
+ */
+export async function clearGateConfig(): Promise<void> {
+  await browser.storage.local.remove(GATE_CONFIG_KEY);
+}
+
+/**
+ * Check if the extension is unlocked
+ */
+export async function isUnlocked(): Promise<boolean> {
+  try {
+    const result = await browser.storage.local.get(UNLOCKED_KEY);
+    return result[UNLOCKED_KEY] === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Set the unlocked state
+ */
+export async function setUnlocked(value: boolean): Promise<void> {
+  await browser.storage.local.set({ [UNLOCKED_KEY]: value });
+}

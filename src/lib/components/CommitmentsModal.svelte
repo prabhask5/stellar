@@ -274,6 +274,8 @@
               {#if !isProjectOwned(commitment)}
                 <span
                   class="drag-handle-icon"
+                  role="button"
+                  tabindex="-1"
                   onpointerdown={(e) => handlePointerDown(e, commitment, section.key, index)}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">

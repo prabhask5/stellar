@@ -98,7 +98,7 @@ The browser action popup provides at-a-glance focus information:
 - Active block lists and their enabled/disabled states
 - Total focus time accumulated today
 - Real-time sync status indicator
-- Admin debug mode toggle for troubleshooting
+- PIN-based authentication screen with avatar and auto-submit
 - Cinematic UI with morphing icons and animated backgrounds
 
 ### Options Page
@@ -118,8 +118,8 @@ A navigation request is blocked **only** when every single condition below is tr
 ```
 Navigation Request
 │
-├── Is the user authenticated?
-│   └── NO  --> ALLOW (not logged in)
+├── Is the extension unlocked?
+│   └── NO  --> ALLOW (extension locked)
 │   └── YES --> continue
 │
 ├── Is the browser online?
@@ -180,6 +180,8 @@ npm run build:chrome
 
 After installing, open the extension's options page to connect it to your Stellar backend.
 
+> **Note:** The extension uses anonymous Supabase auth combined with PIN verification -- no email or password is needed. Users unlock the extension by entering their PIN, which is verified against a locally cached gate hash.
+
 You will need three values from your Supabase project:
 
 | Setting | Description | Example |
@@ -232,7 +234,7 @@ export const APP_URL = 'https://stellarplanner.vercel.app';
 
 Stellar Focus is designed with user privacy as a priority:
 
-- **Local-only authentication** -- auth tokens are stored exclusively in the browser's local storage and IndexedDB
+- **PIN-based authentication** -- gate hash cached locally for offline verification; anonymous Supabase auth for read-only data access
 - **No browsing history** -- the extension does not track, record, or transmit any browsing history
 - **No third-party data sharing** -- the extension communicates only with your self-hosted Supabase project; no data is sent to Anthropic, analytics services, or any other third party
 - **Minimal data in transit** -- only focus session state and block list configuration are synced with Supabase

@@ -110,8 +110,8 @@
       authState.updateUserProfile({ first_name: firstName.trim(), last_name: lastName.trim() });
       profileSuccess = 'Profile updated successfully';
       setTimeout(() => (profileSuccess = null), 3000);
-    } catch (err: any) {
-      profileError = err?.message || 'Failed to update profile';
+    } catch (err: unknown) {
+      profileError = err instanceof Error ? err.message : 'Failed to update profile';
     }
 
     profileLoading = false;
@@ -146,8 +146,8 @@
       newCodeDigits = ['', '', '', ''];
       confirmCodeDigits = ['', '', '', ''];
       setTimeout(() => (codeSuccess = null), 3000);
-    } catch (err: any) {
-      codeError = err?.message || 'Failed to change code';
+    } catch (err: unknown) {
+      codeError = err instanceof Error ? err.message : 'Failed to change code';
     }
 
     codeLoading = false;

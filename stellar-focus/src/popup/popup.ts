@@ -1,21 +1,20 @@
 /**
  * Stellar Focus Extension - Popup Logic
- * Simple, beautiful, read-only view with real-time sync
+ * PIN-based auth with auto-submit, read-only view with real-time sync
  *
  * EGRESS OPTIMIZATION: Popup no longer creates its own realtime subscriptions.
  * Instead, it receives updates from the service worker via messaging.
- * This reduces realtime connections from 6 (3 SW + 3 popup) to 1 consolidated channel.
  */
 
 import browser from 'webextension-polyfill';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { getConfig } from '../config';
+import { getConfig, getGateConfig, setGateConfig, isUnlocked, setUnlocked, type GateConfig } from '../config';
+import { signInAnonymouslyIfNeeded, fetchGateConfig } from '../auth/supabase';
+import { hashValue } from '../lib/crypto';
 import { debugLog, debugWarn, debugError, initDebugMode } from '../lib/debug';
 
 // Types
 interface FocusSession {
   id: string;
-  user_id: string;
   phase: 'focus' | 'break';
   status: 'running' | 'paused' | 'completed';
   phase_started_at: string;
@@ -35,48 +34,11 @@ interface BlockList {
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
-// Supabase client — auth only (data queries go through service worker)
-let supabase: SupabaseClient | null = null;
-
-async function getSupabaseClient(): Promise<SupabaseClient | null> {
-  if (supabase) return supabase;
-
-  const config = await getConfig();
-  if (!config) return null;
-
-  supabase = createClient(config.supabaseUrl, config.supabaseAnonKey, {
-    auth: {
-      storage: {
-        getItem: async (key: string) => {
-          const result = await browser.storage.local.get(key);
-          return result[key] ?? null;
-        },
-        setItem: async (key: string, value: string) => {
-          await browser.storage.local.set({ [key]: value });
-        },
-        removeItem: async (key: string) => {
-          await browser.storage.local.remove(key);
-        }
-      },
-      autoRefreshToken: true,
-      persistSession: true
-    }
-    // EGRESS OPTIMIZATION: Removed realtime config — popup uses service worker for all data
-  });
-
-  return supabase;
-}
-
 // DOM Elements
 const offlinePlaceholder = document.getElementById('offlinePlaceholder') as HTMLElement;
-const authSection = document.getElementById('authSection') as HTMLElement;
+const pinSection = document.getElementById('pinSection') as HTMLElement;
+const notSetUpSection = document.getElementById('notSetUpSection') as HTMLElement;
 const mainSection = document.getElementById('mainSection') as HTMLElement;
-const loginForm = document.getElementById('loginForm') as HTMLFormElement;
-const emailInput = document.getElementById('emailInput') as HTMLInputElement;
-const passwordInput = document.getElementById('passwordInput') as HTMLInputElement;
-const loginError = document.getElementById('loginError') as HTMLElement;
-const loginBtn = document.getElementById('loginBtn') as HTMLButtonElement;
-const logoutBtn = document.getElementById('logoutBtn') as HTMLButtonElement;
 const syncIndicator = document.getElementById('syncIndicator') as HTMLElement;
 const statusIndicator = document.getElementById('statusIndicator') as HTMLElement;
 const statusLabel = document.getElementById('statusLabel') as HTMLElement;
@@ -85,21 +47,29 @@ const blockListsContainer = document.getElementById('blockLists') as HTMLElement
 const userAvatar = document.getElementById('userAvatar') as HTMLElement;
 const userName = document.getElementById('userName') as HTMLElement;
 const openStellarBtn = document.getElementById('openStellarBtn') as HTMLAnchorElement;
-const signupLink = document.getElementById('signupLink') as HTMLAnchorElement;
 const privacyLink = document.getElementById('privacyLink') as HTMLAnchorElement;
 const focusTimeValue = document.getElementById('focusTimeValue') as HTMLElement;
 const activeBlockListCount = document.getElementById('activeBlockListCount') as HTMLElement;
 
+// PIN elements
+const pinAvatar = document.getElementById('pinAvatar') as HTMLElement;
+const pinGreeting = document.getElementById('pinGreeting') as HTMLElement;
+const pinInputGroup = document.getElementById('pinInputGroup') as HTMLElement;
+const pinError = document.getElementById('pinError') as HTMLElement;
+const pinLoading = document.getElementById('pinLoading') as HTMLElement;
+const pinDigits = pinInputGroup?.querySelectorAll('.pin-digit') as NodeListOf<HTMLInputElement>;
+
+// Not-configured state element
+const notConfiguredEl = document.getElementById('notConfigured') as HTMLElement | null;
+
 // State
 let isOnline = navigator.onLine;
-let currentUserId: string | null = null;
 let syncStatus: SyncStatus = 'idle';
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let cachedBlockLists: BlockList[] = [];
 let focusTimeInterval: ReturnType<typeof setInterval> | null = null;
 let hasActiveRunningSession = false;
-// Not-configured state element
-const notConfiguredEl = document.getElementById('notConfigured') as HTMLElement | null;
+let currentGateConfig: GateConfig | null = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', init);
@@ -107,52 +77,39 @@ document.addEventListener('DOMContentLoaded', init);
 async function init() {
   await initDebugMode();
 
-  // Check if configured
+  // Check if configured (Supabase URL + keys)
   const config = await getConfig();
   if (!config) {
-    // Show not-configured state
     showNotConfigured();
     return;
   }
 
-  // Set links (for right-click open in new tab)
+  // Set links
   if (openStellarBtn) openStellarBtn.href = config.appUrl;
-  if (signupLink) signupLink.href = config.appUrl + '/login';
   if (privacyLink) privacyLink.href = config.appUrl + '/policy';
 
   // Network listeners
   window.addEventListener('online', handleOnline);
   window.addEventListener('offline', handleOffline);
 
-  // EGRESS OPTIMIZATION: Listen for messages from service worker instead of creating our own subscriptions
+  // Service worker message listener
   setupServiceWorkerMessageListener();
 
-  // Initial state
-  updateView();
+  // Wire up common buttons
+  document.getElementById('lockBtn')?.addEventListener('click', handleLock);
 
-  // Event listeners
-  loginForm?.addEventListener('submit', handleLogin);
-  logoutBtn?.addEventListener('click', handleLogout);
+  // Admin settings — always show in single-user mode
+  const adminBtn = document.getElementById('adminSettingsBtn');
+  if (adminBtn) {
+    adminBtn.classList.remove('hidden');
+    adminBtn.addEventListener('click', () => {
+      browser.runtime.openOptionsPage();
+    });
+  }
 
-  // Password visibility toggle
-  const passwordToggle = document.getElementById('passwordToggle');
-  passwordToggle?.addEventListener('click', () => {
-    const isPassword = passwordInput.type === 'password';
-    passwordInput.type = isPassword ? 'text' : 'password';
-    passwordToggle.classList.toggle('showing', isPassword);
-    passwordToggle.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
-  });
-
-  // Open Stellar button - focus existing tab if available, otherwise open new
   openStellarBtn?.addEventListener('click', async (e) => {
     e.preventDefault();
     await focusOrOpenApp();
-  });
-
-  signupLink?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    const cfg = await getConfig();
-    if (cfg) await navigateToApp(`${cfg.appUrl}/login`);
   });
 
   privacyLink?.addEventListener('click', async (e) => {
@@ -161,37 +118,313 @@ async function init() {
     if (cfg) await navigateToApp(`${cfg.appUrl}/policy`);
   });
 
-  // Check auth if online
+  // Open app setup button
+  document.getElementById('openAppSetupBtn')?.addEventListener('click', async () => {
+    await focusOrOpenApp();
+  });
+
+  // Check if already unlocked
+  const unlocked = await isUnlocked();
+  if (unlocked) {
+    // Already unlocked — load gate config for user info and show main
+    currentGateConfig = await getGateConfig();
+    if (currentGateConfig) {
+      updateUserInfoFromGateConfig(currentGateConfig);
+    }
+    showMain();
+    if (isOnline) {
+      await loadData();
+      browser.runtime.sendMessage({ type: 'CHECK_REALTIME' }).catch(() => {});
+    }
+    return;
+  }
+
+  // Not unlocked — check for cached gate config
+  currentGateConfig = await getGateConfig();
+  if (currentGateConfig) {
+    showPinSection(currentGateConfig);
+    return;
+  }
+
+  // No cached gate config — try to fetch from Supabase
   if (isOnline) {
-    await checkAuth();
-    // Ask service worker to check realtime health and reconnect if needed
-    browser.runtime.sendMessage({ type: 'CHECK_REALTIME' }).catch(() => {});
+    try {
+      const { error } = await signInAnonymouslyIfNeeded();
+      if (error) {
+        debugError('[Stellar Focus] Anonymous sign-in failed:', error);
+        showNotSetUp();
+        return;
+      }
+
+      const gateConfig = await fetchGateConfig();
+      if (gateConfig) {
+        currentGateConfig = gateConfig;
+        await setGateConfig(gateConfig);
+        showPinSection(gateConfig);
+      } else {
+        showNotSetUp();
+      }
+    } catch (e) {
+      debugError('[Stellar Focus] Failed to fetch gate config:', e);
+      showNotSetUp();
+    }
+  } else {
+    // Offline and never been set up
+    showNotSetUp();
   }
 }
 
-function showNotConfigured() {
-  // Hide all other sections
-  offlinePlaceholder?.classList.add('hidden');
-  authSection?.classList.add('hidden');
-  mainSection?.classList.add('hidden');
+// ============================================================
+// Section visibility
+// ============================================================
 
-  // Show not-configured section
+function hideAllSections() {
+  offlinePlaceholder?.classList.add('hidden');
+  pinSection?.classList.add('hidden');
+  notSetUpSection?.classList.add('hidden');
+  mainSection?.classList.add('hidden');
+  notConfiguredEl?.classList.add('hidden');
+}
+
+function showNotConfigured() {
+  hideAllSections();
   if (notConfiguredEl) {
     notConfiguredEl.classList.remove('hidden');
   }
-
-  // Wire up the open settings button
   document.getElementById('openOptionsBtn')?.addEventListener('click', () => {
     browser.runtime.openOptionsPage();
   });
 }
 
-// EGRESS OPTIMIZATION: Listen for updates from service worker instead of creating own subscriptions
+function showNotSetUp() {
+  hideAllSections();
+  notSetUpSection?.classList.remove('hidden');
+}
+
+function showPinSection(gateConfig: GateConfig) {
+  hideAllSections();
+  pinSection?.classList.remove('hidden');
+
+  // Set avatar and greeting
+  const firstName = (gateConfig.profile.firstName as string) || '';
+  const initial = firstName.charAt(0).toUpperCase() || '?';
+  if (pinAvatar) pinAvatar.textContent = initial;
+  if (pinGreeting) {
+    pinGreeting.textContent = firstName ? `Welcome back, ${firstName}` : 'Welcome back';
+  }
+
+  // Clear any previous state
+  hidePinError();
+  clearPinDigits();
+  pinLoading?.classList.add('hidden');
+  pinInputGroup?.classList.remove('hidden');
+
+  // Setup PIN input handlers
+  setupPinInputs();
+
+  // Focus first digit
+  if (pinDigits[0]) {
+    setTimeout(() => pinDigits[0].focus(), 100);
+  }
+}
+
+function showMain() {
+  hideAllSections();
+  if (!isOnline) {
+    offlinePlaceholder?.classList.remove('hidden');
+  } else {
+    mainSection?.classList.remove('hidden');
+  }
+}
+
+// ============================================================
+// PIN Input Logic
+// ============================================================
+
+function setupPinInputs() {
+  pinDigits.forEach((digit, index) => {
+    digit.addEventListener('input', () => handlePinDigitInput(index));
+    digit.addEventListener('keydown', (e) => handlePinDigitKeydown(index, e));
+    digit.addEventListener('paste', (e) => handlePinPaste(e));
+  });
+}
+
+function handlePinDigitInput(index: number) {
+  const input = pinDigits[index];
+  const value = input.value.replace(/[^0-9]/g, '');
+
+  if (value.length > 0) {
+    input.value = value.charAt(value.length - 1);
+    // Update wrapper filled state
+    input.closest('.pin-digit-wrapper')?.classList.add('filled');
+
+    if (index < 3 && pinDigits[index + 1]) {
+      pinDigits[index + 1].focus();
+    }
+
+    // Auto-submit when all 4 digits are filled
+    if (index === 3) {
+      const allFilled = Array.from(pinDigits).every(d => d.value.length === 1);
+      if (allFilled) {
+        handlePinSubmit();
+      }
+    }
+  } else {
+    input.value = '';
+    input.closest('.pin-digit-wrapper')?.classList.remove('filled');
+  }
+}
+
+function handlePinDigitKeydown(index: number, event: KeyboardEvent) {
+  if (event.key === 'Backspace') {
+    if (pinDigits[index].value === '' && index > 0) {
+      pinDigits[index - 1].focus();
+      pinDigits[index - 1].value = '';
+      pinDigits[index - 1].closest('.pin-digit-wrapper')?.classList.remove('filled');
+    } else {
+      pinDigits[index].value = '';
+      pinDigits[index].closest('.pin-digit-wrapper')?.classList.remove('filled');
+    }
+  }
+}
+
+function handlePinPaste(event: ClipboardEvent) {
+  event.preventDefault();
+  const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '');
+  for (let i = 0; i < 4 && i < pasted.length; i++) {
+    pinDigits[i].value = pasted[i];
+    if (pasted[i]) {
+      pinDigits[i].closest('.pin-digit-wrapper')?.classList.add('filled');
+    }
+  }
+  const focusIndex = Math.min(pasted.length, 3);
+  if (pinDigits[focusIndex]) pinDigits[focusIndex].focus();
+
+  // Auto-submit if all 4 digits pasted
+  if (pasted.length >= 4) {
+    const allFilled = Array.from(pinDigits).every(d => d.value.length === 1);
+    if (allFilled) {
+      handlePinSubmit();
+    }
+  }
+}
+
+function clearPinDigits() {
+  pinDigits.forEach(d => {
+    d.value = '';
+    d.closest('.pin-digit-wrapper')?.classList.remove('filled');
+  });
+}
+
+async function handlePinSubmit() {
+  if (!currentGateConfig) return;
+
+  hidePinError();
+
+  const pin = Array.from(pinDigits).map(d => d.value).join('');
+  if (pin.length !== 4) return;
+
+  // Show loading, hide digits
+  pinInputGroup?.classList.add('hidden');
+  pinLoading?.classList.remove('hidden');
+
+  try {
+    const inputHash = await hashValue(pin);
+
+    if (inputHash === currentGateConfig.gateHash) {
+      // Match — unlock
+      await setUnlocked(true);
+
+      // Notify service worker
+      browser.runtime.sendMessage({ type: 'UNLOCKED' }).catch(() => {});
+
+      // Update user info and show main
+      updateUserInfoFromGateConfig(currentGateConfig);
+      showMain();
+
+      if (isOnline) {
+        await loadData();
+      }
+    } else {
+      // Mismatch — shake, clear, show error
+      pinLoading?.classList.add('hidden');
+      pinInputGroup?.classList.remove('hidden');
+
+      pinInputGroup?.classList.add('shake');
+      setTimeout(() => {
+        pinInputGroup?.classList.remove('shake');
+      }, 500);
+
+      clearPinDigits();
+      showPinError('Incorrect code');
+
+      if (pinDigits[0]) pinDigits[0].focus();
+    }
+  } catch (e) {
+    debugError('[Stellar Focus] PIN submit error:', e);
+    pinLoading?.classList.add('hidden');
+    pinInputGroup?.classList.remove('hidden');
+    clearPinDigits();
+    showPinError('Verification failed');
+    if (pinDigits[0]) pinDigits[0].focus();
+  }
+}
+
+function showPinError(message: string) {
+  if (pinError) {
+    pinError.textContent = message;
+    pinError.classList.remove('hidden');
+  }
+}
+
+function hidePinError() {
+  pinError?.classList.add('hidden');
+}
+
+// ============================================================
+// Lock
+// ============================================================
+
+async function handleLock() {
+  try {
+    stopFocusTimeTick();
+    hasActiveRunningSession = false;
+    await setUnlocked(false);
+
+    // Notify service worker
+    browser.runtime.sendMessage({ type: 'LOCKED' }).catch(() => {});
+
+    // Show PIN section if we have config
+    if (currentGateConfig) {
+      showPinSection(currentGateConfig);
+    } else {
+      showNotSetUp();
+    }
+  } catch (error) {
+    debugError('[Stellar Focus] Lock error:', error);
+  }
+}
+
+// ============================================================
+// User Info
+// ============================================================
+
+function updateUserInfoFromGateConfig(gateConfig: GateConfig) {
+  const firstName = (gateConfig.profile.firstName as string) || '';
+  const initial = firstName.charAt(0).toUpperCase() || '?';
+  if (userAvatar) userAvatar.textContent = initial;
+  const displayName = firstName || 'there';
+  if (userName) userName.textContent = `Hey, ${displayName}!`;
+}
+
+// ============================================================
+// Service Worker Messages
+// ============================================================
+
 function setupServiceWorkerMessageListener() {
   browser.runtime.onMessage.addListener((message: { type: string }) => {
     if (message.type === 'FOCUS_STATUS_CHANGED') {
       debugLog('[Stellar Focus] Received focus status update from service worker');
-      // Refresh focus status display
       loadFocusStatus();
       loadFocusTimeToday();
       setSyncStatus('syncing');
@@ -199,7 +432,6 @@ function setupServiceWorkerMessageListener() {
     }
     if (message.type === 'BLOCK_LISTS_CHANGED') {
       debugLog('[Stellar Focus] Received block lists update from service worker');
-      // Refresh block lists display
       loadBlockLists();
       setSyncStatus('syncing');
       setTimeout(() => setSyncStatus('synced'), 800);
@@ -207,150 +439,37 @@ function setupServiceWorkerMessageListener() {
   });
 }
 
+// ============================================================
+// Online/Offline
+// ============================================================
+
 function handleOnline() {
   isOnline = true;
-  updateView();
-  checkAuth();
+  const unlocked = mainSection && !mainSection.classList.contains('hidden');
+  if (unlocked) {
+    showMain();
+    loadData();
+  }
 }
 
 function handleOffline() {
   isOnline = false;
   stopFocusTimeTick();
   hasActiveRunningSession = false;
-  updateView();
-}
-
-function updateView() {
-  // Hide all sections first
-  offlinePlaceholder?.classList.add('hidden');
-  authSection?.classList.add('hidden');
-  mainSection?.classList.add('hidden');
-
-  if (!isOnline) {
-    // Offline: only show placeholder
-    offlinePlaceholder?.classList.remove('hidden');
-  } else if (!currentUserId) {
-    // Online but not logged in: show auth
-    authSection?.classList.remove('hidden');
-  } else {
-    // Online and logged in: show main
-    mainSection?.classList.remove('hidden');
+  const unlocked = mainSection && !mainSection.classList.contains('hidden');
+  if (unlocked) {
+    showMain(); // Will show offline placeholder
   }
 }
 
-async function checkAuth() {
-  try {
-    const client = await getSupabaseClient();
-    if (!client) return;
+// ============================================================
+// Data Loading
+// ============================================================
 
-    const { data: { session } } = await client.auth.getSession();
-
-    if (session?.user) {
-      currentUserId = session.user.id;
-      updateUserInfo(session.user);
-      updateView();
-      await loadData();
-      // EGRESS OPTIMIZATION: No longer subscribe to realtime here
-      // Service worker handles realtime and notifies popup via messaging
-    } else {
-      currentUserId = null;
-      updateView();
-    }
-  } catch (error) {
-    debugError('Auth check failed:', error);
-    currentUserId = null;
-    updateView();
-  }
-}
-
-async function handleLogin(e: Event) {
-  e.preventDefault();
-
-  const email = emailInput.value.trim();
-  const password = passwordInput.value;
-
-  if (!email || !password) {
-    showLoginError('Please enter email and password');
-    return;
-  }
-
-  setLoginLoading(true);
-  hideLoginError();
-
-  try {
-    const client = await getSupabaseClient();
-    if (!client) {
-      showLoginError('Extension not configured');
-      setLoginLoading(false);
-      return;
-    }
-
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      showLoginError(error.message);
-      setLoginLoading(false);
-      return;
-    }
-
-    if (data.user) {
-      currentUserId = data.user.id;
-      updateUserInfo(data.user);
-      updateView();
-      await loadData();
-      // EGRESS OPTIMIZATION: No longer subscribe to realtime here
-      // Service worker handles realtime and notifies popup via messaging
-    }
-  } catch (error) {
-    debugError('Login error:', error);
-    showLoginError('Login failed. Please try again.');
-  }
-
-  setLoginLoading(false);
-}
-
-async function handleLogout() {
-  try {
-    stopFocusTimeTick();
-    hasActiveRunningSession = false;
-    const client = await getSupabaseClient();
-    if (client) await client.auth.signOut();
-    currentUserId = null;
-    updateView();
-    emailInput.value = '';
-    passwordInput.value = '';
-    hideLoginError();
-  } catch (error) {
-    debugError('Logout error:', error);
-  }
-}
-
-function updateUserInfo(user: { email?: string; user_metadata?: { first_name?: string }; app_metadata?: { is_admin?: boolean } }) {
-  const firstName = user.user_metadata?.first_name || '';
-  const initial = firstName.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || '?';
-  if (userAvatar) userAvatar.textContent = initial;
-  const displayName = firstName || user.email?.split('@')[0] || 'there';
-  if (userName) userName.textContent = `Hey, ${displayName}!`;
-
-  // Show admin settings button for admin users
-  const adminBtn = document.getElementById('adminSettingsBtn');
-  if (adminBtn) {
-    if (user.app_metadata?.is_admin === true) {
-      adminBtn.classList.remove('hidden');
-      adminBtn.addEventListener('click', () => {
-        browser.runtime.openOptionsPage();
-      });
-    } else {
-      adminBtn.classList.add('hidden');
-    }
-  }
-}
-
-// Data loading with sync indicator
 async function loadData() {
   try {
     await Promise.all([
-      loadFocusStatus(true), // Initial load shows sync indicator
+      loadFocusStatus(true),
       loadBlockLists(),
       loadFocusTimeToday()
     ]);
@@ -360,18 +479,14 @@ async function loadData() {
   }
 }
 
-// Track last known session for change detection
 let lastSessionJson: string | null = null;
 
 async function loadFocusStatus(isInitialLoad = false) {
-  if (!currentUserId) return;
-
   if (isInitialLoad) {
     setSyncStatus('syncing');
   }
 
   try {
-    // EGRESS OPTIMIZATION: Use service worker cache instead of direct Supabase query
     const response = await browser.runtime.sendMessage({ type: 'GET_FOCUS_STATUS' }) as {
       isOnline: boolean;
       realtimeHealthy: boolean;
@@ -381,14 +496,12 @@ async function loadFocusStatus(isInitialLoad = false) {
     const session = response?.focusSession || null;
     const sessionJson = session ? JSON.stringify({ id: session.id, phase: session.phase, status: session.status }) : null;
 
-    // Check if session actually changed
     const hasChanged = sessionJson !== lastSessionJson;
     lastSessionJson = sessionJson;
 
     if (hasChanged) {
       debugLog('[Stellar Focus] Session changed:', session?.phase, session?.status);
 
-      // Show sync animation for changes (but not initial load which already shows it)
       if (!isInitialLoad) {
         setSyncStatus('syncing');
         setTimeout(() => setSyncStatus('synced'), 800);
@@ -409,9 +522,6 @@ async function loadFocusStatus(isInitialLoad = false) {
 }
 
 async function loadBlockLists() {
-  if (!currentUserId) return;
-
-  // EGRESS OPTIMIZATION: Use service worker cache instead of direct Supabase query
   const response = await browser.runtime.sendMessage({ type: 'GET_BLOCK_LISTS' }) as {
     lists: BlockList[];
   };
@@ -421,15 +531,13 @@ async function loadBlockLists() {
   updateActiveBlockListCount(cachedBlockLists);
 }
 
-// Helper to check if a block list is active today
 function isBlockListActiveToday(list: BlockList): boolean {
   if (!list.is_enabled) return false;
-  if (list.active_days === null) return true; // null means every day
+  if (list.active_days === null) return true;
   const currentDay = new Date().getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
   return list.active_days.includes(currentDay);
 }
 
-// Update active block list count display
 function updateActiveBlockListCount(lists: BlockList[]) {
   const activeCount = lists.filter(isBlockListActiveToday).length;
   if (activeBlockListCount) {
@@ -441,12 +549,8 @@ function updateActiveBlockListCount(lists: BlockList[]) {
   }
 }
 
-// Load focus time today
 async function loadFocusTimeToday(animate = true) {
-  if (!currentUserId) return;
-
   try {
-    // EGRESS OPTIMIZATION: Use service worker instead of direct Supabase query
     const response = await browser.runtime.sendMessage({ type: 'GET_FOCUS_TIME_TODAY' }) as {
       totalMs: number;
       hasRunningSession: boolean;
@@ -455,11 +559,9 @@ async function loadFocusTimeToday(animate = true) {
     const totalMs = response?.totalMs || 0;
     const foundRunningFocusSession = response?.hasRunningSession || false;
 
-    // Track if there's an active running focus session
     const wasRunning = hasActiveRunningSession;
     hasActiveRunningSession = foundRunningFocusSession;
 
-    // Start/stop the tick interval based on session state
     if (foundRunningFocusSession && !wasRunning) {
       startFocusTimeTick();
     } else if (!foundRunningFocusSession && wasRunning) {
@@ -472,7 +574,6 @@ async function loadFocusTimeToday(animate = true) {
   }
 }
 
-// Format duration to readable string
 function formatDuration(ms: number): string {
   const totalMinutes = Math.floor(ms / 60000);
   if (totalMinutes < 60) {
@@ -486,7 +587,6 @@ function formatDuration(ms: number): string {
   return `${hours}h ${minutes}m`;
 }
 
-// Update focus time display
 function updateFocusTimeDisplay(ms: number, animate = true) {
   if (focusTimeValue) {
     if (animate) {
@@ -496,24 +596,20 @@ function updateFocusTimeDisplay(ms: number, animate = true) {
         focusTimeValue.classList.remove('updating');
       }, 150);
     } else {
-      // No animation for periodic ticks
       focusTimeValue.textContent = formatDuration(ms);
     }
   }
 }
 
-// Start focus time tick interval (updates every 30 seconds while focus is running)
 function startFocusTimeTick() {
   stopFocusTimeTick();
-  // Update every 30 seconds for smooth incrementing
   focusTimeInterval = setInterval(() => {
     if (hasActiveRunningSession) {
-      loadFocusTimeToday(false); // Don't animate periodic updates
+      loadFocusTimeToday(false);
     }
-  }, 30000); // 30 seconds
+  }, 30000);
 }
 
-// Stop focus time tick interval
 function stopFocusTimeTick() {
   if (focusTimeInterval) {
     clearInterval(focusTimeInterval);
@@ -521,7 +617,10 @@ function stopFocusTimeTick() {
   }
 }
 
-// Track previous timer state for transitions
+// ============================================================
+// Status Display
+// ============================================================
+
 type TimerState = 'idle' | 'focus' | 'break' | 'paused';
 let prevTimerState: TimerState = 'idle';
 
@@ -532,7 +631,7 @@ function updateStatusDisplay(session: FocusSession | null) {
 
   if (session) {
     if (session.status === 'running') {
-      newState = session.phase; // 'focus' or 'break'
+      newState = session.phase;
       label = session.phase === 'focus' ? 'Focus Time' : 'Break Time';
       desc = session.phase === 'focus'
         ? 'Stay focused — distractions blocked'
@@ -544,31 +643,25 @@ function updateStatusDisplay(session: FocusSession | null) {
     }
   }
 
-  // Only update if state actually changed
   if (newState === prevTimerState) return;
 
   const isTransitioning = prevTimerState !== 'idle' || newState !== 'idle';
 
-  // Remove old state classes
   statusIndicator?.classList.remove('focus', 'break', 'paused', 'idle', 'transitioning');
 
-  // Remove active class from all icons
   const icons = statusIndicator?.querySelectorAll('.status-icon svg');
   icons?.forEach(icon => icon.classList.remove('active', 'morph-in', 'morph-out'));
 
-  // Add morph-out to previous icon
   if (isTransitioning) {
     const prevIcon = statusIndicator?.querySelector(`.icon-${prevTimerState}`);
     prevIcon?.classList.add('morph-out');
   }
 
-  // Add new state class
   statusIndicator?.classList.add(newState);
   if (isTransitioning) {
     statusIndicator?.classList.add('transitioning');
   }
 
-  // Add active and morph-in to new icon
   const newIcon = statusIndicator?.querySelector(`.icon-${newState}`);
   if (newIcon) {
     newIcon.classList.add('active');
@@ -577,7 +670,6 @@ function updateStatusDisplay(session: FocusSession | null) {
     }
   }
 
-  // Update text with fade transition
   if (statusLabel) {
     statusLabel.classList.add('updating');
     setTimeout(() => {
@@ -594,7 +686,6 @@ function updateStatusDisplay(session: FocusSession | null) {
     }, 150);
   }
 
-  // Remove transitioning class after animation
   setTimeout(() => {
     statusIndicator?.classList.remove('transitioning');
     icons?.forEach(icon => icon.classList.remove('morph-out'));
@@ -603,13 +694,16 @@ function updateStatusDisplay(session: FocusSession | null) {
   prevTimerState = newState;
 }
 
+// ============================================================
+// Block Lists Rendering
+// ============================================================
+
 async function renderBlockLists(lists: BlockList[]) {
   if (!blockListsContainer) return;
 
   const config = await getConfig();
   const appUrl = config?.appUrl || '';
 
-  // Clear existing content
   blockListsContainer.textContent = '';
 
   if (lists.length === 0) {
@@ -634,7 +728,6 @@ async function renderBlockLists(lists: BlockList[]) {
     return;
   }
 
-  // Sort: active lists first, then inactive
   const sortedLists = [...lists].sort((a, b) => {
     const aActive = isBlockListActiveToday(a);
     const bActive = isBlockListActiveToday(b);
@@ -668,7 +761,6 @@ async function renderBlockLists(lists: BlockList[]) {
       await navigateToApp(editUrl);
     });
 
-    // Create SVG using namespace
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '16');
     svg.setAttribute('height', '16');
@@ -692,85 +784,50 @@ async function renderBlockLists(lists: BlockList[]) {
   }
 }
 
-// EGRESS OPTIMIZATION: Realtime subscriptions removed from popup
-// Service worker handles all realtime and notifies popup via browser.runtime.sendMessage
-// This reduces realtime connections from 6 (3 SW + 3 popup) to 1 consolidated channel
-// Popup still receives instant updates via the service worker messaging
+// ============================================================
+// Sync Status Indicator
+// ============================================================
 
-// Sync status indicator (matches main app SyncStatus behavior)
 function setSyncStatus(status: SyncStatus) {
   const prevStatus = syncStatus;
   syncStatus = status;
 
-  // Remove all state classes from indicator
   syncIndicator?.classList.remove('idle', 'syncing', 'synced', 'error', 'transitioning');
   syncIndicator?.classList.add(status);
 
-  // Remove active class from all icons
   const icons = syncIndicator?.querySelectorAll('.icon');
   icons?.forEach(icon => icon.classList.remove('active', 'morph-in'));
 
-  // Add active class to the correct icon
   const activeIcon = syncIndicator?.querySelector(`.icon-${status}`);
   if (activeIcon) {
     activeIcon.classList.add('active');
 
-    // Add morph-in animation when transitioning from syncing to synced/error
     if (prevStatus === 'syncing' && (status === 'synced' || status === 'error')) {
       activeIcon.classList.add('morph-in');
       syncIndicator?.classList.add('transitioning');
 
-      // Remove transitioning class after animation
       setTimeout(() => {
         syncIndicator?.classList.remove('transitioning');
       }, 600);
     }
   }
 
-  // Auto-hide synced status after 2 seconds
   if (syncTimeout) clearTimeout(syncTimeout);
 
   if (status === 'synced') {
     syncTimeout = setTimeout(() => {
       syncIndicator?.classList.remove('synced');
       syncIndicator?.classList.add('idle');
-      // Remove active from synced icon
       const syncedIcon = syncIndicator?.querySelector('.icon-synced');
       syncedIcon?.classList.remove('active', 'morph-in');
     }, 2000);
   }
 }
 
-// UI helpers
-function setLoginLoading(loading: boolean) {
-  const btnText = loginBtn?.querySelector('.btn-text') as HTMLElement;
-  const btnLoading = loginBtn?.querySelector('.btn-loading') as HTMLElement;
+// ============================================================
+// Navigation Helpers
+// ============================================================
 
-  if (loading) {
-    btnText?.classList.add('hidden');
-    btnLoading?.classList.remove('hidden');
-    if (loginBtn) loginBtn.disabled = true;
-  } else {
-    btnText?.classList.remove('hidden');
-    btnLoading?.classList.add('hidden');
-    if (loginBtn) loginBtn.disabled = false;
-  }
-}
-
-function showLoginError(message: string) {
-  if (loginError) {
-    loginError.textContent = message;
-    loginError.classList.remove('hidden');
-  }
-}
-
-function hideLoginError() {
-  loginError?.classList.add('hidden');
-}
-
-/**
- * Focus an existing app tab if open, otherwise open a new tab to the app home
- */
 async function focusOrOpenApp() {
   try {
     const config = await getConfig();
@@ -782,10 +839,8 @@ async function focusOrOpenApp() {
     });
 
     if (tabs.length > 0 && tabs[0].id !== undefined) {
-      // Found an existing app tab - just focus it without changing URL
       await browser.tabs.update(tabs[0].id, { active: true });
     } else {
-      // No existing tab - create a new one
       await browser.tabs.create({ url: config.appUrl });
     }
 
@@ -800,9 +855,6 @@ async function focusOrOpenApp() {
   }
 }
 
-/**
- * Navigate to a specific URL in the main app, reusing an existing tab if one is open
- */
 async function navigateToApp(url: string) {
   try {
     const config = await getConfig();
@@ -814,10 +866,8 @@ async function navigateToApp(url: string) {
     });
 
     if (tabs.length > 0 && tabs[0].id !== undefined) {
-      // Found an existing app tab - update it and focus
       await browser.tabs.update(tabs[0].id, { url, active: true });
     } else {
-      // No existing tab - create a new one
       await browser.tabs.create({ url });
     }
 

@@ -331,6 +331,27 @@ if (browser) {
             blockedWebsites: 'id, block_list_id, updated_at',
             projects: 'id, user_id, is_current, order, created_at, updated_at'
           }
+        },
+        {
+          // Version 15: No app schema changes — triggers Dexie upgrade so the
+          // engine's singleUserConfig system table gets created in existing databases.
+          version: 15,
+          stores: {
+            goalLists: 'id, user_id, project_id, order, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, project_id, order, created_at, updated_at',
+            commitments: 'id, user_id, project_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermTasks: 'id, user_id, due_date, category_id, created_at, updated_at',
+            focusSettings: 'id, user_id, updated_at',
+            focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+            blockLists: 'id, user_id, order, updated_at',
+            blockedWebsites: 'id, block_list_id, updated_at',
+            projects: 'id, user_id, is_current, order, created_at, updated_at'
+          }
         }
       ]
     },

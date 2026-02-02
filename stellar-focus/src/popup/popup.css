@@ -657,7 +657,176 @@ body {
   padding: 20px 16px;
 }
 
-.auth-section {
+/* ═══════════════════════════════════════════════════════════════════════════
+   PIN SECTION — Cinematic PIN entry with avatar and glow effects
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pin-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 20px;
+  animation: fadeInUp 0.5s var(--ease-smooth);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pin-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.pin-avatar-wrapper {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 4px;
+}
+
+.pin-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  position: relative;
+  z-index: 2;
+  box-shadow:
+    0 4px 20px var(--color-primary-glow),
+    0 0 40px rgba(108, 92, 231, 0.15);
+}
+
+.pin-avatar-ring-outer {
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 1px solid rgba(108, 92, 231, 0.25);
+  animation: pinRingPulse 3s ease-in-out infinite;
+}
+
+.pin-avatar-ring-inner {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1px solid rgba(108, 92, 231, 0.4);
+  animation: pinRingPulse 3s ease-in-out infinite 0.5s;
+}
+
+@keyframes pinRingPulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.06); opacity: 0.25; }
+}
+
+.pin-greeting {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.pin-subtitle {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+  opacity: 0.8;
+}
+
+.pin-input-group {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.pin-digit-wrapper {
+  position: relative;
+}
+
+.pin-digit-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--radius-lg) + 2px);
+  background: linear-gradient(135deg, rgba(108, 92, 231, 0.3), rgba(255, 121, 198, 0.2));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  filter: blur(6px);
+}
+
+.pin-digit-wrapper.filled::after {
+  opacity: 1;
+}
+
+.pin-digit {
+  width: 48px;
+  height: 56px;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  background: rgba(15, 15, 26, 0.6);
+  border: 1px solid rgba(108, 92, 231, 0.2);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  outline: none;
+  caret-color: var(--color-primary-light);
+  transition: all 0.3s var(--ease-smooth);
+}
+
+.pin-digit:focus {
+  border-color: rgba(108, 92, 231, 0.6);
+  box-shadow:
+    0 0 20px var(--color-primary-glow),
+    0 0 0 2px rgba(108, 92, 231, 0.15);
+  transform: translateY(-2px);
+}
+
+.pin-digit-wrapper.filled .pin-digit {
+  border-color: rgba(108, 92, 231, 0.4);
+  background: rgba(108, 92, 231, 0.08);
+}
+
+.pin-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 24px;
+}
+
+.pin-loading .spinner {
+  animation: spin 1s linear infinite;
+  color: var(--color-primary-light);
+}
+
+.pin-section .error-message {
+  max-width: 260px;
+}
+
+/* PIN shake animation */
+.pin-input-group.shake {
+  animation: pinShake 0.5s ease-in-out;
+}
+
+@keyframes pinShake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Not Set Up Section */
+.not-set-up-section {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -667,57 +836,7 @@ body {
   animation: fadeInUp 0.5s var(--ease-smooth);
 }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.auth-visual {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  margin-bottom: 20px;
-}
-
-.auth-glow {
-  position: absolute;
-  inset: -20px;
-  background: radial-gradient(circle, var(--color-primary-glow) 0%, transparent 70%);
-  animation: authGlow 3s ease-in-out infinite;
-}
-
-@keyframes authGlow {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.1); }
-}
-
-.auth-icon {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-primary-light);
-  width: 100%;
-  height: 100%;
-}
-
-.auth-section h2 {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.auth-desc {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  margin-bottom: 24px;
-}
-
-.login-form {
-  width: 100%;
-  max-width: 280px;
-}
+/* Legacy auth styles kept for error-message and form-group */
 
 .form-group {
   margin-bottom: 12px;
@@ -744,55 +863,6 @@ body {
   color: var(--color-text-muted);
 }
 
-.password-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.password-input-wrapper input {
-  padding-right: 44px;
-}
-
-.password-toggle {
-  position: absolute;
-  right: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  background: none;
-  border: none;
-  border-radius: var(--radius-md);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.password-toggle:hover {
-  color: var(--color-text);
-  background: rgba(108, 92, 231, 0.15);
-}
-
-.password-toggle:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--color-primary-glow);
-}
-
-.password-toggle .icon-hide {
-  display: none;
-}
-
-.password-toggle.showing .icon-show {
-  display: none;
-}
-
-.password-toggle.showing .icon-hide {
-  display: block;
-}
-
 .error-message {
   padding: 12px;
   margin-bottom: 12px;
@@ -808,23 +878,6 @@ body {
   0%, 100% { transform: translateX(0); }
   20%, 60% { transform: translateX(-5px); }
   40%, 80% { transform: translateX(5px); }
-}
-
-.signup-note {
-  margin-top: 20px;
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-
-.signup-note a {
-  color: var(--color-primary-light);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.signup-note a:hover {
-  color: var(--color-accent);
 }
 
 /* Buttons */

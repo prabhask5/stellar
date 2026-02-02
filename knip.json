@@ -12,9 +12,6 @@
     "**/*.test.ts",
     "**/*.spec.ts"
   ],
-  "ignoreDependencies": [
-    "@prabhask5/stellar-engine"
-  ],
   "sveltekit": {
     "config": "svelte.config.js"
   }

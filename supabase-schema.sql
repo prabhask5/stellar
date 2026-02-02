@@ -242,231 +242,184 @@ alter table long_term_tasks enable row level security;
 
 -- ============================================================
 -- RLS POLICIES: Goal Lists
+-- Single-user app: any authenticated user (including anonymous) can CRUD
 -- ============================================================
 
-create policy "Users can view their own goal lists"
+create policy "Authenticated users can view goal lists"
   on goal_lists for select
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own goal lists"
+create policy "Authenticated users can create goal lists"
   on goal_lists for insert
-  with check ((select auth.uid()) = user_id);
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own goal lists"
+create policy "Authenticated users can update goal lists"
   on goal_lists for update
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own goal lists"
+create policy "Authenticated users can delete goal lists"
   on goal_lists for delete
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
--- RLS POLICIES: Goals (via goal_list ownership)
+-- RLS POLICIES: Goals
 -- ============================================================
 
-create policy "Users can view their own goals"
+create policy "Authenticated users can view goals"
   on goals for select
-  using (
-    exists (
-      select 1 from goal_lists
-      where goal_lists.id = goals.goal_list_id
-      and goal_lists.user_id = (select auth.uid())
-    )
-  );
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own goals"
+create policy "Authenticated users can create goals"
   on goals for insert
-  with check (
-    exists (
-      select 1 from goal_lists
-      where goal_lists.id = goals.goal_list_id
-      and goal_lists.user_id = (select auth.uid())
-    )
-  );
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own goals"
+create policy "Authenticated users can update goals"
   on goals for update
-  using (
-    exists (
-      select 1 from goal_lists
-      where goal_lists.id = goals.goal_list_id
-      and goal_lists.user_id = (select auth.uid())
-    )
-  );
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own goals"
+create policy "Authenticated users can delete goals"
   on goals for delete
-  using (
-    exists (
-      select 1 from goal_lists
-      where goal_lists.id = goals.goal_list_id
-      and goal_lists.user_id = (select auth.uid())
-    )
-  );
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
 -- RLS POLICIES: Daily Routine Goals
 -- ============================================================
 
-create policy "Users can view their own daily routine goals"
+create policy "Authenticated users can view daily routine goals"
   on daily_routine_goals for select
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own daily routine goals"
+create policy "Authenticated users can create daily routine goals"
   on daily_routine_goals for insert
-  with check ((select auth.uid()) = user_id);
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own daily routine goals"
+create policy "Authenticated users can update daily routine goals"
   on daily_routine_goals for update
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own daily routine goals"
+create policy "Authenticated users can delete daily routine goals"
   on daily_routine_goals for delete
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
--- RLS POLICIES: Daily Goal Progress (via routine ownership)
+-- RLS POLICIES: Daily Goal Progress
 -- ============================================================
 
-create policy "Users can view their daily progress"
+create policy "Authenticated users can view daily progress"
   on daily_goal_progress for select
-  using (
-    exists (
-      select 1 from daily_routine_goals
-      where daily_routine_goals.id = daily_goal_progress.daily_routine_goal_id
-      and daily_routine_goals.user_id = (select auth.uid())
-    )
-  );
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their daily progress"
+create policy "Authenticated users can create daily progress"
   on daily_goal_progress for insert
-  with check (
-    exists (
-      select 1 from daily_routine_goals
-      where daily_routine_goals.id = daily_goal_progress.daily_routine_goal_id
-      and daily_routine_goals.user_id = (select auth.uid())
-    )
-  );
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their daily progress"
+create policy "Authenticated users can update daily progress"
   on daily_goal_progress for update
-  using (
-    exists (
-      select 1 from daily_routine_goals
-      where daily_routine_goals.id = daily_goal_progress.daily_routine_goal_id
-      and daily_routine_goals.user_id = (select auth.uid())
-    )
-  );
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their daily progress"
+create policy "Authenticated users can delete daily progress"
   on daily_goal_progress for delete
-  using (
-    exists (
-      select 1 from daily_routine_goals
-      where daily_routine_goals.id = daily_goal_progress.daily_routine_goal_id
-      and daily_routine_goals.user_id = (select auth.uid())
-    )
-  );
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
 -- RLS POLICIES: Task Categories
 -- ============================================================
 
-create policy "Users can view their own task categories"
+create policy "Authenticated users can view task categories"
   on task_categories for select
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own task categories"
+create policy "Authenticated users can create task categories"
   on task_categories for insert
-  with check ((select auth.uid()) = user_id);
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own task categories"
+create policy "Authenticated users can update task categories"
   on task_categories for update
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own task categories"
+create policy "Authenticated users can delete task categories"
   on task_categories for delete
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
 -- RLS POLICIES: Commitments
 -- ============================================================
 
-create policy "Users can view their own commitments"
+create policy "Authenticated users can view commitments"
   on commitments for select
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own commitments"
+create policy "Authenticated users can create commitments"
   on commitments for insert
-  with check ((select auth.uid()) = user_id);
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own commitments"
+create policy "Authenticated users can update commitments"
   on commitments for update
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own commitments"
+create policy "Authenticated users can delete commitments"
   on commitments for delete
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
 -- RLS POLICIES: Daily Tasks
 -- ============================================================
 
-create policy "Users can view their own daily tasks"
+create policy "Authenticated users can view daily tasks"
   on daily_tasks for select
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own daily tasks"
+create policy "Authenticated users can create daily tasks"
   on daily_tasks for insert
-  with check ((select auth.uid()) = user_id);
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own daily tasks"
+create policy "Authenticated users can update daily tasks"
   on daily_tasks for update
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own daily tasks"
+create policy "Authenticated users can delete daily tasks"
   on daily_tasks for delete
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
 -- RLS POLICIES: Long Term Tasks
 -- ============================================================
 
-create policy "Users can view their own long term tasks"
+create policy "Authenticated users can view long term tasks"
   on long_term_tasks for select
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own long term tasks"
+create policy "Authenticated users can create long term tasks"
   on long_term_tasks for insert
-  with check ((select auth.uid()) = user_id);
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own long term tasks"
+create policy "Authenticated users can update long term tasks"
   on long_term_tasks for update
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own long term tasks"
+create policy "Authenticated users can delete long term tasks"
   on long_term_tasks for delete
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
 -- RLS POLICIES: Projects
 -- ============================================================
 
-create policy "Users can view their own projects"
+create policy "Authenticated users can view projects"
   on projects for select
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own projects"
+create policy "Authenticated users can create projects"
   on projects for insert
-  with check ((select auth.uid()) = user_id);
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own projects"
+create policy "Authenticated users can update projects"
   on projects for update
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own projects"
+create policy "Authenticated users can delete projects"
   on projects for delete
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
 -- TRIGGERS: Auto-set user_id on insert
@@ -639,21 +592,21 @@ create index idx_blocked_websites_deleted on blocked_websites(deleted) where del
 
 alter table focus_settings enable row level security;
 
-create policy "Users can view their own focus settings"
+create policy "Authenticated users can view focus settings"
   on focus_settings for select
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own focus settings"
+create policy "Authenticated users can create focus settings"
   on focus_settings for insert
-  with check ((select auth.uid()) = user_id);
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own focus settings"
+create policy "Authenticated users can update focus settings"
   on focus_settings for update
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own focus settings"
+create policy "Authenticated users can delete focus settings"
   on focus_settings for delete
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
 -- RLS: Focus Sessions
@@ -661,21 +614,21 @@ create policy "Users can delete their own focus settings"
 
 alter table focus_sessions enable row level security;
 
-create policy "Users can view their own focus sessions"
+create policy "Authenticated users can view focus sessions"
   on focus_sessions for select
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own focus sessions"
+create policy "Authenticated users can create focus sessions"
   on focus_sessions for insert
-  with check ((select auth.uid()) = user_id);
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own focus sessions"
+create policy "Authenticated users can update focus sessions"
   on focus_sessions for update
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own focus sessions"
+create policy "Authenticated users can delete focus sessions"
   on focus_sessions for delete
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
 -- RLS: Block Lists
@@ -683,67 +636,43 @@ create policy "Users can delete their own focus sessions"
 
 alter table block_lists enable row level security;
 
-create policy "Users can view their own block lists"
+create policy "Authenticated users can view block lists"
   on block_lists for select
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own block lists"
+create policy "Authenticated users can create block lists"
   on block_lists for insert
-  with check ((select auth.uid()) = user_id);
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own block lists"
+create policy "Authenticated users can update block lists"
   on block_lists for update
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own block lists"
+create policy "Authenticated users can delete block lists"
   on block_lists for delete
-  using ((select auth.uid()) = user_id);
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
--- RLS: Blocked Websites (via block_list ownership)
+-- RLS: Blocked Websites
 -- ============================================================
 
 alter table blocked_websites enable row level security;
 
-create policy "Users can view their own blocked websites"
+create policy "Authenticated users can view blocked websites"
   on blocked_websites for select
-  using (
-    exists (
-      select 1 from block_lists
-      where block_lists.id = blocked_websites.block_list_id
-      and block_lists.user_id = (select auth.uid())
-    )
-  );
+  using ((select auth.uid()) is not null);
 
-create policy "Users can create their own blocked websites"
+create policy "Authenticated users can create blocked websites"
   on blocked_websites for insert
-  with check (
-    exists (
-      select 1 from block_lists
-      where block_lists.id = blocked_websites.block_list_id
-      and block_lists.user_id = (select auth.uid())
-    )
-  );
+  with check ((select auth.uid()) is not null);
 
-create policy "Users can update their own blocked websites"
+create policy "Authenticated users can update blocked websites"
   on blocked_websites for update
-  using (
-    exists (
-      select 1 from block_lists
-      where block_lists.id = blocked_websites.block_list_id
-      and block_lists.user_id = (select auth.uid())
-    )
-  );
+  using ((select auth.uid()) is not null);
 
-create policy "Users can delete their own blocked websites"
+create policy "Authenticated users can delete blocked websites"
   on blocked_websites for delete
-  using (
-    exists (
-      select 1 from block_lists
-      where block_lists.id = blocked_websites.block_list_id
-      and block_lists.user_id = (select auth.uid())
-    )
-  );
+  using ((select auth.uid()) is not null);
 
 -- ============================================================
 -- TRIGGERS: Focus Feature Auto-set user_id
@@ -782,6 +711,36 @@ create trigger update_blocked_websites_updated_at
   for each row execute function update_updated_at_column();
 
 -- ============================================================
+-- TABLE: Single User Config (for extension PIN-based auth)
+-- ============================================================
+
+create table single_user_config (
+  id text primary key default 'config',
+  gate_type text not null check (gate_type in ('code', 'password')),
+  code_length integer,
+  gate_hash text not null,
+  profile jsonb not null default '{}',
+  created_at timestamptz default timezone('utc'::text, now()) not null,
+  updated_at timestamptz default timezone('utc'::text, now()) not null
+);
+
+alter table single_user_config enable row level security;
+
+-- Any authenticated user (including extension's anonymous user) can read
+create policy "Authenticated users can read config"
+  on single_user_config for select
+  using ((select auth.uid()) is not null);
+
+-- Any authenticated user can manage config (main app writes during setup)
+create policy "Authenticated users can manage config"
+  on single_user_config for all
+  using ((select auth.uid()) is not null);
+
+create trigger update_single_user_config_updated_at
+  before update on single_user_config
+  for each row execute function update_updated_at_column();
+
+-- ============================================================
 -- REALTIME: Enable real-time subscriptions for all tables
 -- ============================================================
 
@@ -798,6 +757,7 @@ alter publication supabase_realtime add table focus_sessions;
 alter publication supabase_realtime add table block_lists;
 alter publication supabase_realtime add table blocked_websites;
 alter publication supabase_realtime add table projects;
+alter publication supabase_realtime add table single_user_config;
 
 -- ============================================================
 -- VERSIONING: Add version columns to all entity tables

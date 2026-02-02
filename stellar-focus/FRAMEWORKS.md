@@ -343,17 +343,26 @@ async function setupRealtimeSubscriptions() {
 
 ### Auth Flow
 
-The user logs in through the popup using email/password. The Supabase client handles JWT token management, storage (via the custom adapter), and automatic token refresh. The service worker reads the same stored tokens to authenticate its own Supabase queries and realtime subscriptions.
+The extension uses Supabase anonymous auth paired with a user-specific PIN. There is no email/password login. Instead, the user enters a 6-digit PIN in the popup, and the extension calls `signInAnonymously()` to create an anonymous Supabase session. It then verifies the PIN against the `user_pins` table to link the anonymous session to the correct user account. The Supabase client handles JWT token management, storage (via the custom adapter), and automatic token refresh. The service worker reads the same stored tokens to authenticate its own Supabase queries and realtime subscriptions.
 
 ```ts
 // In the popup (popup.ts)
-const { data, error } = await client.auth.signInWithPassword({ email, password });
+// Step 1: Create an anonymous session
+const { data: anonData, error: anonError } = await client.auth.signInAnonymously();
 // Tokens are automatically stored via the custom adapter to browser.storage.local
+
+// Step 2: Verify the PIN to resolve the actual user
+const { data: pinData, error: pinError } = await client
+  .from('user_pins')
+  .select('user_id')
+  .eq('pin', enteredPin)
+  .single();
+// pinData.user_id is the authenticated user whose data the extension will sync
 
 // In the service worker (service-worker.ts)
 const session = await getSession();
 // Reads the same tokens from browser.storage.local
-const user = session.user; // No extra getUser() call needed (saves egress)
+const userId = await getLinkedUserId(); // Resolved from the PIN verification step
 ```
 
 ---
@@ -618,7 +627,7 @@ The popup appears when the user clicks the extension icon in the browser toolbar
 - Current focus session status (focus, break, paused, or idle)
 - Today's total focus time
 - Block lists and their active/inactive status
-- Login form (if not authenticated)
+- PIN input (if not authenticated) -- a 6-digit numeric PIN field replaces a traditional login form
 - Offline indicator
 
 The popup does **not** query Supabase directly for data. It sends messages to the service worker and renders the cached responses. This reduces Supabase egress from 6 realtime connections (3 in the service worker + 3 in the popup) down to 1 consolidated channel.

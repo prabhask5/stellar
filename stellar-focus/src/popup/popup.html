@@ -91,49 +91,64 @@
       <p class="offline-desc">Connect to the internet to view your focus sessions and block lists.</p>
     </section>
 
-    <!-- Auth Section -->
-    <section id="authSection" class="section auth-section hidden">
-      <div class="auth-visual">
-        <div class="auth-glow"></div>
-        <svg class="auth-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="8" r="4"/>
-          <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
+    <!-- PIN Section (replaces auth section) -->
+    <section id="pinSection" class="section pin-section hidden">
+      <div class="pin-visual">
+        <div class="pin-avatar-wrapper">
+          <div class="pin-avatar-ring-outer"></div>
+          <div class="pin-avatar-ring-inner"></div>
+          <span class="pin-avatar" id="pinAvatar">?</span>
+        </div>
+        <h2 class="pin-greeting" id="pinGreeting">Welcome back</h2>
+        <p class="pin-subtitle">Enter your code to continue</p>
+      </div>
+      <div class="pin-input-group" id="pinInputGroup">
+        <div class="pin-digit-wrapper">
+          <input class="pin-digit" type="tel" inputmode="numeric" maxlength="1" data-index="0" autocomplete="off">
+        </div>
+        <div class="pin-digit-wrapper">
+          <input class="pin-digit" type="tel" inputmode="numeric" maxlength="1" data-index="1" autocomplete="off">
+        </div>
+        <div class="pin-digit-wrapper">
+          <input class="pin-digit" type="tel" inputmode="numeric" maxlength="1" data-index="2" autocomplete="off">
+        </div>
+        <div class="pin-digit-wrapper">
+          <input class="pin-digit" type="tel" inputmode="numeric" maxlength="1" data-index="3" autocomplete="off">
+        </div>
+      </div>
+      <div id="pinLoading" class="pin-loading hidden">
+        <svg class="spinner" width="20" height="20" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4" stroke-dashoffset="31.4"/>
         </svg>
       </div>
-      <h2>Log In</h2>
-      <p class="auth-desc">Access your Stellar account</p>
-      <form id="loginForm" class="login-form">
-        <div class="form-group">
-          <input type="email" id="emailInput" placeholder="Email" required autocomplete="email">
+      <div id="pinError" class="error-message hidden"></div>
+    </section>
+
+    <!-- Not Set Up Section (shown when no gate config exists in Supabase) -->
+    <section id="notSetUpSection" class="section not-set-up-section hidden">
+      <div class="not-configured-visual">
+        <div class="not-configured-rings">
+          <div class="ring ring-1"></div>
+          <div class="ring ring-2"></div>
+          <div class="ring ring-3"></div>
         </div>
-        <div class="form-group">
-          <div class="password-input-wrapper">
-            <input type="password" id="passwordInput" placeholder="Password" required autocomplete="current-password">
-            <button type="button" id="passwordToggle" class="password-toggle" aria-label="Show password">
-              <svg class="icon-show" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-              <svg class="icon-hide hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                <line x1="1" y1="1" x2="23" y2="23"/>
-              </svg>
-            </button>
-          </div>
+        <div class="not-configured-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
         </div>
-        <div id="loginError" class="error-message hidden"></div>
-        <button type="submit" class="btn btn-primary" id="loginBtn">
-          <span class="btn-text">Log In</span>
-          <span class="btn-loading hidden">
-            <svg class="spinner" width="16" height="16" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4" stroke-dashoffset="31.4"/>
-            </svg>
-          </span>
-        </button>
-      </form>
-      <p class="signup-note">
-        Don't have an account? <a id="signupLink" href="#">Sign up on Stellar</a>
-      </p>
+      </div>
+      <h3 class="not-configured-title">Setup Required</h3>
+      <p class="not-configured-desc">Open the Stellar app and complete the initial setup first.</p>
+      <button id="openAppSetupBtn" class="btn btn-primary not-configured-btn">
+        <span>Open Stellar</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/>
+          <line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+      </button>
     </section>
 
     <!-- Main Section -->
@@ -202,7 +217,7 @@
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
           </button>
-          <button id="logoutBtn" class="btn btn-secondary btn-sm">Sign Out</button>
+          <button id="lockBtn" class="btn btn-secondary btn-sm">Lock</button>
         </div>
       </div>
     </section>
