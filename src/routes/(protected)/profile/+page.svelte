@@ -8,6 +8,7 @@
   import { authState } from '@prabhask5/stellar-engine/stores';
   import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
   import { isDebugMode, setDebugMode } from '@prabhask5/stellar-engine/utils';
+  import { resetDatabase } from '@prabhask5/stellar-engine';
   import { onMount } from 'svelte';
 
   // Form state
@@ -35,6 +36,7 @@
   let codeError = $state<string | null>(null);
   let codeSuccess = $state<string | null>(null);
   let debugMode = $state(isDebugMode());
+  let resetting = $state(false);
 
   // Get initial values from user data
   onMount(async () => {
@@ -160,6 +162,20 @@
 
   function goBack() {
     goto('/tasks');
+  }
+
+  async function handleResetDatabase() {
+    if (!confirm('This will delete all local data and reload. Your data will be re-synced from the server. Continue?')) {
+      return;
+    }
+    resetting = true;
+    try {
+      await resetDatabase();
+      window.location.href = '/login';
+    } catch (err) {
+      alert('Reset failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      resetting = false;
+    }
   }
 
   function handleMobileSignOut() {
@@ -402,6 +418,30 @@
       </svg>
       Update Supabase Configuration
     </button>
+
+    <button class="btn btn-danger" onclick={handleResetDatabase} disabled={resetting}>
+      {#if resetting}
+        <span class="loading-spinner"></span>
+        Resetting...
+      {:else}
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M3 6h18" />
+          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        </svg>
+        Reset Local Database
+      {/if}
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">Deletes all local data and re-syncs from the server. Use this if you're experiencing data issues.</p>
   </div>
 
   <!-- Sign Out (Mobile only — desktop has sign out in the navbar) -->
@@ -758,6 +798,18 @@
   .btn-secondary:hover:not(:disabled) {
     background: rgba(108, 92, 231, 0.25);
     border-color: rgba(108, 92, 231, 0.5);
+  }
+
+  .btn-danger {
+    background: rgba(255, 107, 107, 0.1);
+    color: var(--color-red, #ff6b6b);
+    border: 1px solid rgba(255, 107, 107, 0.25);
+    margin-top: 0.75rem;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: rgba(255, 107, 107, 0.2);
+    border-color: rgba(255, 107, 107, 0.4);
   }
 
   .btn:disabled {
