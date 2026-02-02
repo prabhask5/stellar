@@ -70,6 +70,8 @@
       authChannel = new BroadcastChannel('stellar-auth-channel');
       authChannel.onmessage = async (event) => {
         if (event.data?.type === 'AUTH_CONFIRMED') {
+          // Bring this tab to the foreground before the confirm tab closes
+          window.focus();
           if (showConfirmationModal) {
             // Setup confirmation complete
             const result = await completeSingleUserSetup();

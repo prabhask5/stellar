@@ -242,6 +242,8 @@
     const channel = new BroadcastChannel('stellar-auth-channel');
     channel.onmessage = async (event) => {
       if (event.data?.type === 'AUTH_CONFIRMED' && event.data?.verificationType === 'email_change') {
+        // Bring this tab to the foreground before the confirm tab closes
+        window.focus();
         const result = await completeSingleUserEmailChange();
         if (!result.error && result.newEmail) {
           currentEmail = result.newEmail;
