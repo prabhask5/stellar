@@ -19,7 +19,7 @@
       try {
         // Verify the OTP token via engine
         const { verifyOtp } = await import('@prabhask5/stellar-engine');
-        const { error } = await verifyOtp(tokenHash, type as 'signup' | 'email');
+        const { error } = await verifyOtp(tokenHash, type as 'signup' | 'email' | 'email_change');
 
         if (error) {
           status = 'error';

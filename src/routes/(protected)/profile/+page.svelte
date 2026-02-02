@@ -3,7 +3,9 @@
   import {
     changeSingleUserGate,
     updateSingleUserProfile,
-    getSingleUserInfo
+    getSingleUserInfo,
+    changeSingleUserEmail,
+    completeSingleUserEmailChange
   } from '@prabhask5/stellar-engine/auth';
   import { authState } from '@prabhask5/stellar-engine/stores';
   import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
@@ -29,6 +31,15 @@
   let newCodeInputs: HTMLInputElement[] = $state([]);
   let confirmCodeInputs: HTMLInputElement[] = $state([]);
 
+  // Email change state
+  let currentEmail = $state('');
+  let newEmail = $state('');
+  let emailLoading = $state(false);
+  let emailError = $state<string | null>(null);
+  let emailSuccess = $state<string | null>(null);
+  let showEmailConfirmationModal = $state(false);
+  let emailResendCooldown = $state(0);
+
   // UI state
   let profileLoading = $state(false);
   let codeLoading = $state(false);
@@ -51,6 +62,7 @@
     if (info) {
       firstName = (info.profile.firstName as string) || '';
       lastName = (info.profile.lastName as string) || '';
+      currentEmail = info.email || '';
     } else if ($userDisplayInfo) {
       firstName = $userDisplayInfo.firstName;
       lastName = $userDisplayInfo.lastName;
@@ -172,6 +184,81 @@
     }
 
     codeLoading = false;
+  }
+
+  async function handleEmailSubmit(e: Event) {
+    e.preventDefault();
+    emailError = null;
+    emailSuccess = null;
+
+    if (!newEmail.trim()) {
+      emailError = 'Please enter a new email address';
+      return;
+    }
+
+    if (newEmail.trim() === currentEmail) {
+      emailError = 'New email is the same as your current email';
+      return;
+    }
+
+    emailLoading = true;
+
+    try {
+      const result = await changeSingleUserEmail(newEmail.trim());
+      if (result.error) {
+        emailError = result.error;
+      } else if (result.confirmationRequired) {
+        showEmailConfirmationModal = true;
+        startResendCooldown();
+        listenForEmailConfirmation();
+      }
+    } catch (err: unknown) {
+      emailError = err instanceof Error ? err.message : 'Failed to change email';
+    }
+
+    emailLoading = false;
+  }
+
+  function startResendCooldown() {
+    emailResendCooldown = 30;
+    const interval = setInterval(() => {
+      emailResendCooldown--;
+      if (emailResendCooldown <= 0) clearInterval(interval);
+    }, 1000);
+  }
+
+  async function handleResendEmailChange() {
+    if (emailResendCooldown > 0) return;
+    try {
+      await changeSingleUserEmail(newEmail.trim());
+      startResendCooldown();
+    } catch {
+      // Ignore resend errors
+    }
+  }
+
+  function listenForEmailConfirmation() {
+    if (!('BroadcastChannel' in window)) return;
+    const channel = new BroadcastChannel('stellar-auth-channel');
+    channel.onmessage = async (event) => {
+      if (event.data?.type === 'AUTH_CONFIRMED' && event.data?.verificationType === 'email_change') {
+        const result = await completeSingleUserEmailChange();
+        if (!result.error && result.newEmail) {
+          currentEmail = result.newEmail;
+          emailSuccess = 'Email changed successfully';
+          newEmail = '';
+          setTimeout(() => (emailSuccess = null), 5000);
+        } else {
+          emailError = result.error || 'Failed to complete email change';
+        }
+        showEmailConfirmationModal = false;
+        channel.close();
+      }
+    };
+  }
+
+  function dismissEmailModal() {
+    showEmailConfirmationModal = false;
   }
 
   function toggleDebugMode() {
@@ -308,6 +395,84 @@
       </button>
     </form>
   </div>
+
+  <!-- Change Email Card -->
+  <div class="profile-card">
+    <div class="card-header">
+      <h2 class="card-title">Change Email</h2>
+      <p class="card-subtitle">Update the email address associated with your account</p>
+    </div>
+
+    {#if currentEmail}
+      <div class="current-email">
+        <span class="current-email-label">Current email</span>
+        <span class="current-email-value">{currentEmail}</span>
+      </div>
+    {/if}
+
+    <form onsubmit={handleEmailSubmit}>
+      <div class="form-group">
+        <label for="newEmail">New Email</label>
+        <input
+          type="email"
+          id="newEmail"
+          bind:value={newEmail}
+          disabled={emailLoading}
+          required
+          placeholder="new@example.com"
+        />
+      </div>
+
+      {#if emailError}
+        <div class="message error">{emailError}</div>
+      {/if}
+
+      {#if emailSuccess}
+        <div class="message success">{emailSuccess}</div>
+      {/if}
+
+      <button type="submit" class="btn btn-secondary" disabled={emailLoading}>
+        {#if emailLoading}
+          <span class="loading-spinner"></span>
+          Sending...
+        {:else}
+          Update Email
+        {/if}
+      </button>
+    </form>
+  </div>
+
+  <!-- Email Confirmation Modal -->
+  {#if showEmailConfirmationModal}
+    <div class="modal-overlay" role="dialog" aria-modal="true">
+      <div class="modal-card">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+            <polyline points="22,6 12,13 2,6" />
+          </svg>
+        </div>
+        <h2 class="modal-title">Check your email</h2>
+        <p class="modal-text">We sent a confirmation link to <strong>{newEmail}</strong>. Click the link to confirm your new email address.</p>
+
+        <button
+          class="btn btn-secondary modal-resend"
+          disabled={emailResendCooldown > 0}
+          onclick={handleResendEmailChange}
+        >
+          {#if emailResendCooldown > 0}
+            Resend in {emailResendCooldown}s
+          {:else}
+            Resend confirmation email
+          {/if}
+        </button>
+
+        <button class="modal-dismiss" onclick={dismissEmailModal}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  {/if}
 
   <!-- Change Code Card -->
   <div class="profile-card">
@@ -1259,6 +1424,124 @@
     .code-input-group {
       gap: 0.5rem;
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     CURRENT EMAIL DISPLAY
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .current-email {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.875rem 1rem;
+    background: rgba(10, 10, 18, 0.4);
+    border: 1px solid rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.25rem;
+  }
+
+  .current-email-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-text-muted);
+  }
+
+  .current-email-value {
+    font-size: 0.9375rem;
+    color: var(--color-text);
+    font-weight: 500;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     EMAIL CONFIRMATION MODAL
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 1.5rem;
+  }
+
+  .modal-card {
+    background: linear-gradient(165deg, rgba(15, 15, 30, 0.98) 0%, rgba(20, 20, 40, 0.95) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.3);
+    border-radius: var(--radius-2xl);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow:
+      0 32px 80px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+      0 0 100px rgba(108, 92, 231, 0.1);
+    padding: 2.5rem 2rem;
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+  }
+
+  .modal-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.2) 0%, rgba(255, 121, 198, 0.15) 100%);
+    border-radius: 50%;
+    color: var(--color-primary, #6c5ce7);
+  }
+
+  .modal-icon svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 0.75rem;
+  }
+
+  .modal-text {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--color-text-muted);
+    margin: 0 0 1.5rem;
+  }
+
+  .modal-text strong {
+    color: var(--color-text);
+  }
+
+  .modal-resend {
+    width: 100%;
+  }
+
+  .modal-dismiss {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+
+  .modal-dismiss:hover {
+    color: var(--color-text);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
