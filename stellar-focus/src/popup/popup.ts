@@ -334,7 +334,12 @@ async function handlePinSubmit() {
 
       await loadData();
     } else {
-      // Auth failed — shake, clear, show error
+      // Auth failed — check if user was deleted (e.g. codeLength migration reset)
+      if (error === 'Invalid login credentials') {
+        browser.runtime.sendMessage({ type: 'REFRESH_GATE_CONFIG' }).catch(() => {});
+      }
+
+      // Shake, clear, show error
       pinLoading?.classList.add('hidden');
       pinInputGroup?.classList.remove('hidden');
 
@@ -431,6 +436,11 @@ function setupServiceWorkerMessageListener() {
       if (!notSetUpSection?.classList.contains('hidden')) {
         showPinSection(message.gateConfig);
       }
+    }
+    if (message.type === 'GATE_CONFIG_CLEARED') {
+      debugLog('[Stellar Focus] Gate config cleared — user no longer exists');
+      currentGateConfig = null;
+      showNotSetUp();
     }
   });
 

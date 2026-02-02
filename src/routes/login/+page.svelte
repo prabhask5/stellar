@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/stores';
   import {
@@ -335,7 +335,6 @@
           shaking = false;
         }, 500);
         unlockDigits = ['', '', '', '', '', ''];
-        if (unlockInputs[0]) unlockInputs[0].focus();
         return;
       }
       if (result.deviceVerificationRequired) {
@@ -354,9 +353,12 @@
         shaking = false;
       }, 500);
       unlockDigits = ['', '', '', '', '', ''];
-      if (unlockInputs[0]) unlockInputs[0].focus();
     } finally {
       loading = false;
+      if (error) {
+        await tick();
+        if (unlockInputs[0]) unlockInputs[0].focus();
+      }
     }
   }
 
@@ -386,7 +388,6 @@
           shaking = false;
         }, 500);
         linkDigits = Array(remoteUser.codeLength).fill('');
-        if (linkInputs[0]) linkInputs[0].focus();
         return;
       }
       if (result.deviceVerificationRequired) {
@@ -404,9 +405,12 @@
         shaking = false;
       }, 500);
       linkDigits = Array(remoteUser.codeLength).fill('');
-      if (linkInputs[0]) linkInputs[0].focus();
     } finally {
       linkLoading = false;
+      if (error) {
+        await tick();
+        if (linkInputs[0]) linkInputs[0].focus();
+      }
     }
   }
 </script>

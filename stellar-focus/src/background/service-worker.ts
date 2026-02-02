@@ -13,7 +13,7 @@
 import browser from 'webextension-polyfill';
 import { type RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase, getSession, resetSupabase } from '../auth/supabase';
-import { isConfigured, getConfig, getGateConfig, setGateConfig, isUnlocked } from '../config';
+import { isConfigured, getConfig, getGateConfig, setGateConfig, clearGateConfig, isUnlocked, setUnlocked } from '../config';
 import { blockListsCache, blockedWebsitesCache, focusSessionCacheStore, type FocusSessionCache } from '../lib/storage';
 import { getNetworkStatus, checkConnectivity } from '../lib/network';
 import { debugLog, debugWarn, debugError, initDebugMode, setDebugModeCache } from '../lib/debug';
@@ -98,11 +98,8 @@ async function handleAlarmWake() {
   // Skip if not unlocked
   const unlocked = await isUnlocked();
   if (!unlocked) {
-    // If not unlocked and no gate config, try fetching it
-    const gateConfig = await getGateConfig();
-    if (!gateConfig) {
-      await tryFetchGateConfig();
-    }
+    // Re-validate gate config from RPC (catches user deletion/reset)
+    await tryFetchGateConfig();
     return;
   }
 
@@ -128,13 +125,34 @@ async function pollFocusSessionThrottled() {
 
 /**
  * Try to fetch gate config from Supabase RPC.
- * Used when the extension is configured but no gate config is cached yet.
+ * If the RPC returns data, cache it and notify the popup.
+ * If the RPC returns no data (user deleted/reset), clear stale cache.
  */
 async function tryFetchGateConfig() {
   try {
     const supabase = await getSupabase();
     const { data, error } = await supabase.rpc('get_extension_config');
-    if (error || !data || !data.email) return;
+
+    if (error) {
+      debugWarn('[Stellar Focus] Gate config RPC error:', error.message);
+      return;
+    }
+
+    if (!data || !data.email) {
+      // No user exists in Supabase — clear any stale cached config
+      const existing = await getGateConfig();
+      if (existing) {
+        debugLog('[Stellar Focus] No remote user found — clearing stale gate config');
+        await clearGateConfig();
+        await setUnlocked(false);
+        try {
+          await browser.runtime.sendMessage({ type: 'GATE_CONFIG_CLEARED' });
+        } catch {
+          // Popup not open
+        }
+      }
+      return;
+    }
 
     const gateConfig = {
       gateType: data.gateType || 'code',
