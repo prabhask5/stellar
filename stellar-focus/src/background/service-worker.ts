@@ -48,6 +48,14 @@ let realtimeChannel: RealtimeChannel | null = null;
 // Track auth state change subscription to prevent listener stacking
 let authStateUnsubscribe: (() => void) | null = null;
 
+// Concurrency guards to prevent overlapping async operations that create
+// orphaned WebSocket channels or duplicated state
+let initRunning = false;
+let setupRealtimeRunning = false;
+
+// Track reconnection timeout so we can cancel stacked retries
+let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+
 // Explicit column definitions to reduce egress (no SELECT *)
 const COLUMNS = {
   focus_sessions: 'id,user_id,phase,status,phase_started_at,focus_duration,break_duration,ended_at',
@@ -375,6 +383,22 @@ browser.webNavigation.onBeforeNavigate.addListener(async (details: browser.WebNa
 });
 
 async function init() {
+  // Prevent overlapping init() calls (can be triggered by onInstalled, onStartup,
+  // UNLOCKED message, CONFIG_UPDATED, and bottom-of-file execution concurrently)
+  if (initRunning) {
+    debugLog('[Stellar Focus] init() already running - skipping');
+    return;
+  }
+  initRunning = true;
+
+  try {
+    await initInner();
+  } finally {
+    initRunning = false;
+  }
+}
+
+async function initInner() {
   // Check config availability
   const configured = await isConfigured();
   if (!configured) {
@@ -458,20 +482,32 @@ async function init() {
 async function setupRealtimeSubscriptions() {
   if (!isOnline) return;
 
-  const supabase = await getSupabase();
+  // Prevent overlapping subscription setups (can be triggered by init, alarm wake,
+  // CHECK_REALTIME message, reconnection timeout, and online transition concurrently)
+  if (setupRealtimeRunning) {
+    debugLog('[Stellar Focus] setupRealtimeSubscriptions() already running - skipping');
+    return;
+  }
+  setupRealtimeRunning = true;
 
-  // Explicitly refresh the session to get a fresh access token.
-  // getSession() returns the cached token which may be expired.
-  const { data: refreshData } = await supabase.auth.refreshSession();
-  const session = refreshData?.session || (await getSession());
-  if (!session) return;
+  try {
+    const supabase = await getSupabase();
 
-  const userId = session.user?.id;
-  if (!userId) return;
+    // Explicitly refresh the session to get a fresh access token.
+    // getSession() returns the cached token which may be expired.
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+      debugWarn('[Stellar Focus] Session refresh failed:', refreshError.message, '— falling back to cached session');
+    }
+    const session = refreshData?.session || (await getSession());
+    if (!session) return;
 
-  // Clean up existing realtime channel (but NOT the auth state listener —
-  // that's managed by init() and must survive reconnections)
-  await cleanupRealtimeChannel();
+    const userId = session.user?.id;
+    if (!userId) return;
+
+    // Clean up existing realtime channel (but NOT the auth state listener —
+    // that's managed by init() and must survive reconnections)
+    await cleanupRealtimeChannel();
 
   // Set auth token for realtime (must be a fresh, non-expired token)
   supabase.realtime.setAuth(session.access_token);
@@ -574,8 +610,13 @@ async function setupRealtimeSubscriptions() {
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         realtimeHealthy = false;
         debugLog('[Stellar Focus] Realtime unhealthy - attempting immediate reconnection');
-        // Immediate reconnection attempt with a short delay to avoid tight loops
-        setTimeout(() => {
+        // Cancel any pending reconnection to prevent stacked retries
+        if (reconnectTimeout) {
+          clearTimeout(reconnectTimeout);
+        }
+        // Reconnect with a short delay to avoid tight loops
+        reconnectTimeout = setTimeout(() => {
+          reconnectTimeout = null;
           if (!realtimeHealthy) {
             setupRealtimeSubscriptions();
             pollFocusSessionThrottled();
@@ -584,7 +625,10 @@ async function setupRealtimeSubscriptions() {
       }
     });
 
-  debugLog('[Stellar Focus] Real-time subscription set up (single consolidated channel)');
+    debugLog('[Stellar Focus] Real-time subscription set up (single consolidated channel)');
+  } finally {
+    setupRealtimeRunning = false;
+  }
 }
 
 // EGRESS OPTIMIZATION: Handle block list updates directly from realtime payload
@@ -706,7 +750,10 @@ async function pollFocusSession() {
 
   if (!isOnline) {
     debugLog('[Stellar Focus] Offline - skipping poll');
-    cleanupRealtimeSubscriptions();
+    // Only tear down the channel, not the auth state listener —
+    // the listener must survive offline periods so TOKEN_REFRESHED
+    // can update realtime auth when we reconnect
+    await cleanupRealtimeChannel();
     return;
   }
 
