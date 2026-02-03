@@ -49,8 +49,8 @@ A self-hosted, offline-first productivity PWA for managing goals, tasks, routine
 
 ### Task Management
 - **Daily Tasks**: A daily checklist with drag-to-reorder. Tasks reset each day so you start fresh.
-- **Long-Term Tasks**: Calendar-based task planning with due dates, color-coded categories, and status grouping (overdue, due today, upcoming, completed).
-- **Task Categories**: Create colored tags to organize long-term tasks. Categories are auto-created when you create a project.
+- **Long-Term Tasks & Reminders**: Calendar-based planning with due dates, color-coded categories, and status grouping (overdue, due today, upcoming, completed). Items can be either **tasks** (with completion checkboxes) or **reminders** (persistent bell-icon items that cannot be marked complete).
+- **Task Categories**: Create colored tags to organize long-term tasks and reminders. Categories are auto-created when you create a project.
 - **Commitments**: Three-pillar organization (Career, Projects, Personal) for ongoing responsibilities. Drag-reorderable within each section.
 
 ### Goal Tracking

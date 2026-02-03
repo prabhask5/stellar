@@ -232,7 +232,7 @@ The database is called `GoalPlannerDB` and is currently at **schema version 13**
 | `taskCategories` | Task tag/category definitions | `user_id`, `project_id`, `order` |
 | `commitments` | Commitment items | `user_id`, `project_id`, `section`, `order` |
 | `dailyTasks` | Daily to-do items | `user_id`, `order` |
-| `longTermTasks` | Long-term tasks with due dates | `user_id`, `due_date`, `category_id` |
+| `longTermTasks` | Long-term tasks and reminders with due dates | `user_id`, `due_date`, `category_id` |
 | `focusSettings` | Focus mode configuration | `user_id` |
 | `focusSessions` | Focus session history | `user_id`, `started_at`, `ended_at`, `status` |
 | `blockLists` | Website block list definitions | `user_id`, `order` |

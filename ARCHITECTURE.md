@@ -123,8 +123,8 @@ Stellar uses **Dexie.js** (managed by `@stellar/sync-engine`) as an ORM over the
 | commitments        | id, user_id, project_id, section, order,         |
 |                    | created_at, updated_at                           |
 | dailyTasks         | id, user_id, order, created_at, updated_at       |
-| longTermTasks      | id, user_id, due_date, category_id, created_at,  |
-|                    | updated_at                                       |
+| longTermTasks      | id, user_id, due_date, category_id, type,        |
+|                    | created_at, updated_at                           |
 | focusSettings      | id, user_id, updated_at                          |
 | focusSessions      | id, user_id, started_at, ended_at, status,       |
 |                    | updated_at                                       |
@@ -279,7 +279,7 @@ The engine is initialized in `src/routes/+layout.ts` with Stellar's 13 entity ta
 
 ## 5. Single-User Auth Mode
 
-Stellar operates in **single-user mode** with a 4-digit PIN code gate backed by real Supabase email/password auth. The user provides an email during first-time setup; the PIN is padded and used as the actual Supabase password via `signUp()`. Optional email confirmation blocks setup until the email is verified. Optional device verification requires OTP on untrusted devices. Email changes are supported via `changeSingleUserEmail()`. All engine-level details (PIN padding, email/password auth, device verification, email change flow, offline fallback) are documented in the [engine's Single-User Auth Mode section](https://github.com/prabhask5/stellar-engine/blob/main/ARCHITECTURE.md#2-single-user-auth-mode).
+Stellar operates in **single-user mode** with a 6-digit PIN code gate backed by real Supabase email/password auth. The user provides an email during first-time setup; the PIN is padded and used as the actual Supabase password via `signUp()`. Optional email confirmation blocks setup until the email is verified. Optional device verification requires OTP on untrusted devices. Email changes are supported via `changeSingleUserEmail()`. All engine-level details (PIN padding, email/password auth, device verification, email change flow, offline fallback) are documented in the [engine's Single-User Auth Mode section](https://github.com/prabhask5/stellar-engine/blob/main/ARCHITECTURE.md#2-single-user-auth-mode).
 
 ### 5.1 Configuration
 
@@ -292,7 +292,7 @@ auth: {
   mode: 'single-user',
   singleUser: {
     gateType: 'code',
-    codeLength: 4
+    codeLength: 6
   },
   profileExtractor: (meta) => ({
     firstName: meta.first_name || '',
@@ -326,8 +326,8 @@ The login page has two modes, determined by the `singleUserSetUp` flag from `res
 
 | `singleUserSetUp` | Mode | UI |
 |-------------------|------|-----|
-| `false` | **Setup** | First name, last name, email, create 4-digit code + confirm code |
-| `true` | **Unlock** | Shows user avatar/name, enter 4-digit code |
+| `false` | **Setup** | First name, last name, email, create 6-digit code + confirm code |
+| `true` | **Unlock** | Shows user avatar/name, enter 6-digit code |
 
 ```
 First visit (/login)             Return visit (/login)
@@ -335,15 +335,15 @@ First visit (/login)             Return visit (/login)
 | Welcome to Stellar     |       | Welcome back, John     |
 | Set up your account    |       |                        |
 |                        |       | Enter your code        |
-| First Name [________]  |       | [ ] [ ] [ ] [ ]        |
+| First Name [________]  |       | [ ][ ][ ][ ][ ][ ]    |
 | Last Name  [________]  |       |                        |
 | Email      [________]  |       | [    Unlock    ]       |
 |                        |       +------------------------+
-| Create a 4-digit code  |
-| [ ] [ ] [ ] [ ]        |
+| Create a 6-digit code  |
+| [ ][ ][ ][ ][ ][ ]    |
 |                        |
 | Confirm your code       |
-| [ ] [ ] [ ] [ ]        |
+| [ ][ ][ ][ ][ ][ ]    |
 |                        |
 | [  Get Started  ]      |
 +------------------------+
@@ -387,7 +387,7 @@ The `onAuthKicked` callback also calls `lockSingleUser()` and redirects to `/log
 
 **File**: `src/routes/(protected)/profile/+page.svelte`
 
-Instead of a password change form, the profile page provides a **code change** interface using `changeSingleUserGate(oldCode, newCode)`. The user enters their current 4-digit code and a new 4-digit code. Profile name editing uses `updateSingleUserProfile(profile)`.
+Instead of a password change form, the profile page provides a **code change** interface using `changeSingleUserGate(oldCode, newCode)`. The user enters their current 6-digit code and a new 6-digit code. Profile name editing uses `updateSingleUserProfile(profile)`.
 
 ### 5.6 Confirm Page
 

@@ -24,9 +24,9 @@
   let lastName = $state('');
 
   // Gate change state - using digit arrays like login page
-  let oldCodeDigits = $state(['', '', '', '']);
-  let newCodeDigits = $state(['', '', '', '']);
-  let confirmCodeDigits = $state(['', '', '', '']);
+  let oldCodeDigits = $state(['', '', '', '', '', '']);
+  let newCodeDigits = $state(['', '', '', '', '', '']);
+  let confirmCodeDigits = $state(['', '', '', '', '', '']);
   const oldCode = $derived(oldCodeDigits.join(''));
   const newCode = $derived(newCodeDigits.join(''));
   const confirmNewCode = $derived(confirmCodeDigits.join(''));
@@ -106,7 +106,7 @@
     if (value.length > 0) {
       digits[index] = value.charAt(value.length - 1);
       input.value = digits[index];
-      if (index < 3 && inputs[index + 1]) {
+      if (index < 5 && inputs[index + 1]) {
         inputs[index + 1].focus();
       }
     } else {
@@ -133,11 +133,11 @@
   function handleDigitPaste(digits: string[], event: ClipboardEvent, inputs: HTMLInputElement[]) {
     event.preventDefault();
     const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '');
-    for (let i = 0; i < 4 && i < pasted.length; i++) {
+    for (let i = 0; i < 6 && i < pasted.length; i++) {
       digits[i] = pasted[i];
       if (inputs[i]) inputs[i].value = pasted[i];
     }
-    const focusIndex = Math.min(pasted.length, 3);
+    const focusIndex = Math.min(pasted.length, 5);
     if (inputs[focusIndex]) inputs[focusIndex].focus();
   }
 
@@ -166,13 +166,13 @@
   async function handleCodeSubmit(e: Event) {
     e.preventDefault();
 
-    if (oldCode.length !== 4) {
-      codeError = 'Please enter your current 4-digit code';
+    if (oldCode.length !== 6) {
+      codeError = 'Please enter your current 6-digit code';
       return;
     }
 
-    if (newCode.length !== 4) {
-      codeError = 'Please enter a new 4-digit code';
+    if (newCode.length !== 6) {
+      codeError = 'Please enter a new 6-digit code';
       return;
     }
 
@@ -188,9 +188,9 @@
     try {
       await changeSingleUserGate(oldCode, newCode);
       codeSuccess = 'Code changed successfully';
-      oldCodeDigits = ['', '', '', ''];
-      newCodeDigits = ['', '', '', ''];
-      confirmCodeDigits = ['', '', '', ''];
+      oldCodeDigits = ['', '', '', '', '', ''];
+      newCodeDigits = ['', '', '', '', '', ''];
+      confirmCodeDigits = ['', '', '', '', '', ''];
       setTimeout(() => (codeSuccess = null), 3000);
     } catch (err: unknown) {
       codeError = err instanceof Error ? err.message : 'Failed to change code';
@@ -701,7 +701,7 @@
   <div class="profile-card">
     <div class="card-header">
       <h2 class="card-title">Change Code</h2>
-      <p class="card-subtitle">Update your 4-digit access code</p>
+      <p class="card-subtitle">Update your 6-digit access code</p>
     </div>
 
     <form onsubmit={handleCodeSubmit}>
