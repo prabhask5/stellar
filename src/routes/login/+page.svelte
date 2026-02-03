@@ -44,7 +44,12 @@
   // Link device mode state (new device, existing remote user)
   let linkDigits = $state(['', '', '', '', '', '']);
   const linkCode = $derived(linkDigits.join(''));
-  let remoteUser = $state<{ email: string; gateType: string; codeLength: number; profile: Record<string, unknown> } | null>(null);
+  let remoteUser = $state<{
+    email: string;
+    gateType: string;
+    codeLength: number;
+    profile: Record<string, unknown>;
+  } | null>(null);
   let linkMode = $state(false);
   let linkLoading = $state(false);
   let offlineNoSetup = $state(false);
@@ -212,7 +217,7 @@
         inputs[index + 1].focus();
       }
       // Auto-submit when all digits are filled (brief delay for visual feedback)
-      if (index === digits.length - 1 && onComplete && digits.every(d => d !== '')) {
+      if (index === digits.length - 1 && onComplete && digits.every((d) => d !== '')) {
         setTimeout(() => onComplete(), 300);
       }
     } else {
@@ -236,7 +241,12 @@
     }
   }
 
-  function handleDigitPaste(digits: string[], event: ClipboardEvent, inputs: HTMLInputElement[], onComplete?: () => void) {
+  function handleDigitPaste(
+    digits: string[],
+    event: ClipboardEvent,
+    inputs: HTMLInputElement[],
+    onComplete?: () => void
+  ) {
     event.preventDefault();
     const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '');
     for (let i = 0; i < digits.length && i < pasted.length; i++) {
@@ -246,7 +256,7 @@
     const focusIndex = Math.min(pasted.length, digits.length - 1);
     if (inputs[focusIndex]) inputs[focusIndex].focus();
     // Auto-submit if all digits were pasted
-    if (pasted.length >= digits.length && onComplete && digits.every(d => d !== '')) {
+    if (pasted.length >= digits.length && onComplete && digits.every((d) => d !== '')) {
       onComplete();
     }
   }
@@ -274,7 +284,7 @@
   }
 
   function autoSubmitSetup() {
-    if (confirmDigits.every(d => d !== '')) {
+    if (confirmDigits.every((d) => d !== '')) {
       handleSetup();
     }
   }
@@ -308,10 +318,14 @@
     loading = true;
 
     try {
-      const result = await setupSingleUser(code, {
-        firstName: firstName.trim(),
-        lastName: lastName.trim()
-      }, email.trim());
+      const result = await setupSingleUser(
+        code,
+        {
+          firstName: firstName.trim(),
+          lastName: lastName.trim()
+        },
+        email.trim()
+      );
       if (result.error) {
         error = result.error;
         shaking = true;
@@ -395,7 +409,7 @@
   }
 
   function autoSubmitLink() {
-    if (linkDigits.every(d => d !== '')) {
+    if (linkDigits.every((d) => d !== '')) {
       handleLink();
     }
   }
@@ -576,9 +590,11 @@
                         maxlength="1"
                         bind:this={unlockInputs[i]}
                         value={digit}
-                        oninput={(e) => handleDigitInput(unlockDigits, i, e, unlockInputs, autoSubmitUnlock)}
+                        oninput={(e) =>
+                          handleDigitInput(unlockDigits, i, e, unlockInputs, autoSubmitUnlock)}
                         onkeydown={(e) => handleDigitKeydown(unlockDigits, i, e, unlockInputs)}
-                        onpaste={(e) => handleDigitPaste(unlockDigits, e, unlockInputs, autoSubmitUnlock)}
+                        onpaste={(e) =>
+                          handleDigitPaste(unlockDigits, e, unlockInputs, autoSubmitUnlock)}
                         disabled={loading}
                         autocomplete="off"
                       />
@@ -648,7 +664,8 @@
                         maxlength="1"
                         bind:this={linkInputs[i]}
                         value={digit}
-                        oninput={(e) => handleDigitInput(linkDigits, i, e, linkInputs, autoSubmitLink)}
+                        oninput={(e) =>
+                          handleDigitInput(linkDigits, i, e, linkInputs, autoSubmitLink)}
                         onkeydown={(e) => handleDigitKeydown(linkDigits, i, e, linkInputs)}
                         onpaste={(e) => handleDigitPaste(linkDigits, e, linkInputs, autoSubmitLink)}
                         disabled={linkLoading}
@@ -853,9 +870,11 @@
                           maxlength="1"
                           bind:this={codeInputs[i]}
                           value={digit}
-                          oninput={(e) => handleDigitInput(codeDigits, i, e, codeInputs, autoFocusConfirm)}
+                          oninput={(e) =>
+                            handleDigitInput(codeDigits, i, e, codeInputs, autoFocusConfirm)}
                           onkeydown={(e) => handleDigitKeydown(codeDigits, i, e, codeInputs)}
-                          onpaste={(e) => handleDigitPaste(codeDigits, e, codeInputs, autoFocusConfirm)}
+                          onpaste={(e) =>
+                            handleDigitPaste(codeDigits, e, codeInputs, autoFocusConfirm)}
                           disabled={loading}
                           autocomplete="off"
                         />
@@ -882,9 +901,12 @@
                             maxlength="1"
                             bind:this={confirmInputs[i]}
                             value={digit}
-                            oninput={(e) => handleDigitInput(confirmDigits, i, e, confirmInputs, autoSubmitSetup)}
-                            onkeydown={(e) => handleDigitKeydown(confirmDigits, i, e, confirmInputs)}
-                            onpaste={(e) => handleDigitPaste(confirmDigits, e, confirmInputs, autoSubmitSetup)}
+                            oninput={(e) =>
+                              handleDigitInput(confirmDigits, i, e, confirmInputs, autoSubmitSetup)}
+                            onkeydown={(e) =>
+                              handleDigitKeydown(confirmDigits, i, e, confirmInputs)}
+                            onpaste={(e) =>
+                              handleDigitPaste(confirmDigits, e, confirmInputs, autoSubmitSetup)}
                             disabled={loading}
                             autocomplete="off"
                           />
@@ -928,7 +950,16 @@
         <div class="card-glow"></div>
         <div class="card-inner">
           <div class="modal-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="url(#mailGrad)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="url(#mailGrad)"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <rect x="2" y="4" width="20" height="16" rx="2" />
               <path d="M22 7l-8.97 5.7a1.94 1.94 0 01-2.06 0L2 7" />
               <defs>
@@ -941,7 +972,8 @@
           </div>
           <h2 class="card-title">Check your email</h2>
           <p class="card-subtitle">
-            We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
+            We sent a confirmation link to <strong>{email}</strong>. Click it to activate your
+            account.
           </p>
           <button
             type="button"
@@ -963,7 +995,16 @@
         <div class="card-glow"></div>
         <div class="card-inner">
           <div class="modal-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="url(#shieldGrad)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="url(#shieldGrad)"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               <defs>
                 <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -975,7 +1016,8 @@
           </div>
           <h2 class="card-title">New device detected</h2>
           <p class="card-subtitle">
-            We sent a verification link to <strong>{maskedEmail}</strong>. Click it to trust this device.
+            We sent a verification link to <strong>{maskedEmail}</strong>. Click it to trust this
+            device.
           </p>
           <button
             type="button"
@@ -2473,7 +2515,8 @@
   }
 
   @keyframes modalIconPulse {
-    0%, 100% {
+    0%,
+    100% {
       box-shadow: 0 0 20px rgba(108, 92, 231, 0.2);
     }
     50% {

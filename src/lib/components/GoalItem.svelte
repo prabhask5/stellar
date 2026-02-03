@@ -1011,7 +1011,7 @@
       width: 100%;
     }
 
-.increment-controls {
+    .increment-controls {
       gap: 0.25rem;
       flex-shrink: 0;
     }

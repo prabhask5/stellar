@@ -129,7 +129,11 @@
     <div
       class="task-details"
       use:remoteChangeAnimation={{ entityId: task.id, entityType: 'long_term_agenda' }}
-      use:trackEditing={{ entityId: task.id, entityType: 'long_term_agenda', formType: 'auto-save' }}
+      use:trackEditing={{
+        entityId: task.id,
+        entityType: 'long_term_agenda',
+        formType: 'auto-save'
+      }}
     >
       <div class="field">
         <span id="task-modal-name-label" class="field-label">Name</span>

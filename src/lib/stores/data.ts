@@ -855,7 +855,13 @@ function createLongTermTasksStore() {
         loading.set(false);
       }
     },
-    create: async (name: string, dueDate: string, categoryId: string | null, userId: string, type: AgendaItemType = 'task') => {
+    create: async (
+      name: string,
+      dueDate: string,
+      categoryId: string | null,
+      userId: string,
+      type: AgendaItemType = 'task'
+    ) => {
       const newTask = await repo.createLongTermTask(name, dueDate, categoryId, userId, type);
       // Record for animation before updating store
       remoteChangesStore.recordLocalChange(newTask.id, 'long_term_agenda', 'create');

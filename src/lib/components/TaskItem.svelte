@@ -217,7 +217,7 @@
       gap: 0.625rem;
     }
 
-.task-name {
+    .task-name {
       font-size: 0.875rem;
     }
 

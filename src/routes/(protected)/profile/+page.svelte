@@ -10,7 +10,12 @@
   import { authState } from '@prabhask5/stellar-engine/stores';
   import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
   import { isDebugMode, setDebugMode } from '@prabhask5/stellar-engine/utils';
-  import { resetDatabase, getTrustedDevices, removeTrustedDevice, getCurrentDeviceId } from '@prabhask5/stellar-engine';
+  import {
+    resetDatabase,
+    getTrustedDevices,
+    removeTrustedDevice,
+    getCurrentDeviceId
+  } from '@prabhask5/stellar-engine';
   import type { TrustedDevice } from '@prabhask5/stellar-engine';
   import { onMount } from 'svelte';
 
@@ -49,6 +54,14 @@
   let codeSuccess = $state<string | null>(null);
   let debugMode = $state(isDebugMode());
   let resetting = $state(false);
+
+  // Debug tools state
+  let forceSyncing = $state(false);
+  let triggeringSyncManual = $state(false);
+  let resettingCursor = $state(false);
+  let checkingConnection = $state(false);
+  let viewingTombstones = $state(false);
+  let cleaningTombstones = $state(false);
 
   // Trusted devices state
   let trustedDevices = $state<TrustedDevice[]>([]);
@@ -241,7 +254,10 @@
     if (!('BroadcastChannel' in window)) return;
     const channel = new BroadcastChannel('stellar-auth-channel');
     channel.onmessage = async (event) => {
-      if (event.data?.type === 'AUTH_CONFIRMED' && event.data?.verificationType === 'email_change') {
+      if (
+        event.data?.type === 'AUTH_CONFIRMED' &&
+        event.data?.verificationType === 'email_change'
+      ) {
         // Bring this tab to the foreground before the confirm tab closes
         window.focus();
         const result = await completeSingleUserEmailChange();
@@ -273,7 +289,11 @@
   }
 
   async function handleResetDatabase() {
-    if (!confirm('This will delete all local data and reload. Your data will be re-synced from the server. Continue?')) {
+    if (
+      !confirm(
+        'This will delete all local data and reload. Your data will be re-synced from the server. Continue?'
+      )
+    ) {
       return;
     }
     resetting = true;
@@ -297,6 +317,199 @@
       // Ignore errors
     }
     removingDeviceId = null;
+  }
+
+  // Debug tool handlers
+  function getDebugWindow(): Record<string, unknown> {
+    return window as unknown as Record<string, unknown>;
+  }
+
+  async function handleForceFullSync() {
+    if (
+      !confirm(
+        'This will reset the sync cursor and re-download all data from the server. Continue?'
+      )
+    )
+      return;
+    forceSyncing = true;
+    try {
+      const fn = getDebugWindow().__stellarSync as
+        | { forceFullSync: () => Promise<void> }
+        | undefined;
+      if (fn?.forceFullSync) {
+        await fn.forceFullSync();
+        alert('Force full sync complete.');
+      } else {
+        alert('Debug mode must be enabled and the page refreshed to use this tool.');
+      }
+    } catch (err) {
+      alert('Force full sync failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+    forceSyncing = false;
+  }
+
+  async function handleTriggerSync() {
+    triggeringSyncManual = true;
+    try {
+      const fn = getDebugWindow().__stellarSync as { sync: () => Promise<void> } | undefined;
+      if (fn?.sync) {
+        await fn.sync();
+        alert('Sync cycle complete.');
+      } else {
+        alert('Debug mode must be enabled and the page refreshed to use this tool.');
+      }
+    } catch (err) {
+      alert('Sync failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+    triggeringSyncManual = false;
+  }
+
+  async function handleResetSyncCursor() {
+    resettingCursor = true;
+    try {
+      const fn = getDebugWindow().__stellarSync as
+        | { resetSyncCursor: () => Promise<void> }
+        | undefined;
+      if (fn?.resetSyncCursor) {
+        await fn.resetSyncCursor();
+        alert('Sync cursor reset. The next sync will pull all data.');
+      } else {
+        alert('Debug mode must be enabled and the page refreshed to use this tool.');
+      }
+    } catch (err) {
+      alert('Reset cursor failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+    resettingCursor = false;
+  }
+
+  async function handleCheckConnection() {
+    checkingConnection = true;
+    try {
+      const fn = getDebugWindow().__stellarSync as
+        | {
+            checkConnection: () => Promise<{
+              connected: boolean;
+              error?: string;
+              records?: number;
+            }>;
+          }
+        | undefined;
+      if (fn?.checkConnection) {
+        const result = await fn.checkConnection();
+        if (result.connected) {
+          alert('Connection OK. Supabase is reachable.');
+        } else {
+          alert('Connection failed: ' + (result.error || 'Unknown error'));
+        }
+      } else {
+        alert('Debug mode must be enabled and the page refreshed to use this tool.');
+      }
+    } catch (err) {
+      alert('Connection check failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+    checkingConnection = false;
+  }
+
+  function handleGetSyncStatus() {
+    const fn = getDebugWindow().__stellarSync as
+      | { getStatus: () => { cursor: unknown; pendingOps: Promise<number> } }
+      | undefined;
+    if (fn?.getStatus) {
+      const status = fn.getStatus();
+      const cursorDisplay =
+        typeof status.cursor === 'object'
+          ? JSON.stringify(status.cursor)
+          : String(status.cursor || 'None');
+      status.pendingOps.then((count: number) => {
+        alert(`Sync Status:\n\nCursor: ${cursorDisplay}\nPending operations: ${count}`);
+      });
+    } else {
+      alert('Debug mode must be enabled and the page refreshed to use this tool.');
+    }
+  }
+
+  function handleRealtimeStatus() {
+    const fn = getDebugWindow().__stellarSync as
+      | { realtimeStatus: () => { state: string; healthy: boolean } }
+      | undefined;
+    if (fn?.realtimeStatus) {
+      const status = fn.realtimeStatus();
+      alert(
+        `Realtime Status:\n\nState: ${status.state}\nHealthy: ${status.healthy ? 'Yes' : 'No'}`
+      );
+    } else {
+      alert('Debug mode must be enabled and the page refreshed to use this tool.');
+    }
+  }
+
+  function handleViewSyncStats() {
+    const fn = getDebugWindow().__stellarSyncStats as
+      | (() => { totalSyncCycles: number; recentMinute: number; recent: unknown[] })
+      | undefined;
+    if (fn) {
+      const stats = fn();
+      alert(
+        `Sync Stats:\n\nTotal cycles: ${stats.totalSyncCycles}\nCycles in last minute: ${stats.recentMinute}\nRecent cycles logged to console.`
+      );
+    } else {
+      alert('Debug mode must be enabled and the page refreshed to use this tool.');
+    }
+  }
+
+  function handleViewEgress() {
+    const fn = getDebugWindow().__stellarEgress as
+      | (() => { totalFormatted: string; totalRecords: number; sessionStart: string })
+      | undefined;
+    if (fn) {
+      const stats = fn();
+      alert(
+        `Egress Stats:\n\nTotal data transferred: ${stats.totalFormatted}\nTotal records: ${stats.totalRecords}\nSession started: ${new Date(stats.sessionStart).toLocaleString()}\n\nFull breakdown logged to console.`
+      );
+    } else {
+      alert('Debug mode must be enabled and the page refreshed to use this tool.');
+    }
+  }
+
+  async function handleViewTombstones() {
+    viewingTombstones = true;
+    try {
+      const fn = getDebugWindow().__stellarTombstones as
+        | ((opts?: { cleanup?: boolean; force?: boolean }) => Promise<void>)
+        | undefined;
+      if (fn) {
+        await fn();
+        alert('Tombstone details logged to console. Open DevTools to view.');
+      } else {
+        alert('Debug mode must be enabled and the page refreshed to use this tool.');
+      }
+    } catch (err) {
+      alert('View tombstones failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+    viewingTombstones = false;
+  }
+
+  async function handleCleanupTombstones() {
+    if (
+      !confirm(
+        'This will permanently remove old soft-deleted records from local and server databases. Continue?'
+      )
+    )
+      return;
+    cleaningTombstones = true;
+    try {
+      const fn = getDebugWindow().__stellarTombstones as
+        | ((opts?: { cleanup?: boolean; force?: boolean }) => Promise<void>)
+        | undefined;
+      if (fn) {
+        await fn({ cleanup: true });
+        alert('Tombstone cleanup complete. Details logged to console.');
+      } else {
+        alert('Debug mode must be enabled and the page refreshed to use this tool.');
+      }
+    } catch (err) {
+      alert('Tombstone cleanup failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+    cleaningTombstones = false;
   }
 
   function handleMobileSignOut() {
@@ -449,13 +662,23 @@
     <div class="modal-overlay" role="dialog" aria-modal="true">
       <div class="modal-card">
         <div class="modal-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
             <polyline points="22,6 12,13 2,6" />
           </svg>
         </div>
         <h2 class="modal-title">Check your email</h2>
-        <p class="modal-text">We sent a confirmation link to <strong>{newEmail}</strong>. Click the link to confirm your new email address.</p>
+        <p class="modal-text">
+          We sent a confirmation link to <strong>{newEmail}</strong>. Click the link to confirm your
+          new email address.
+        </p>
 
         <button
           class="btn btn-secondary modal-resend"
@@ -469,9 +692,7 @@
           {/if}
         </button>
 
-        <button class="modal-dismiss" onclick={dismissEmailModal}>
-          Cancel
-        </button>
+        <button class="modal-dismiss" onclick={dismissEmailModal}> Cancel </button>
       </div>
     </div>
   {/if}
@@ -610,7 +831,16 @@
                 {#if removingDeviceId === device.id}
                   <span class="loading-spinner small"></span>
                 {:else}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
@@ -669,6 +899,279 @@
       Update Supabase Configuration
     </button>
 
+    <!-- Debug Tools Section -->
+    <div class="debug-section-divider">
+      <span class="debug-section-label">Debug Tools</span>
+    </div>
+
+    <button class="btn btn-secondary" onclick={handleForceFullSync} disabled={forceSyncing}>
+      {#if forceSyncing}
+        <span class="loading-spinner"></span>
+        Syncing...
+      {:else}
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="23 4 23 10 17 10" />
+          <polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+        Force Full Sync
+      {/if}
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Clears local table data, resets the sync cursor, and re-downloads everything from the server
+      without reloading the page. Use when data appears out of sync.<br /><code class="console-cmd"
+        >__stellarSync.forceFullSync()</code
+      >
+    </p>
+
+    <button class="btn btn-secondary" onclick={handleTriggerSync} disabled={triggeringSyncManual}>
+      {#if triggeringSyncManual}
+        <span class="loading-spinner"></span>
+        Syncing...
+      {:else}
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21.5 2v6h-6" />
+          <path d="M2.5 22v-6h6" />
+          <path d="M2 11.5a10 10 0 0 1 18.8-4.3" />
+          <path d="M22 12.5a10 10 0 0 1-18.8 4.2" />
+        </svg>
+        Trigger Sync Cycle
+      {/if}
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Manually triggers a sync cycle to push local changes and pull remote changes. Use when changes
+      aren't appearing.<br /><code class="console-cmd">__stellarSync.sync()</code>
+    </p>
+
+    <button class="btn btn-secondary" onclick={handleResetSyncCursor} disabled={resettingCursor}>
+      {#if resettingCursor}
+        <span class="loading-spinner"></span>
+        Resetting...
+      {:else}
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+          <line x1="9" y1="3" x2="9" y2="21" />
+          <line x1="15" y1="3" x2="15" y2="21" />
+          <line x1="3" y1="9" x2="21" y2="9" />
+          <line x1="3" y1="15" x2="21" y2="15" />
+        </svg>
+        Reset Sync Cursor
+      {/if}
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Resets the sync cursor so the next sync cycle pulls all data instead of only new changes. Use
+      before triggering a sync to do a full re-pull.<br /><code class="console-cmd"
+        >__stellarSync.resetSyncCursor()</code
+      >
+    </p>
+
+    <button class="btn btn-secondary" onclick={handleCheckConnection} disabled={checkingConnection}>
+      {#if checkingConnection}
+        <span class="loading-spinner"></span>
+        Checking...
+      {:else}
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M1 1l22 22" />
+          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+          <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
+          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+          <line x1="12" y1="20" x2="12.01" y2="20" />
+        </svg>
+        Check Connection
+      {/if}
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Tests the connection to Supabase and displays the result in a popup. Use to diagnose
+      connectivity issues.<br /><code class="console-cmd">__stellarSync.checkConnection()</code>
+    </p>
+
+    <button class="btn btn-secondary" onclick={handleGetSyncStatus}>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+      View Sync Status
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Displays the current sync cursor and number of pending operations in a popup. Use to check if
+      changes are queued.<br /><code class="console-cmd">__stellarSync.getStatus()</code>
+    </p>
+
+    <button class="btn btn-secondary" onclick={handleRealtimeStatus}>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+      Realtime Status
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Displays the current realtime WebSocket connection state and health in a popup. Use to check
+      if live updates are working.<br /><code class="console-cmd"
+        >__stellarSync.realtimeStatus()</code
+      >
+    </p>
+
+    <button class="btn btn-secondary" onclick={handleViewSyncStats}>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+      View Sync Stats
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Displays a summary of sync cycles in a popup and logs the full details to the browser console.
+      Use to monitor sync performance.<br /><code class="console-cmd">__stellarSyncStats()</code>
+    </p>
+
+    <button class="btn btn-secondary" onclick={handleViewEgress}>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" y1="3" x2="12" y2="15" />
+      </svg>
+      View Egress Stats
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Displays a summary of data transfer in a popup and logs the per-table breakdown to the browser
+      console. Use to monitor bandwidth usage.<br /><code class="console-cmd"
+        >__stellarEgress()</code
+      >
+    </p>
+
+    <button class="btn btn-secondary" onclick={handleViewTombstones} disabled={viewingTombstones}>
+      {#if viewingTombstones}
+        <span class="loading-spinner"></span>
+        Loading...
+      {:else}
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+          <line x1="5" y1="1" x2="19" y2="1" />
+        </svg>
+        View Tombstones
+      {/if}
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Logs soft-deleted record counts per table to the browser console. Use to inspect pending
+      deletions before cleanup.<br /><code class="console-cmd">__stellarTombstones()</code>
+    </p>
+
+    <button
+      class="btn btn-secondary"
+      onclick={handleCleanupTombstones}
+      disabled={cleaningTombstones}
+    >
+      {#if cleaningTombstones}
+        <span class="loading-spinner"></span>
+        Cleaning...
+      {:else}
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+          <path d="M2 17l10 5 10-5" />
+          <path d="M2 12l10 5 10-5" />
+        </svg>
+        Cleanup Tombstones
+      {/if}
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Permanently removes old soft-deleted records from local IndexedDB and remote Supabase. Results
+      are logged to the browser console.<br /><code class="console-cmd"
+        >__stellarTombstones({'{'} cleanup: true })</code
+      >
+    </p>
+
     <button class="btn btn-danger" onclick={handleResetDatabase} disabled={resetting}>
       {#if resetting}
         <span class="loading-spinner"></span>
@@ -691,7 +1194,10 @@
         Reset Local Database
       {/if}
     </button>
-    <p class="setting-hint" style="margin-top: 0.5rem;">Deletes all local data and re-syncs from the server. Use this if you're experiencing data issues.</p>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Deletes and recreates the entire IndexedDB database, then reloads the page. Use as a last
+      resort when the database is corrupted or Force Full Sync doesn't resolve the issue.
+    </p>
   </div>
 
   <!-- Sign Out (Mobile only — desktop has sign out in the navbar) -->
@@ -1310,6 +1816,43 @@
   .setting-hint {
     font-size: 0.75rem;
     color: var(--color-text-muted);
+  }
+
+  .console-cmd {
+    display: inline-block;
+    margin-top: 0.375rem;
+    padding: 0.2rem 0.5rem;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.6875rem;
+    color: var(--color-primary-light);
+    background: rgba(108, 92, 231, 0.1);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-radius: var(--radius-sm, 4px);
+    word-break: break-all;
+  }
+
+  .debug-section-divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1.5rem 0 1rem;
+  }
+
+  .debug-section-divider::before,
+  .debug-section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(108, 92, 231, 0.2);
+  }
+
+  .debug-section-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-text-muted);
+    white-space: nowrap;
   }
 
   .toggle-btn {
