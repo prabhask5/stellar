@@ -332,7 +332,7 @@
           + New Task
         </button>
         <button
-          class="btn btn-secondary btn-sm"
+          class="btn btn-primary btn-sm"
           onclick={() => {
             defaultTaskDate = undefined;
             showReminderForm = true;
@@ -436,7 +436,7 @@
                 Add First Task
               </button>
               <button
-                class="btn btn-secondary"
+                class="btn btn-primary"
                 onclick={() => {
                   defaultTaskDate = undefined;
                   showReminderForm = true;
