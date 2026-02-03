@@ -599,6 +599,8 @@
     white-space: nowrap;
     font-size: 0.875rem;
     cursor: text;
+    display: flex;
+    align-items: center;
   }
 
   .edit-input {
