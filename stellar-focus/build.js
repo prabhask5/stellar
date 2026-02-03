@@ -58,6 +58,8 @@ const filesToCopy = [
   ['pages/blocked.css', 'pages/blocked.css'],
   ['options/options.html', 'options/options.html'],
   ['options/options.css', 'options/options.css'],
+  ['privacy/privacy.html', 'privacy/privacy.html'],
+  ['privacy/privacy.css', 'privacy/privacy.css'],
 ];
 
 async function buildTarget(target) {
@@ -75,6 +77,7 @@ async function buildTarget(target) {
     join(distDir, 'pages'),
     join(distDir, 'background'),
     join(distDir, 'options'),
+    join(distDir, 'privacy'),
     join(distDir, 'icons'),
   ];
 

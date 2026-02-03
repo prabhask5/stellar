@@ -85,7 +85,7 @@ async function init() {
 
   // Set links
   if (openStellarBtn) openStellarBtn.href = config.appUrl;
-  if (privacyLink) privacyLink.href = config.appUrl + '/policy';
+  if (privacyLink) privacyLink.href = browser.runtime.getURL('privacy/privacy.html');
 
   // Network listeners
   window.addEventListener('online', handleOnline);
@@ -111,10 +111,10 @@ async function init() {
     await focusOrOpenApp();
   });
 
-  privacyLink?.addEventListener('click', async (e) => {
+  privacyLink?.addEventListener('click', (e) => {
     e.preventDefault();
-    const cfg = await getConfig();
-    if (cfg) await navigateToApp(`${cfg.appUrl}/policy`);
+    browser.tabs.create({ url: browser.runtime.getURL('privacy/privacy.html') });
+    window.close();
   });
 
   // Open app setup button

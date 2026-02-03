@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy - Stellar Focus</title>
+  <link rel="stylesheet" href="privacy.css">
+</head>
+<body>
+  <div class="policy-container">
+    <!-- Animated Star Field -->
+    <div class="starfield">
+      <div class="stars stars-small"></div>
+      <div class="stars stars-medium"></div>
+      <div class="stars stars-large"></div>
+    </div>
+
+    <!-- Nebula Effects -->
+    <div class="nebula nebula-1"></div>
+    <div class="nebula nebula-2"></div>
+    <div class="nebula nebula-3"></div>
+
+    <!-- Orbital Rings -->
+    <div class="orbital-system">
+      <div class="orbit orbit-1"></div>
+      <div class="orbit orbit-2"></div>
+      <div class="orbit orbit-3"></div>
+      <div class="orbit-particle particle-1"></div>
+      <div class="orbit-particle particle-2"></div>
+      <div class="orbit-particle particle-3"></div>
+    </div>
+
+    <!-- Shooting Stars -->
+    <div class="shooting-star shooting-star-1"></div>
+    <div class="shooting-star shooting-star-2"></div>
+    <div class="shooting-star shooting-star-3"></div>
+
+    <!-- Content -->
+    <div class="content" id="content">
+      <div class="content-glow"></div>
+      <h1 class="title">Privacy</h1>
+      <p class="policy-text">
+        This is a self-hosted app, so your goals, tasks, routines, and focus sessions data are only
+        managed by you (or your admin) and never sold. Who would want that anyway?
+      </p>
+      <a href="#" class="back-link" id="backLink">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="19" y1="12" x2="5" y2="12" />
+          <polyline points="12 19 5 12 12 5" />
+        </svg>
+        Back to Stellar Focus
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Fade in content
+    setTimeout(function() {
+      document.getElementById('content').classList.add('visible');
+    }, 100);
+
+    // Back link closes the tab
+    document.getElementById('backLink').addEventListener('click', function(e) {
+      e.preventDefault();
+      window.close();
+    });
+  </script>
+</body>
+</html>

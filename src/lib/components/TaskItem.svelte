@@ -217,16 +217,7 @@
       gap: 0.625rem;
     }
 
-    .checkbox {
-      width: 16px !important;
-      height: 16px !important;
-    }
-
-    .checkmark {
-      font-size: 0.5rem !important;
-    }
-
-    .task-name {
+.task-name {
       font-size: 0.875rem;
     }
 

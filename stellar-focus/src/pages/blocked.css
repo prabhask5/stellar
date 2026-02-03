@@ -401,10 +401,17 @@ body {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 0.625rem;
   z-index: 10;
   animation: fade-in 1s ease-out 1.2s backwards;
+}
+
+.footer-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .footer-line {
@@ -419,6 +426,19 @@ body {
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--color-text-whisper);
+}
+
+.privacy-link {
+  font-size: 0.6875rem;
+  color: var(--color-text-whisper);
+  text-decoration: none;
+  opacity: 0.8;
+  transition: all 0.2s ease;
+}
+
+.privacy-link:hover {
+  color: var(--color-primary-light);
+  opacity: 1;
 }
 
 /* ============================================

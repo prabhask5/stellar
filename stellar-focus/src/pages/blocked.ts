@@ -348,6 +348,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const blockedUrlEl = document.getElementById('blockedUrl');
   const returnBtn = document.getElementById('returnBtn') as HTMLAnchorElement;
 
+  // Set privacy link
+  const privacyLink = document.getElementById('privacyLink') as HTMLAnchorElement;
+  if (privacyLink) {
+    privacyLink.href = browser.runtime.getURL('privacy/privacy.html');
+    privacyLink.target = '_blank';
+  }
+
   // Set return button URL and click handler
   if (returnBtn) {
     const config = await getConfig();

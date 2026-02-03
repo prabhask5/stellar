@@ -1011,16 +1011,7 @@
       width: 100%;
     }
 
-    .checkbox {
-      width: 28px !important;
-      height: 28px !important;
-    }
-
-    .checkmark {
-      font-size: 0.875rem !important;
-    }
-
-    .increment-controls {
+.increment-controls {
       gap: 0.25rem;
       flex-shrink: 0;
     }

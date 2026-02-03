@@ -19,6 +19,9 @@ const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
 const adminCard = document.getElementById('adminCard') as HTMLElement;
 const debugToggle = document.getElementById('debugToggle') as HTMLButtonElement;
 
+// Privacy link
+const privacyLink = document.getElementById('privacyLink') as HTMLAnchorElement;
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   // Pre-fill existing values if config already exists
@@ -39,6 +42,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (result.stellar_debug_mode === true) {
     debugToggle.classList.add('active');
     debugToggle.setAttribute('aria-checked', 'true');
+  }
+
+  // Privacy link
+  if (privacyLink) {
+    privacyLink.href = browser.runtime.getURL('privacy/privacy.html');
+    privacyLink.target = '_blank';
   }
 
   debugToggle.addEventListener('click', async () => {

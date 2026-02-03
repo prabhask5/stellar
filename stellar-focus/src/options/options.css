@@ -469,6 +469,28 @@ input::placeholder {
    REDUCED MOTION
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
+.options-footer {
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.privacy-link {
+  font-size: 0.75rem;
+  color: #8b8ba3;
+  text-decoration: none;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.privacy-link:hover {
+  color: #a78bfa;
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .stars-small,
   .stars-medium,
