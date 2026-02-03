@@ -334,16 +334,6 @@
       gap: 0.625rem;
     }
 
-    .checkbox {
-      width: 16px !important;
-      height: 16px !important;
-    }
-
-    .checkbox svg {
-      width: 10px !important;
-      height: 10px !important;
-    }
-
     .task-name {
       font-size: 0.875rem;
     }

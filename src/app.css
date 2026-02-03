@@ -981,6 +981,13 @@ body {
     min-height: auto;
     min-width: auto;
   }
+
+  /* Exception for custom circular checkboxes - they have explicit sizes and
+     the surrounding row already provides an adequate touch target */
+  .checkbox {
+    min-height: auto;
+    min-width: auto;
+  }
 }
 
 /* Prevent text size adjustment on orientation change */

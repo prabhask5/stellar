@@ -916,13 +916,27 @@
 
     .section-actions {
       justify-content: center;
-      gap: 0.625rem;
+      gap: 0.5rem;
+      flex-wrap: wrap;
     }
 
     .section-actions .btn {
-      flex: 1;
-      max-width: 140px;
       justify-content: center;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+    }
+
+    /* Tags button goes full-width on its own row */
+    .section-actions .btn-tags {
+      flex-basis: 100%;
+      max-width: 160px;
+      margin: 0 auto;
+    }
+
+    /* Task/Reminder buttons share the second row */
+    .section-actions .btn:not(.btn-tags) {
+      flex: 1;
+      max-width: 160px;
     }
 
     .daily-tasks-section {
@@ -948,7 +962,6 @@
     .section-actions .btn {
       padding: 0.5rem 0.5rem;
       font-size: 0.6875rem;
-      max-width: 120px;
     }
   }
 
@@ -956,10 +969,6 @@
   @media (min-width: 400px) and (max-width: 430px) {
     .section-title {
       font-size: 1.375rem;
-    }
-
-    .section-actions .btn {
-      padding: 0.5rem 1rem;
     }
   }
 
