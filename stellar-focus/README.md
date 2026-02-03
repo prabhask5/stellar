@@ -1,6 +1,6 @@
 # Stellar Focus
 
-**Version 1.0.8** | Companion browser extension for [Stellar](../README.md)
+**Version 1.0.9** | Companion browser extension for [Stellar](../README.md)
 
 Stellar Focus is a companion browser extension for the Stellar self-hosted productivity PWA. It blocks distracting websites during active Pomodoro focus sessions managed in Stellar Planner. The extension and Stellar communicate exclusively through a shared Supabase backend -- there is no direct communication between them. With only two runtime dependencies, Stellar Focus is lightweight by design and built around a fail-safe blocking philosophy: when in doubt, it allows navigation rather than risking a false block.
 

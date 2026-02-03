@@ -793,6 +793,8 @@ async function pollFocusSession() {
       .from('focus_sessions')
       .select(COLUMNS.focus_sessions)
       .is('ended_at', null)
+      .neq('status', 'stopped')
+      .or('deleted.is.null,deleted.eq.false')
       .order('created_at', { ascending: false })
       .limit(1);
 

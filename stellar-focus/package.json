@@ -1,6 +1,6 @@
 {
   "name": "stellar-focus-extension",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Browser extension to block distracting websites during Stellar focus sessions",
   "type": "module",
   "scripts": {
