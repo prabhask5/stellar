@@ -928,9 +928,9 @@
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
       Clears local table data, resets the sync cursor, and re-downloads everything from the server
-      without reloading the page. Use when data appears out of sync.<br /><code class="console-cmd"
-        >__stellarSync.forceFullSync()</code
-      >
+      without reloading the page. Use when data appears out of sync.<br /><span
+        class="console-label">Run in console:</span
+      > <code class="console-cmd">__stellarSync.forceFullSync()</code>
     </p>
 
     <button class="btn btn-secondary" onclick={handleTriggerSync} disabled={triggeringSyncManual}>
@@ -958,7 +958,8 @@
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
       Manually triggers a sync cycle to push local changes and pull remote changes. Use when changes
-      aren't appearing.<br /><code class="console-cmd">__stellarSync.sync()</code>
+      aren't appearing.<br /><span class="console-label">Run in console:</span>
+      <code class="console-cmd">__stellarSync.sync()</code>
     </p>
 
     <button class="btn btn-secondary" onclick={handleResetSyncCursor} disabled={resettingCursor}>
@@ -987,9 +988,9 @@
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
       Resets the sync cursor so the next sync cycle pulls all data instead of only new changes. Use
-      before triggering a sync to do a full re-pull.<br /><code class="console-cmd"
-        >__stellarSync.resetSyncCursor()</code
-      >
+      before triggering a sync to do a full re-pull.<br /><span class="console-label"
+        >Run in console:</span
+      > <code class="console-cmd">__stellarSync.resetSyncCursor()</code>
     </p>
 
     <button class="btn btn-secondary" onclick={handleCheckConnection} disabled={checkingConnection}>
@@ -1020,7 +1021,8 @@
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
       Tests the connection to Supabase and displays the result in a popup. Use to diagnose
-      connectivity issues.<br /><code class="console-cmd">__stellarSync.checkConnection()</code>
+      connectivity issues.<br /><span class="console-label">Run in console:</span>
+      <code class="console-cmd">__stellarSync.checkConnection()</code>
     </p>
 
     <button class="btn btn-secondary" onclick={handleGetSyncStatus}>
@@ -1041,7 +1043,8 @@
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
       Displays the current sync cursor and number of pending operations in a popup. Use to check if
-      changes are queued.<br /><code class="console-cmd">__stellarSync.getStatus()</code>
+      changes are queued.<br /><span class="console-label">Run in console:</span>
+      <code class="console-cmd">__stellarSync.getStatus()</code>
     </p>
 
     <button class="btn btn-secondary" onclick={handleRealtimeStatus}>
@@ -1061,9 +1064,8 @@
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
       Displays the current realtime WebSocket connection state and health in a popup. Use to check
-      if live updates are working.<br /><code class="console-cmd"
-        >__stellarSync.realtimeStatus()</code
-      >
+      if live updates are working.<br /><span class="console-label">Run in console:</span>
+      <code class="console-cmd">__stellarSync.realtimeStatus()</code>
     </p>
 
     <button class="btn btn-secondary" onclick={handleViewSyncStats}>
@@ -1085,7 +1087,8 @@
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
       Displays a summary of sync cycles in a popup and logs the full details to the browser console.
-      Use to monitor sync performance.<br /><code class="console-cmd">__stellarSyncStats()</code>
+      Use to monitor sync performance.<br /><span class="console-label">Run in console:</span>
+      <code class="console-cmd">__stellarSyncStats()</code>
     </p>
 
     <button class="btn btn-secondary" onclick={handleViewEgress}>
@@ -1107,9 +1110,10 @@
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
       Displays a summary of data transfer in a popup and logs the per-table breakdown to the browser
-      console. Use to monitor bandwidth usage.<br /><code class="console-cmd"
-        >__stellarEgress()</code
+      console. Use to monitor bandwidth usage.<br /><span class="console-label"
+        >Run in console:</span
       >
+      <code class="console-cmd">__stellarEgress()</code>
     </p>
 
     <button class="btn btn-secondary" onclick={handleViewTombstones} disabled={viewingTombstones}>
@@ -1136,7 +1140,8 @@
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
       Logs soft-deleted record counts per table to the browser console. Use to inspect pending
-      deletions before cleanup.<br /><code class="console-cmd">__stellarTombstones()</code>
+      deletions before cleanup.<br /><span class="console-label">Run in console:</span>
+      <code class="console-cmd">__stellarTombstones()</code>
     </p>
 
     <button
@@ -1167,9 +1172,8 @@
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
       Permanently removes old soft-deleted records from local IndexedDB and remote Supabase. Results
-      are logged to the browser console.<br /><code class="console-cmd"
-        >__stellarTombstones({'{'} cleanup: true })</code
-      >
+      are logged to the browser console.<br /><span class="console-label">Run in console:</span>
+      <code class="console-cmd">__stellarTombstones({'{'} cleanup: true })</code>
     </p>
 
     <button class="btn btn-danger" onclick={handleResetDatabase} disabled={resetting}>
@@ -1818,9 +1822,16 @@
     color: var(--color-text-muted);
   }
 
+  .console-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
   .console-cmd {
     display: inline-block;
-    margin-top: 0.375rem;
+    margin-top: 0.25rem;
     padding: 0.2rem 0.5rem;
     font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
     font-size: 0.6875rem;
@@ -1829,6 +1840,27 @@
     border: 1px solid rgba(108, 92, 231, 0.2);
     border-radius: var(--radius-sm, 4px);
     word-break: break-all;
+    max-width: 100%;
+  }
+
+  @media (max-width: 640px) {
+    .console-label {
+      display: block;
+      margin-top: 0.375rem;
+    }
+
+    .console-cmd {
+      display: block;
+      font-size: 0.625rem;
+    }
+  }
+
+  .debug-section-divider ~ .btn {
+    margin-top: 1.25rem;
+  }
+
+  .debug-section-divider ~ .btn:first-of-type {
+    margin-top: 0;
   }
 
   .debug-section-divider {
