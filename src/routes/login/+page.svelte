@@ -8,6 +8,7 @@
     getSingleUserInfo,
     completeSingleUserSetup,
     completeDeviceVerification,
+    pollDeviceVerification,
     fetchRemoteGateConfig,
     linkSingleUserDevice
   } from '@prabhask5/stellar-engine/auth';
@@ -54,6 +55,8 @@
   let maskedEmail = $state('');
   let resendCooldown = $state(0);
   let resendTimer: ReturnType<typeof setInterval> | null = null;
+  let verificationPollTimer: ReturnType<typeof setInterval> | null = null;
+  let verificationCompleting = false; // guard against double execution
 
   // Input refs
   let codeInputs: HTMLInputElement[] = $state([]);
@@ -111,16 +114,8 @@
               showConfirmationModal = false;
             }
           } else if (showDeviceVerificationModal) {
-            // Device verification complete
-            const result = await completeDeviceVerification();
-            if (!result.error) {
-              showDeviceVerificationModal = false;
-              await invalidateAll();
-              goto(redirectUrl);
-            } else {
-              error = result.error;
-              showDeviceVerificationModal = false;
-            }
+            // Device verification complete (same-browser broadcast)
+            await handleVerificationComplete();
           }
         }
       };
@@ -132,7 +127,43 @@
   onDestroy(() => {
     authChannel?.close();
     if (resendTimer) clearInterval(resendTimer);
+    stopVerificationPolling();
   });
+
+  function startVerificationPolling() {
+    stopVerificationPolling();
+    verificationPollTimer = setInterval(async () => {
+      if (verificationCompleting) return;
+      const trusted = await pollDeviceVerification();
+      if (trusted) {
+        await handleVerificationComplete();
+      }
+    }, 3000);
+  }
+
+  function stopVerificationPolling() {
+    if (verificationPollTimer) {
+      clearInterval(verificationPollTimer);
+      verificationPollTimer = null;
+    }
+  }
+
+  async function handleVerificationComplete() {
+    if (verificationCompleting) return;
+    verificationCompleting = true;
+    stopVerificationPolling();
+
+    const result = await completeDeviceVerification();
+    if (!result.error) {
+      showDeviceVerificationModal = false;
+      await invalidateAll();
+      goto(redirectUrl);
+    } else {
+      error = result.error;
+      showDeviceVerificationModal = false;
+      verificationCompleting = false;
+    }
+  }
 
   function startResendCooldown() {
     resendCooldown = 30;
@@ -342,6 +373,7 @@
         maskedEmail = result.maskedEmail || '';
         showDeviceVerificationModal = true;
         startResendCooldown();
+        startVerificationPolling();
         return;
       }
       await invalidateAll();
@@ -394,6 +426,7 @@
         maskedEmail = result.maskedEmail || '';
         showDeviceVerificationModal = true;
         startResendCooldown();
+        startVerificationPolling();
         return;
       }
       await invalidateAll();

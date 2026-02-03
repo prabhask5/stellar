@@ -18,8 +18,13 @@
     if (tokenHash && type) {
       try {
         // Verify the OTP token via engine
-        const { verifyOtp } = await import('@prabhask5/stellar-engine');
+        const { verifyOtp, trustPendingDevice } = await import('@prabhask5/stellar-engine');
         const { error } = await verifyOtp(tokenHash, type as 'signup' | 'email' | 'email_change');
+
+        if (!error && type === 'email') {
+          // Device verification OTP — trust the originating device (not this one)
+          await trustPendingDevice();
+        }
 
         if (error) {
           status = 'error';
