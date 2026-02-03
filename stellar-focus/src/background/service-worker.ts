@@ -45,6 +45,9 @@ let realtimeHealthy = false; // Track if realtime subscriptions are working
 // Single consolidated realtime channel (egress optimization)
 let realtimeChannel: RealtimeChannel | null = null;
 
+// Track auth state change subscription to prevent listener stacking
+let authStateUnsubscribe: (() => void) | null = null;
+
 // Explicit column definitions to reduce egress (no SELECT *)
 const COLUMNS = {
   focus_sessions: 'id,user_id,phase,status,phase_started_at,focus_duration,break_duration,ended_at',
@@ -412,6 +415,28 @@ async function init() {
     return;
   }
 
+  // Listen for token refreshes to keep the realtime auth token current.
+  // When the access token expires (~1 hour), Supabase auto-refreshes it.
+  // Without this, the realtime connection silently loses auth and stops
+  // receiving events filtered by RLS.
+  // Unsubscribe previous listener to prevent stacking on repeated init() calls.
+  if (authStateUnsubscribe) {
+    authStateUnsubscribe();
+    authStateUnsubscribe = null;
+  }
+  const supabase = await getSupabase();
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+    if (event === 'TOKEN_REFRESHED' && newSession && realtimeChannel) {
+      debugLog('[Stellar Focus] Token refreshed — updating realtime auth');
+      supabase.realtime.setAuth(newSession.access_token);
+    }
+    if (event === 'SIGNED_OUT') {
+      debugLog('[Stellar Focus] Signed out — cleaning up realtime');
+      cleanupRealtimeSubscriptions();
+    }
+  });
+  authStateUnsubscribe = () => subscription.unsubscribe();
+
   // Load cached focus session
   const cached = await focusSessionCacheStore.get('current');
   if (cached) {
@@ -433,15 +458,18 @@ async function init() {
 async function setupRealtimeSubscriptions() {
   if (!isOnline) return;
 
-  const session = await getSession();
-  if (!session) return;
-
   const supabase = await getSupabase();
+
+  // Explicitly refresh the session to get a fresh access token.
+  // getSession() returns the cached token which may be expired.
+  const { data: refreshData } = await supabase.auth.refreshSession();
+  const session = refreshData?.session || (await getSession());
+  if (!session) return;
 
   // Clean up existing subscriptions
   cleanupRealtimeSubscriptions();
 
-  // Set auth token for realtime
+  // Set auth token for realtime (must be a fresh, non-expired token)
   supabase.realtime.setAuth(session.access_token);
 
   const timestamp = Date.now();
@@ -635,6 +663,13 @@ function notifyPopup(type: string) {
 
 // Clean up real-time subscriptions
 async function cleanupRealtimeSubscriptions() {
+  realtimeHealthy = false;
+
+  if (authStateUnsubscribe) {
+    authStateUnsubscribe();
+    authStateUnsubscribe = null;
+  }
+
   try {
     const supabase = await getSupabase();
 
