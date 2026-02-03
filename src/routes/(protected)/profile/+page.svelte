@@ -1970,18 +1970,19 @@
   .code-input-group {
     display: flex;
     justify-content: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
   }
 
   .code-digit {
-    width: 56px;
-    height: 64px;
+    width: 48px;
+    height: 56px;
     text-align: center;
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     font-weight: 700;
     letter-spacing: 0;
     caret-color: var(--color-primary-light);
     padding: 0;
+    transition: all 0.3s ease;
   }
 
   .code-digit:focus {
@@ -1991,14 +1992,39 @@
       0 0 0 2px rgba(108, 92, 231, 0.2);
   }
 
+  /* iPhone SE / small phones */
   @media (max-width: 389px) {
     .code-digit {
-      width: 48px;
-      height: 56px;
+      width: 36px;
+      height: 44px;
+      font-size: 1.125rem;
+    }
+    .code-input-group {
+      gap: 0.25rem;
+    }
+  }
+
+  /* iPhone 16 Pro (400-430px) */
+  @media (min-width: 400px) and (max-width: 430px) {
+    .code-digit {
+      width: 44px;
+      height: 52px;
+      font-size: 1.375rem;
+    }
+    .code-input-group {
+      gap: 0.4375rem;
+    }
+  }
+
+  /* General mobile (390-640px, excluding Pro range above) */
+  @media (min-width: 390px) and (max-width: 399px) {
+    .code-digit {
+      width: 40px;
+      height: 48px;
       font-size: 1.25rem;
     }
     .code-input-group {
-      gap: 0.5rem;
+      gap: 0.375rem;
     }
   }
 
