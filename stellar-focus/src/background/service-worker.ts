@@ -466,8 +466,12 @@ async function setupRealtimeSubscriptions() {
   const session = refreshData?.session || (await getSession());
   if (!session) return;
 
-  // Clean up existing subscriptions
-  cleanupRealtimeSubscriptions();
+  const userId = session.user?.id;
+  if (!userId) return;
+
+  // Clean up existing realtime channel (but NOT the auth state listener —
+  // that's managed by init() and must survive reconnections)
+  await cleanupRealtimeChannel();
 
   // Set auth token for realtime (must be a fresh, non-expired token)
   supabase.realtime.setAuth(session.access_token);
@@ -475,7 +479,8 @@ async function setupRealtimeSubscriptions() {
   const timestamp = Date.now();
 
   // EGRESS OPTIMIZATION: Single consolidated channel for all tables
-  // No user_id filters — RLS handles access (single-user app)
+  // Explicit user_id filters for reliable delivery (RLS-only filtering
+  // requires replica identity full which may not be configured)
   realtimeChannel = supabase
     .channel(`stellar-ext-${timestamp}`)
     // Focus sessions subscription
@@ -484,7 +489,8 @@ async function setupRealtimeSubscriptions() {
       {
         event: '*',
         schema: 'public',
-        table: 'focus_sessions'
+        table: 'focus_sessions',
+        filter: `user_id=eq.${userId}`
       },
       (payload) => {
         debugLog('[Stellar Focus] Real-time: Focus session update', payload.eventType);
@@ -534,7 +540,8 @@ async function setupRealtimeSubscriptions() {
       {
         event: '*',
         schema: 'public',
-        table: 'block_lists'
+        table: 'block_lists',
+        filter: `user_id=eq.${userId}`
       },
       (payload) => {
         debugLog('[Stellar Focus] Real-time: Block list update', payload.eventType);
@@ -661,14 +668,9 @@ function notifyPopup(type: string) {
   });
 }
 
-// Clean up real-time subscriptions
-async function cleanupRealtimeSubscriptions() {
+// Clean up only the realtime channel (preserves auth state listener for reconnections)
+async function cleanupRealtimeChannel() {
   realtimeHealthy = false;
-
-  if (authStateUnsubscribe) {
-    authStateUnsubscribe();
-    authStateUnsubscribe = null;
-  }
 
   try {
     const supabase = await getSupabase();
@@ -680,6 +682,16 @@ async function cleanupRealtimeSubscriptions() {
   } catch {
     // Config might not be available, just clear the reference
     realtimeChannel = null;
+  }
+}
+
+// Full cleanup: channel + auth state listener (used on lock/sign-out/config reset)
+async function cleanupRealtimeSubscriptions() {
+  await cleanupRealtimeChannel();
+
+  if (authStateUnsubscribe) {
+    authStateUnsubscribe();
+    authStateUnsubscribe = null;
   }
 }
 
@@ -735,6 +747,11 @@ async function pollFocusSession() {
       const wasRunning = currentFocusSession?.status === 'running' && currentFocusSession?.phase === 'focus';
       const isNowRunning = focusSession.status === 'running' && focusSession.phase === 'focus';
 
+      // Detect any state change for popup notification
+      const hasChanged = !currentFocusSession
+        || currentFocusSession.phase !== focusSession.phase
+        || currentFocusSession.status !== focusSession.status;
+
       // Update cached session
       const sessionData: FocusSessionCache = {
         id: 'current',
@@ -756,11 +773,22 @@ async function pollFocusSession() {
         await refreshBlockLists();
       }
 
+      // Notify popup of state changes caught by polling
+      if (hasChanged) {
+        notifyPopup('FOCUS_STATUS_CHANGED');
+      }
+
       debugLog('[Stellar Focus] Focus session active:', focusSession.phase, focusSession.status);
     } else {
       // No active session
+      const hadSession = !!currentFocusSession;
       await focusSessionCacheStore.clear();
       currentFocusSession = null;
+
+      // Notify popup if session just ended
+      if (hadSession) {
+        notifyPopup('FOCUS_STATUS_CHANGED');
+      }
 
       debugLog('[Stellar Focus] No active focus session');
     }
