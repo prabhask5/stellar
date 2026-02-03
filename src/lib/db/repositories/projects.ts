@@ -167,7 +167,7 @@ export async function deleteProject(id: string): Promise<void> {
 
   // Get tasks that reference the project's tag (to unlink them)
   const tasksWithTag = project.tag_id
-    ? ((await engineQuery('long_term_tasks', 'category_id', project.tag_id)) as unknown as Array<{
+    ? ((await engineQuery('long_term_agenda', 'category_id', project.tag_id)) as unknown as Array<{
         id: string;
       }>)
     : [];
@@ -188,7 +188,7 @@ export async function deleteProject(id: string): Promise<void> {
   for (const task of tasksWithTag) {
     ops.push({
       type: 'update',
-      table: 'long_term_tasks',
+      table: 'long_term_agenda',
       id: task.id,
       fields: { category_id: null }
     });

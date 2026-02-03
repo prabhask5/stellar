@@ -156,7 +156,7 @@ export async function getDailyTasks(): Promise<DailyTask[]> {
 }
 
 export async function getLongTermTasks(): Promise<LongTermTaskWithCategory[]> {
-  const tasks = (await engineGetAll('long_term_tasks', {
+  const tasks = (await engineGetAll('long_term_agenda', {
     remoteFallback: !hasHydrated
   })) as unknown as LongTermTaskWithCategory[];
 
@@ -178,7 +178,7 @@ export async function getLongTermTasks(): Promise<LongTermTaskWithCategory[]> {
 
 export async function getLongTermTask(id: string): Promise<LongTermTaskWithCategory | null> {
   const task = (await engineGet(
-    'long_term_tasks',
+    'long_term_agenda',
     id
   )) as unknown as LongTermTaskWithCategory | null;
   if (!task || task.deleted) return null;

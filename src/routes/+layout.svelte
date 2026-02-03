@@ -180,7 +180,7 @@
   );
 
   const navItems = [
-    { href: '/tasks', label: 'Tasks', icon: 'tasks', mobileLabel: 'Tasks' },
+    { href: '/agenda', label: 'Agenda', icon: 'tasks', mobileLabel: 'Agenda' },
     { href: '/plans', label: 'Plans', icon: 'goals', mobileLabel: 'Plans' },
     { href: '/routines', label: 'Routines', icon: 'calendar', mobileLabel: 'Routines' },
     { href: '/focus', label: 'Focus', icon: 'focus', mobileLabel: 'Focus' }

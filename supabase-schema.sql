@@ -127,12 +127,13 @@ create table daily_tasks (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
-create table long_term_tasks (
+create table long_term_agenda (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references auth.users(id) on delete cascade,
   name text not null,
   due_date date not null,
   category_id uuid references task_categories(id) on delete set null,
+  type text default 'task' not null check (type in ('task', 'reminder')),
   completed boolean default false not null,
   deleted boolean default false not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
@@ -207,11 +208,11 @@ create index idx_daily_tasks_order on daily_tasks("order");
 create index idx_daily_tasks_updated_at on daily_tasks(updated_at);
 create index idx_daily_tasks_deleted on daily_tasks(deleted) where deleted = false;
 
-create index idx_long_term_tasks_user_id on long_term_tasks(user_id);
-create index idx_long_term_tasks_due_date on long_term_tasks(due_date);
-create index idx_long_term_tasks_category_id on long_term_tasks(category_id);
-create index idx_long_term_tasks_updated_at on long_term_tasks(updated_at);
-create index idx_long_term_tasks_deleted on long_term_tasks(deleted) where deleted = false;
+create index idx_long_term_agenda_user_id on long_term_agenda(user_id);
+create index idx_long_term_agenda_due_date on long_term_agenda(due_date);
+create index idx_long_term_agenda_category_id on long_term_agenda(category_id);
+create index idx_long_term_agenda_updated_at on long_term_agenda(updated_at);
+create index idx_long_term_agenda_deleted on long_term_agenda(deleted) where deleted = false;
 
 -- Projects
 create index idx_projects_user_id on projects(user_id);
@@ -238,7 +239,7 @@ alter table task_categories enable row level security;
 alter table commitments enable row level security;
 alter table daily_tasks enable row level security;
 alter table projects enable row level security;
-alter table long_term_tasks enable row level security;
+alter table long_term_agenda enable row level security;
 
 -- ============================================================
 -- RLS POLICIES: Ownership-based (auth.uid() = user_id)
@@ -324,15 +325,15 @@ create policy "Owner can update daily tasks"
 create policy "Owner can delete daily tasks"
   on daily_tasks for delete using (auth.uid() = user_id);
 
--- Long Term Tasks (has user_id)
-create policy "Owner can view long term tasks"
-  on long_term_tasks for select using (auth.uid() = user_id);
-create policy "Owner can create long term tasks"
-  on long_term_tasks for insert with check (auth.uid() = user_id);
-create policy "Owner can update long term tasks"
-  on long_term_tasks for update using (auth.uid() = user_id);
-create policy "Owner can delete long term tasks"
-  on long_term_tasks for delete using (auth.uid() = user_id);
+-- Long Term Agenda (has user_id)
+create policy "Owner can view long term agenda"
+  on long_term_agenda for select using (auth.uid() = user_id);
+create policy "Owner can create long term agenda"
+  on long_term_agenda for insert with check (auth.uid() = user_id);
+create policy "Owner can update long term agenda"
+  on long_term_agenda for update using (auth.uid() = user_id);
+create policy "Owner can delete long term agenda"
+  on long_term_agenda for delete using (auth.uid() = user_id);
 
 -- Projects (has user_id)
 create policy "Owner can view projects"
@@ -368,8 +369,8 @@ create trigger set_daily_tasks_user_id
   before insert on daily_tasks
   for each row execute function set_user_id();
 
-create trigger set_long_term_tasks_user_id
-  before insert on long_term_tasks
+create trigger set_long_term_agenda_user_id
+  before insert on long_term_agenda
   for each row execute function set_user_id();
 
 create trigger set_projects_user_id
@@ -408,8 +409,8 @@ create trigger update_daily_tasks_updated_at
   before update on daily_tasks
   for each row execute function update_updated_at_column();
 
-create trigger update_long_term_tasks_updated_at
-  before update on long_term_tasks
+create trigger update_long_term_agenda_updated_at
+  before update on long_term_agenda
   for each row execute function update_updated_at_column();
 
 create trigger update_projects_updated_at
@@ -647,7 +648,7 @@ alter publication supabase_realtime add table daily_goal_progress;
 alter publication supabase_realtime add table task_categories;
 alter publication supabase_realtime add table commitments;
 alter publication supabase_realtime add table daily_tasks;
-alter publication supabase_realtime add table long_term_tasks;
+alter publication supabase_realtime add table long_term_agenda;
 alter publication supabase_realtime add table focus_settings;
 alter publication supabase_realtime add table focus_sessions;
 alter publication supabase_realtime add table block_lists;
@@ -667,7 +668,7 @@ alter table daily_goal_progress add column if not exists _version integer defaul
 alter table task_categories add column if not exists _version integer default 1 not null;
 alter table commitments add column if not exists _version integer default 1 not null;
 alter table daily_tasks add column if not exists _version integer default 1 not null;
-alter table long_term_tasks add column if not exists _version integer default 1 not null;
+alter table long_term_agenda add column if not exists _version integer default 1 not null;
 alter table focus_settings add column if not exists _version integer default 1 not null;
 alter table focus_sessions add column if not exists _version integer default 1 not null;
 alter table block_lists add column if not exists _version integer default 1 not null;
@@ -686,7 +687,7 @@ alter table daily_goal_progress add column if not exists device_id text;
 alter table task_categories add column if not exists device_id text;
 alter table commitments add column if not exists device_id text;
 alter table daily_tasks add column if not exists device_id text;
-alter table long_term_tasks add column if not exists device_id text;
+alter table long_term_agenda add column if not exists device_id text;
 alter table focus_settings add column if not exists device_id text;
 alter table focus_sessions add column if not exists device_id text;
 alter table block_lists add column if not exists device_id text;
@@ -741,7 +742,7 @@ BEGIN
   DELETE FROM goals WHERE goal_list_id IN (SELECT id FROM goal_lists WHERE user_id = target_uid);
   DELETE FROM goal_lists WHERE user_id = target_uid;
   DELETE FROM daily_tasks WHERE user_id = target_uid;
-  DELETE FROM long_term_tasks WHERE user_id = target_uid;
+  DELETE FROM long_term_agenda WHERE user_id = target_uid;
   DELETE FROM commitments WHERE user_id = target_uid;
   DELETE FROM task_categories WHERE user_id = target_uid;
   DELETE FROM trusted_devices WHERE user_id = target_uid;

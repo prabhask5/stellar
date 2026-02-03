@@ -53,27 +53,43 @@
         <div
           class="task-row"
           use:registerElement={task.id}
-          use:remoteChangeAnimation={{ entityId: task.id, entityType: 'long_term_tasks' }}
+          use:remoteChangeAnimation={{ entityId: task.id, entityType: 'long_term_agenda' }}
         >
-          <button
-            class="checkbox"
-            class:checked={task.completed}
-            onclick={() => handleToggle(task.id)}
-            aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
-          >
-            {#if task.completed}
+          {#if task.type === 'reminder'}
+            <span class="bell-icon" aria-label="Reminder">
               <svg
-                width="14"
-                height="14"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="3"
+                stroke-width="2"
               >
-                <polyline points="20 6 9 17 4 12" />
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-            {/if}
-          </button>
+            </span>
+          {:else}
+            <button
+              class="checkbox"
+              class:checked={task.completed}
+              onclick={() => handleToggle(task.id)}
+              aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
+            >
+              {#if task.completed}
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              {/if}
+            </button>
+          {/if}
 
           <button class="task-info" onclick={() => onTaskClick(task)}>
             <span class="task-name" class:completed={task.completed} use:truncateTooltip
@@ -183,6 +199,17 @@
     border-color: rgba(108, 92, 231, 0.3);
     transform: translateX(4px);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .bell-icon {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-primary-light);
+    opacity: 0.7;
   }
 
   .checkbox {

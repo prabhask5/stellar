@@ -91,7 +91,7 @@
   }
 
   function handleDelete() {
-    if (task && confirm('Delete this task?')) {
+    if (task && confirm(task.type === 'reminder' ? 'Delete this reminder?' : 'Delete this task?')) {
       onDelete(task.id);
       onClose();
     }
@@ -124,12 +124,12 @@
 
 <svelte:window onclick={handleClickOutside} />
 
-<Modal {open} title="Task Details" {onClose}>
+<Modal {open} title={task?.type === 'reminder' ? 'Reminder Details' : 'Task Details'} {onClose}>
   {#if task}
     <div
       class="task-details"
-      use:remoteChangeAnimation={{ entityId: task.id, entityType: 'long_term_tasks' }}
-      use:trackEditing={{ entityId: task.id, entityType: 'long_term_tasks', formType: 'auto-save' }}
+      use:remoteChangeAnimation={{ entityId: task.id, entityType: 'long_term_agenda' }}
+      use:trackEditing={{ entityId: task.id, entityType: 'long_term_agenda', formType: 'auto-save' }}
     >
       <div class="field">
         <span id="task-modal-name-label" class="field-label">Name</span>
@@ -275,41 +275,43 @@
         {/if}
       </div>
 
-      <div class="field">
-        <span id="task-modal-status-label" class="field-label">Status</span>
-        <button
-          class="status-toggle"
-          class:completed
-          onclick={handleToggle}
-          aria-labelledby="task-modal-status-label"
-        >
-          {#if completed}
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-            >
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            Completed
-          {:else}
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-            </svg>
-            Mark as Complete
-          {/if}
-        </button>
-      </div>
+      {#if task.type !== 'reminder'}
+        <div class="field">
+          <span id="task-modal-status-label" class="field-label">Status</span>
+          <button
+            class="status-toggle"
+            class:completed
+            onclick={handleToggle}
+            aria-labelledby="task-modal-status-label"
+          >
+            {#if completed}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Completed
+            {:else}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+              </svg>
+              Mark as Complete
+            {/if}
+          </button>
+        </div>
+      {/if}
 
       <div class="actions">
         <button class="delete-btn" onclick={handleDelete}>
@@ -326,7 +328,7 @@
               d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
             />
           </svg>
-          Delete Task
+          {task.type === 'reminder' ? 'Delete Reminder' : 'Delete Task'}
         </button>
       </div>
     </div>

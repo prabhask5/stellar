@@ -292,14 +292,23 @@
                       class:due-today={isDueToday(task.due_date)}
                       use:remoteChangeAnimation={{
                         entityId: task.id,
-                        entityType: 'long_term_tasks'
+                        entityType: 'long_term_agenda'
                       }}
                     >
-                      <button
-                        class="checkbox"
-                        onclick={() => onToggle(task.id)}
-                        aria-label="Mark complete"
-                      ></button>
+                      {#if task.type === 'reminder'}
+                        <span class="bell-icon" aria-label="Reminder">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                          </svg>
+                        </span>
+                      {:else}
+                        <button
+                          class="checkbox"
+                          onclick={() => onToggle(task.id)}
+                          aria-label="Mark complete"
+                        ></button>
+                      {/if}
 
                       <button class="task-info" onclick={() => onTaskClick(task)}>
                         <span class="task-name" use:truncateTooltip>{task.name}</span>
@@ -378,14 +387,23 @@
                       class:due-today={isDueToday(task.due_date)}
                       use:remoteChangeAnimation={{
                         entityId: task.id,
-                        entityType: 'long_term_tasks'
+                        entityType: 'long_term_agenda'
                       }}
                     >
-                      <button
-                        class="checkbox"
-                        onclick={() => onToggle(task.id)}
-                        aria-label="Mark complete"
-                      ></button>
+                      {#if task.type === 'reminder'}
+                        <span class="bell-icon" aria-label="Reminder">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                          </svg>
+                        </span>
+                      {:else}
+                        <button
+                          class="checkbox"
+                          onclick={() => onToggle(task.id)}
+                          aria-label="Mark complete"
+                        ></button>
+                      {/if}
 
                       <button class="task-info" onclick={() => onTaskClick(task)}>
                         <span class="task-name" use:truncateTooltip>{task.name}</span>
@@ -448,14 +466,23 @@
                   class:due-today={isDueToday(task.due_date)}
                   use:remoteChangeAnimation={{
                     entityId: task.id,
-                    entityType: 'long_term_tasks'
+                    entityType: 'long_term_agenda'
                   }}
                 >
-                  <button
-                    class="checkbox"
-                    onclick={() => onToggle(task.id)}
-                    aria-label="Mark complete"
-                  ></button>
+                  {#if task.type === 'reminder'}
+                    <span class="bell-icon" aria-label="Reminder">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                      </svg>
+                    </span>
+                  {:else}
+                    <button
+                      class="checkbox"
+                      onclick={() => onToggle(task.id)}
+                      aria-label="Mark complete"
+                    ></button>
+                  {/if}
 
                   <button class="task-info" onclick={() => onTaskClick(task)}>
                     <span class="task-name" use:truncateTooltip>{task.name}</span>
@@ -750,6 +777,17 @@
 
   .task-row.due-today {
     border-left: 2px solid var(--color-yellow);
+  }
+
+  .bell-icon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-primary-light);
+    opacity: 0.7;
   }
 
   .checkbox {

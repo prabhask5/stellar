@@ -1,6 +1,6 @@
 <script lang="ts">
   import Modal from './Modal.svelte';
-  import type { TaskCategory } from '$lib/types';
+  import type { TaskCategory, AgendaItemType } from '$lib/types';
   import { getTodayDateString } from '$lib/utils/dates';
   import { trackEditing } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
@@ -8,6 +8,7 @@
   interface Props {
     open: boolean;
     categories: TaskCategory[];
+    type?: AgendaItemType;
     defaultDate?: string;
     // Allow restoring form state when coming back from category creation
     initialName?: string;
@@ -26,6 +27,7 @@
   let {
     open,
     categories,
+    type = 'task',
     defaultDate,
     initialName = '',
     initialCategoryId = null,
@@ -35,6 +37,9 @@
     onDeleteCategory,
     onRequestCreateCategory
   }: Props = $props();
+
+  const modalTitle = $derived(type === 'task' ? 'New Long-term Task' : 'New Long-term Reminder');
+  const submitLabel = $derived(type === 'task' ? 'Create Task' : 'Create Reminder');
 
   // Focus action for accessibility (skip on mobile to avoid keyboard popup)
   function focus(node: HTMLElement) {
@@ -120,13 +125,13 @@
 
 <svelte:window onkeydown={handleKeydown} onclick={handleClickOutside} />
 
-<Modal {open} title="New Long-term Task" {onClose}>
+<Modal {open} title={modalTitle} {onClose}>
   <form
     class="form"
     onsubmit={handleSubmit}
     use:trackEditing={{
       entityId: 'new-long-term-task',
-      entityType: 'long_term_tasks',
+      entityType: 'long_term_agenda',
       formType: 'manual-save'
     }}
   >
@@ -302,7 +307,7 @@
     <div class="actions">
       <button type="button" class="cancel-btn" onclick={onClose}> Cancel </button>
       <button type="submit" class="submit-btn" disabled={!name.trim() || !dueDate}>
-        Create Task
+        {submitLabel}
       </button>
     </div>
   </form>

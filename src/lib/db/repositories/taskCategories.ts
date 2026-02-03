@@ -48,7 +48,7 @@ export async function updateTaskCategory(
 
 export async function deleteTaskCategory(id: string): Promise<void> {
   // Get tasks that reference this category to unlink them
-  const tasks = (await engineQuery('long_term_tasks', 'category_id', id)) as unknown as Array<{
+  const tasks = (await engineQuery('long_term_agenda', 'category_id', id)) as unknown as Array<{
     id: string;
   }>;
 
@@ -57,11 +57,11 @@ export async function deleteTaskCategory(id: string): Promise<void> {
   // Delete the category
   ops.push({ type: 'delete', table: 'task_categories', id });
 
-  // Unlink long_term_tasks that reference this category
+  // Unlink long_term_agenda items that reference this category
   for (const task of tasks) {
     ops.push({
       type: 'update',
-      table: 'long_term_tasks',
+      table: 'long_term_agenda',
       id: task.id,
       fields: { category_id: null }
     });

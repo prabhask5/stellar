@@ -12,7 +12,8 @@
     Commitment,
     DailyTask,
     LongTermTaskWithCategory,
-    CommitmentSection
+    CommitmentSection,
+    AgendaItemType
   } from '$lib/types';
   import { formatDate } from '$lib/utils/dates';
   import TaskItem from '$lib/components/TaskItem.svelte';
@@ -41,6 +42,7 @@
   // Modal state
   let showCommitmentsModal = $state(false);
   let showTaskForm = $state(false);
+  let showReminderForm = $state(false);
   let showTaskModal = $state(false);
   let showCategoryCreate = $state(false);
   let showTagsModal = $state(false);
@@ -215,11 +217,20 @@
   async function handleCreateLongTermTask(
     name: string,
     dueDate: string,
-    categoryId: string | null
+    categoryId: string | null,
+    type: AgendaItemType = 'task'
   ) {
     const userId = getUserId();
     if (!userId) return;
-    await longTermTasksStore.create(name, dueDate, categoryId, userId);
+    await longTermTasksStore.create(name, dueDate, categoryId, userId, type);
+  }
+
+  async function handleCreateLongTermReminder(
+    name: string,
+    dueDate: string,
+    categoryId: string | null
+  ) {
+    await handleCreateLongTermTask(name, dueDate, categoryId, 'reminder');
   }
 
   async function handleUpdateLongTermTask(
@@ -254,7 +265,7 @@
 </script>
 
 <svelte:head>
-  <title>Tasks - Stellar Planner</title>
+  <title>Agenda - Stellar Planner</title>
 </svelte:head>
 
 <div class="container">
@@ -305,7 +316,7 @@
   <!-- LONG-TERM TASKS Section -->
   <section class="section">
     <header class="section-header">
-      <h2 class="section-title">Long-term Tasks</h2>
+      <h2 class="section-title">Long-term Tasks & Reminders</h2>
       <div class="section-actions">
         <button class="btn btn-secondary btn-sm btn-tags" onclick={() => (showTagsModal = true)}>
           <span class="btn-tags-full">View Tags</span>
@@ -319,6 +330,15 @@
           }}
         >
           + New Task
+        </button>
+        <button
+          class="btn btn-secondary btn-sm"
+          onclick={() => {
+            defaultTaskDate = undefined;
+            showReminderForm = true;
+          }}
+        >
+          + New Reminder
         </button>
       </div>
     </header>
@@ -402,18 +422,29 @@
         {#if longTermTasks.length === 0}
           <EmptyState
             icon="📅"
-            title="No long-term tasks"
-            description="Add tasks with due dates to track them on the calendar"
+            title="No long-term tasks or reminders"
+            description="Add tasks or reminders with due dates to track them on the calendar"
           >
-            <button
-              class="btn btn-primary"
-              onclick={() => {
-                defaultTaskDate = undefined;
-                showTaskForm = true;
-              }}
-            >
-              Add First Task
-            </button>
+            <div class="empty-actions">
+              <button
+                class="btn btn-primary"
+                onclick={() => {
+                  defaultTaskDate = undefined;
+                  showTaskForm = true;
+                }}
+              >
+                Add First Task
+              </button>
+              <button
+                class="btn btn-secondary"
+                onclick={() => {
+                  defaultTaskDate = undefined;
+                  showReminderForm = true;
+                }}
+              >
+                Add Reminder
+              </button>
+            </div>
           </EmptyState>
         {/if}
       {/if}
@@ -435,6 +466,7 @@
 <LongTermTaskForm
   open={showTaskForm}
   {categories}
+  type="task"
   defaultDate={savedTaskFormState?.dueDate ?? defaultTaskDate}
   initialName={savedTaskFormState?.name ?? ''}
   initialCategoryId={savedTaskFormState?.categoryId ?? null}
@@ -445,6 +477,25 @@
   onCreate={handleCreateLongTermTask}
   onDeleteCategory={handleDeleteCategory}
   onRequestCreateCategory={handleRequestCreateCategory}
+/>
+
+<LongTermTaskForm
+  open={showReminderForm}
+  {categories}
+  type="reminder"
+  defaultDate={defaultTaskDate}
+  onClose={() => {
+    showReminderForm = false;
+  }}
+  onCreate={handleCreateLongTermReminder}
+  onDeleteCategory={handleDeleteCategory}
+  onRequestCreateCategory={(formState) => {
+    savedTaskFormState = formState;
+    showCategoryCreate = true;
+    requestAnimationFrame(() => {
+      showReminderForm = false;
+    });
+  }}
 />
 
 <CategoryCreateModal
@@ -795,6 +846,12 @@
     }
   }
 
+  .empty-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+  }
+
   .empty-inline {
     text-align: center;
     padding: 2rem 1rem;
@@ -864,7 +921,7 @@
 
     .section-actions .btn {
       flex: 1;
-      max-width: 160px;
+      max-width: 140px;
       justify-content: center;
     }
 
@@ -889,8 +946,9 @@
     }
 
     .section-actions .btn {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.75rem;
+      padding: 0.5rem 0.5rem;
+      font-size: 0.6875rem;
+      max-width: 120px;
     }
   }
 

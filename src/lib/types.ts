@@ -136,12 +136,15 @@ export interface DailyTask {
   device_id?: string; // Device that last modified this record
 }
 
+export type AgendaItemType = 'task' | 'reminder';
+
 export interface LongTermTask {
   id: string;
   user_id: string;
   name: string;
   due_date: string; // YYYY-MM-DD
   category_id: string | null;
+  type: AgendaItemType;
   completed: boolean;
   created_at: string;
   updated_at: string;

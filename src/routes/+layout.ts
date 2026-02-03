@@ -49,9 +49,9 @@ if (browser) {
         columns: 'id,user_id,name,order,completed,created_at,updated_at,deleted,_version,device_id'
       },
       {
-        supabaseName: 'long_term_tasks',
+        supabaseName: 'long_term_agenda',
         columns:
-          'id,user_id,name,due_date,category_id,completed,created_at,updated_at,deleted,_version,device_id'
+          'id,user_id,name,due_date,category_id,type,completed,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'focus_settings',
@@ -374,6 +374,48 @@ if (browser) {
             blockLists: 'id, user_id, order, updated_at',
             blockedWebsites: 'id, block_list_id, updated_at',
             projects: 'id, user_id, is_current, order, created_at, updated_at'
+          }
+        },
+        {
+          // Version 17: Rename longTermTasks → longTermAgenda and add type column
+          // for the reminders feature (long_term_tasks → long_term_agenda in Supabase)
+          version: 17,
+          stores: {
+            goalLists: 'id, user_id, project_id, order, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, project_id, order, created_at, updated_at',
+            commitments: 'id, user_id, project_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, order, created_at, updated_at',
+            longTermAgenda: 'id, user_id, due_date, category_id, type, created_at, updated_at',
+            focusSettings: 'id, user_id, updated_at',
+            focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+            blockLists: 'id, user_id, order, updated_at',
+            blockedWebsites: 'id, block_list_id, updated_at',
+            projects: 'id, user_id, is_current, order, created_at, updated_at'
+          },
+          upgrade: async (tx) => {
+            // Migrate data from longTermTasks to longTermAgenda
+            // Dexie removes the old store when it's absent from the schema, so we
+            // need to copy data before the old store is dropped. However, Dexie
+            // drops stores AFTER upgrade runs, so longTermTasks may still exist.
+            try {
+              const oldItems = await tx.table('longTermTasks').toArray();
+              for (const item of oldItems) {
+                await tx.table('longTermAgenda').put({ ...item, type: item.type ?? 'task' });
+              }
+            } catch {
+              // longTermTasks may not exist (fresh install) — that's fine
+            }
+            // Also set type for any items already in longTermAgenda
+            const items = await tx.table('longTermAgenda').toArray();
+            for (const item of items) {
+              if (item.type === undefined) {
+                await tx.table('longTermAgenda').update(item.id, { type: 'task' });
+              }
+            }
           }
         }
       ]

@@ -12,6 +12,7 @@ import type {
   DailyTask,
   LongTermTask,
   LongTermTaskWithCategory,
+  AgendaItemType,
   ProjectWithDetails
 } from '$lib/types';
 import * as repo from '$lib/db/repositories';
@@ -854,10 +855,10 @@ function createLongTermTasksStore() {
         loading.set(false);
       }
     },
-    create: async (name: string, dueDate: string, categoryId: string | null, userId: string) => {
-      const newTask = await repo.createLongTermTask(name, dueDate, categoryId, userId);
+    create: async (name: string, dueDate: string, categoryId: string | null, userId: string, type: AgendaItemType = 'task') => {
+      const newTask = await repo.createLongTermTask(name, dueDate, categoryId, userId, type);
       // Record for animation before updating store
-      remoteChangesStore.recordLocalChange(newTask.id, 'long_term_tasks', 'create');
+      remoteChangesStore.recordLocalChange(newTask.id, 'long_term_agenda', 'create');
       // Fetch the task with category for the store
       const taskWithCategory = await queries.getLongTermTask(newTask.id);
       if (taskWithCategory) {
@@ -880,6 +881,14 @@ function createLongTermTasksStore() {
       return updated;
     },
     toggle: async (id: string) => {
+      // Guard: check if item is a reminder (reminders can't be toggled)
+      let currentTask: LongTermTaskWithCategory | undefined;
+      update((tasks) => {
+        currentTask = tasks.find((t) => t.id === id);
+        return tasks;
+      });
+      if (currentTask?.type === 'reminder') return currentTask;
+
       const updated = await repo.toggleLongTermTaskComplete(id);
       if (updated) {
         const taskWithCategory = await queries.getLongTermTask(updated.id);
