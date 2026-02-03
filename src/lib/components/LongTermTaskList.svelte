@@ -242,6 +242,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 0.25rem;
     text-align: left;
     background: none;

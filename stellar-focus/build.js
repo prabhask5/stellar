@@ -60,6 +60,7 @@ const filesToCopy = [
   ['options/options.css', 'options/options.css'],
   ['privacy/privacy.html', 'privacy/privacy.html'],
   ['privacy/privacy.css', 'privacy/privacy.css'],
+  ['privacy/privacy.js', 'privacy/privacy.js'],
 ];
 
 async function buildTarget(target) {

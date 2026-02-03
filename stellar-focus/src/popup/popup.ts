@@ -132,8 +132,9 @@ async function init() {
     }
     showMain();
     if (isOnline) {
+      // Ensure service worker has fresh data before loading
+      await browser.runtime.sendMessage({ type: 'CHECK_REALTIME' }).catch(() => {});
       await loadData();
-      browser.runtime.sendMessage({ type: 'CHECK_REALTIME' }).catch(() => {});
     }
     return;
   }
@@ -325,13 +326,12 @@ async function handlePinSubmit() {
       // Success — unlock
       await setUnlocked(true);
 
-      // Notify service worker
-      browser.runtime.sendMessage({ type: 'UNLOCKED' }).catch(() => {});
-
       // Update user info and show main
       updateUserInfoFromGateConfig(currentGateConfig);
       showMain();
 
+      // Notify service worker and wait for init to complete before loading data
+      await browser.runtime.sendMessage({ type: 'UNLOCKED' }).catch(() => {});
       await loadData();
     } else {
       // Auth failed — check if user was deleted (e.g. codeLength migration reset)
@@ -642,7 +642,7 @@ function stopFocusTimeTick() {
 // ============================================================
 
 type TimerState = 'idle' | 'focus' | 'break' | 'paused';
-let prevTimerState: TimerState = 'idle';
+let prevTimerState: TimerState | null = null;
 
 function updateStatusDisplay(session: FocusSession | null) {
   let newState: TimerState = 'idle';
@@ -665,7 +665,7 @@ function updateStatusDisplay(session: FocusSession | null) {
 
   if (newState === prevTimerState) return;
 
-  const isTransitioning = prevTimerState !== 'idle' || newState !== 'idle';
+  const isTransitioning = prevTimerState !== null && (prevTimerState !== 'idle' || newState !== 'idle');
 
   statusIndicator?.classList.remove('focus', 'break', 'paused', 'idle', 'transitioning');
 

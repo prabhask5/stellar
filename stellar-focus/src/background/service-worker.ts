@@ -204,13 +204,21 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
   }
 
   if (message.type === 'CHECK_REALTIME') {
-    // Popup opened — check realtime health and reconnect if needed
-    if (!realtimeHealthy) {
-      debugLog('[Stellar Focus] Popup opened - realtime unhealthy, reconnecting');
-      setupRealtimeSubscriptions();
-      pollFocusSessionThrottled();
-    }
-    return;
+    // Popup opened — poll for fresh data if stale, reconnect realtime if needed
+    (async () => {
+      if (!realtimeHealthy) {
+        debugLog('[Stellar Focus] Popup opened - realtime unhealthy, reconnecting');
+        setupRealtimeSubscriptions();
+      }
+      // Poll if data could be stale (last poll > 5 seconds ago)
+      const now = Date.now();
+      if (now - lastPollTime > 5000) {
+        lastPollTime = now;
+        await pollFocusSession();
+      }
+      sendResponse({ ready: true });
+    })();
+    return true; // Keep message channel open for async response
   }
 
   if (message.type === 'CHECK_UPDATE') {
@@ -240,8 +248,8 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
 
   if (message.type === 'UNLOCKED') {
     debugLog('[Stellar Focus] Extension unlocked - initializing');
-    init();
-    return;
+    init().then(() => sendResponse({ ready: true }));
+    return true; // Keep message channel open for async response
   }
 
   if (message.type === 'LOCKED') {
@@ -467,7 +475,8 @@ async function initInner() {
     currentFocusSession = cached;
   }
 
-  // Initial poll
+  // Initial poll (update lastPollTime to prevent alarm from re-polling immediately)
+  lastPollTime = Date.now();
   await pollFocusSession();
 
   // Load block lists
