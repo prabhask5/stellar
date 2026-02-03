@@ -163,7 +163,7 @@
 </script>
 
 <svelte:head>
-  <title>Home - Stellar</title>
+  <title>Home - Stellar Planner</title>
 </svelte:head>
 
 {#if isLoading}
