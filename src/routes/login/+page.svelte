@@ -54,6 +54,10 @@
   let linkLoading = $state(false);
   let offlineNoSetup = $state(false);
 
+  // Rate limit countdown state
+  let retryCountdown = $state(0);
+  let retryTimer: ReturnType<typeof setInterval> | null = null;
+
   // Modal state
   let showConfirmationModal = $state(false);
   let showDeviceVerificationModal = $state(false);
@@ -132,6 +136,7 @@
   onDestroy(() => {
     authChannel?.close();
     if (resendTimer) clearInterval(resendTimer);
+    if (retryTimer) clearInterval(retryTimer);
     stopVerificationPolling();
   });
 
@@ -178,6 +183,22 @@
       if (resendCooldown <= 0 && resendTimer) {
         clearInterval(resendTimer);
         resendTimer = null;
+      }
+    }, 1000);
+  }
+
+  function startRetryCountdown(ms: number) {
+    retryCountdown = Math.ceil(ms / 1000);
+    if (retryTimer) clearInterval(retryTimer);
+    retryTimer = setInterval(() => {
+      retryCountdown--;
+      if (retryCountdown <= 0) {
+        retryCountdown = 0;
+        error = null;
+        if (retryTimer) {
+          clearInterval(retryTimer);
+          retryTimer = null;
+        }
       }
     }, 1000);
   }
@@ -360,7 +381,7 @@
   }
 
   async function handleUnlock() {
-    if (loading) return;
+    if (loading || retryCountdown > 0) return;
 
     error = null;
 
@@ -375,6 +396,9 @@
       const result = await unlockSingleUser(unlockCode);
       if (result.error) {
         error = result.error;
+        if (result.retryAfterMs) {
+          startRetryCountdown(result.retryAfterMs);
+        }
         shaking = true;
         setTimeout(() => {
           shaking = false;
@@ -415,7 +439,7 @@
   }
 
   async function handleLink() {
-    if (linkLoading || !remoteUser) return;
+    if (linkLoading || !remoteUser || retryCountdown > 0) return;
 
     error = null;
 
@@ -429,6 +453,9 @@
       const result = await linkSingleUserDevice(remoteUser.email, linkCode);
       if (result.error) {
         error = result.error;
+        if (result.retryAfterMs) {
+          startRetryCountdown(result.retryAfterMs);
+        }
         shaking = true;
         setTimeout(() => {
           shaking = false;
@@ -595,7 +622,7 @@
                         onkeydown={(e) => handleDigitKeydown(unlockDigits, i, e, unlockInputs)}
                         onpaste={(e) =>
                           handleDigitPaste(unlockDigits, e, unlockInputs, autoSubmitUnlock)}
-                        disabled={loading}
+                        disabled={loading || retryCountdown > 0}
                         autocomplete="off"
                       />
                     </div>
@@ -620,7 +647,7 @@
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <span>{error}</span>
+                <span>{error}{retryCountdown > 0 ? ` (${retryCountdown}s)` : ''}</span>
               </div>
             {/if}
           </div>
@@ -668,7 +695,7 @@
                           handleDigitInput(linkDigits, i, e, linkInputs, autoSubmitLink)}
                         onkeydown={(e) => handleDigitKeydown(linkDigits, i, e, linkInputs)}
                         onpaste={(e) => handleDigitPaste(linkDigits, e, linkInputs, autoSubmitLink)}
-                        disabled={linkLoading}
+                        disabled={linkLoading || retryCountdown > 0}
                         autocomplete="off"
                       />
                     </div>
@@ -693,7 +720,7 @@
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <span>{error}</span>
+                <span>{error}{retryCountdown > 0 ? ` (${retryCountdown}s)` : ''}</span>
               </div>
             {/if}
           </div>
