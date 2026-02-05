@@ -19,9 +19,12 @@
       try {
         // Verify the OTP token via engine
         const { verifyOtp, trustPendingDevice } = await import('@prabhask5/stellar-engine');
-        const { error } = await verifyOtp(tokenHash, type as 'signup' | 'email' | 'email_change');
+        const { error } = await verifyOtp(
+          tokenHash,
+          type as 'signup' | 'email' | 'email_change' | 'magiclink'
+        );
 
-        if (!error && type === 'email') {
+        if (!error && (type === 'email' || type === 'magiclink')) {
           // Device verification OTP — trust the originating device (not this one)
           await trustPendingDevice();
         }

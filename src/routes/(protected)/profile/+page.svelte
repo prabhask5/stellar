@@ -8,7 +8,6 @@
     completeSingleUserEmailChange
   } from '@prabhask5/stellar-engine/auth';
   import { authState } from '@prabhask5/stellar-engine/stores';
-  import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
   import { isDebugMode, setDebugMode } from '@prabhask5/stellar-engine/utils';
   import {
     resetDatabase,
@@ -76,9 +75,6 @@
       firstName = (info.profile.firstName as string) || '';
       lastName = (info.profile.lastName as string) || '';
       currentEmail = info.email || '';
-    } else if ($userDisplayInfo) {
-      firstName = $userDisplayInfo.firstName;
-      lastName = $userDisplayInfo.lastName;
     }
 
     // Load trusted devices

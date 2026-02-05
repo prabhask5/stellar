@@ -1046,6 +1046,7 @@
             We sent a verification link to <strong>{maskedEmail}</strong>. Click it to trust this
             device.
           </p>
+          <p class="card-hint">This page will update automatically once verified.</p>
           <button
             type="button"
             class="btn btn-primary submit-btn"
@@ -1659,6 +1660,15 @@
     margin: 0 0 2rem 0;
     opacity: 0.8;
     line-height: 1.5;
+  }
+
+  .card-hint {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    margin: -1rem 0 1.5rem 0;
+    opacity: 0.5;
+    font-style: italic;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
