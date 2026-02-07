@@ -195,12 +195,16 @@
       <div class="total-progress">
         {#if projects.length > 0}
           <div class="total-progress-label">
-            <span class="total-progress-text">Total Progress</span>
+            <span class="total-progress-text">Total Project Progress</span>
             <span class="total-progress-stat">{totalProjectsProgress}%</span>
           </div>
           <ProgressBar percentage={totalProjectsProgress} showLabel={false} height="8px" />
         {:else}
-          <div class="total-progress-empty">No projects to track</div>
+          <div class="total-progress-label">
+            <span class="total-progress-text">Total Progress</span>
+            <span class="total-progress-stat">—</span>
+          </div>
+          <div class="total-progress-bar-empty"></div>
         {/if}
       </div>
     {/if}
@@ -513,6 +517,8 @@
     text-align: left;
     color: inherit;
     font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
   }
 
   .current-project-banner:hover {
@@ -1116,11 +1122,10 @@
     color: var(--color-text);
   }
 
-  .total-progress-empty {
-    text-align: center;
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-    padding: 0.25rem 0;
+  .total-progress-bar-empty {
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: rgba(108, 92, 231, 0.1);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
