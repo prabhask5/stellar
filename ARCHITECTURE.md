@@ -639,6 +639,12 @@ The controlled update flow (no `skipWaiting()` during install) prevents jarring 
 
 ---
 
+## 8. Plans Page: Total Progress Bar
+
+The Plans page (`src/routes/(protected)/plans/+page.svelte`) displays an aggregate **Total Progress** bar under the Projects section header. It averages the `completionPercentage` of all projects (each capped at 100% via `Math.min`) using a Svelte `$derived` computation. When any individual project's progress changes, the reactive store triggers a recalculation, and the existing `ProgressBar` component's CSS transitions animate the update smoothly. A fallback message ("No projects to track") displays when no projects exist. The bar is hidden during the loading state.
+
+---
+
 ## Summary of Design Complexities
 
 | Aspect | Complexity |

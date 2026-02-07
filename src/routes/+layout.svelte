@@ -6,7 +6,6 @@
   import { browser } from '$app/environment';
   import { lockSingleUser, getUserProfile } from '@prabhask5/stellar-engine/auth';
   import { authState } from '@prabhask5/stellar-engine/stores';
-  import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
   import { debug } from '@prabhask5/stellar-engine/utils';
   import type { LayoutData } from './+layout';
   import SyncStatus from '$lib/components/SyncStatus.svelte';
@@ -143,10 +142,6 @@
 
   // Get user's first name from appropriate source
   const greeting = $derived(() => {
-    // Try firstName from auth state
-    if ($userDisplayInfo?.firstName) {
-      return $userDisplayInfo.firstName;
-    }
     // Try firstName from session profile
     if (data.session?.user) {
       const profile = getUserProfile(data.session.user);

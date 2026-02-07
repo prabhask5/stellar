@@ -2,8 +2,8 @@
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import { onSyncComplete, authState } from '@prabhask5/stellar-engine/stores';
+  import { getUserProfile } from '@prabhask5/stellar-engine/auth';
   import { browser } from '$app/environment';
-  import { userDisplayInfo } from '$lib/stores/userDisplayInfo';
   import PWAInstallModal from '$lib/components/PWAInstallModal.svelte';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
   let isLoading = $state(true);
@@ -123,7 +123,24 @@
   }
 
   // Use the auth store for user info - works for both online and offline modes
-  const firstName = $derived($userDisplayInfo?.firstName || 'Explorer');
+  const firstName = $derived.by(() => {
+    if ($authState.session?.user) {
+      const profile = getUserProfile($authState.session.user);
+      if (profile.firstName || profile.first_name) {
+        return (profile.firstName || profile.first_name) as string;
+      }
+      if ($authState.session.user.email) {
+        return $authState.session.user.email.split('@')[0];
+      }
+    }
+    if ($authState.offlineProfile?.profile?.firstName) {
+      return $authState.offlineProfile.profile.firstName as string;
+    }
+    if ($authState.offlineProfile?.email) {
+      return $authState.offlineProfile.email.split('@')[0];
+    }
+    return 'Explorer';
+  });
 
   onMount(() => {
     // Initialize greeting based on current time

@@ -1,6 +1,6 @@
 {
   "name": "stellar",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "vite dev",
@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@prabhask5/stellar-engine": "^1.1.5",
+    "@prabhask/stellar-ui": "0.1.1",
     "date-fns": "^4.1.0"
   },
   "type": "module"

@@ -36,6 +36,16 @@
   // Filter goal lists to exclude project-owned ones
   const standaloneLists = $derived(lists.filter((l) => !l.project_id));
   const currentProject = $derived(projects.find((p) => p.is_current) || null);
+  const totalProjectsProgress = $derived(
+    projects.length > 0
+      ? Math.round(
+          projects.reduce(
+            (sum, p) => sum + Math.min(100, p.goalList?.completionPercentage ?? 0),
+            0
+          ) / projects.length
+        )
+      : 0
+  );
 
   $effect(() => {
     const unsubLists = goalListsStore.subscribe((value) => {
@@ -181,6 +191,20 @@
       </button>
     </header>
 
+    {#if !loadingProjects}
+      <div class="total-progress">
+        {#if projects.length > 0}
+          <div class="total-progress-label">
+            <span class="total-progress-text">Total Progress</span>
+            <span class="total-progress-stat">{totalProjectsProgress}%</span>
+          </div>
+          <ProgressBar percentage={totalProjectsProgress} showLabel={false} height="8px" />
+        {:else}
+          <div class="total-progress-empty">No projects to track</div>
+        {/if}
+      </div>
+    {/if}
+
     {#if currentProject}
       <button
         class="current-project-banner"
@@ -227,9 +251,20 @@
         </span>
       </button>
     {:else}
-      <div class="current-project-line empty">
-        <span class="current-label">Current Project:</span>
-        <span class="current-name">None selected</span>
+      <div class="current-project-banner empty">
+        <span class="banner-content">
+          <span class="banner-star-icon empty-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" width="18" height="18">
+              <path
+                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+              />
+            </svg>
+          </span>
+          <span class="banner-text">
+            <span class="banner-label empty-label">Current Project</span>
+            <span class="banner-name empty-name">None selected</span>
+          </span>
+        </span>
       </div>
     {/if}
 
@@ -694,31 +729,43 @@
 
   /* ── Empty state (no current project) ── */
 
-  .current-project-line {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    padding: 0.75rem 1rem;
-    border-radius: var(--radius-lg);
+  .current-project-banner.empty {
+    cursor: default;
+    background: linear-gradient(
+      135deg,
+      rgba(15, 10, 40, 0.7) 0%,
+      rgba(25, 18, 55, 0.6) 40%,
+      rgba(18, 11, 42, 0.7) 100%
+    );
+    border-color: rgba(108, 92, 231, 0.15);
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(108, 92, 231, 0.08);
   }
 
-  .current-project-line.empty {
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.08) 0%, rgba(108, 92, 231, 0.02) 100%);
-    border: 1px solid rgba(108, 92, 231, 0.15);
+  .current-project-banner.empty:hover {
+    transform: none;
+    border-color: rgba(108, 92, 231, 0.15);
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(108, 92, 231, 0.08);
   }
 
-  .current-label {
-    font-size: 0.875rem;
+  .empty-icon {
+    color: rgba(108, 92, 231, 0.4);
+    background: radial-gradient(circle, rgba(108, 92, 231, 0.1) 0%, transparent 70%);
+    filter: none;
+    animation: none;
+  }
+
+  .empty-label {
+    color: rgba(108, 92, 231, 0.4);
+  }
+
+  .empty-name {
     color: var(--color-text-muted);
-    font-weight: 500;
-  }
-
-  .current-name {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-text-muted);
-    opacity: 0.6;
+    opacity: 0.5;
+    text-shadow: none;
   }
 
   .error-banner {
@@ -1030,6 +1077,52 @@
     border-top: 1px solid rgba(108, 92, 231, 0.15);
   }
 
+  /* ── Total Progress Bar ── */
+
+  .total-progress {
+    background: linear-gradient(
+      135deg,
+      rgba(108, 92, 231, 0.08) 0%,
+      rgba(108, 92, 231, 0.03) 100%
+    );
+    border: 1px solid rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-xl);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .total-progress-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .total-progress-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+  }
+
+  .total-progress-stat {
+    font-size: 0.875rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+  }
+
+  .total-progress-empty {
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    padding: 0.25rem 0;
+  }
+
   /* ═══════════════════════════════════════════════════════════════════════════════════
      MOBILE RESPONSIVE STYLES
      ═══════════════════════════════════════════════════════════════════════════════════ */
@@ -1037,6 +1130,11 @@
   @media (max-width: 640px) {
     .section {
       margin-bottom: 2rem;
+    }
+
+    .total-progress {
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
     }
 
     .section-header {
@@ -1057,18 +1155,6 @@
       padding: 1rem;
     }
 
-    .current-project-line {
-      padding: 0.5rem 0.75rem;
-      gap: 0.375rem;
-    }
-
-    .current-label {
-      font-size: 0.6875rem;
-    }
-
-    .current-name {
-      font-size: 0.75rem;
-    }
 
     .lists-grid {
       grid-template-columns: 1fr;
