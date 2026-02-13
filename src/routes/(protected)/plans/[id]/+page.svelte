@@ -1217,6 +1217,11 @@
       gap: 1rem;
     }
 
+    /* Hide vertical divider on mobile (not side-by-side) */
+    .content-columns:not(.single-column)::before {
+      display: none;
+    }
+
     .content-section {
       border-radius: var(--radius-xl);
       transition:

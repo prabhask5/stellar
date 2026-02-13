@@ -152,78 +152,6 @@
         </div>
       {/if}
 
-      <!-- Name shown inline on desktop -->
-      <span
-        class="goal-name desktop-name"
-        class:completed={completed && goal.type === 'completion'}
-        use:truncateTooltip
-      >
-        {goal.name}
-      </span>
-
-      {#if goal.type === 'incremental' || goal.type === 'progressive'}
-        <!-- Progress bar (desktop only: after name, before actions) -->
-        <div
-          class="mini-progress-wrapper desktop-only"
-          class:celebrating={isCelebrating}
-          style="--glow-color: {progressColor}; --celebration-intensity: {celebrationIntensity}"
-        >
-          {#if celebrationIntensity > 0.3}
-            <div class="pulse-ring pulse-ring-1"></div>
-            {#if celebrationIntensity > 0.6}
-              <div class="pulse-ring pulse-ring-2"></div>
-            {/if}
-          {/if}
-
-          <div class="mini-progress" class:celebrating={isCelebrating}>
-            <div
-              class="mini-progress-fill"
-              class:celebrating={isCelebrating}
-              style="width: {Math.min(100, progress)}%; background-color: {progressColor}"
-            ></div>
-            {#if isCelebrating}
-              <div class="shimmer-overlay"></div>
-            {/if}
-          </div>
-
-          {#if celebrationIntensity > 0.1}
-            <div class="particle-burst">
-              {#each Array(Math.floor(celebrationIntensity * 8)) as _, i (i)}
-                <div
-                  class="particle"
-                  style="--angle: {i * 45}deg; --delay: {i * 0.15}s; --distance: {20 +
-                    (i % 3) * 10}px"
-                ></div>
-              {/each}
-            </div>
-          {/if}
-
-          {#if celebrationIntensity > 0.5}
-            <div class="orbit-spark orbit-1"></div>
-            {#if celebrationIntensity > 0.75}
-              <div class="orbit-spark orbit-2"></div>
-            {/if}
-          {/if}
-
-          {#if isCelebrating}
-            <span class="overflow-star star-1">✦</span>
-            {#if celebrationIntensity > 0.4}
-              <span class="overflow-star star-2">✦</span>
-            {/if}
-            {#if celebrationIntensity > 0.7}
-              <span class="overflow-star star-3">✧</span>
-            {/if}
-          {/if}
-
-          {#if celebrationIntensity > 0.6}
-            <div class="energy-arc arc-1"></div>
-            {#if celebrationIntensity > 0.85}
-              <div class="energy-arc arc-2"></div>
-            {/if}
-          {/if}
-        </div>
-      {/if}
-
       <div class="goal-actions">
         {#if onEdit}
           <button class="action-btn" onclick={onEdit} aria-label="Edit goal">✎</button>
@@ -234,9 +162,9 @@
       </div>
     </div>
 
-    <!-- Row 2 (mobile only): Goal name -->
+    <!-- Row 2: Goal name -->
     <span
-      class="goal-name mobile-name"
+      class="goal-name"
       class:completed={completed && goal.type === 'completion'}
       use:truncateTooltip
     >
@@ -244,9 +172,9 @@
     </span>
 
     {#if goal.type === 'incremental' || goal.type === 'progressive'}
-      <!-- Row 3 (mobile only): Progress bar full width -->
+      <!-- Row 3: Progress bar full width -->
       <div
-        class="mini-progress-wrapper mobile-only"
+        class="mini-progress-wrapper"
         class:celebrating={isCelebrating}
         style="--glow-color: {progressColor}; --celebration-intensity: {celebrationIntensity}"
       >
@@ -327,8 +255,9 @@
 
   .goal-content {
     display: flex;
-    align-items: center;
-    gap: 1.25rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
   }
 
   /* Top shine line */
@@ -406,36 +335,16 @@
   .goal-row {
     display: flex;
     align-items: center;
-    gap: 1.125rem;
-    flex: 1;
+    justify-content: space-between;
+    gap: 0.75rem;
     min-width: 0;
   }
 
-  /* Desktop/Mobile visibility */
-  .desktop-only {
-    display: flex;
-  }
-
-  .mobile-only {
-    display: none;
-  }
-
-  /* Desktop name shown inline */
-  .desktop-name {
-    display: block;
-  }
-
-  /* Mobile name hidden on desktop */
-  .mobile-name {
-    display: none;
-  }
-
-  /* Progress bar appears inline on desktop */
   .mini-progress-wrapper {
     position: relative;
-    width: 80px;
+    width: 100%;
     height: 10px;
-    margin: 0 15px;
+    margin: 0;
     flex-shrink: 0;
   }
 
@@ -577,7 +486,9 @@
   }
 
   .value-input {
+    min-width: 4.5rem;
     width: 4.5rem;
+    box-sizing: border-box;
     text-align: center;
     font-weight: 800;
     font-size: 1rem;
@@ -983,34 +894,6 @@
       padding: 1rem 1.125rem;
     }
 
-    /* Toggle visibility for mobile */
-    .desktop-only {
-      display: none !important;
-    }
-
-    .mobile-only {
-      display: flex !important;
-    }
-
-    /* Hide desktop name, show mobile name */
-    .desktop-name {
-      display: none;
-    }
-
-    .mobile-name {
-      display: block;
-      font-size: 0.9375rem;
-      text-align: left;
-      width: 100%;
-    }
-
-    /* Row 1: controls left, actions right */
-    .goal-row {
-      gap: 0.75rem;
-      justify-content: space-between;
-      width: 100%;
-    }
-
     .increment-controls {
       gap: 0.25rem;
       flex-shrink: 0;
@@ -1022,7 +905,6 @@
       height: 28px;
       font-size: 1rem;
       border-radius: var(--radius-sm);
-      /* Expand touch target beyond visual bounds */
       position: relative;
     }
 
@@ -1032,17 +914,27 @@
       inset: -8px;
     }
 
-    /* Value display */
+    /* Checkbox — compact to match incremental controls height */
+    .checkbox {
+      width: 28px;
+      height: 28px;
+    }
+
+    .checkmark {
+      font-size: 0.9375rem;
+    }
+
+    /* Value display — match size with input for stability */
     .current-value {
-      min-width: 2.75rem;
+      min-width: 3rem;
       font-size: 0.8125rem;
       padding: 0.25rem 0.25rem;
       font-weight: 700;
     }
 
-    /* Input field sized for iPhone 16 Pro */
     .value-input {
-      width: 2.75rem;
+      min-width: 3rem;
+      width: 3rem;
       font-size: 16px !important; /* Prevents iOS zoom */
       padding: 0.25rem 0.25rem;
       font-weight: 700;
@@ -1053,15 +945,15 @@
     }
 
     .goal-actions {
-      gap: 0.375rem;
+      gap: 0.25rem;
       flex-shrink: 0;
     }
 
-    /* Action buttons — compact to match completion goal row padding */
+    /* Action buttons — consistent small size across all goal types */
     .action-btn {
-      width: 36px;
-      height: 36px;
-      font-size: 1.25rem;
+      width: 30px;
+      height: 30px;
+      font-size: 1.125rem;
       opacity: 0.7;
       border-radius: var(--radius-md);
       position: relative;
@@ -1071,24 +963,7 @@
     .action-btn::after {
       content: '';
       position: absolute;
-      inset: -4px;
-    }
-
-    /* Multi-row layout for mobile */
-    .goal-content {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.75rem;
-    }
-
-    .goal-item.is-incremental .goal-content {
-      align-items: stretch;
-    }
-
-    .mini-progress-wrapper {
-      width: 100%;
-      height: 10px;
-      margin: 0;
+      inset: -7px;
     }
 
     /* Scale down celebration effects */
