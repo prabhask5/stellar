@@ -419,123 +419,153 @@
 
     <div class="content-columns" class:single-column={!project?.tag_id}>
       <!-- Goals Column -->
-      <section class="content-section">
+      <section class="content-section" class:collapsed-section={!goalsExpanded}>
         <div class="section-header">
           <button class="section-toggle" onclick={() => (goalsExpanded = !goalsExpanded)}>
             <h2>Goals</h2>
-            <span class="chevron" class:collapsed={!goalsExpanded}>&#9662;</span>
+            <svg
+              class="chevron-icon"
+              class:collapsed={!goalsExpanded}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
           </button>
           <button class="btn btn-primary btn-sm" onclick={() => (showAddModal = true)}>
             + Add Goal
           </button>
         </div>
-        {#if goalsExpanded}
-          {#if list.goals.length === 0}
-            <EmptyState
-              icon="🎯"
-              title="No goals yet"
-              description="Add your first goal to start tracking progress"
-            >
-              <button class="btn btn-primary" onclick={() => (showAddModal = true)}>
-                Add First Goal
-              </button>
-            </EmptyState>
-          {:else}
-            <DraggableList items={list.goals} onReorder={handleReorderGoal}>
-              {#snippet renderItem({ item: goal, dragHandleProps })}
-                <div class="goal-with-handle">
-                  <button class="drag-handle" {...dragHandleProps} aria-label="Drag to reorder">
-                    ⋮⋮
-                  </button>
-                  <div class="goal-item-wrapper">
-                    <GoalItem
-                      {goal}
-                      onToggleComplete={() => handleToggleComplete(goal)}
-                      onIncrement={() => handleIncrement(goal, 1)}
-                      onDecrement={() => handleIncrement(goal, -1)}
-                      onSetValue={(value) => handleSetValue(goal, value)}
-                      onEdit={() => (editingGoalId = goal.id)}
-                      onDelete={() => handleDeleteGoal(goal)}
-                    />
-                  </div>
-                </div>
-              {/snippet}
-            </DraggableList>
-          {/if}
-        {/if}
+        <div class="section-body" class:collapsed={!goalsExpanded}>
+          <div class="section-body-inner">
+            {#if list.goals.length === 0}
+              <EmptyState
+                icon="🎯"
+                title="No goals yet"
+                description="Add your first goal to start tracking progress"
+              >
+                <button class="btn btn-primary" onclick={() => (showAddModal = true)}>
+                  Add First Goal
+                </button>
+              </EmptyState>
+            {:else}
+              <div class="section-content">
+                <DraggableList items={list.goals} onReorder={handleReorderGoal}>
+                  {#snippet renderItem({ item: goal, dragHandleProps })}
+                    <div class="goal-with-handle">
+                      <button class="drag-handle" {...dragHandleProps} aria-label="Drag to reorder">
+                        ⋮⋮
+                      </button>
+                      <div class="goal-item-wrapper">
+                        <GoalItem
+                          {goal}
+                          onToggleComplete={() => handleToggleComplete(goal)}
+                          onIncrement={() => handleIncrement(goal, 1)}
+                          onDecrement={() => handleIncrement(goal, -1)}
+                          onSetValue={(value) => handleSetValue(goal, value)}
+                          onEdit={() => (editingGoalId = goal.id)}
+                          onDelete={() => handleDeleteGoal(goal)}
+                        />
+                      </div>
+                    </div>
+                  {/snippet}
+                </DraggableList>
+              </div>
+            {/if}
+          </div>
+        </div>
       </section>
 
       <!-- Tasks Column (if project has tag_id) -->
       {#if project?.tag_id}
-        <section class="content-section">
+        <section class="content-section" class:collapsed-section={!tasksExpanded}>
           <div class="section-header">
             <button class="section-toggle" onclick={() => (tasksExpanded = !tasksExpanded)}>
               <h2>Tasks</h2>
-              <span class="chevron" class:collapsed={!tasksExpanded}>&#9662;</span>
+              <svg
+                class="chevron-icon"
+                class:collapsed={!tasksExpanded}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
             </button>
             <button class="btn btn-primary btn-sm" onclick={() => (showTaskForm = true)}>
               + New Task
             </button>
           </div>
-          {#if tasksExpanded}
-            {#if hasAnyTasks}
-              <div class="tasks-lists">
-                {#if overdueTasks.length > 0}
-                  <LongTermTaskList
-                    title="Overdue"
-                    tasks={overdueTasks}
-                    variant="overdue"
-                    onTaskClick={handleTaskClick}
-                    onToggle={handleToggleLongTermTask}
-                    onDelete={handleDeleteLongTermTask}
-                  />
-                {/if}
+          <div class="section-body" class:collapsed={!tasksExpanded}>
+            <div class="section-body-inner">
+              {#if hasAnyTasks}
+                <div class="section-content">
+                  <div class="tasks-lists">
+                    {#if overdueTasks.length > 0}
+                      <LongTermTaskList
+                        title="Overdue"
+                        tasks={overdueTasks}
+                        variant="overdue"
+                        onTaskClick={handleTaskClick}
+                        onToggle={handleToggleLongTermTask}
+                        onDelete={handleDeleteLongTermTask}
+                      />
+                    {/if}
 
-                {#if dueTodayTasks.length > 0}
-                  <LongTermTaskList
-                    title="Due Today"
-                    tasks={dueTodayTasks}
-                    variant="due-today"
-                    onTaskClick={handleTaskClick}
-                    onToggle={handleToggleLongTermTask}
-                    onDelete={handleDeleteLongTermTask}
-                  />
-                {/if}
+                    {#if dueTodayTasks.length > 0}
+                      <LongTermTaskList
+                        title="Due Today"
+                        tasks={dueTodayTasks}
+                        variant="due-today"
+                        onTaskClick={handleTaskClick}
+                        onToggle={handleToggleLongTermTask}
+                        onDelete={handleDeleteLongTermTask}
+                      />
+                    {/if}
 
-                {#if upcomingTasks.length > 0}
-                  <LongTermTaskList
-                    title="Upcoming"
-                    tasks={upcomingTasks}
-                    variant="upcoming"
-                    onTaskClick={handleTaskClick}
-                    onToggle={handleToggleLongTermTask}
-                    onDelete={handleDeleteLongTermTask}
-                  />
-                {/if}
+                    {#if upcomingTasks.length > 0}
+                      <LongTermTaskList
+                        title="Upcoming"
+                        tasks={upcomingTasks}
+                        variant="upcoming"
+                        onTaskClick={handleTaskClick}
+                        onToggle={handleToggleLongTermTask}
+                        onDelete={handleDeleteLongTermTask}
+                      />
+                    {/if}
 
-                {#if completedTasks.length > 0}
-                  <LongTermTaskList
-                    title="Completed"
-                    tasks={completedTasks}
-                    variant="completed"
-                    onTaskClick={handleTaskClick}
-                    onToggle={handleToggleLongTermTask}
-                    onDelete={handleDeleteLongTermTask}
-                  />
-                {/if}
-              </div>
-            {:else}
-              <EmptyState
-                icon="📅"
-                title="No project tasks yet"
-                description="Add tasks with due dates to track work for this project"
-              >
-                <button class="btn btn-primary" onclick={() => (showTaskForm = true)}>
-                  Add First Task
-                </button>
-              </EmptyState>
-            {/if}
-          {/if}
+                    {#if completedTasks.length > 0}
+                      <LongTermTaskList
+                        title="Completed"
+                        tasks={completedTasks}
+                        variant="completed"
+                        onTaskClick={handleTaskClick}
+                        onToggle={handleToggleLongTermTask}
+                        onDelete={handleDeleteLongTermTask}
+                      />
+                    {/if}
+                  </div>
+                </div>
+              {:else}
+                <EmptyState
+                  icon="📅"
+                  title="No project tasks yet"
+                  description="Add tasks with due dates to track work for this project"
+                >
+                  <button class="btn btn-primary" onclick={() => (showTaskForm = true)}>
+                    Add First Task
+                  </button>
+                </EmptyState>
+              {/if}
+            </div>
+          </div>
         </section>
       {/if}
     </div>
@@ -972,16 +1002,65 @@
   .content-columns {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 2rem;
+    gap: 3rem;
     align-items: start;
+    position: relative;
+  }
+
+  /* Vertical divider between columns on desktop */
+  .content-columns:not(.single-column)::before {
+    content: '';
+    position: absolute;
+    top: 1rem;
+    bottom: 1rem;
+    left: 50%;
+    width: 1px;
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(108, 92, 231, 0.3) 15%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(108, 92, 231, 0.3) 85%,
+      transparent 100%
+    );
+    pointer-events: none;
+    z-index: 1;
   }
 
   .content-columns.single-column {
     grid-template-columns: 1fr;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     CONTENT SECTION — Glass panel cards
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   .content-section {
     min-width: 0;
+    background: linear-gradient(165deg, rgba(15, 15, 30, 0.6) 0%, rgba(20, 20, 40, 0.4) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Top glow line on each section */
+  .content-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 15%;
+    right: 15%;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(108, 92, 231, 0.35),
+      rgba(255, 255, 255, 0.15),
+      rgba(108, 92, 231, 0.35),
+      transparent
+    );
+    z-index: 1;
   }
 
   .section-header {
@@ -989,7 +1068,9 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1rem;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid rgba(108, 92, 231, 0.12);
+    background: linear-gradient(165deg, rgba(20, 20, 40, 0.4) 0%, rgba(15, 15, 30, 0.3) 100%);
   }
 
   .section-header h2 {
@@ -1010,15 +1091,26 @@
     pointer-events: none;
   }
 
-  .chevron {
+  /* SVG chevron icon — hidden on desktop */
+  .chevron-icon {
     display: none;
-    font-size: 1rem;
+    width: 18px;
+    height: 18px;
     color: var(--color-text-muted);
-    transition: transform 0.3s var(--ease-out);
   }
 
-  .chevron.collapsed {
-    transform: rotate(-90deg);
+  .section-content {
+    padding: 1rem 1.25rem 1.25rem;
+  }
+
+  /* Section body — always visible on desktop */
+  .section-body {
+    display: grid;
+    grid-template-rows: 1fr;
+  }
+
+  .section-body-inner {
+    overflow: hidden;
   }
 
   .tasks-lists {
@@ -1125,13 +1217,84 @@
       gap: 1rem;
     }
 
+    .content-section {
+      border-radius: var(--radius-xl);
+      transition:
+        border-color 0.5s var(--ease-out),
+        box-shadow 0.5s var(--ease-out),
+        background 0.5s var(--ease-out);
+    }
+
+    .content-section.collapsed-section {
+      background: linear-gradient(165deg, rgba(12, 12, 25, 0.5) 0%, rgba(15, 15, 30, 0.3) 100%);
+      border-color: rgba(108, 92, 231, 0.08);
+    }
+
+    .content-section:not(.collapsed-section) {
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        0 0 40px rgba(108, 92, 231, 0.06);
+    }
+
+    .section-header {
+      padding: 1rem 1.25rem;
+    }
+
+    .collapsed-section .section-header {
+      border-bottom-color: transparent;
+    }
+
     .section-toggle {
       pointer-events: auto;
       cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      gap: 0.625rem;
     }
 
-    .chevron {
-      display: inline;
+    /* Glow pulse on tap */
+    .section-toggle:active h2 {
+      text-shadow: 0 0 20px rgba(108, 92, 231, 0.6);
+    }
+
+    /* SVG chevron — mobile cinematic */
+    .chevron-icon {
+      display: block;
+      width: 20px;
+      height: 20px;
+      color: rgba(108, 92, 231, 0.7);
+      transition:
+        transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+        color 0.4s var(--ease-out),
+        filter 0.4s var(--ease-out);
+      filter: drop-shadow(0 0 4px rgba(108, 92, 231, 0.3));
+    }
+
+    .chevron-icon.collapsed {
+      transform: rotate(-90deg);
+      color: rgba(108, 92, 231, 0.4);
+      filter: drop-shadow(0 0 0 transparent);
+    }
+
+    .section-toggle:active .chevron-icon {
+      filter: drop-shadow(0 0 12px rgba(108, 92, 231, 0.8));
+      color: rgba(108, 92, 231, 1);
+    }
+
+    /* Section body — animated collapse */
+    .section-body {
+      transition: grid-template-rows 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .section-body.collapsed {
+      grid-template-rows: 0fr;
+    }
+
+    .section-body-inner {
+      transition: opacity 0.35s var(--ease-out);
+    }
+
+    .section-body.collapsed .section-body-inner {
+      opacity: 0;
     }
 
     .goal-with-handle .drag-handle {
