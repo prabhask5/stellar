@@ -157,19 +157,30 @@
           <button class="action-btn" onclick={onEdit} aria-label="Edit goal">✎</button>
         {/if}
         {#if onDelete}
-          <button class="action-btn delete" onclick={onDelete} aria-label="Delete goal">×</button>
+          <button class="action-btn delete row1-delete" onclick={onDelete} aria-label="Delete goal"
+            >×</button
+          >
         {/if}
       </div>
     </div>
 
-    <!-- Row 2: Goal name -->
-    <span
-      class="goal-name"
-      class:completed={completed && goal.type === 'completion'}
-      use:truncateTooltip
-    >
-      {goal.name}
-    </span>
+    <!-- Row 2: Goal name (+ delete on mobile) -->
+    <div class="name-row">
+      <span
+        class="goal-name"
+        class:completed={completed && goal.type === 'completion'}
+        use:truncateTooltip
+      >
+        {goal.name}
+      </span>
+      {#if onDelete}
+        <button
+          class="action-btn delete name-row-delete"
+          onclick={onDelete}
+          aria-label="Delete goal">×</button
+        >
+      {/if}
+    </div>
 
     {#if goal.type === 'incremental' || goal.type === 'progressive'}
       <!-- Row 3: Progress bar full width -->
@@ -512,6 +523,18 @@
   .value-input[type='number'] {
     -moz-appearance: textfield;
     appearance: textfield;
+  }
+
+  .name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  /* Desktop: delete in row 1, hidden beside name */
+  .name-row-delete {
+    display: none;
   }
 
   .goal-name {
@@ -891,18 +914,19 @@
 
   @media (max-width: 480px) {
     .goal-item {
-      padding: 0.875rem 1rem;
+      padding: 1rem 1.125rem;
     }
 
     .increment-controls {
-      gap: 0.125rem;
+      gap: 0.25rem;
       flex-shrink: 0;
     }
 
+    /* Increment buttons — compact but still 44px touch target */
     .increment-btn {
-      width: 24px;
-      height: 24px;
-      font-size: 0.875rem;
+      width: 28px;
+      height: 28px;
+      font-size: 1rem;
       border-radius: var(--radius-sm);
       position: relative;
     }
@@ -910,30 +934,22 @@
     .increment-btn::after {
       content: '';
       position: absolute;
-      inset: -10px;
+      inset: -8px;
     }
 
-    .checkbox {
-      width: 24px;
-      height: 24px;
-    }
-
-    .checkmark {
-      font-size: 0.8125rem;
-    }
-
+    /* Value display */
     .current-value {
-      min-width: 2.5rem;
-      font-size: 0.75rem;
-      padding: 0.1875rem 0.1875rem;
+      min-width: 2.75rem;
+      font-size: 0.8125rem;
+      padding: 0.25rem 0.25rem;
       font-weight: 700;
     }
 
     .value-input {
-      min-width: 2.5rem;
-      width: 2.5rem;
+      min-width: 2.75rem;
+      width: 2.75rem;
       font-size: 16px !important; /* Prevents iOS zoom */
-      padding: 0.1875rem 0.1875rem;
+      padding: 0.25rem 0.25rem;
       font-weight: 700;
     }
 
@@ -942,23 +958,34 @@
     }
 
     .goal-actions {
-      gap: 0.125rem;
+      gap: 0.375rem;
       flex-shrink: 0;
     }
 
+    /* Action buttons */
     .action-btn {
-      width: 26px;
-      height: 26px;
-      font-size: 1rem;
+      width: 36px;
+      height: 36px;
+      font-size: 1.25rem;
       opacity: 0.7;
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-md);
       position: relative;
     }
 
     .action-btn::after {
       content: '';
       position: absolute;
-      inset: -9px;
+      inset: -4px;
+    }
+
+    /* Mobile: move delete to name row, hide from row 1 */
+    .row1-delete {
+      display: none;
+    }
+
+    .name-row-delete {
+      display: flex;
+      flex-shrink: 0;
     }
 
     /* Scale down celebration effects */
