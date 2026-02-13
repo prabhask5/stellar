@@ -15,6 +15,7 @@
     CommitmentSection,
     AgendaItemType
   } from '$lib/types';
+  import * as repo from '$lib/db/repositories';
   import { formatDate } from '$lib/utils/dates';
   import TaskItem from '$lib/components/TaskItem.svelte';
   import DailyTaskForm from '$lib/components/DailyTaskForm.svelte';
@@ -57,6 +58,9 @@
     categoryId: string | null;
   } | null>(null);
 
+  // Gate flag: prevents flicker while spawned tasks are synced on mount
+  let spawnSyncDone = $state(false);
+
   // Keep backdrop visible during modal transitions
   let modalTransitioning = $state(false);
 
@@ -86,6 +90,31 @@
       dailyTasksStore.load(),
       longTermTasksStore.load()
     ]);
+
+    // Spawn linked daily tasks for long-term tasks due today or before
+    const userId = getUserId();
+    if (userId) {
+      const todayStr = formatDate(new Date());
+      let needsDailyRefresh = false;
+
+      // Spawn: create daily tasks for LT tasks due today or before that don't have one yet
+      const dueCompletableTasks = longTermTasks.filter(
+        (t) => t.due_date <= todayStr && t.type === 'task' && !t.completed
+      );
+      for (const lt of dueCompletableTasks) {
+        const hasSpawned = dailyTasks.some((dt) => dt.long_term_task_id === lt.id);
+        if (!hasSpawned) {
+          await repo.createDailyTask(lt.name, userId, lt.id);
+          needsDailyRefresh = true;
+        }
+      }
+
+      if (needsDailyRefresh) {
+        await dailyTasksStore.refresh();
+      }
+    }
+
+    spawnSyncDone = true;
   });
 
   // Derived data for long-term tasks
@@ -283,7 +312,7 @@
     <div class="daily-tasks-section">
       <DailyTaskForm onSubmit={handleCreateDailyTask} />
 
-      {#if dailyTasksLoading}
+      {#if dailyTasksLoading || !spawnSyncDone}
         <!-- Daily Tasks Skeleton -->
         <div class="tasks-skeleton">
           {#each Array(3) as _, i (i)}

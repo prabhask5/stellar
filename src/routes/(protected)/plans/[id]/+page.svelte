@@ -39,6 +39,10 @@
   let showTaskModal = $state(false);
   let showTaskForm = $state(false);
 
+  // Mobile collapsible sections
+  let goalsExpanded = $state(true);
+  let tasksExpanded = $state(true);
+
   // Derive editing goal reactively from the store so props update when remote changes arrive
   const editingGoal = $derived(
     editingGoalId && list ? (list.goals.find((g) => g.id === editingGoalId) ?? null) : null
@@ -55,19 +59,23 @@
   const listId = $derived($page.params.id!);
 
   const totalProgress = $derived(() => {
-    if (!list?.goals || list.goals.length === 0) return 0;
-    const total = list.goals.reduce((sum, goal) => {
-      return (
-        sum +
-        calculateGoalProgressCapped(
-          goal.type,
-          goal.completed,
-          goal.current_value,
-          goal.target_value
-        )
+    const goals = list?.goals ?? [];
+    const tasks = longTermTasks;
+    const totalItems = goals.length + tasks.length;
+    if (totalItems === 0) return 0;
+    let sum = 0;
+    for (const goal of goals) {
+      sum += calculateGoalProgressCapped(
+        goal.type,
+        goal.completed,
+        goal.current_value,
+        goal.target_value
       );
-    }, 0);
-    return Math.round(total / list.goals.length);
+    }
+    for (const task of tasks) {
+      sum += task.completed ? 100 : 0;
+    }
+    return Math.round(sum / totalItems);
   });
 
   function formatDateString(date: Date): string {
@@ -345,7 +353,6 @@
         </button>
       {/if}
     </div>
-    <button class="btn btn-primary" onclick={() => (showAddModal = true)}> + Add Goal </button>
   </header>
 
   {#if error}
@@ -361,140 +368,177 @@
       <div class="skeleton-progress-bar"></div>
       <div class="skeleton-shimmer"></div>
     </div>
-    <div class="goals-skeleton">
-      {#each Array(4) as _, i (i)}
-        <div class="goal-skeleton-card" style="--delay: {i * 0.1}s">
-          <div class="goal-skeleton-handle"></div>
-          <div class="goal-skeleton-content">
-            <div class="goal-skeleton-header">
-              <div class="goal-skeleton-checkbox"></div>
-              <div class="goal-skeleton-info">
-                <div class="goal-skeleton-title"></div>
-                <div class="goal-skeleton-subtitle"></div>
+    <div class="content-columns">
+      <div class="skeleton-column">
+        <div class="skeleton-section-header"></div>
+        {#each Array(3) as _, i (i)}
+          <div class="goal-skeleton-card" style="--delay: {i * 0.1}s">
+            <div class="goal-skeleton-handle"></div>
+            <div class="goal-skeleton-content">
+              <div class="goal-skeleton-header">
+                <div class="goal-skeleton-checkbox"></div>
+                <div class="goal-skeleton-info">
+                  <div class="goal-skeleton-title"></div>
+                  <div class="goal-skeleton-subtitle"></div>
+                </div>
+              </div>
+              <div class="goal-skeleton-progress-container">
+                <div class="goal-skeleton-progress"></div>
+              </div>
+              <div class="goal-skeleton-actions">
+                <div class="goal-skeleton-btn"></div>
+                <div class="goal-skeleton-btn"></div>
               </div>
             </div>
-            <div class="goal-skeleton-progress-container">
-              <div class="goal-skeleton-progress"></div>
-            </div>
-            <div class="goal-skeleton-actions">
-              <div class="goal-skeleton-btn"></div>
-              <div class="goal-skeleton-btn"></div>
-            </div>
+            <div class="skeleton-shimmer"></div>
           </div>
-          <div class="skeleton-shimmer"></div>
-        </div>
-      {/each}
+        {/each}
+      </div>
+      <div class="skeleton-column">
+        <div class="skeleton-section-header"></div>
+        {#each Array(3) as _, i (i)}
+          <div class="goal-skeleton-card" style="--delay: {(i + 3) * 0.1}s">
+            <div class="goal-skeleton-content" style="border-radius: var(--radius-xl);">
+              <div class="goal-skeleton-header">
+                <div class="goal-skeleton-checkbox"></div>
+                <div class="goal-skeleton-info">
+                  <div class="goal-skeleton-title"></div>
+                  <div class="goal-skeleton-subtitle"></div>
+                </div>
+              </div>
+            </div>
+            <div class="skeleton-shimmer"></div>
+          </div>
+        {/each}
+      </div>
     </div>
   {:else if list}
     <div class="progress-section">
       <ProgressBar percentage={totalProgress()} />
     </div>
 
-    {#if list.goals.length === 0}
-      <EmptyState
-        icon="🎯"
-        title="No goals yet"
-        description="Add your first goal to start tracking progress"
-      >
-        <button class="btn btn-primary" onclick={() => (showAddModal = true)}>
-          Add First Goal
-        </button>
-      </EmptyState>
-    {:else}
-      <DraggableList items={list.goals} onReorder={handleReorderGoal}>
-        {#snippet renderItem({ item: goal, dragHandleProps })}
-          <div class="goal-with-handle">
-            <button class="drag-handle" {...dragHandleProps} aria-label="Drag to reorder">
-              ⋮⋮
-            </button>
-            <div class="goal-item-wrapper">
-              <GoalItem
-                {goal}
-                onToggleComplete={() => handleToggleComplete(goal)}
-                onIncrement={() => handleIncrement(goal, 1)}
-                onDecrement={() => handleIncrement(goal, -1)}
-                onSetValue={(value) => handleSetValue(goal, value)}
-                onEdit={() => (editingGoalId = goal.id)}
-                onDelete={() => handleDeleteGoal(goal)}
-              />
-            </div>
-          </div>
-        {/snippet}
-      </DraggableList>
-    {/if}
-
-    {#if project?.tag_id}
-      <section class="tasks-section">
-        <div class="tasks-section-header">
-          <div class="tasks-section-header-left">
-            <div class="tasks-section-divider"></div>
-            <h2 class="tasks-section-title">Tasks</h2>
-            <div class="tasks-section-divider"></div>
-          </div>
-          <button class="btn btn-primary btn-sm" onclick={() => (showTaskForm = true)}>
-            + New Task
+    <div class="content-columns" class:single-column={!project?.tag_id}>
+      <!-- Goals Column -->
+      <section class="content-section">
+        <div class="section-header">
+          <button class="section-toggle" onclick={() => (goalsExpanded = !goalsExpanded)}>
+            <h2>Goals</h2>
+            <span class="chevron" class:collapsed={!goalsExpanded}>&#9662;</span>
+          </button>
+          <button class="btn btn-primary btn-sm" onclick={() => (showAddModal = true)}>
+            + Add Goal
           </button>
         </div>
-
-        {#if hasAnyTasks}
-          <div class="tasks-lists">
-            {#if overdueTasks.length > 0}
-              <LongTermTaskList
-                title="Overdue"
-                tasks={overdueTasks}
-                variant="overdue"
-                onTaskClick={handleTaskClick}
-                onToggle={handleToggleLongTermTask}
-                onDelete={handleDeleteLongTermTask}
-              />
-            {/if}
-
-            {#if dueTodayTasks.length > 0}
-              <LongTermTaskList
-                title="Due Today"
-                tasks={dueTodayTasks}
-                variant="due-today"
-                onTaskClick={handleTaskClick}
-                onToggle={handleToggleLongTermTask}
-                onDelete={handleDeleteLongTermTask}
-              />
-            {/if}
-
-            {#if upcomingTasks.length > 0}
-              <LongTermTaskList
-                title="Upcoming"
-                tasks={upcomingTasks}
-                variant="upcoming"
-                onTaskClick={handleTaskClick}
-                onToggle={handleToggleLongTermTask}
-                onDelete={handleDeleteLongTermTask}
-              />
-            {/if}
-
-            {#if completedTasks.length > 0}
-              <LongTermTaskList
-                title="Completed"
-                tasks={completedTasks}
-                variant="completed"
-                onTaskClick={handleTaskClick}
-                onToggle={handleToggleLongTermTask}
-                onDelete={handleDeleteLongTermTask}
-              />
-            {/if}
-          </div>
-        {:else}
-          <EmptyState
-            icon="📅"
-            title="No project tasks yet"
-            description="Add tasks with due dates to track work for this project"
-          >
-            <button class="btn btn-primary" onclick={() => (showTaskForm = true)}>
-              Add First Task
-            </button>
-          </EmptyState>
+        {#if goalsExpanded}
+          {#if list.goals.length === 0}
+            <EmptyState
+              icon="🎯"
+              title="No goals yet"
+              description="Add your first goal to start tracking progress"
+            >
+              <button class="btn btn-primary" onclick={() => (showAddModal = true)}>
+                Add First Goal
+              </button>
+            </EmptyState>
+          {:else}
+            <DraggableList items={list.goals} onReorder={handleReorderGoal}>
+              {#snippet renderItem({ item: goal, dragHandleProps })}
+                <div class="goal-with-handle">
+                  <button class="drag-handle" {...dragHandleProps} aria-label="Drag to reorder">
+                    ⋮⋮
+                  </button>
+                  <div class="goal-item-wrapper">
+                    <GoalItem
+                      {goal}
+                      onToggleComplete={() => handleToggleComplete(goal)}
+                      onIncrement={() => handleIncrement(goal, 1)}
+                      onDecrement={() => handleIncrement(goal, -1)}
+                      onSetValue={(value) => handleSetValue(goal, value)}
+                      onEdit={() => (editingGoalId = goal.id)}
+                      onDelete={() => handleDeleteGoal(goal)}
+                    />
+                  </div>
+                </div>
+              {/snippet}
+            </DraggableList>
+          {/if}
         {/if}
       </section>
-    {/if}
+
+      <!-- Tasks Column (if project has tag_id) -->
+      {#if project?.tag_id}
+        <section class="content-section">
+          <div class="section-header">
+            <button class="section-toggle" onclick={() => (tasksExpanded = !tasksExpanded)}>
+              <h2>Tasks</h2>
+              <span class="chevron" class:collapsed={!tasksExpanded}>&#9662;</span>
+            </button>
+            <button class="btn btn-primary btn-sm" onclick={() => (showTaskForm = true)}>
+              + New Task
+            </button>
+          </div>
+          {#if tasksExpanded}
+            {#if hasAnyTasks}
+              <div class="tasks-lists">
+                {#if overdueTasks.length > 0}
+                  <LongTermTaskList
+                    title="Overdue"
+                    tasks={overdueTasks}
+                    variant="overdue"
+                    onTaskClick={handleTaskClick}
+                    onToggle={handleToggleLongTermTask}
+                    onDelete={handleDeleteLongTermTask}
+                  />
+                {/if}
+
+                {#if dueTodayTasks.length > 0}
+                  <LongTermTaskList
+                    title="Due Today"
+                    tasks={dueTodayTasks}
+                    variant="due-today"
+                    onTaskClick={handleTaskClick}
+                    onToggle={handleToggleLongTermTask}
+                    onDelete={handleDeleteLongTermTask}
+                  />
+                {/if}
+
+                {#if upcomingTasks.length > 0}
+                  <LongTermTaskList
+                    title="Upcoming"
+                    tasks={upcomingTasks}
+                    variant="upcoming"
+                    onTaskClick={handleTaskClick}
+                    onToggle={handleToggleLongTermTask}
+                    onDelete={handleDeleteLongTermTask}
+                  />
+                {/if}
+
+                {#if completedTasks.length > 0}
+                  <LongTermTaskList
+                    title="Completed"
+                    tasks={completedTasks}
+                    variant="completed"
+                    onTaskClick={handleTaskClick}
+                    onToggle={handleToggleLongTermTask}
+                    onDelete={handleDeleteLongTermTask}
+                  />
+                {/if}
+              </div>
+            {:else}
+              <EmptyState
+                icon="📅"
+                title="No project tasks yet"
+                description="Add tasks with due dates to track work for this project"
+              >
+                <button class="btn btn-primary" onclick={() => (showTaskForm = true)}>
+                  Add First Task
+                </button>
+              </EmptyState>
+            {/if}
+          {/if}
+        </section>
+      {/if}
+    </div>
   {/if}
 </div>
 
@@ -922,46 +966,80 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     TASKS SECTION STYLES
+     CONTENT COLUMNS — Side-by-side layout
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
-  .tasks-section {
-    margin-top: 3rem;
+  .content-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
   }
 
-  .tasks-section-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+  .content-columns.single-column {
+    grid-template-columns: 1fr;
   }
 
-  .tasks-section-header-left {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    flex: 1;
+  .content-section {
     min-width: 0;
   }
 
-  .tasks-section-divider {
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(108, 92, 231, 0.3), transparent);
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
   }
 
-  .tasks-section-title {
+  .section-header h2 {
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--color-text-muted);
-    white-space: nowrap;
     letter-spacing: 0.02em;
+  }
+
+  .section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    pointer-events: none;
+  }
+
+  .chevron {
+    display: none;
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    transition: transform 0.3s var(--ease-out);
+  }
+
+  .chevron.collapsed {
+    transform: rotate(-90deg);
   }
 
   .tasks-lists {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .skeleton-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .skeleton-section-header {
+    width: 80px;
+    height: 1.25rem;
+    background: rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-md);
+    margin-bottom: 0.5rem;
+    animation: skeletonPulse 2s ease-in-out infinite;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -1007,12 +1085,6 @@
       filter: none;
     }
 
-    .page-header .btn {
-      width: 100%;
-      justify-content: center;
-      padding: 1rem;
-    }
-
     .edit-name-form {
       flex-direction: column;
       width: 100%;
@@ -1048,26 +1120,18 @@
       padding: 3rem;
     }
 
-    .tasks-section {
-      margin-top: 2rem;
+    .content-columns {
+      grid-template-columns: 1fr;
+      gap: 1rem;
     }
 
-    .tasks-section-header {
-      gap: 0.75rem;
-      margin-bottom: 1rem;
+    .section-toggle {
+      pointer-events: auto;
+      cursor: pointer;
     }
 
-    .tasks-section-header-left {
-      gap: 0.75rem;
-    }
-
-    .tasks-section-title {
-      font-size: 1.1rem;
-    }
-
-    .tasks-section-header .btn {
-      white-space: nowrap;
-      flex-shrink: 0;
+    .chevron {
+      display: inline;
     }
 
     .goal-with-handle .drag-handle {

@@ -1,8 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { browser } from '$app/environment';
 import { resolveAuthState } from '@prabhask5/stellar-engine/auth';
-import type { AuthMode, OfflineCredentials } from '$lib/types';
-import type { Session } from '@prabhask5/stellar-engine/types';
+import type { AuthMode, OfflineCredentials, Session } from '@prabhask5/stellar-engine/types';
 import type { LayoutLoad } from './$types';
 
 export interface ProtectedLayoutData {

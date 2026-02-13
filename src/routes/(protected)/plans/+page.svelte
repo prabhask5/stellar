@@ -201,7 +201,7 @@
           <ProgressBar percentage={totalProjectsProgress} showLabel={false} height="8px" />
         {:else}
           <div class="total-progress-label">
-            <span class="total-progress-text">Total Progress</span>
+            <span class="total-progress-text">Total Project Progress</span>
             <span class="total-progress-stat">—</span>
           </div>
           <div class="total-progress-bar-empty"></div>
@@ -1086,11 +1086,7 @@
   /* ── Total Progress Bar ── */
 
   .total-progress {
-    background: linear-gradient(
-      135deg,
-      rgba(108, 92, 231, 0.08) 0%,
-      rgba(108, 92, 231, 0.03) 100%
-    );
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.08) 0%, rgba(108, 92, 231, 0.03) 100%);
     border: 1px solid rgba(108, 92, 231, 0.15);
     border-radius: var(--radius-xl);
     padding: 1rem 1.25rem;
@@ -1159,7 +1155,6 @@
       justify-content: center;
       padding: 1rem;
     }
-
 
     .lists-grid {
       grid-template-columns: 1fr;

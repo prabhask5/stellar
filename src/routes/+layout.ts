@@ -46,7 +46,8 @@ if (browser) {
       },
       {
         supabaseName: 'daily_tasks',
-        columns: 'id,user_id,name,order,completed,created_at,updated_at,deleted,_version,device_id'
+        columns:
+          'id,user_id,name,long_term_task_id,order,completed,created_at,updated_at,deleted,_version,device_id'
       },
       {
         supabaseName: 'long_term_agenda',
@@ -416,6 +417,26 @@ if (browser) {
                 await tx.table('longTermAgenda').update(item.id, { type: 'task' });
               }
             }
+          }
+        },
+        {
+          // Version 18: Add long_term_task_id to dailyTasks for linked spawned tasks
+          version: 18,
+          stores: {
+            goalLists: 'id, user_id, project_id, order, created_at, updated_at',
+            goals: 'id, goal_list_id, order, created_at, updated_at',
+            dailyRoutineGoals: 'id, user_id, order, start_date, end_date, created_at, updated_at',
+            dailyGoalProgress:
+              'id, daily_routine_goal_id, date, [daily_routine_goal_id+date], updated_at',
+            taskCategories: 'id, user_id, project_id, order, created_at, updated_at',
+            commitments: 'id, user_id, project_id, section, order, created_at, updated_at',
+            dailyTasks: 'id, user_id, long_term_task_id, order, created_at, updated_at',
+            longTermAgenda: 'id, user_id, due_date, category_id, type, created_at, updated_at',
+            focusSettings: 'id, user_id, updated_at',
+            focusSessions: 'id, user_id, started_at, ended_at, status, updated_at',
+            blockLists: 'id, user_id, order, updated_at',
+            blockedWebsites: 'id, block_list_id, updated_at',
+            projects: 'id, user_id, is_current, order, created_at, updated_at'
           }
         }
       ]

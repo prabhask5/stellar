@@ -15,6 +15,7 @@ import type {
   TaskCategory,
   Commitment,
   DailyTask,
+  LongTermTask,
   LongTermTaskWithCategory,
   Project
 } from '$lib/types';
@@ -152,7 +153,32 @@ export async function getDailyTasks(): Promise<DailyTask[]> {
     remoteFallback: !hasHydrated
   })) as unknown as DailyTask[];
 
-  return tasks.filter((t) => !t.deleted).sort((a, b) => a.order - b.order);
+  const activeTasks = tasks.filter((t) => !t.deleted).sort((a, b) => a.order - b.order);
+
+  // For spawned tasks (those with long_term_task_id), join category info
+  const spawnedTasks = activeTasks.filter((t) => t.long_term_task_id);
+  if (spawnedTasks.length > 0) {
+    const longTermTasks = (await engineGetAll('long_term_agenda')) as unknown as LongTermTask[];
+    const ltMap = new Map<string, LongTermTask>();
+    for (const lt of longTermTasks) {
+      if (!lt.deleted) ltMap.set(lt.id, lt);
+    }
+
+    const categories = (await engineGetAll('task_categories')) as unknown as TaskCategory[];
+    const catMap = new Map<string, TaskCategory>();
+    for (const cat of categories) {
+      if (!cat.deleted) catMap.set(cat.id, cat);
+    }
+
+    for (const task of spawnedTasks) {
+      const lt = ltMap.get(task.long_term_task_id!);
+      if (lt?.category_id) {
+        task.category = catMap.get(lt.category_id);
+      }
+    }
+  }
+
+  return activeTasks;
 }
 
 export async function getLongTermTasks(): Promise<LongTermTaskWithCategory[]> {

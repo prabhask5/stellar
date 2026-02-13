@@ -695,6 +695,15 @@ alter table blocked_websites add column if not exists device_id text;
 alter table projects add column if not exists device_id text;
 
 -- ============================================================
+-- LINKED DAILY TASKS: Link spawned daily tasks to long-term agenda
+-- Enables bi-directional completion and deletion between daily
+-- tasks and their source long-term tasks due today
+-- ============================================================
+
+alter table daily_tasks add column if not exists long_term_task_id uuid references long_term_agenda(id) on delete set null;
+create index if not exists idx_daily_tasks_long_term_task_id on daily_tasks(long_term_task_id);
+
+-- ============================================================
 -- RPC: Extension config discovery (unauthenticated)
 -- Returns the first user's email, gate config, and profile
 -- so the browser extension can discover the Supabase user.

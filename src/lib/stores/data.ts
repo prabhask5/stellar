@@ -15,6 +15,7 @@ import type {
   AgendaItemType,
   ProjectWithDetails
 } from '$lib/types';
+import { engineGetAll } from '@prabhask5/stellar-engine/data';
 import * as repo from '$lib/db/repositories';
 import * as queries from '$lib/db/queries';
 import { calculateGoalProgressCapped } from '$lib/utils/colors';
@@ -796,15 +797,40 @@ function createDailyTasksStore() {
       return updated;
     },
     toggle: async (id: string) => {
+      // Preserve runtime category before toggle (repo returns raw DailyTask without it)
+      let taskCategory: DailyTask['category'] | undefined;
+      let wasSpawned = false;
+      update((tasks) => {
+        const task = tasks.find((t) => t.id === id);
+        taskCategory = task?.category;
+        wasSpawned = !!task?.long_term_task_id;
+        return tasks;
+      });
       const updated = await repo.toggleDailyTaskComplete(id);
       if (updated) {
-        update((tasks) => tasks.map((t) => (t.id === id ? updated : t)));
+        update((tasks) =>
+          tasks.map((t) => (t.id === id ? { ...updated, category: taskCategory } : t))
+        );
+        // If spawned task, refresh long-term tasks to reflect bi-directional completion
+        if (wasSpawned) {
+          await longTermTasksStore.refresh();
+        }
       }
       return updated;
     },
     delete: async (id: string) => {
+      let wasSpawned = false;
+      update((tasks) => {
+        const task = tasks.find((t) => t.id === id);
+        wasSpawned = !!task?.long_term_task_id;
+        return tasks;
+      });
       await repo.deleteDailyTask(id);
       update((tasks) => tasks.filter((t) => t.id !== id));
+      // If spawned task, the linked long-term task was also deleted
+      if (wasSpawned) {
+        await longTermTasksStore.refresh();
+      }
     },
     reorder: async (id: string, newOrder: number) => {
       const updated = await repo.reorderDailyTask(id, newOrder);
@@ -818,8 +844,16 @@ function createDailyTasksStore() {
       return updated;
     },
     clearCompleted: async (userId: string) => {
+      let hadSpawned = false;
+      update((tasks) => {
+        hadSpawned = tasks.some((t) => t.completed && t.long_term_task_id);
+        return tasks;
+      });
       await repo.clearCompletedDailyTasks(userId);
       update((tasks) => tasks.filter((t) => !t.completed));
+      if (hadSpawned) {
+        await longTermTasksStore.refresh();
+      }
     },
     refresh: async () => {
       const tasks = await queries.getDailyTasks();
@@ -870,6 +904,15 @@ function createLongTermTasksStore() {
       if (taskWithCategory) {
         update((tasks) => [...tasks, taskWithCategory]);
       }
+
+      // If this task is due today or before and is completable, spawn a linked daily task
+      const today = new Date().toISOString().split('T')[0];
+      if (dueDate <= today && type === 'task') {
+        const spawnedTask = await repo.createDailyTask(name, userId, newTask.id);
+        remoteChangesStore.recordLocalChange(spawnedTask.id, 'daily_tasks', 'create');
+        await dailyTasksStore.refresh();
+      }
+
       return newTask;
     },
     update: async (
@@ -882,6 +925,10 @@ function createLongTermTasksStore() {
         const taskWithCategory = await queries.getLongTermTask(updated.id);
         if (taskWithCategory) {
           update((tasks) => tasks.map((t) => (t.id === id ? taskWithCategory : t)));
+        }
+        // Refresh daily tasks: due_date/name change may spawn or update linked daily tasks
+        if (updates.due_date !== undefined || updates.name !== undefined) {
+          await dailyTasksStore.refresh();
         }
       }
       return updated;
@@ -901,12 +948,16 @@ function createLongTermTasksStore() {
         if (taskWithCategory) {
           update((tasks) => tasks.map((t) => (t.id === id ? taskWithCategory : t)));
         }
+        // Refresh daily tasks to reflect bi-directional completion sync
+        await dailyTasksStore.refresh();
       }
       return updated;
     },
     delete: async (id: string) => {
       await repo.deleteLongTermTask(id);
       update((tasks) => tasks.filter((t) => t.id !== id));
+      // Refresh daily tasks since a linked spawned task may have been deleted
+      await dailyTasksStore.refresh();
     },
     refresh: async () => {
       const tasks = await queries.getLongTermTasks();
@@ -928,21 +979,64 @@ function createProjectsStore() {
   let unsubscribe: (() => void) | null = null;
 
   async function loadProjectsWithDetails(): Promise<ProjectWithDetails[]> {
-    const projects = await queries.getProjects();
-    const goalLists = await queries.getGoalLists();
-    const categories = await queries.getTaskCategories();
+    const [projects, goalLists, categories, longTermTasks, allGoals] = await Promise.all([
+      queries.getProjects(),
+      queries.getGoalLists(),
+      queries.getTaskCategories(),
+      queries.getLongTermTasks(),
+      (engineGetAll('goals') as Promise<unknown>).then((g) =>
+        (g as Goal[]).filter((goal) => !goal.deleted)
+      )
+    ]);
 
-    // Join projects with their goal lists and tags
+    // Join projects with their goal lists, tags, task stats, and combined progress
     return projects.map((project) => {
       const goalList = project.goal_list_id
         ? goalLists.find((gl) => gl.id === project.goal_list_id) || null
         : null;
       const tag = project.tag_id ? categories.find((c) => c.id === project.tag_id) || null : null;
 
+      // Compute task stats for projects with a tag
+      let taskStats: { totalTasks: number; completedTasks: number } | null = null;
+      let combinedProgress: number | undefined;
+
+      if (project.tag_id) {
+        const projectTasks = longTermTasks.filter((t) => t.category_id === project.tag_id);
+        const totalTasks = projectTasks.length;
+        const completedTaskCount = projectTasks.filter((t) => t.completed).length;
+        taskStats = { totalTasks, completedTasks: completedTaskCount };
+
+        // Compute combined progress averaging goals + tasks evenly
+        const projectGoals = project.goal_list_id
+          ? allGoals.filter((g) => g.goal_list_id === project.goal_list_id)
+          : [];
+        const totalItems = projectGoals.length + totalTasks;
+
+        if (totalItems > 0) {
+          let sum = 0;
+          for (const goal of projectGoals) {
+            sum += calculateGoalProgressCapped(
+              goal.type,
+              goal.completed,
+              goal.current_value,
+              goal.target_value
+            );
+          }
+          for (const task of projectTasks) {
+            sum += task.completed ? 100 : 0;
+          }
+          combinedProgress = Math.round(sum / totalItems);
+        } else {
+          combinedProgress = 0;
+        }
+      }
+
       return {
         ...project,
         goalList,
-        tag
+        tag,
+        taskStats,
+        combinedProgress
       };
     });
   }

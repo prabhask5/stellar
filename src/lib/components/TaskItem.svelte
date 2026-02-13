@@ -57,7 +57,14 @@
     {/if}
   </button>
 
-  <span class="task-name" use:truncateTooltip>{task.name}</span>
+  <span class="task-name-area">
+    <span class="task-name" use:truncateTooltip>{task.name}</span>
+    {#if task.category}
+      <span class="category-tag" style="--tag-color: {task.category.color}">
+        {task.category.name}
+      </span>
+    {/if}
+  </span>
 
   {#if onDelete}
     <button class="delete-btn" onclick={onDelete} aria-label="Delete task">×</button>
@@ -166,8 +173,15 @@
     font-weight: bold;
   }
 
-  .task-name {
+  .task-name-area {
     flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .task-name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -181,6 +195,20 @@
     text-decoration: line-through;
     opacity: 0.6;
     font-style: italic;
+  }
+
+  .category-tag {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+    background: var(--tag-color);
+    color: white;
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .delete-btn {
@@ -217,8 +245,18 @@
       gap: 0.625rem;
     }
 
+    .task-name-area {
+      gap: 0.375rem;
+    }
+
     .task-name {
       font-size: 0.875rem;
+    }
+
+    .category-tag {
+      font-size: 0.625rem;
+      padding: 0.125rem 0.375rem;
+      max-width: 80px;
     }
 
     .delete-btn {

@@ -16,7 +16,11 @@
 
   const totalGoals = $derived(project.goalList?.totalGoals ?? 0);
   const completedGoals = $derived(project.goalList?.completedGoals ?? 0);
-  const completionPercentage = $derived(project.goalList?.completionPercentage ?? 0);
+  const totalTasks = $derived(project.taskStats?.totalTasks ?? 0);
+  const completedTasks = $derived(project.taskStats?.completedTasks ?? 0);
+  const completionPercentage = $derived(
+    project.combinedProgress ?? project.goalList?.completionPercentage ?? 0
+  );
   const tagColor = $derived(project.tag?.color ?? '#6c5ce7');
 
   // Track animation state for star
@@ -111,7 +115,8 @@
   </div>
   <div class="project-stats">
     <span class="stat-text">
-      {completedGoals} / {totalGoals} goals
+      {completedGoals}/{totalGoals} goals{#if totalTasks > 0}
+        &middot; {completedTasks}/{totalTasks} tasks{/if}
     </span>
   </div>
   <ProgressBar percentage={completionPercentage} />

@@ -127,6 +127,7 @@ export interface DailyTask {
   id: string;
   user_id: string;
   name: string;
+  long_term_task_id?: string | null; // Set for spawned tasks linked to a long-term agenda item
   order: number;
   completed: boolean;
   created_at: string;
@@ -134,6 +135,7 @@ export interface DailyTask {
   deleted?: boolean; // Tombstone flag
   _version?: number; // Optimistic concurrency version
   device_id?: string; // Device that last modified this record
+  category?: TaskCategory; // Runtime-only: joined from linked long-term task's category
 }
 
 export type AgendaItemType = 'task' | 'reminder';
@@ -263,4 +265,6 @@ export interface Project {
 export interface ProjectWithDetails extends Project {
   tag?: TaskCategory | null;
   goalList?: GoalListWithProgress | null;
+  taskStats?: { totalTasks: number; completedTasks: number } | null;
+  combinedProgress?: number;
 }
