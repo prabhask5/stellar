@@ -891,19 +891,18 @@
 
   @media (max-width: 480px) {
     .goal-item {
-      padding: 1rem 1.125rem;
+      padding: 0.875rem 1rem;
     }
 
     .increment-controls {
-      gap: 0.25rem;
+      gap: 0.125rem;
       flex-shrink: 0;
     }
 
-    /* Increment buttons — compact but still 44px touch target */
     .increment-btn {
-      width: 28px;
-      height: 28px;
-      font-size: 1rem;
+      width: 24px;
+      height: 24px;
+      font-size: 0.875rem;
       border-radius: var(--radius-sm);
       position: relative;
     }
@@ -911,32 +910,30 @@
     .increment-btn::after {
       content: '';
       position: absolute;
-      inset: -8px;
+      inset: -10px;
     }
 
-    /* Checkbox — compact to match incremental controls height */
     .checkbox {
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
     }
 
     .checkmark {
-      font-size: 0.9375rem;
+      font-size: 0.8125rem;
     }
 
-    /* Value display — match size with input for stability */
     .current-value {
-      min-width: 3rem;
-      font-size: 0.8125rem;
-      padding: 0.25rem 0.25rem;
+      min-width: 2.5rem;
+      font-size: 0.75rem;
+      padding: 0.1875rem 0.1875rem;
       font-weight: 700;
     }
 
     .value-input {
-      min-width: 3rem;
-      width: 3rem;
+      min-width: 2.5rem;
+      width: 2.5rem;
       font-size: 16px !important; /* Prevents iOS zoom */
-      padding: 0.25rem 0.25rem;
+      padding: 0.1875rem 0.1875rem;
       font-weight: 700;
     }
 
@@ -945,25 +942,23 @@
     }
 
     .goal-actions {
-      gap: 0.25rem;
+      gap: 0.125rem;
       flex-shrink: 0;
     }
 
-    /* Action buttons — consistent small size across all goal types */
     .action-btn {
-      width: 30px;
-      height: 30px;
-      font-size: 1.125rem;
+      width: 26px;
+      height: 26px;
+      font-size: 1rem;
       opacity: 0.7;
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-sm);
       position: relative;
     }
 
-    /* Expand touch target to meet 44px minimum */
     .action-btn::after {
       content: '';
       position: absolute;
-      inset: -7px;
+      inset: -9px;
     }
 
     /* Scale down celebration effects */
