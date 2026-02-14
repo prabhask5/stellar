@@ -4,6 +4,8 @@ A self-hosted, offline-first productivity PWA for managing goals, tasks, routine
 
 **Demo:** [planner.prabhas.io](https://planner.prabhas.io)
 
+> **Install as an app:** Stellar is a PWA — add it to your home screen for quick access and an app-like experience. On **iOS**, tap Share → Add to Home Screen. On **Android**, tap the three-dot menu → Add to Home screen. On **Desktop** (Chrome/Edge), click the install icon in the address bar. See [Mobile Installation](#mobile-installation) for full details.
+
 ---
 
 ## Documentation
@@ -275,10 +277,10 @@ navigator.serviceWorker.addEventListener('message', e => {
 ### Desktop (Chrome/Edge)
 
 1. Open your Stellar instance.
-2. Click the install icon in the address bar (or use the in-app install prompt on the home page).
+2. Click the install icon in the address bar.
 3. Click **Install**.
 
-Once installed, Stellar runs as a standalone window with full offline support. The app automatically prompts installation on the home screen if it detects a compatible browser.
+Once installed, Stellar runs as a standalone window with full offline support.
 
 ---
 

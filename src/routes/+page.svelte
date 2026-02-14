@@ -8,8 +8,7 @@
      transitions smoothly when the time-of-day period changes.
   2. **Personalised name** — resolved from the Supabase session profile or
      offline cached credentials, with fallbacks to email username.
-  3. **Motivational compliment** — randomly selected from a curated list,
-     with occasional PWA install prompts for first-time visitors.
+  3. **Motivational compliment** — randomly selected from a curated list.
   4. **Immersive background** — animated star field, nebula effects, orbital
      rings, shooting stars, floating particles, and a constellation SVG.
   5. **Auth redirect** — if the auth store resolves to `'none'`, the user
@@ -22,7 +21,7 @@
 <script lang="ts">
   /**
    * @fileoverview Home page script — greeting logic, compliment selection,
-   * PWA install prompts, and auth-redirect guard.
+   * and auth-redirect guard.
    */
 
   // =============================================================================
@@ -36,10 +35,6 @@
   /* ── Stellar Engine — Stores & Auth ── */
   import { onSyncComplete, authState } from '@prabhask5/stellar-engine/stores';
   import { getUserProfile } from '@prabhask5/stellar-engine/auth';
-  import { browser } from '$app/environment';
-
-  /* ── Components ── */
-  import PWAInstallModal from '$lib/components/PWAInstallModal.svelte';
 
   /* ── Actions ── */
   import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
@@ -51,7 +46,7 @@
   /** Whether the page is still initialising (shows the stellar loader). */
   let isLoading = $state(true);
 
-  /** The currently displayed motivational message or PWA prompt. */
+  /** The currently displayed motivational message. */
   let selectedCompliment = $state('');
 
   /** The time-of-day greeting text (e.g. "Good morning"). */
@@ -59,28 +54,6 @@
 
   /** When `true`, the greeting text is fading out for a period transition. */
   let isGreetingTransitioning = $state(false);
-
-  /** Whether to show the "See how" PWA install button below the compliment. */
-  let showPWAButton = $state(false);
-
-  /** Controls the `PWAInstallModal` open/close state. */
-  let isPWAModalOpen = $state(false);
-
-  // =============================================================================
-  //  Constants
-  // =============================================================================
-
-  /** LocalStorage key for tracking whether the user has visited the home page before. */
-  const FIRST_HOME_VISIT_KEY = 'stellar_first_home_visit_complete';
-
-  /* ── PWA-Specific Messages ── */
-  /** Shown on the very first visit to the home page. */
-  const PWA_WELCOME_MESSAGE =
-    'Welcome! Make sure to download Stellar onto your phone as an app to track tasks on the go!';
-
-  /** Shown with a 1/50 probability on subsequent visits as a gentle reminder. */
-  const PWA_REMINDER_MESSAGE =
-    "By the way, if you haven't, you can download Stellar onto your phone as an app!";
 
   // =============================================================================
   //  Time-of-Day Helpers
@@ -194,53 +167,6 @@
   }
 
   // =============================================================================
-  //  Message Selection Logic
-  // =============================================================================
-
-  /** Result shape from `getMessageForDisplay`. */
-  interface MessageResult {
-    /** The message text to display. */
-    message: string;
-
-    /** Whether this is a PWA install prompt (shows the "See how" button). */
-    isPWAMessage: boolean;
-
-    /** Whether this is the user's very first visit to the home page. */
-    isFirstVisit: boolean;
-  }
-
-  /**
-   * Determines which message to display based on visit history.
-   *
-   * - **First visit:** PWA welcome message (always).
-   * - **Returning visit:** 1/50 chance of a PWA reminder, otherwise a random compliment.
-   *
-   * @returns A `MessageResult` with the message and PWA flag
-   */
-  function getMessageForDisplay(): MessageResult {
-    if (!browser) {
-      return { message: getRandomCompliment(), isPWAMessage: false, isFirstVisit: false };
-    }
-
-    const hasVisitedBefore = localStorage.getItem(FIRST_HOME_VISIT_KEY);
-
-    if (!hasVisitedBefore) {
-      // First time visiting home page — show welcome PWA message
-      localStorage.setItem(FIRST_HOME_VISIT_KEY, 'true');
-      return { message: PWA_WELCOME_MESSAGE, isPWAMessage: true, isFirstVisit: true };
-    }
-
-    // Returning user — 1/50 chance to show PWA reminder
-    const showPWAReminder = Math.random() < 0.02; // 1/50 = 0.02
-    if (showPWAReminder) {
-      return { message: PWA_REMINDER_MESSAGE, isPWAMessage: true, isFirstVisit: false };
-    }
-
-    // Regular compliment with "Remember, " prefix
-    return { message: getRandomCompliment(), isPWAMessage: false, isFirstVisit: false };
-  }
-
-  // =============================================================================
   //  Derived State
   // =============================================================================
 
@@ -282,10 +208,8 @@
     currentTimePeriod = getTimePeriod();
     timeGreeting = getGreetingForPeriod(currentTimePeriod);
 
-    // Select the message to display (compliment or PWA prompt)
-    const messageResult = getMessageForDisplay();
-    selectedCompliment = messageResult.message;
-    showPWAButton = messageResult.isPWAMessage;
+    // Select a random motivational compliment
+    selectedCompliment = getRandomCompliment();
 
     isLoading = false;
 
@@ -381,7 +305,7 @@
     <div class="shooting-star shooting-star-2"></div>
     <div class="shooting-star shooting-star-3"></div>
 
-    <!-- ── Central Content — greeting, compliment, and optional PWA button ── -->
+    <!-- ── Central Content — greeting and compliment ── -->
     <div class="content">
       <div class="greeting-wrapper">
         <div class="greeting-glow"></div>
@@ -393,22 +317,10 @@
         </h1>
       </div>
 
-      <!-- Compliment / PWA message — prefixed with "Remember, " for regular compliments -->
+      <!-- Compliment — prefixed with "Remember, " -->
       <p class="compliment">
-        {#if showPWAButton}
-          {selectedCompliment}
-        {:else}
-          Remember, {selectedCompliment}
-        {/if}
+        Remember, {selectedCompliment}
       </p>
-
-      <!-- PWA Install Button — shown on first visit or 1/50 chance -->
-      {#if showPWAButton}
-        <button class="pwa-button" onclick={() => (isPWAModalOpen = true)}>
-          <span class="pwa-button-text">See how</span>
-          <span class="pwa-button-glow"></span>
-        </button>
-      {/if}
 
       <!-- ── Decorative Constellation — SVG lines connecting pulsing star dots ── -->
       <div class="constellation">
@@ -458,9 +370,6 @@
       {/each}
     </div>
   </div>
-
-  <!-- PWA Install Modal — opened by the "See how" button -->
-  <PWAInstallModal bind:open={isPWAModalOpen} onClose={() => (isPWAModalOpen = false)} />
 {/if}
 
 <style>
@@ -1066,7 +975,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     CENTRAL CONTENT — greeting text, compliment, and PWA button
+     CENTRAL CONTENT — greeting text and compliment
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .content {
@@ -1208,77 +1117,6 @@
     opacity: 0;
     animation: fadeSlideIn 0.8s ease-out 0.8s forwards;
     line-height: 1.5;
-  }
-
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     PWA INSTALL BUTTON
-     ═══════════════════════════════════════════════════════════════════════════════════ */
-
-  .pwa-button {
-    position: relative;
-    margin-top: 1.25rem;
-    padding: 0.75rem 1.75rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    color: var(--color-text);
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.25) 0%, rgba(108, 92, 231, 0.1) 100%);
-    border: 1px solid rgba(108, 92, 231, 0.4);
-    border-radius: var(--radius-xl);
-    cursor: pointer;
-    overflow: hidden;
-    opacity: 0;
-    animation: fadeSlideIn 0.8s ease-out 1s forwards;
-    transition: all 0.3s var(--ease-spring);
-    box-shadow:
-      0 0 20px rgba(108, 92, 231, 0.15),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  }
-
-  .pwa-button:hover {
-    transform: translateY(-2px) scale(1.02);
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.35) 0%, rgba(108, 92, 231, 0.15) 100%);
-    border-color: rgba(108, 92, 231, 0.6);
-    box-shadow:
-      0 0 30px rgba(108, 92, 231, 0.3),
-      0 10px 40px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  }
-
-  .pwa-button:active {
-    transform: translateY(0) scale(0.98);
-  }
-
-  .pwa-button-text {
-    position: relative;
-    z-index: 1;
-  }
-
-  .pwa-button-glow {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(
-      ellipse 100% 100% at 50% 0%,
-      rgba(108, 92, 231, 0.4) 0%,
-      transparent 70%
-    );
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  .pwa-button:hover .pwa-button-glow {
-    opacity: 1;
-    animation: buttonGlowPulse 2s ease-in-out infinite;
-  }
-
-  @keyframes buttonGlowPulse {
-    0%,
-    100% {
-      opacity: 0.5;
-    }
-    50% {
-      opacity: 1;
-    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -1476,11 +1314,6 @@
       width: 200px;
       height: 100px;
     }
-
-    .pwa-button {
-      padding: 0.625rem 1.5rem;
-      font-size: 0.875rem;
-    }
   }
 
   /* ── Reduced Motion — disable all cosmetic animations ── */
@@ -1492,8 +1325,7 @@
     .shooting-star,
     .particle,
     .star,
-    .greeting-glow,
-    .pwa-button-glow {
+    .greeting-glow {
       animation: none;
     }
 
@@ -1503,8 +1335,7 @@
 
     .greeting-hello,
     .compliment,
-    .constellation,
-    .pwa-button {
+    .constellation {
       animation: fadeSlideIn 0.5s ease-out forwards;
       opacity: 1;
     }
