@@ -1,4 +1,21 @@
 <script lang="ts">
+  /**
+   * @fileoverview **Plans** — Projects & goal lists index page.
+   *
+   * Displays two sections:
+   * 1. **Projects** — Draggable project cards with aggregate progress,
+   *    a "current project" banner, and create/delete actions.
+   * 2. **Goal Lists** — Standalone (non-project) goal lists with
+   *    drag-and-drop reordering and progress bars.
+   *
+   * Creating a project also provisions a commitment and a long-term task
+   * tag for managing associated tasks.
+   */
+
+  // =============================================================================
+  //                               IMPORTS
+  // =============================================================================
+
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
@@ -12,6 +29,10 @@
   import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
+  // =============================================================================
+  //                         COMPONENT STATE
+  // =============================================================================
+
   let error = $state<string | null>(null);
   let showCreateListModal = $state(false);
   let showCreateProjectModal = $state(false);
@@ -20,22 +41,40 @@
   let creatingList = $state(false);
   let creatingProject = $state(false);
 
-  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
+  /**
+   * Focus action for accessibility — auto-focuses an input on desktop.
+   * Skips on mobile (width <= 640) to prevent the keyboard from popping up.
+   * @param node - The HTML element to focus
+   */
   function focus(node: HTMLElement) {
     if (window.innerWidth > 640) {
       node.focus();
     }
   }
 
-  // Subscribe to stores
+  // =============================================================================
+  //                    STORE-BACKED DATA
+  // =============================================================================
+
   let lists = $state<GoalListWithProgress[]>([]);
   let projects = $state<ProjectWithDetails[]>([]);
   let loadingLists = $state(true);
   let loadingProjects = $state(true);
 
-  // Filter goal lists to exclude project-owned ones
+  // =============================================================================
+  //                       DERIVED DATA
+  // =============================================================================
+
+  /** Goal lists that are *not* owned by a project — displayed in the second section */
   const standaloneLists = $derived(lists.filter((l) => !l.project_id));
+
+  /** The project marked as "current" (starred), or `null` if none is selected */
   const currentProject = $derived(projects.find((p) => p.is_current) || null);
+
+  /**
+   * Average completion percentage across all projects (capped at 100 each).
+   * Returns 0 when there are no projects.
+   */
   const totalProjectsProgress = $derived(
     projects.length > 0
       ? Math.round(
@@ -47,6 +86,11 @@
       : 0
   );
 
+  // =============================================================================
+  //                    STORE SUBSCRIPTIONS
+  // =============================================================================
+
+  /** Mirror goal-lists and projects stores into local reactive state. */
   $effect(() => {
     const unsubLists = goalListsStore.subscribe((value) => {
       lists = value;
@@ -69,10 +113,22 @@
     };
   });
 
+  // =============================================================================
+  //                           LIFECYCLE
+  // =============================================================================
+
   onMount(async () => {
     await Promise.all([goalListsStore.load(), projectsStore.load()]);
   });
 
+  // =============================================================================
+  //                      EVENT HANDLERS
+  // =============================================================================
+
+  /**
+   * Create a new standalone goal list.
+   * @param event - Form submit event
+   */
   async function handleCreateList(event: Event) {
     event.preventDefault();
     if (!newListName.trim() || creatingList) return;
@@ -94,6 +150,10 @@
     }
   }
 
+  /**
+   * Create a new project (also provisions a commitment + tag).
+   * @param event - Form submit event
+   */
   async function handleCreateProject(event: Event) {
     event.preventDefault();
     if (!newProjectName.trim() || creatingProject) return;
@@ -115,6 +175,7 @@
     }
   }
 
+  /** Delete a standalone goal list and all its goals (with confirmation). */
   async function handleDeleteList(id: string) {
     if (!confirm('Are you sure you want to delete this list and all its goals?')) return;
 
@@ -125,6 +186,7 @@
     }
   }
 
+  /** Delete a project and its associated goal list, tag, and commitment. */
   async function handleDeleteProject(id: string) {
     const confirmed = confirm(
       'Are you sure you want to delete this project? This will also delete:\n\n' +
@@ -141,6 +203,7 @@
     }
   }
 
+  /** Toggle a project as the "current" (starred) project — clicking the already-current project clears it. */
   async function handleSetCurrentProject(id: string) {
     try {
       // Toggle off if clicking the already-current project
@@ -165,6 +228,7 @@
     await goalListsStore.reorder(itemId, newOrder);
   }
 
+  /** Navigate to the detail page for a goal list or project. */
   function navigateToList(id: string) {
     goto(`/plans/${id}`);
   }
@@ -182,7 +246,7 @@
     </div>
   {/if}
 
-  <!-- Projects Section -->
+  <!-- ═══ Projects Section ═══ -->
   <section class="section">
     <header class="section-header">
       <h2>Projects</h2>
@@ -311,7 +375,7 @@
     {/if}
   </section>
 
-  <!-- Goal Lists Section -->
+  <!-- ═══ Goal Lists Section (standalone, non-project lists) ═══ -->
   <section class="section">
     <header class="section-header">
       <h2>Goal Lists</h2>
@@ -373,12 +437,14 @@
                 ×
               </button>
             </div>
-            <div class="list-stats">
-              <span class="stat-text">
-                {list.completedGoals} / {list.totalGoals} goals
-              </span>
-            </div>
-            <ProgressBar percentage={list.completionPercentage} />
+            {#if list.totalGoals > 0}
+              <div class="list-stats">
+                <span class="stat-text">
+                  {list.completedGoals} / {list.totalGoals} goals
+                </span>
+              </div>
+              <ProgressBar percentage={list.completionPercentage} />
+            {/if}
           </div>
         {/snippet}
       </DraggableList>
@@ -386,7 +452,7 @@
   </section>
 </div>
 
-<!-- Create List Modal -->
+<!-- ═══ Create List Modal ═══ -->
 <Modal
   open={showCreateListModal}
   title="Create New List"
@@ -415,7 +481,7 @@
   </form>
 </Modal>
 
-<!-- Create Project Modal -->
+<!-- ═══ Create Project Modal ═══ -->
 <Modal
   open={showCreateProjectModal}
   title="Create New Project"

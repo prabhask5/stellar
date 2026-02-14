@@ -1,4 +1,20 @@
 <script lang="ts">
+  /**
+   * @fileoverview **Block List Edit** — Edit a single focus block list.
+   *
+   * Reached via `/focus/block-lists/:id`. Allows the user to:
+   * - Update the block list name and active-day schedule
+   * - Add / remove blocked website domains
+   * - Delete the entire block list
+   *
+   * Includes an informational banner reminding the user that a browser
+   * extension is required for actual website blocking.
+   */
+
+  // =============================================================================
+  //                               IMPORTS
+  // =============================================================================
+
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
@@ -8,17 +24,27 @@
   import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
+  // =============================================================================
+  //                         COMPONENT STATE
+  // =============================================================================
+
   let blockList = $state<BlockList | null>(null);
   let websites = $state<BlockedWebsite[]>([]);
   let loading = $state(true);
   let websitesLoading = $state(true);
   let error = $state<string | null>(null);
   let saving = $state(false);
+  /** Domain string being typed into the "add website" input */
   let newWebsite = $state('');
 
+  /** Route parameter — the block list UUID */
   const blockListId = $derived($page.params.id!);
 
-  // Subscribe to stores
+  // =============================================================================
+  //                    STORE SUBSCRIPTIONS
+  // =============================================================================
+
+  /** Mirror block-list and blocked-websites stores into local state. */
   $effect(() => {
     const unsubList = singleBlockListStore.subscribe((value) => {
       blockList = value;
@@ -41,6 +67,10 @@
     };
   });
 
+  // =============================================================================
+  //                           LIFECYCLE
+  // =============================================================================
+
   onMount(async () => {
     await singleBlockListStore.load(blockListId);
     await blockedWebsitesStore.load(blockListId);
@@ -51,6 +81,14 @@
     blockedWebsitesStore.clear();
   });
 
+  // =============================================================================
+  //                      EVENT HANDLERS
+  // =============================================================================
+
+  /**
+   * Save block-list name and schedule changes, then navigate back to `/focus`.
+   * @param data - Updated name and active-days from `BlockListForm`
+   */
   async function handleUpdateBlockList(data: { name: string; activeDays: DayOfWeek[] | null }) {
     if (!blockList || saving) return;
 
@@ -67,6 +105,7 @@
     }
   }
 
+  /** Delete the entire block list (with confirmation) and navigate back. */
   async function handleDeleteBlockList() {
     if (!blockList) return;
     if (!confirm('Delete this block list? All blocked websites in it will be removed.')) return;
@@ -80,12 +119,17 @@
     }
   }
 
+  /** Add a new domain to the blocked-websites list. */
   async function addWebsite() {
     if (!newWebsite.trim()) return;
     await blockedWebsitesStore.create(newWebsite.trim());
     newWebsite = '';
   }
 
+  /**
+   * Remove a blocked website by ID.
+   * @param id - The blocked-website row UUID
+   */
   async function removeWebsite(id: string) {
     await blockedWebsitesStore.delete(id);
   }
@@ -106,7 +150,7 @@
     <button class="btn btn-danger" onclick={handleDeleteBlockList}> Delete </button>
   </header>
 
-  <!-- Extension Banner -->
+  <!-- ═══ Extension Banner — informs user about required browser extension ═══ -->
   <div class="extension-banner">
     <div class="banner-icon">
       <svg
@@ -192,7 +236,7 @@
       />
     </div>
 
-    <!-- Blocked Websites Section -->
+    <!-- ═══ Blocked Websites Section — add/remove domain entries ═══ -->
     <section class="websites-section">
       <h2>Blocked Websites</h2>
 

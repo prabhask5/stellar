@@ -1,48 +1,95 @@
 <script lang="ts">
+  /**
+   * @fileoverview ProgressBar — animated progress indicator with celebration effects.
+   *
+   * Renders a horizontal bar that fills based on `percentage`. When the
+   * percentage exceeds 100%, the component enters a "celebration" mode with
+   * escalating visual intensity:
+   *   - **100–120%**: subtle shimmer + nebula glow
+   *   - **120–140%**: aurora wave + starburst particles
+   *   - **140–160%**: pulse rings + orbiting stars
+   *   - **160–200%+**: energy crackle lightning effect
+   *
+   * The celebration intensity is a linear 0→1 scale from 100% to 200%,
+   * driving every animation's speed, size, and particle count via CSS
+   * custom properties.
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import { getProgressColor, getOverflowColor } from '$lib/utils/colors';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Current progress percentage — can exceed 100 for overflow celebrations */
     percentage: number;
+    /** Whether to display the numeric label beside the bar */
     showLabel?: boolean;
+    /** CSS height of the progress bar track */
     height?: string;
   }
 
+  // =============================================================================
+  //  Component State
+  // =============================================================================
+
   let { percentage, showLabel = true, height = '12px' }: Props = $props();
 
-  // Use overflow color for >100%, regular progress color otherwise
+  // =============================================================================
+  //  Derived Values — Celebration Calculations
+  // =============================================================================
+
+  /** Color of the fill — uses overflow palette when >100%, regular progress palette otherwise */
   const color = $derived(
     percentage > 100 ? getOverflowColor(percentage) : getProgressColor(percentage)
   );
 
-  // Celebration intensity: 0 at 100%, scales to 1 at 200%+
+  /** Celebration intensity: 0 at 100%, scales linearly to 1 at 200%+ */
   const celebrationIntensity = $derived(
     percentage <= 100 ? 0 : Math.min(1, (percentage - 100) / 100)
   );
 
-  // Whether we're celebrating (any overflow)
+  /** Whether celebration effects are active (any overflow) */
   const isCelebrating = $derived(percentage > 100);
 
-  // Cap the visual bar width at 100%
+  /** Visual bar width — capped at 100% even when percentage exceeds it */
   const barWidth = $derived(Math.min(100, percentage));
 
-  // Calculate dynamic glow size based on intensity (scales from 15px to 50px)
+  /* ── Dynamic effect sizes ──── */
+
+  /** Outer glow radius: 15px → 50px as intensity rises */
   const glowSize = $derived(15 + celebrationIntensity * 35);
 
-  // Nebula opacity range (scales with intensity)
+  /** Nebula opacity range — min and max bounds scale with intensity */
   const nebulaMin = $derived(0.1 + celebrationIntensity * 0.15);
   const nebulaMax = $derived(0.2 + celebrationIntensity * 0.4);
 
-  // Animation speed: faster as intensity increases
+  /* ── Animation speeds ──── */
+
+  /** Shimmer sweep duration: 3s → 1s (faster at higher intensity) */
   const shimmerDuration = $derived(3 - celebrationIntensity * 2);
+
+  /** Pulse animation duration: 2s → 1s */
   const pulseDuration = $derived(2 - celebrationIntensity * 1);
 
-  // Number of particles based on intensity (0 to 12)
+  /* ── Particle / ring counts ──── */
+
+  /** Number of starburst particles: 0 → 12 */
   const particleCount = $derived(Math.floor(celebrationIntensity * 12));
 
-  // Number of pulse rings based on intensity (0 to 3)
+  /** Number of expanding pulse rings: 0 → 3 */
   const ringCount = $derived(Math.floor(celebrationIntensity * 3));
 
-  // Generate particle positions with deterministic offsets
+  /**
+   * Generates deterministic particle configuration objects.
+   * Each particle has a unique delay, duration, angle, travel distance, and size
+   * derived from its index.
+   */
   const particles = $derived(
     Array.from({ length: particleCount }, (_, i) => ({
       delay: (i * 0.3) % 2,
@@ -53,7 +100,9 @@
     }))
   );
 
-  // Generate ring delays
+  /**
+   * Generates ring configuration with staggered delays.
+   */
   const rings = $derived(
     Array.from({ length: ringCount }, (_, i) => ({
       delay: i * 0.6,
@@ -62,6 +111,7 @@
   );
 </script>
 
+<!-- ═══ Progress Container ═══ -->
 <div class="progress-container" class:celebrating={isCelebrating}>
   <div
     class="progress-bar"
@@ -77,23 +127,26 @@
       --pulse-duration: {pulseDuration}s;
     "
   >
-    <!-- Nebula glow background for celebrating state -->
+    <!-- Nebula glow background — visible only during celebration -->
     {#if isCelebrating}
       <div class="nebula-glow" style="--fill-color: {color}"></div>
     {/if}
 
+    <!-- Primary fill bar -->
     <div
       class="progress-fill"
       class:celebrating={isCelebrating}
       style="width: {barWidth}%; --fill-color: {color}"
     ></div>
+
+    <!-- Soft glow layer behind the fill (blurred duplicate) -->
     <div
       class="progress-glow"
       class:celebrating={isCelebrating}
       style="width: {barWidth}%; --fill-color: {color}"
     ></div>
 
-    <!-- Aurora wave effect for medium+ intensity -->
+    <!-- Aurora wave effect — appears at medium+ intensity (>20%) -->
     {#if celebrationIntensity > 0.2}
       <div
         class="aurora-wave"
@@ -101,7 +154,7 @@
       ></div>
     {/if}
 
-    <!-- Pulse rings emanating from the end -->
+    <!-- Pulse rings emanating from the bar end -->
     {#if isCelebrating}
       <div class="pulse-ring-container">
         {#each rings as ring, _i (_i)}
@@ -117,7 +170,7 @@
       </div>
     {/if}
 
-    <!-- Starburst particles -->
+    <!-- Starburst particles — appear at >10% intensity -->
     {#if celebrationIntensity > 0.1}
       <div class="particle-container">
         {#each particles as particle, _i (_i)}
@@ -136,7 +189,7 @@
       </div>
     {/if}
 
-    <!-- Orbiting stars for high intensity celebrations -->
+    <!-- Orbiting stars — appear at >40% intensity, up to 3 stars -->
     {#if celebrationIntensity > 0.4}
       <div class="orbital-container" style="--orbit-color: {color}">
         <div
@@ -161,12 +214,13 @@
       </div>
     {/if}
 
-    <!-- Energy crackling for very high intensity -->
+    <!-- Energy crackling — appears at very high intensity (>70%) -->
     {#if celebrationIntensity > 0.7}
       <div class="energy-crackle" style="--crackle-color: {color}"></div>
     {/if}
   </div>
 
+  <!-- Numeric percentage label -->
   {#if showLabel}
     <span
       class="progress-label"
@@ -179,6 +233,8 @@
 </div>
 
 <style>
+  /* ═══ Container ═══ */
+
   .progress-container {
     display: flex;
     align-items: center;
@@ -186,11 +242,13 @@
     position: relative;
   }
 
+  /* Extra padding to accommodate particles that extend beyond the bar */
   .progress-container.celebrating {
-    /* Extra padding for particles/effects that extend beyond */
     padding: 10px 0;
     margin: -10px 0;
   }
+
+  /* ═══ Track ═══ */
 
   .progress-bar {
     flex: 1;
@@ -205,6 +263,7 @@
     border: 1px solid rgba(108, 92, 231, 0.2);
   }
 
+  /* Celebrating track — dynamic border color + pulsing glow */
   .progress-bar.celebrating {
     border-color: color-mix(in srgb, var(--glow-color) 60%, transparent);
     box-shadow:
@@ -222,6 +281,7 @@
       barExpand calc(var(--pulse-duration) * 0.5) ease-in-out infinite;
   }
 
+  /* Subtle vertical scale pulse on the bar during celebration */
   @keyframes barExpand {
     0%,
     100% {
@@ -232,7 +292,8 @@
     }
   }
 
-  /* Nebula glow background */
+  /* ═══ Nebula Glow Background ═══ */
+
   .nebula-glow {
     position: absolute;
     inset: -30px;
@@ -245,6 +306,8 @@
     pointer-events: none;
     z-index: 0;
   }
+
+  /* ═══ Fill Bar ═══ */
 
   .progress-fill {
     height: 100%;
@@ -262,6 +325,7 @@
     z-index: 1;
   }
 
+  /* Celebrating fill — faster pulse + glow shadow */
   .progress-fill.celebrating {
     animation:
       progressPulse var(--pulse-duration) ease-in-out infinite,
@@ -295,7 +359,7 @@
     }
   }
 
-  /* Shine effect on top */
+  /* Shine highlight on top half of the fill */
   .progress-fill::before {
     content: '';
     position: absolute;
@@ -312,7 +376,7 @@
     border-radius: var(--radius-full) var(--radius-full) 0 0;
   }
 
-  /* Animated shimmer - starts within the bar and sweeps ahead */
+  /* Animated shimmer sweep across the fill */
   .progress-fill::after {
     content: '';
     position: absolute;
@@ -329,6 +393,7 @@
     animation: shimmer 2s ease-in-out infinite;
   }
 
+  /* Brighter, faster shimmer during celebration */
   .progress-fill.celebrating::after {
     animation: shimmerCelebrate var(--shimmer-duration, 2s) ease-in-out infinite;
     background: linear-gradient(
@@ -375,6 +440,9 @@
     }
   }
 
+  /* ═══ Glow Layer ═══ */
+
+  /* Blurred duplicate of the fill for a soft glow effect */
   .progress-glow {
     position: absolute;
     top: -50%;
@@ -390,6 +458,7 @@
     z-index: 0;
   }
 
+  /* More blur and opacity during celebration */
   .progress-glow.celebrating {
     filter: blur(calc(15px + var(--celebration-intensity, 0) * 15px));
     opacity: calc(0.5 + var(--celebration-intensity, 0) * 0.4);
@@ -406,7 +475,8 @@
     }
   }
 
-  /* Aurora wave effect */
+  /* ═══ Aurora Wave Effect ═══ */
+
   .aurora-wave {
     position: absolute;
     top: -200%;
@@ -439,7 +509,8 @@
     }
   }
 
-  /* Pulse rings */
+  /* ═══ Pulse Rings ═══ */
+
   .pulse-ring-container {
     position: absolute;
     right: 0;
@@ -450,6 +521,7 @@
     z-index: 3;
   }
 
+  /* Expanding circular rings that fade out */
   .pulse-ring {
     position: absolute;
     top: 50%;
@@ -479,7 +551,8 @@
     }
   }
 
-  /* Starburst particles */
+  /* ═══ Starburst Particles ═══ */
+
   .particle-container {
     position: absolute;
     right: 5%;
@@ -489,6 +562,7 @@
     z-index: 4;
   }
 
+  /* Tiny dots that shoot outward at various angles */
   .starburst-particle {
     position: absolute;
     width: var(--particle-size);
@@ -512,7 +586,8 @@
     }
   }
 
-  /* Orbital stars container */
+  /* ═══ Orbital Stars ═══ */
+
   .orbital-container {
     position: absolute;
     top: 50%;
@@ -522,6 +597,7 @@
     z-index: 2;
   }
 
+  /* Small glowing dots that orbit around a point near the bar end */
   .orbital-star {
     position: absolute;
     width: 4px;
@@ -535,7 +611,9 @@
     animation-delay: var(--star-delay, 0s);
   }
 
-  /* Energy crackle effect */
+  /* ═══ Energy Crackle ═══ */
+
+  /* Lightning-like flicker lines for very high celebration intensity */
   .energy-crackle {
     position: absolute;
     inset: -5px;
@@ -593,18 +671,21 @@
     }
   }
 
+  /* ═══ Percentage Label ═══ */
+
   .progress-label {
     font-size: 1.125rem;
     font-weight: 800;
     min-width: 4rem;
     text-align: right;
     text-shadow: 0 0 30px currentColor;
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums; /* prevents width jitter as digits change */
     font-family: var(--font-mono);
     letter-spacing: -0.02em;
     transition: all 0.3s var(--ease-out);
   }
 
+  /* Label celebration — intensifying glow + twinkle + scale pulse */
   .progress-label.celebrating {
     text-shadow:
       0 0 calc(20px + var(--celebration-intensity, 0) * 30px) var(--glow-color),
@@ -627,12 +708,14 @@
     }
   }
 
+  /* Subtle scale on hover for interactive feel */
   .progress-container:hover .progress-label {
     transform: scale(1.05);
     text-shadow: 0 0 40px currentColor;
   }
 
-  /* Reduced motion */
+  /* ═══ Reduced Motion ═══ */
+
   @media (prefers-reduced-motion: reduce) {
     .progress-fill,
     .progress-fill::after,

@@ -1,24 +1,55 @@
 <script lang="ts">
+  /**
+   * @fileoverview PWAInstallModal — step-by-step guide for installing Stellar as a PWA.
+   *
+   * Wraps the `Modal` component and displays platform-specific instructions
+   * (Android or iOS) for adding Stellar to the user's home screen. The user
+   * toggles between platforms via a segmented tab control. Each platform
+   * shows four numbered instruction cards.
+   *
+   * This modal is purely informational — the actual install is handled by
+   * the browser's native "Add to Home Screen" flow.
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import Modal from './Modal.svelte';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Whether the modal is currently visible (bindable for two-way control) */
     open: boolean;
+    /** Callback fired when the user dismisses the modal */
     onClose: () => void;
   }
 
+  // =============================================================================
+  //  Component State
+  // =============================================================================
+
   let { open = $bindable(), onClose }: Props = $props();
 
+  /** The two supported mobile platforms */
   type Platform = 'android' | 'ios';
+
+  /** Currently selected platform tab */
   let selectedPlatform = $state<Platform>('android');
 </script>
 
+<!-- ═══ Install Guide Modal ═══ -->
 <Modal {open} title="Install Stellar" {onClose}>
   <div class="pwa-install-content">
+    <!-- Intro blurb -->
     <p class="intro">
       Add Stellar to your home screen for quick access and an app-like experience.
     </p>
 
-    <!-- Platform Selector -->
+    <!-- ═══ Platform Selector Tabs ═══ -->
     <div class="platform-selector">
       <button
         class="platform-tab"
@@ -49,9 +80,10 @@
       </button>
     </div>
 
-    <!-- Instructions -->
+    <!-- ═══ Platform-Specific Instructions ═══ -->
     <div class="instructions">
       {#if selectedPlatform === 'android'}
+        <!-- Android Steps -->
         <div class="instruction-card">
           <div class="step-number">1</div>
           <div class="step-content">
@@ -85,6 +117,7 @@
           </div>
         </div>
       {:else}
+        <!-- iOS Steps -->
         <div class="instruction-card">
           <div class="step-number">1</div>
           <div class="step-content">
@@ -120,6 +153,7 @@
       {/if}
     </div>
 
+    <!-- Success note at the bottom -->
     <div class="footer-note">
       <div class="glow-dot"></div>
       <span>Stellar will launch like a native app from your home screen</span>
@@ -128,6 +162,8 @@
 </Modal>
 
 <style>
+  /* ═══ Content Layout ═══ */
+
   .pwa-install-content {
     display: flex;
     flex-direction: column;
@@ -142,7 +178,8 @@
     margin: 0;
   }
 
-  /* Platform Selector */
+  /* ═══ Platform Selector ═══ */
+
   .platform-selector {
     display: flex;
     gap: 0.75rem;
@@ -174,6 +211,7 @@
     background: rgba(108, 92, 231, 0.05);
   }
 
+  /* Active tab — highlighted with gradient background + glow */
   .platform-tab.active {
     background: linear-gradient(135deg, rgba(108, 92, 231, 0.3) 0%, rgba(108, 92, 231, 0.15) 100%);
     border-color: rgba(108, 92, 231, 0.4);
@@ -193,7 +231,8 @@
     transform: scale(1.1);
   }
 
-  /* Instructions */
+  /* ═══ Instruction Cards ═══ */
+
   .instructions {
     display: flex;
     flex-direction: column;
@@ -211,12 +250,14 @@
     transition: all 0.3s ease;
   }
 
+  /* Slides right on hover for an interactive feel */
   .instruction-card:hover {
     border-color: rgba(108, 92, 231, 0.25);
     background: linear-gradient(135deg, rgba(108, 92, 231, 0.12) 0%, rgba(108, 92, 231, 0.04) 100%);
     transform: translateX(4px);
   }
 
+  /* Numbered circle badge */
   .step-number {
     flex-shrink: 0;
     width: 28px;
@@ -254,12 +295,14 @@
     line-height: 1.5;
   }
 
+  /* Highlighted keywords use primary color */
   .step-desc strong {
     color: var(--color-primary-light);
     font-weight: 600;
   }
 
-  /* Footer Note */
+  /* ═══ Footer Note ═══ */
+
   .footer-note {
     display: flex;
     align-items: center;
@@ -273,6 +316,7 @@
     color: var(--color-success);
   }
 
+  /* Pulsing green dot indicating "ready" status */
   .glow-dot {
     width: 8px;
     height: 8px;
@@ -294,7 +338,8 @@
     }
   }
 
-  /* Mobile Adjustments */
+  /* ═══ Mobile Adjustments ═══ */
+
   @media (max-width: 480px) {
     .platform-tab {
       padding: 0.625rem 0.75rem;

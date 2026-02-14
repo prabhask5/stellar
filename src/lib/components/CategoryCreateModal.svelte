@@ -1,22 +1,56 @@
 <script lang="ts">
+  /**
+   * @fileoverview CategoryCreateModal — dialog for creating a new tag (category).
+   *
+   * Wraps the `Modal` component with a form containing:
+   *   - A text input for the tag name
+   *   - A color picker with 8 preset color swatches
+   *   - A live preview showing the selected color + name
+   *   - Cancel / Create action buttons
+   *
+   * Resets the form fields every time the modal opens so previous state
+   * does not leak between sessions.
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import Modal from './Modal.svelte';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Whether the modal is currently visible */
     open: boolean;
+    /** Callback fired when the user dismisses the modal */
     onClose: () => void;
+    /** Callback fired with `(name, color)` when the user confirms creation */
     onCreate: (name: string, color: string) => void;
   }
 
+  // =============================================================================
+  //  Component State
+  // =============================================================================
+
   let { open, onClose, onCreate }: Props = $props();
 
-  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
+  /**
+   * Svelte action that auto-focuses an element on desktop.
+   * Skipped on mobile (width ≤640) to prevent the soft keyboard from popping up.
+   *
+   * @param {HTMLElement} node — the element to focus
+   */
   function focus(node: HTMLElement) {
     if (window.innerWidth > 640) {
       node.focus();
     }
   }
 
+  /** Palette of 8 preset colors for quick selection */
   const presetColors = [
     '#6c5ce7', // Purple
     '#ff79c6', // Pink
@@ -28,9 +62,16 @@
     '#0984e3' // Blue
   ];
 
+  /** User-entered tag name */
   let name = $state('');
+
+  /** Currently selected color hex value */
   let color = $state(presetColors[0]);
 
+  /**
+   * Resets form fields whenever the modal opens so the user
+   * always starts with a clean form.
+   */
   $effect(() => {
     if (open) {
       name = '';
@@ -38,6 +79,16 @@
     }
   });
 
+  // =============================================================================
+  //  Event Handlers
+  // =============================================================================
+
+  /**
+   * Handles form submission — validates non-empty name, calls `onCreate`,
+   * and closes the modal.
+   *
+   * @param {Event} e — the submit event
+   */
   function handleSubmit(e: Event) {
     e.preventDefault();
     if (!name.trim()) return;
@@ -45,6 +96,11 @@
     onClose();
   }
 
+  /**
+   * Allows dismissal via the Escape key.
+   *
+   * @param {KeyboardEvent} e — keydown event
+   */
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       onClose();
@@ -52,10 +108,13 @@
   }
 </script>
 
+<!-- Global Escape key listener -->
 <svelte:window onkeydown={handleKeydown} />
 
+<!-- ═══ Category Create Modal ═══ -->
 <Modal {open} title="New Tag" {onClose}>
   <form class="form" onsubmit={handleSubmit}>
+    <!-- ═══ Name Field ═══ -->
     <div class="field">
       <label class="field-label" for="tag-name">Tag Name</label>
       <input
@@ -68,8 +127,11 @@
       />
     </div>
 
+    <!-- ═══ Color Picker Field ═══ -->
     <div class="field">
       <span id="color-label" class="field-label">Color</span>
+
+      <!-- Preset color swatches -->
       <div class="color-picker" role="group" aria-labelledby="color-label">
         {#each presetColors as presetColor (presetColor)}
           <button
@@ -82,12 +144,15 @@
           ></button>
         {/each}
       </div>
+
+      <!-- Live preview of the tag with selected color -->
       <div class="color-preview" style="--preview-color: {color}">
         <span class="preview-dot"></span>
         <span class="preview-text" use:truncateTooltip>{name || 'Tag Preview'}</span>
       </div>
     </div>
 
+    <!-- ═══ Action Buttons ═══ -->
     <div class="actions">
       <button type="button" class="cancel-btn" onclick={onClose}> Cancel </button>
       <button type="submit" class="submit-btn" disabled={!name.trim()}> Create Tag </button>
@@ -96,6 +161,8 @@
 </Modal>
 
 <style>
+  /* ═══ Form Layout ═══ */
+
   .form {
     display: flex;
     flex-direction: column;
@@ -115,6 +182,8 @@
     color: var(--color-text-muted);
     text-transform: uppercase;
   }
+
+  /* ═══ Text Input ═══ */
 
   .field-input {
     padding: 0.875rem 1rem;
@@ -137,6 +206,8 @@
     box-shadow: 0 0 20px var(--color-primary-glow);
   }
 
+  /* ═══ Color Picker ═══ */
+
   .color-picker {
     display: flex;
     gap: 0.5rem;
@@ -158,11 +229,14 @@
     box-shadow: 0 0 15px var(--btn-color);
   }
 
+  /* White border + glow when selected */
   .color-btn.selected {
     border-color: white;
     box-shadow: 0 0 20px var(--btn-color);
     transform: scale(1.05);
   }
+
+  /* ═══ Color Preview ═══ */
 
   .color-preview {
     display: flex;
@@ -175,6 +249,7 @@
     margin-top: 0.5rem;
   }
 
+  /* Small colored dot showing the selected color */
   .preview-dot {
     width: 12px;
     height: 12px;
@@ -187,6 +262,8 @@
     font-size: 0.9375rem;
     color: var(--color-text);
   }
+
+  /* ═══ Action Buttons ═══ */
 
   .actions {
     display: flex;
@@ -207,6 +284,7 @@
     transition: all 0.3s var(--ease-spring);
   }
 
+  /* Turns red on hover to signal destructive intent */
   .cancel-btn:hover {
     background: rgba(255, 107, 107, 0.15);
     border-color: rgba(255, 107, 107, 0.3);

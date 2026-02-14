@@ -1,4 +1,23 @@
 <script lang="ts">
+  /**
+   * @fileoverview **Plan Detail** — Single goal list / project detail page.
+   *
+   * Reached via `/plans/:id` where `:id` is a goal list UUID.
+   *
+   * Features:
+   * - Editable list name (inline edit)
+   * - Aggregate progress bar combining goals + project tasks
+   * - **Goals column** — Draggable goal items with completion / increment controls
+   * - **Tasks column** (project only) — Long-term tasks filtered by the project's
+   *   tag, displayed in overdue / due-today / upcoming / completed sections
+   * - Mobile: collapsible sections with animated chevrons
+   * - Two-column layout on desktop; single-column stacked on mobile
+   */
+
+  // =============================================================================
+  //                               IMPORTS
+  // =============================================================================
+
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
@@ -24,14 +43,20 @@
   import LongTermTaskForm from '$lib/components/LongTermTaskForm.svelte';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
+  // =============================================================================
+  //                         COMPONENT STATE
+  // =============================================================================
+
+  /* ── Goal list data ──── */
   let list = $state<(GoalList & { goals: Goal[] }) | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let showAddModal = $state(false);
+  /** ID of the goal currently being edited — `null` when not editing */
   let editingGoalId = $state<string | null>(null);
   let editingListName = $state(false);
 
-  // Long-term tasks state
+  /* ── Long-term tasks state (only populated for project-owned lists) ──── */
   let project = $state<Project | null>(null);
   let longTermTasks = $state<LongTermTaskWithCategory[]>([]);
   let categories = $state<TaskCategory[]>([]);
@@ -39,25 +64,41 @@
   let showTaskModal = $state(false);
   let showTaskForm = $state(false);
 
-  // Mobile collapsible sections
+  /* ── Mobile collapsible section toggles ──── */
   let goalsExpanded = $state(true);
   let tasksExpanded = $state(true);
 
-  // Derive editing goal reactively from the store so props update when remote changes arrive
+  // =============================================================================
+  //                       DERIVED DATA
+  // =============================================================================
+
+  /**
+   * The goal currently being edited — derived from the live store so that
+   * props update immediately when remote changes arrive.
+   */
   const editingGoal = $derived(
     editingGoalId && list ? (list.goals.find((g) => g.id === editingGoalId) ?? null) : null
   );
   let newListName = $state('');
 
-  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
+  /**
+   * Focus action for accessibility — skips on mobile to avoid keyboard popup.
+   * @param node - The HTML element to focus
+   */
   function focus(node: HTMLElement) {
     if (window.innerWidth > 640) {
       node.focus();
     }
   }
 
+  /** Route parameter — the goal list UUID */
   const listId = $derived($page.params.id!);
 
+  /**
+   * Aggregate completion percentage across goals *and* project tasks.
+   * Each goal is scored 0–100 via `calculateGoalProgressCapped`; each
+   * task is 0 or 100 based on completion.
+   */
   const totalProgress = $derived(() => {
     const goals = list?.goals ?? [];
     const tasks = longTermTasks;
@@ -78,41 +119,55 @@
     return Math.round(sum / totalItems);
   });
 
+  /** Convert a `Date` to `YYYY-MM-DD` string for comparison with task due dates. */
   function formatDateString(date: Date): string {
     return date.toISOString().split('T')[0];
   }
 
+  /** Today's date as `YYYY-MM-DD` — boundary for overdue / due-today filtering */
   const today = $derived(formatDateString(new Date()));
 
+  /* ── Task groups — derived from `longTermTasks` filtered by date ──── */
+
+  /** Tasks with `due_date` before today and not completed */
   const overdueTasks = $derived(
     longTermTasks
       .filter((t) => t.due_date < today && !t.completed)
       .sort((a, b) => a.due_date.localeCompare(b.due_date))
   );
 
+  /** Tasks due exactly today and not completed */
   const dueTodayTasks = $derived(
     longTermTasks
       .filter((t) => t.due_date === today && !t.completed)
       .sort((a, b) => a.name.localeCompare(b.name))
   );
 
+  /** Tasks with `due_date` after today and not completed */
   const upcomingTasks = $derived(
     longTermTasks
       .filter((t) => t.due_date > today && !t.completed)
       .sort((a, b) => a.due_date.localeCompare(b.due_date))
   );
 
+  /** All completed tasks, sorted by due date */
   const completedTasks = $derived(
     longTermTasks.filter((t) => t.completed).sort((a, b) => a.due_date.localeCompare(b.due_date))
   );
 
+  /** Whether the project has any associated long-term tasks */
   const hasAnyTasks = $derived(longTermTasks.length > 0);
 
+  /** Categories narrowed to just the project's own tag — used by task forms */
   const projectCategories = $derived(
     project?.tag_id ? categories.filter((c) => c.id === project!.tag_id) : []
   );
 
-  // Subscribe to store
+  // =============================================================================
+  //                    STORE SUBSCRIPTIONS
+  // =============================================================================
+
+  /** Subscribe to the single goal-list store and sync loading state. */
   $effect(() => {
     const unsubList = goalListStore.subscribe((value) => {
       list = value;
@@ -128,7 +183,7 @@
     };
   });
 
-  // Subscribe to long-term tasks store, filtered by project tag
+  /** Subscribe to long-term tasks store, filtered by the project's tag ID. */
   $effect(() => {
     if (!project?.tag_id) return;
     const tagId = project.tag_id;
@@ -145,6 +200,10 @@
       unsubCategories();
     };
   });
+
+  // =============================================================================
+  //                           LIFECYCLE
+  // =============================================================================
 
   onMount(async () => {
     await goalListStore.load(listId);
@@ -164,6 +223,14 @@
     goalListStore.clear();
   });
 
+  // =============================================================================
+  //                      GOAL HANDLERS
+  // =============================================================================
+
+  /**
+   * Add a new goal to the current list.
+   * @param data - Goal creation payload from `GoalForm`
+   */
   async function handleAddGoal(data: { name: string; type: GoalType; targetValue: number | null }) {
     if (!list) return;
 
@@ -175,6 +242,10 @@
     }
   }
 
+  /**
+   * Save edits to an existing goal. Resets progress when the goal type changes.
+   * @param data - Updated goal payload from `GoalForm`
+   */
   async function handleUpdateGoal(data: {
     name: string;
     type: GoalType;
@@ -205,6 +276,10 @@
     }
   }
 
+  /**
+   * Toggle a completion-type goal's done / undone state.
+   * @param goal - The goal to toggle
+   */
   async function handleToggleComplete(goal: Goal) {
     if (!list) return;
 
@@ -215,6 +290,11 @@
     }
   }
 
+  /**
+   * Increment or decrement an incremental goal's current value.
+   * @param goal   - The goal to update
+   * @param amount - Positive to increment, negative to decrement (default `1`)
+   */
   async function handleIncrement(goal: Goal, amount: number = 1) {
     if (!list || goal.type !== 'incremental') return;
 
@@ -231,6 +311,11 @@
     }
   }
 
+  /**
+   * Set an incremental goal to an exact value (clamped at 0 minimum).
+   * @param goal  - The goal to update
+   * @param value - The new absolute value
+   */
   async function handleSetValue(goal: Goal, value: number) {
     if (!list || goal.type !== 'incremental') return;
 
@@ -244,6 +329,10 @@
     }
   }
 
+  /**
+   * Delete a goal after user confirmation.
+   * @param goal - The goal to remove
+   */
   async function handleDeleteGoal(goal: Goal) {
     if (!list || !confirm('Delete this goal?')) return;
 
@@ -254,12 +343,22 @@
     }
   }
 
-  // Long-term task handlers
+  // =============================================================================
+  //                  LONG-TERM TASK HANDLERS
+  // =============================================================================
+
+  /** Extract the current user's ID from the session. */
   function getUserId(): string {
     const session = $page.data.session;
     return session?.user?.id ?? '';
   }
 
+  /**
+   * Create a new long-term task scoped to this project's tag.
+   * @param name       - Task name
+   * @param dueDate    - Due date as `YYYY-MM-DD`
+   * @param categoryId - Category (tag) UUID, or `null`
+   */
   async function handleCreateLongTermTask(
     name: string,
     dueDate: string,
@@ -270,14 +369,17 @@
     await longTermTasksStore.create(name, dueDate, categoryId, userId);
   }
 
+  /** Toggle a long-term task's completed state. */
   async function handleToggleLongTermTask(id: string) {
     await longTermTasksStore.toggle(id);
   }
 
+  /** Delete a long-term task by ID. */
   async function handleDeleteLongTermTask(id: string) {
     await longTermTasksStore.delete(id);
   }
 
+  /** Update a long-term task's name, due date, or category. */
   async function handleUpdateLongTermTask(
     id: string,
     updates: { name?: string; due_date?: string; category_id?: string | null }
@@ -285,11 +387,13 @@
     await longTermTasksStore.update(id, updates);
   }
 
+  /** Open the task detail modal for a clicked task. */
   function handleTaskClick(task: LongTermTaskWithCategory) {
     selectedTask = task;
     showTaskModal = true;
   }
 
+  /** Persist the inline-edited list name and exit edit mode. */
   async function handleUpdateListName() {
     if (!list || !newListName.trim()) return;
 
@@ -301,6 +405,11 @@
     }
   }
 
+  /**
+   * Persist a drag-and-drop reorder of a goal within the list.
+   * @param goalId   - UUID of the dragged goal
+   * @param newOrder - Zero-based target position
+   */
   async function handleReorderGoal(goalId: string, newOrder: number) {
     try {
       await goalListStore.reorderGoal(goalId, newOrder);
@@ -314,6 +423,9 @@
   <title>{list?.name ?? 'Goal List'} - Stellar Planner</title>
 </svelte:head>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Page Header — Back button + editable list name
+     ═══════════════════════════════════════════════════════════════════════════ -->
 <div class="container">
   <header class="page-header">
     <div class="header-left">
@@ -362,6 +474,7 @@
     </div>
   {/if}
 
+  <!-- ═══ Loading skeleton / Content switch ═══ -->
   {#if loading}
     <!-- List Detail Skeleton -->
     <div class="skeleton-progress-section">
@@ -417,8 +530,11 @@
       <ProgressBar percentage={totalProgress()} />
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         Two-column layout — Goals (left) + Tasks (right, project-only)
+         ═══════════════════════════════════════════════════════════════════════ -->
     <div class="content-columns" class:single-column={!project?.tag_id}>
-      <!-- Goals Column -->
+      <!-- ═══ Goals Column — Draggable goal items ═══ -->
       <section class="content-section" class:collapsed-section={!goalsExpanded}>
         <div class="section-header">
           <button class="section-toggle" onclick={() => (goalsExpanded = !goalsExpanded)}>
@@ -480,7 +596,7 @@
         </div>
       </section>
 
-      <!-- Tasks Column (if project has tag_id) -->
+      <!-- ═══ Tasks Column — overdue / due-today / upcoming / completed ═══ -->
       {#if project?.tag_id}
         <section class="content-section" class:collapsed-section={!tasksExpanded}>
           <div class="section-header">
@@ -572,6 +688,9 @@
   {/if}
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Modals — Add Goal / Edit Goal / Task Detail / New Task
+     ═══════════════════════════════════════════════════════════════════════════ -->
 <Modal open={showAddModal} title="Add Goal" onClose={() => (showAddModal = false)}>
   <GoalForm onSubmit={handleAddGoal} onCancel={() => (showAddModal = false)} />
 </Modal>

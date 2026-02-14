@@ -1,23 +1,55 @@
 <script lang="ts">
+  /**
+   * @fileoverview RoutineForm — reusable form for creating and editing routines.
+   *
+   * Renders fields for name, goal type (completion / incremental / progressive),
+   * target values, date range, and active-day selection.  Supports **deferred
+   * change detection** — when the underlying DB entity is updated while the user
+   * is editing, a banner shows the diff and lets the user load the remote data.
+   *
+   * Key behaviours:
+   * - Goal-type buttons conditionally reveal type-specific fields.
+   * - Active-day selector with quick-select shortcuts (weekdays, weekends, all).
+   * - Progressive type forces an end-date requirement.
+   * - Field-level shimmer highlights fields that were just updated from remote.
+   * - Uses `trackEditing` to coordinate with the engine's editing-lock system.
+   */
+
   import type { GoalType, DayOfWeek } from '$lib/types';
   import { formatDate } from '$lib/utils/dates';
   import { trackEditing } from '@prabhask5/stellar-engine/actions';
   import DeferredChangesBanner from './DeferredChangesBanner.svelte';
 
+  // =============================================================================
+  //                                  Props
+  // =============================================================================
+
   interface Props {
+    /** Pre-filled routine name (empty string for new routines) */
     name?: string;
+    /** Goal tracking type — `completion`, `incremental`, or `progressive` */
     type?: GoalType;
+    /** Daily target for incremental routines */
     targetValue?: number | null;
+    /** Starting threshold for progressive routines */
     startTargetValue?: number | null;
+    /** Ending threshold for progressive routines */
     endTargetValue?: number | null;
+    /** Number of occurrences before the progressive threshold increments */
     progressionSchedule?: number | null;
+    /** ISO date string — when the routine becomes active */
     startDate?: string;
+    /** ISO date string — optional routine expiry date */
     endDate?: string | null;
+    /** Which days of the week the routine is active (`null` → every day) */
     activeDays?: DayOfWeek[] | null;
+    /** Label rendered on the submit button (e.g. "Create" or "Save") */
     submitLabel?: string;
-    // For trackEditing - existing entity being edited
+    /** Existing entity ID when editing — `null` for creation */
     entityId?: string | null;
+    /** Entity type string forwarded to `trackEditing` */
     entityType?: string;
+    /** Callback fired with the validated form payload on submit */
     onSubmit: (data: {
       name: string;
       type: GoalType;
@@ -29,6 +61,7 @@
       endDate: string | null;
       activeDays: DayOfWeek[] | null;
     }) => void;
+    /** Optional cancel handler — when provided a cancel button is rendered */
     onCancel?: () => void;
   }
 
@@ -49,7 +82,11 @@
     onCancel
   }: Props = $props();
 
-  // Day labels for the selector
+  // =============================================================================
+  //                              Constants
+  // =============================================================================
+
+  /** Mapping of day-of-week indices → short / full labels used by the selector */
   const dayLabels: { short: string; full: string; value: DayOfWeek }[] = [
     { short: 'S', full: 'Sun', value: 0 },
     { short: 'M', full: 'Mon', value: 1 },
@@ -59,6 +96,10 @@
     { short: 'F', full: 'Fri', value: 5 },
     { short: 'S', full: 'Sat', value: 6 }
   ];
+
+  // =============================================================================
+  //                           Local Form State
+  // =============================================================================
 
   // These form fields intentionally capture the initial prop value for editing.
   // svelte-ignore state_referenced_locally
@@ -80,19 +121,30 @@
   // svelte-ignore state_referenced_locally
   let endDate = $state(initialEndDate ?? formatDate(new Date()));
 
-  // Track which fields were recently animated for shimmer effect
+  /** Set of field keys currently showing the shimmer highlight animation */
   let highlightedFields = $state<Set<string>>(new Set());
 
-  // Active days state - null means all days, empty array means no days (invalid)
-  // Default to all days selected if null
+  /* ── Active-day selector state ────────────────────────────────────────── */
+  // `null` → all days; empty set → invalid (disallowed by UI)
   // svelte-ignore state_referenced_locally
   let selectedDays = $state<Set<DayOfWeek>>(
     initialActiveDays === null
       ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
       : new Set(initialActiveDays)
   );
+
+  /** Derived — `true` when all 7 days are selected */
   let allDaysSelected = $derived(selectedDays.size === 7);
 
+  // =============================================================================
+  //                        Day-Selection Helpers
+  // =============================================================================
+
+  /**
+   * Toggle a single day on/off in the selector.
+   * Prevents deselecting the last remaining day.
+   * @param {DayOfWeek} day - Day index (0 = Sun … 6 = Sat)
+   */
   function toggleDay(day: DayOfWeek) {
     const newSet = new Set(selectedDays);
     if (newSet.has(day)) {
@@ -106,19 +158,29 @@
     selectedDays = newSet;
   }
 
+  /** Select all 7 days at once. */
   function selectAllDays() {
     selectedDays = new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[]);
   }
 
+  /** Select weekdays only (Mon–Fri). */
   function selectWeekdays() {
     selectedDays = new Set([1, 2, 3, 4, 5] as DayOfWeek[]);
   }
 
+  /** Select weekends only (Sat & Sun). */
   function selectWeekends() {
     selectedDays = new Set([0, 6] as DayOfWeek[]);
   }
 
-  // Helper to get active days description
+  // =============================================================================
+  //                         Derived Descriptions
+  // =============================================================================
+
+  /**
+   * Human-readable summary of the current day selection — shown in the
+   * help text at the bottom of the form (e.g. "weekdays only", "Mon, Wed, Fri").
+   */
   const activeDaysDescription = $derived(() => {
     if (selectedDays.size === 7) return 'every day';
     if (selectedDays.size === 5 && !selectedDays.has(0) && !selectedDays.has(6)) {
@@ -131,6 +193,11 @@
     return days.map((d) => dayLabels[d].full).join(', ');
   });
 
+  // =============================================================================
+  //                    Deferred-Change Banner Helpers
+  // =============================================================================
+
+  /** Human-readable labels for each field key shown in the diff banner */
   const routineFieldLabels: Record<string, string> = {
     name: 'Name',
     type: 'Type',
@@ -143,8 +210,14 @@
     active_days: 'Active Days'
   };
 
+  /** Single-letter day labels used by `formatActiveDays` */
   const dayShortLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+  /**
+   * Format a `DayOfWeek[]` into a compact string for the deferred-change banner.
+   * @param {DayOfWeek[] | null} days - Selected days or `null` for every day
+   * @returns {string} Formatted string (e.g. "Weekdays", "S, T, S")
+   */
   function formatActiveDays(days: DayOfWeek[] | null): string {
     if (days === null) return 'Everyday';
     if (days.length === 5 && !days.includes(0) && !days.includes(6)) return 'Weekdays';
@@ -152,6 +225,12 @@
     return days.map((d) => dayShortLabels[d]).join(', ');
   }
 
+  /**
+   * Stringify a field value for the deferred-change banner display.
+   * @param {string} field  - Field key
+   * @param {unknown} value - Raw field value
+   * @returns {string} Human-readable representation
+   */
   function formatFieldValue(field: string, value: unknown): string {
     if (field === 'active_days') return formatActiveDays(value as DayOfWeek[] | null);
     if (typeof value === 'boolean') return value ? 'On' : 'Off';
@@ -160,12 +239,23 @@
     return String(value);
   }
 
-  // Derive remote data by comparing reactive props (DB state) to local form state
+  // =============================================================================
+  //                   Remote-vs-Local Diff Detection
+  // =============================================================================
+
+  /** Derived local active days — `null` when all days are selected */
   const localActiveDays = $derived(
     allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
   );
+
+  /** Derived local end date — `null` when the "has end date" toggle is off */
   const localEndDate = $derived(hasEndDate ? endDate : null);
 
+  /**
+   * Compares current prop values (representing DB state) against local form
+   * state.  Returns a snapshot of the remote values when a diff exists, or
+   * `null` when the form is in sync with the DB.  Used by `DeferredChangesBanner`.
+   */
   const remoteData = $derived.by(() => {
     if (!entityId) return null;
     const propActiveDays = initialActiveDays;
@@ -194,6 +284,11 @@
     };
   });
 
+  /**
+   * Reset all local form fields to match the current prop (remote) values.
+   * Triggers a shimmer highlight on every field that actually changed so the
+   * user can see what was updated.
+   */
   function loadRemoteData() {
     const fieldsToHighlight: string[] = [];
     if (name !== initialName) fieldsToHighlight.push('name');
@@ -214,6 +309,7 @@
     if (JSON.stringify(currentActiveDays) !== JSON.stringify(initialActiveDays))
       fieldsToHighlight.push('active_days');
 
+    /* ── Apply remote values to local state ── */
     name = initialName;
     type = initialType;
     targetValue = initialTargetValue ?? 10;
@@ -228,19 +324,32 @@
         ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
         : new Set(initialActiveDays);
 
+    /* ── Trigger shimmer then clear after animation completes ── */
     highlightedFields = new Set(fieldsToHighlight);
     setTimeout(() => {
       highlightedFields = new Set();
     }, 1400);
   }
 
-  // Force end date when progressive is selected
+  // =============================================================================
+  //                             Effects
+  // =============================================================================
+
+  /** Progressive routines always require an end date — enforce this reactively */
   $effect(() => {
     if (type === 'progressive') {
       hasEndDate = true;
     }
   });
 
+  // =============================================================================
+  //                          Form Submission
+  // =============================================================================
+
+  /**
+   * Validate and submit the form data to the parent component.
+   * @param {Event} event - Native form submit event
+   */
   function handleSubmit(event: Event) {
     event.preventDefault();
     if (!name.trim()) return;
@@ -265,11 +374,16 @@
   }
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Template — Routine Form
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <form
   class="routine-form"
   onsubmit={handleSubmit}
   use:trackEditing={{ entityId: entityId ?? 'new', entityType, formType: 'manual-save' }}
 >
+  <!-- ═══ Deferred-Change Banner (edit mode only) ═══ -->
   {#if entityId}
     <DeferredChangesBanner
       {entityId}
@@ -293,6 +407,7 @@
     />
   {/if}
 
+  <!-- ═══ Routine Name ═══ -->
   <div class="form-group">
     <label for="routine-name">Routine Name</label>
     <input
@@ -305,6 +420,7 @@
     />
   </div>
 
+  <!-- ═══ Goal Type Toggle ═══ -->
   <div class="form-group">
     <span id="routine-goal-type-label" class="label">Goal Type</span>
     <div
@@ -343,6 +459,7 @@
     </div>
   </div>
 
+  <!-- ═══ Incremental-Specific: Daily Target ═══ -->
   {#if type === 'incremental'}
     <div class="form-group">
       <label for="target-value">Daily Target Value</label>
@@ -357,6 +474,7 @@
     </div>
   {/if}
 
+  <!-- ═══ Progressive-Specific: Threshold Range & Interval ═══ -->
   {#if type === 'progressive'}
     <div class="form-group">
       <label for="start-target-value">Starting Threshold</label>
@@ -398,7 +516,7 @@
     </div>
   {/if}
 
-  <!-- Active Days Selector -->
+  <!-- ═══ Active Days Selector ═══ -->
   <div class="form-group">
     <span id="routine-active-days-label" class="label">Active Days</span>
     <div
@@ -422,6 +540,7 @@
         </button>
       {/each}
     </div>
+    <!-- Quick-select presets -->
     <div class="quick-select">
       <button
         type="button"
@@ -450,6 +569,7 @@
     </div>
   </div>
 
+  <!-- ═══ Date Range ═══ -->
   <div class="form-row">
     <div class="form-group">
       <label for="start-date">Start Date</label>
@@ -479,6 +599,7 @@
     </div>
   </div>
 
+  <!-- ═══ Summary Help Text ═══ -->
   <p class="help-text">
     {#if hasEndDate}
       This routine will be active on <strong>{activeDaysDescription()}</strong> from {startDate} to {endDate}.
@@ -487,6 +608,7 @@
     {/if}
   </p>
 
+  <!-- ═══ Form Actions ═══ -->
   <div class="form-actions">
     {#if onCancel}
       <button type="button" class="btn btn-secondary" onclick={onCancel}> Cancel </button>
@@ -497,7 +619,13 @@
   </div>
 </form>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Styles
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <style>
+  /* ═══ Form Layout ═══ */
+
   .routine-form {
     display: flex;
     flex-direction: column;
@@ -531,6 +659,8 @@
     }
   }
 
+  /* ═══ Goal Type Toggle Buttons ═══ */
+
   .type-toggle {
     display: flex;
     gap: 0.75rem;
@@ -551,6 +681,7 @@
     overflow: hidden;
   }
 
+  /* Gradient overlay — visible only when active */
   .type-btn::before {
     content: '';
     position: absolute;
@@ -625,11 +756,13 @@
     font-weight: 600;
   }
 
+  /* Mobile: single-letter abbreviation */
   .day-btn .day-short {
     display: block;
     font-size: 0.875rem;
   }
 
+  /* Desktop: 3-letter abbreviation — hidden on small screens */
   .day-btn .day-full {
     display: none;
     font-size: 0.6875rem;
@@ -653,7 +786,7 @@
     background: linear-gradient(135deg, rgba(108, 92, 231, 0.4) 0%, rgba(108, 92, 231, 0.2) 100%);
   }
 
-  /* Larger screens - show full day name */
+  /* Larger screens — show full day name instead of single letter */
   @media (min-width: 480px) {
     .day-btn {
       height: 52px;
@@ -669,7 +802,8 @@
     }
   }
 
-  /* Quick select buttons */
+  /* ═══ Quick-Select Preset Buttons ═══ */
+
   .quick-select {
     display: flex;
     gap: 0.5rem;
@@ -745,6 +879,8 @@
     margin: 0;
   }
 
+  /* ═══ Summary / Help Text ═══ */
+
   .help-text {
     font-size: 0.875rem;
     color: var(--color-text-muted);
@@ -759,6 +895,8 @@
     color: var(--color-primary-light);
     font-weight: 600;
   }
+
+  /* ═══ Form Actions ═══ */
 
   .form-actions {
     display: flex;

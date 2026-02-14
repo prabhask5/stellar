@@ -1,9 +1,37 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  Stellar — Privacy Policy Page
+  ═══════════════════════════════════════════════════════════════════════════════
+
+  A visually immersive privacy policy page with a full cosmic background —
+  animated starfields, nebula clouds, orbital rings, shooting stars, and
+  floating particles. The actual policy content is minimal (self-hosted app,
+  no data sold) but the presentation matches Stellar's space theme.
+
+  Layout:
+    - Fixed full-screen container with deep-space gradient background
+    - Three layers of parallax star fields (small, medium, large)
+    - Three nebula blobs with pulsing/floating animations
+    - Three concentric orbital rings with orbiting particles
+    - Three shooting stars on staggered timers
+    - 15 randomly-positioned floating particles
+    - Centered content card with fade-in entrance animation
+
+  Accessibility:
+    - All animations disabled under `prefers-reduced-motion: reduce`
+    - Content uses `clamp()` for fluid responsive typography
+
+  ═══════════════════════════════════════════════════════════════════════════════
+-->
+
 <script lang="ts">
   import { onMount } from 'svelte';
 
+  /** Controls the fade-in entrance animation for the content card */
   let isVisible = $state(false);
 
   onMount(() => {
+    /* Short delay before revealing content — lets the cosmic background render first */
     setTimeout(() => (isVisible = true), 100);
   });
 </script>
@@ -14,19 +42,25 @@
 </svelte:head>
 
 <div class="policy-container">
-  <!-- Animated Star Field -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       Animated Star Field — three layers at different sizes/speeds for parallax
+       ═══════════════════════════════════════════════════════════════════════════ -->
   <div class="starfield">
     <div class="stars stars-small"></div>
     <div class="stars stars-medium"></div>
     <div class="stars stars-large"></div>
   </div>
 
-  <!-- Nebula Effects -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       Nebula Effects — large blurred gradient blobs that pulse and float
+       ═══════════════════════════════════════════════════════════════════════════ -->
   <div class="nebula nebula-1"></div>
   <div class="nebula nebula-2"></div>
   <div class="nebula nebula-3"></div>
 
-  <!-- Orbital Rings -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       Orbital Rings — concentric circles with glowing particles tracing paths
+       ═══════════════════════════════════════════════════════════════════════════ -->
   <div class="orbital-system">
     <div class="orbit orbit-1"></div>
     <div class="orbit orbit-2"></div>
@@ -36,12 +70,15 @@
     <div class="orbit-particle particle-3"></div>
   </div>
 
-  <!-- Shooting Stars -->
+  <!-- Shooting Stars — brief streaks that fire on staggered intervals -->
   <div class="shooting-star shooting-star-1"></div>
   <div class="shooting-star shooting-star-2"></div>
   <div class="shooting-star shooting-star-3"></div>
 
-  <!-- Floating Particles -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       Floating Particles — 15 randomly-positioned dots with CSS custom
+       properties for staggered animation timing, position, and size
+       ═══════════════════════════════════════════════════════════════════════════ -->
   <div class="particles">
     {#each Array(15) as _, _i (_i)}
       <span
@@ -58,8 +95,11 @@
     {/each}
   </div>
 
-  <!-- Content -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       Content Card — the actual privacy policy text with fade-in entrance
+       ═══════════════════════════════════════════════════════════════════════════ -->
   <div class="content" class:visible={isVisible}>
+    <!-- Ambient glow behind the text — pulsing purple/pink radial gradient -->
     <div class="content-glow"></div>
     <h1 class="title">Privacy</h1>
     <p class="policy-text">
@@ -86,10 +126,14 @@
 </div>
 
 <style>
+  /* ═══════════════════════════════════════════════════════════════════════════════
+     CONTAINER — Full-screen deep-space backdrop
+     ═══════════════════════════════════════════════════════════════════════════════ */
+
   .policy-container {
     position: fixed;
     inset: 0;
-    top: 64px;
+    top: 64px; /* Offset below the app header bar */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -103,7 +147,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     STAR FIELD
+     STAR FIELD — Three-layer parallax starfield using repeating radial gradients
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .starfield {
@@ -118,6 +162,7 @@
     background-repeat: repeat;
   }
 
+  /* Layer 1 — Small white stars, fastest drift, 200px tile */
   .stars-small {
     background-image:
       radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.8) 0%, transparent 100%),
@@ -132,6 +177,7 @@
     animation: starsDrift 100s linear infinite;
   }
 
+  /* Layer 2 — Medium colored stars (purple, pink, green, cyan), 300px tile */
   .stars-medium {
     background-image:
       radial-gradient(1.5px 1.5px at 20% 30%, rgba(108, 92, 231, 0.9) 0%, transparent 100%),
@@ -142,6 +188,7 @@
     animation: starsDrift 150s linear infinite reverse;
   }
 
+  /* Layer 3 — Large bright stars with twinkle + drift, 400px tile */
   .stars-large {
     background-image:
       radial-gradient(2px 2px at 25% 25%, rgba(255, 255, 255, 1) 0%, transparent 100%),
@@ -153,6 +200,7 @@
       starsDrift 200s linear infinite;
   }
 
+  /* Slow diagonal drift — creates the illusion of drifting through space */
   @keyframes starsDrift {
     from {
       transform: translateY(0) translateX(0);
@@ -162,6 +210,7 @@
     }
   }
 
+  /* Gentle opacity oscillation for large stars */
   @keyframes starsTwinkle {
     0%,
     100% {
@@ -173,17 +222,18 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     NEBULA EFFECTS
+     NEBULA EFFECTS — Large blurred gradient blobs that pulse and float
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .nebula {
     position: absolute;
     border-radius: 50%;
-    filter: blur(80px);
+    filter: blur(80px); /* Heavy blur creates the soft cloud look */
     opacity: 0.4;
     pointer-events: none;
   }
 
+  /* Top-right purple nebula — largest, anchors the scene */
   .nebula-1 {
     width: 600px;
     height: 600px;
@@ -195,6 +245,7 @@
       nebulaFloat 20s ease-in-out infinite;
   }
 
+  /* Bottom-left pink nebula — staggered 2s delay */
   .nebula-2 {
     width: 500px;
     height: 500px;
@@ -206,6 +257,7 @@
       nebulaFloat 25s ease-in-out infinite reverse;
   }
 
+  /* Center green nebula — subtler, 4s delay */
   .nebula-3 {
     width: 400px;
     height: 400px;
@@ -216,6 +268,7 @@
     animation: nebulaPulse 12s ease-in-out infinite 4s;
   }
 
+  /* Breathe in/out — opacity + scale oscillation */
   @keyframes nebulaPulse {
     0%,
     100% {
@@ -228,6 +281,7 @@
     }
   }
 
+  /* Gentle wandering drift path */
   @keyframes nebulaFloat {
     0%,
     100% {
@@ -242,7 +296,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     ORBITAL SYSTEM
+     ORBITAL SYSTEM — Concentric rings with glowing particles tracing orbits
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .orbital-system {
@@ -262,12 +316,14 @@
     transform: translate(-50%, -50%);
   }
 
+  /* Inner orbit — 300px diameter, 30s rotation */
   .orbit-1 {
     width: 300px;
     height: 300px;
     animation: orbitRotate 30s linear infinite;
   }
 
+  /* Middle orbit — 500px diameter, 50s rotation (reversed) */
   .orbit-2 {
     width: 500px;
     height: 500px;
@@ -275,6 +331,7 @@
     animation: orbitRotate 50s linear infinite reverse;
   }
 
+  /* Outer orbit — 700px diameter, 70s rotation */
   .orbit-3 {
     width: 700px;
     height: 700px;
@@ -291,6 +348,7 @@
     }
   }
 
+  /* Glowing dots that trace along each orbit ring */
   .orbit-particle {
     position: absolute;
     width: 6px;
@@ -300,6 +358,7 @@
     left: 50%;
   }
 
+  /* Purple particle on the inner orbit — double-glow box-shadow */
   .particle-1 {
     background: var(--color-primary);
     box-shadow:
@@ -308,6 +367,7 @@
     animation: orbitParticle1 30s linear infinite;
   }
 
+  /* Pink particle on the middle orbit — smaller (4px), reversed direction */
   .particle-2 {
     background: var(--color-accent);
     box-shadow:
@@ -318,6 +378,7 @@
     height: 4px;
   }
 
+  /* Green particle on the outer orbit — 5px size */
   .particle-3 {
     background: var(--color-success);
     box-shadow:
@@ -327,6 +388,9 @@
     width: 5px;
     height: 5px;
   }
+
+  /* Orbit particle keyframes — rotate(angle) translateX(radius) rotate(-angle)
+     keeps the particle upright while tracing a circular path */
 
   @keyframes orbitParticle1 {
     from {
@@ -356,7 +420,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     SHOOTING STARS
+     SHOOTING STARS — Brief bright streaks that fire on staggered intervals
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .shooting-star {
@@ -374,6 +438,7 @@
     pointer-events: none;
   }
 
+  /* Three shooting stars at different positions and stagger offsets */
   .shooting-star-1 {
     top: 15%;
     left: 10%;
@@ -385,16 +450,17 @@
     top: 35%;
     right: 20%;
     transform: rotate(-40deg);
-    animation: shootingStar 12s ease-in-out infinite 3s;
+    animation: shootingStar 12s ease-in-out infinite 3s; /* 3s stagger */
   }
 
   .shooting-star-3 {
     bottom: 30%;
     left: 30%;
     transform: rotate(-30deg);
-    animation: shootingStar 10s ease-in-out infinite 6s;
+    animation: shootingStar 10s ease-in-out infinite 6s; /* 6s stagger */
   }
 
+  /* Quick flash-and-streak — visible for only ~6% of the cycle */
   @keyframes shootingStar {
     0%,
     90%,
@@ -416,7 +482,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     FLOATING PARTICLES
+     FLOATING PARTICLES — Randomly-positioned dots with CSS custom property animation
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .particles {
@@ -426,6 +492,8 @@
     overflow: hidden;
   }
 
+  /* Each particle reads its unique `--x-start`, `--y-start`, `--size`,
+     `--opacity`, `--delay`, and `--duration` from inline styles set in the template */
   .particle {
     position: absolute;
     left: var(--x-start);
@@ -438,6 +506,7 @@
     animation: particleFloat var(--duration) ease-in-out var(--delay) infinite;
   }
 
+  /* Gentle looping drift path — up, sideways, and slightly brighter at midpoint */
   @keyframes particleFloat {
     0%,
     100% {
@@ -449,7 +518,7 @@
     }
     50% {
       transform: translateY(-50px) translateX(-10px);
-      opacity: calc(var(--opacity) * 1.5);
+      opacity: calc(var(--opacity) * 1.5); /* Brighten at apex */
     }
     75% {
       transform: translateY(-20px) translateX(20px);
@@ -457,7 +526,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     CONTENT
+     CONTENT — Centered policy text with fade-in entrance animation
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .content {
@@ -466,6 +535,7 @@
     text-align: center;
     padding: 2rem;
     max-width: 500px;
+    /* Start hidden and offset — `.visible` class triggers the transition */
     opacity: 0;
     transform: translateY(30px) scale(0.95);
     transition:
@@ -478,6 +548,7 @@
     transform: translateY(0) scale(1);
   }
 
+  /* Ambient purple/pink glow behind the text — pulsing radial gradient */
   .content-glow {
     position: absolute;
     top: 50%;
@@ -508,9 +579,10 @@
     }
   }
 
+  /* Page title — multi-stop gradient text with animated shimmer sweep */
   .title {
     position: relative;
-    font-size: clamp(3rem, 10vw, 5rem);
+    font-size: clamp(3rem, 10vw, 5rem); /* Fluid responsive sizing */
     font-weight: 800;
     letter-spacing: -0.03em;
     margin: 0 0 1.5rem;
@@ -538,6 +610,7 @@
     }
   }
 
+  /* Policy body text — muted color, fluid font size */
   .policy-text {
     font-size: clamp(1rem, 3vw, 1.25rem);
     color: var(--color-text-muted);
@@ -546,6 +619,7 @@
     margin: 0 0 2rem;
   }
 
+  /* "Back to Stellar" navigation link with arrow icon hover animation */
   .back-link {
     display: inline-flex;
     align-items: center;
@@ -561,6 +635,7 @@
     color: var(--color-primary-light);
   }
 
+  /* Arrow slides left on hover for a "go back" visual cue */
   .back-link:hover svg {
     transform: translateX(-4px);
   }
@@ -570,9 +645,10 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     RESPONSIVE
+     RESPONSIVE — Scale down cosmic elements for smaller viewports
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
+  /* Tablet breakpoint — shrink orbits and nebulae */
   @media (max-width: 768px) {
     .orbit-1 {
       width: 200px;
@@ -587,6 +663,7 @@
       height: 500px;
     }
 
+    /* Reduce orbit radii to match smaller ring sizes */
     @keyframes orbitParticle1 {
       from {
         transform: rotate(0deg) translateX(100px) rotate(0deg);
@@ -628,10 +705,11 @@
     }
   }
 
+  /* Mobile breakpoint — adjust container for safe areas and bottom nav */
   @media (max-width: 640px) {
     .policy-container {
-      top: calc(env(safe-area-inset-top, 47px) + 20px);
-      bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+      top: calc(env(safe-area-inset-top, 47px) + 20px); /* Below notch/Dynamic Island */
+      bottom: calc(60px + env(safe-area-inset-bottom, 0px)); /* Above bottom nav bar */
     }
 
     .content {
@@ -639,6 +717,7 @@
     }
   }
 
+  /* Small phone breakpoint — reduce shooting star and glow sizes */
   @media (max-width: 480px) {
     .shooting-star {
       width: 60px;
@@ -650,7 +729,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     REDUCED MOTION
+     REDUCED MOTION — Disable all animations for accessibility
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @media (prefers-reduced-motion: reduce) {
@@ -665,6 +744,7 @@
       animation: none;
     }
 
+    /* Keep the fade-in but remove the transform for content entrance */
     .content {
       transition: opacity 0.3s ease-out;
       transform: none;

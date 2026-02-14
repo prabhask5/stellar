@@ -1,22 +1,58 @@
 <script lang="ts">
+  /**
+   * @fileoverview LongTermTaskList — renders a grouped list of long-term tasks.
+   *
+   * Each instance represents a single section (e.g. "Overdue", "Due Today",
+   * "Upcoming", or "Completed") with a coloured title and task rows.  Tasks
+   * can be toggled complete, clicked for details, or deleted.
+   *
+   * Key behaviours:
+   * - Reminders show a bell icon instead of a checkbox.
+   * - Tasks display name, due date, and optional category tag.
+   * - `remoteChangeAnimation` highlights rows updated by another device.
+   * - `triggerLocalAnimation` gives instant visual feedback on toggle.
+   * - The list auto-hides when it has zero tasks.
+   */
+
   import { remoteChangeAnimation, triggerLocalAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
   import type { LongTermTaskWithCategory } from '$lib/types';
 
+  // =============================================================================
+  //                                  Props
+  // =============================================================================
+
   interface Props {
+    /** Section heading text (e.g. "Overdue", "Due Today") */
     title: string;
+    /** Tasks to render in this section */
     tasks: LongTermTaskWithCategory[];
+    /** Visual variant — controls accent colours on the title and row borders */
     variant?: 'overdue' | 'due-today' | 'upcoming' | 'completed';
+    /** Open the task detail modal for a given task */
     onTaskClick: (task: LongTermTaskWithCategory) => void;
+    /** Toggle a task's completion status */
     onToggle: (id: string) => void;
+    /** Delete a task by ID */
     onDelete: (id: string) => void;
   }
 
   let { title, tasks, variant = 'upcoming', onTaskClick, onToggle, onDelete }: Props = $props();
 
-  // Track element references by task id
+  // =============================================================================
+  //                      Element Registration (for animations)
+  // =============================================================================
+
+  /** Map of task ID → DOM element reference for `triggerLocalAnimation` */
   let taskElements: Record<string, HTMLElement> = {};
 
+  /**
+   * Svelte action — registers the DOM element for a task row so we can
+   * trigger local animations on it later.
+   * @param {HTMLElement} node - The task row DOM element
+   * @param {string} id       - The task's unique ID
+   * @returns {{ destroy: () => void }} Cleanup function
+   */
   function registerElement(node: HTMLElement, id: string) {
     taskElements[id] = node;
     return {
@@ -26,6 +62,14 @@
     };
   }
 
+  // =============================================================================
+  //                          Event Handlers
+  // =============================================================================
+
+  /**
+   * Toggle completion for a task, with an immediate local animation.
+   * @param {string} taskId - The task to toggle
+   */
   function handleToggle(taskId: string) {
     const element = taskElements[taskId];
     if (element) {
@@ -34,11 +78,24 @@
     onToggle(taskId);
   }
 
+  // =============================================================================
+  //                          Utility Functions
+  // =============================================================================
+
+  /**
+   * Format an ISO date string into a short human-readable label (e.g. "Feb 13").
+   * @param {string} dateStr - ISO date string (`YYYY-MM-DD`)
+   * @returns {string} Formatted date
+   */
   function formatDate(dateStr: string): string {
     const date = new Date(dateStr + 'T00:00:00');
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 </script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Template — Task List Section
+     ═══════════════════════════════════════════════════════════════════════════ -->
 
 {#if tasks.length > 0}
   <div
@@ -55,6 +112,7 @@
           use:registerElement={task.id}
           use:remoteChangeAnimation={{ entityId: task.id, entityType: 'long_term_agenda' }}
         >
+          <!-- ═══ Reminder Bell / Completion Checkbox ═══ -->
           {#if task.type === 'reminder'}
             <span class="bell-icon" aria-label="Reminder">
               <svg
@@ -91,6 +149,7 @@
             </button>
           {/if}
 
+          <!-- ═══ Task Info (name + meta row) ═══ -->
           <button class="task-info" onclick={() => onTaskClick(task)}>
             <span class="task-name" class:completed={task.completed} use:truncateTooltip
               >{task.name}</span
@@ -113,6 +172,7 @@
             </span>
           </button>
 
+          <!-- ═══ Delete Button (visible on hover) ═══ -->
           <button class="delete-btn" onclick={() => onDelete(task.id)} aria-label="Delete task">
             <svg
               width="16"
@@ -132,7 +192,13 @@
   </div>
 {/if}
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Styles
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <style>
+  /* ═══ List Container ═══ */
+
   .task-list {
     margin-top: 1.5rem;
   }
@@ -146,6 +212,7 @@
     margin-bottom: 0.75rem;
   }
 
+  /* Variant-specific title colours */
   .task-list.overdue .list-title {
     color: var(--color-red);
   }
@@ -164,6 +231,8 @@
     gap: 0.5rem;
   }
 
+  /* ═══ Task Row ═══ */
+
   .task-row {
     display: flex;
     align-items: center;
@@ -175,6 +244,7 @@
     transition: all 0.3s var(--ease-out);
   }
 
+  /* Variant-specific row accents — coloured left border + tinted background */
   .task-list.overdue .task-row {
     border-left: 3px solid var(--color-red);
     background: linear-gradient(135deg, rgba(255, 107, 107, 0.05) 0%, rgba(20, 20, 40, 0.9) 100%);
@@ -201,6 +271,8 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
 
+  /* ═══ Reminder Bell Icon ═══ */
+
   .bell-icon {
     width: 22px;
     height: 22px;
@@ -211,6 +283,8 @@
     color: var(--color-primary-light);
     opacity: 0.7;
   }
+
+  /* ═══ Completion Checkbox ═══ */
 
   .checkbox {
     width: 22px;
@@ -236,6 +310,8 @@
     background: var(--color-green);
     border-color: var(--color-green);
   }
+
+  /* ═══ Task Info Button ═══ */
 
   .task-info {
     flex: 1;
@@ -278,6 +354,7 @@
     font-weight: 500;
   }
 
+  /* Variant-specific due-date colours */
   .task-list.overdue .due-date {
     color: var(--color-red);
   }
@@ -285,6 +362,8 @@
   .task-list.due-today .due-date {
     color: var(--color-yellow);
   }
+
+  /* ═══ Category Tag Chip ═══ */
 
   .category-tag {
     position: relative;
@@ -297,6 +376,8 @@
     color: white;
     white-space: nowrap;
   }
+
+  /* ═══ Delete Button (hover-reveal) ═══ */
 
   .delete-btn {
     width: 40px;
@@ -329,6 +410,8 @@
     background: rgba(255, 107, 107, 0.2);
   }
 
+  /* ═══ Mobile Adjustments ═══ */
+
   @media (max-width: 480px) {
     .task-row {
       padding: 0.5rem 0.75rem;
@@ -348,6 +431,7 @@
       padding: 0.125rem 0.375rem;
     }
 
+    /* Always show delete on mobile since there's no hover */
     .delete-btn {
       width: 36px;
       height: 36px;

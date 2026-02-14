@@ -1,17 +1,47 @@
 <script lang="ts">
+  /**
+   * @fileoverview Focus session transport controls — play, pause, stop, and skip.
+   *
+   * Renders a context-sensitive control bar for the Pomodoro focus timer:
+   * - **No session** — shows a single "Start Focus" button
+   * - **Active session** — shows stop / play-pause / skip arranged in a row,
+   *   plus a phase badge indicating whether the user is in a focus or break phase
+   *
+   * The component also supports `stateTransition` classes that trigger CSS
+   * animations for remote-sync visual feedback (e.g., when another device
+   * starts or pauses the timer).
+   */
+
   import type { FocusSession } from '$lib/types';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Current focus session object — `null` when no session is active */
     session: FocusSession | null;
+    /** Whether the timer is currently counting down */
     isRunning: boolean;
+    /** Milliseconds remaining in the current phase */
     remainingMs: number;
+    /** Transition state for remote-sync animations — drives CSS class bindings */
     stateTransition?: 'none' | 'starting' | 'pausing' | 'resuming' | 'stopping' | null;
+    /** Callback → start a new focus session */
     onStart: () => void;
+    /** Callback → pause the running timer */
     onPause: () => void;
+    /** Callback → resume a paused timer */
     onResume: () => void;
+    /** Callback → stop and end the entire session */
     onStop: () => void;
+    /** Callback → skip to the next phase (focus → break or break → focus) */
     onSkip: () => void;
   }
+
+  // =============================================================================
+  //  Props Destructuring
+  // =============================================================================
 
   let {
     session,
@@ -25,10 +55,16 @@
     onSkip
   }: Props = $props();
 
+  // =============================================================================
+  //  Derived State
+  // =============================================================================
+
+  /** Whether an active (non-stopped) session exists — controls which UI branch renders */
   // Can go back only in first 30 seconds of a phase
   const hasSession = $derived(!!session && session.status !== 'stopped');
 </script>
 
+<!-- ═══ Controls Container ═══ -->
 <div
   class="controls"
   class:transition-starting={stateTransition === 'starting'}
@@ -37,7 +73,7 @@
   class:transition-stopping={stateTransition === 'stopping'}
 >
   {#if !hasSession}
-    <!-- No session - show start button -->
+    <!-- No session — show start button -->
     <button class="control-btn primary large" onclick={onStart} aria-label="Start focus session">
       <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
         <polygon points="5,3 19,12 5,21" />
@@ -45,16 +81,16 @@
       <span>Start Focus</span>
     </button>
   {:else}
-    <!-- Active session controls -->
+    <!-- ═══ Active Session Controls ═══ -->
     <div class="control-row">
-      <!-- Stop button -->
+      <!-- Stop button — ends the session entirely -->
       <button class="control-btn stop" onclick={onStop} aria-label="Stop session">
         <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
           <rect x="5" y="5" width="14" height="14" rx="2" />
         </svg>
       </button>
 
-      <!-- Main play/pause button -->
+      <!-- Main play/pause toggle — swaps icon based on `isRunning` -->
       {#if isRunning}
         <button
           class="control-btn primary"
@@ -80,7 +116,7 @@
         </button>
       {/if}
 
-      <!-- Skip button -->
+      <!-- Skip button — advances to the next phase -->
       <button class="control-btn skip" onclick={onSkip} aria-label="Skip to next phase">
         <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
           <polygon points="5,4 15,12 5,20" />
@@ -89,7 +125,7 @@
       </button>
     </div>
 
-    <!-- Phase info -->
+    <!-- ═══ Phase Badge ═══ -->
     {#if session}
       <div class="phase-info">
         {#if session.phase === 'focus'}
@@ -103,6 +139,8 @@
 </div>
 
 <style>
+  /* ═══ Layout ═══ */
+
   .controls {
     display: flex;
     flex-direction: column;
@@ -117,6 +155,8 @@
     align-items: center;
     gap: 1rem;
   }
+
+  /* ═══ Base Button ═══ */
 
   .control-btn {
     display: flex;
@@ -139,7 +179,8 @@
     transform: scale(0.95);
   }
 
-  /* Primary button (play/pause) */
+  /* ═══ Primary Button (Play / Pause) ═══ */
+
   .control-btn.primary {
     width: 72px;
     height: 72px;
@@ -152,6 +193,7 @@
     box-shadow: 0 6px 30px var(--color-primary-glow);
   }
 
+  /* "Start Focus" variant — wider with text label */
   .control-btn.primary.large {
     width: auto;
     padding: 1rem 2rem;
@@ -163,7 +205,8 @@
     margin-left: 0.5rem;
   }
 
-  /* Stop button */
+  /* ═══ Stop Button ═══ */
+
   .control-btn.stop {
     width: 48px;
     height: 48px;
@@ -177,7 +220,8 @@
     border-color: rgba(255, 107, 107, 0.5);
   }
 
-  /* Skip button */
+  /* ═══ Skip Button ═══ */
+
   .control-btn.skip {
     width: 48px;
     height: 48px;
@@ -191,7 +235,8 @@
     border-color: rgba(108, 92, 231, 0.5);
   }
 
-  /* Phase info */
+  /* ═══ Phase Badge ═══ */
+
   .phase-info {
     margin-top: 0.5rem;
   }
@@ -217,7 +262,8 @@
     color: #26de81;
   }
 
-  /* Responsive */
+  /* ═══ Responsive ═══ */
+
   @media (max-width: 400px) {
     .control-btn.primary {
       width: 64px;
@@ -239,7 +285,7 @@
      REMOTE SYNC TRANSITION ANIMATIONS
      ═══════════════════════════════════════════════════════════════════════════════ */
 
-  /* Button state change animation */
+  /* Button pop — plays when a remote device changes state (e.g., pause → resume) */
   .control-btn.primary.remote-changed {
     animation: buttonPop 0.5s var(--ease-spring);
   }
@@ -259,7 +305,7 @@
     }
   }
 
-  /* Starting transition - controls fade in */
+  /* Starting transition — controls fade in from below */
   .controls.transition-starting {
     animation: controlsFadeIn 0.5s var(--ease-out);
   }
@@ -275,7 +321,7 @@
     }
   }
 
-  /* Pausing transition - pause icon pulse */
+  /* Pausing transition — primary button color pulse */
   .controls.transition-pausing .control-btn.primary {
     animation: pausePulse 0.5s var(--ease-out);
   }
@@ -293,7 +339,7 @@
     }
   }
 
-  /* Resuming transition - energize */
+  /* Resuming transition — energize bounce on primary button */
   .controls.transition-resuming .control-btn.primary {
     animation: resumeEnergize 0.5s var(--ease-spring);
   }
@@ -313,7 +359,7 @@
     }
   }
 
-  /* Stopping transition - fade to start button */
+  /* Stopping transition — brief scale-down fade then recover */
   .controls.transition-stopping {
     animation: controlsTransition 0.5s var(--ease-out);
   }
@@ -332,7 +378,7 @@
     }
   }
 
-  /* Shimmer effect on remote state change */
+  /* Shimmer glow — radial burst behind controls on start / resume */
   .controls.transition-starting::after,
   .controls.transition-resuming::after {
     content: '';

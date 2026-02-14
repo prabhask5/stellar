@@ -1,4 +1,19 @@
 <script lang="ts">
+  /**
+   * @fileoverview **Routines** — Daily routines management page with calendar.
+   *
+   * Displays a monthly calendar coloured by routine-completion percentage
+   * (red → yellow → green), plus a "Manage Routines" section below with
+   * active / inactive routine groups and drag-and-drop reordering.
+   *
+   * Clicking a calendar day navigates to `/routines/:date` for that day's
+   * progress tracking.
+   */
+
+  // =============================================================================
+  //                               IMPORTS
+  // =============================================================================
+
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
@@ -19,6 +34,10 @@
   import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
+  // =============================================================================
+  //                         COMPONENT STATE
+  // =============================================================================
+
   let currentDate = $state(new Date());
   let loading = $state(true);
   let routinesLoading = $state(true);
@@ -27,10 +46,22 @@
   let routines = $state<DailyRoutineGoal[]>([]);
   let showCreateModal = $state(false);
 
+  /** Today's date as `YYYY-MM-DD` — used for active/inactive filtering */
   const today = formatDate(new Date());
 
-  // Helper to display active days as a short string
+  // =============================================================================
+  //                           HELPERS
+  // =============================================================================
+
+  /** Single-character day-of-week labels for compact display */
   const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  /**
+   * Format an `active_days` array into a human-readable short string
+   * (e.g., "Every day", "Weekdays", "M W F").
+   * @param activeDays - Array of day-of-week numbers, or `null` for every day
+   * @returns Display string
+   */
   function getActiveDaysDisplay(activeDays: DayOfWeek[] | null | undefined): string {
     // null or undefined means all days (backwards compatible with existing routines)
     if (activeDays == null || activeDays.length === 0) return 'Every day';
@@ -47,7 +78,14 @@
       .join(' ');
   }
 
-  // Derive dayProgressMap from store, filtering for past days and today only
+  // =============================================================================
+  //                       DERIVED DATA
+  // =============================================================================
+
+  /**
+   * Filtered day-progress map — only includes past days and today.
+   * Future days are excluded so the calendar doesn't show misleading 0% cells.
+   */
   const dayProgressMap = $derived(() => {
     const filteredMap = new Map<string, DayProgress>();
 
@@ -61,10 +99,16 @@
     return filteredMap;
   });
 
+  /** Routines whose date range and active-days include today */
   const activeRoutines = $derived(routines.filter((r) => isRoutineActiveOnDate(r, today)));
+  /** Routines that are not scheduled for today */
   const inactiveRoutines = $derived(routines.filter((r) => !isRoutineActiveOnDate(r, today)));
 
-  // Subscribe to stores
+  // =============================================================================
+  //                    STORE SUBSCRIPTIONS
+  // =============================================================================
+
+  /** Subscribe to the month-progress store for calendar data. */
   $effect(() => {
     const unsubStore = monthProgressStore.subscribe((value) => {
       if (value) {
@@ -81,6 +125,7 @@
     };
   });
 
+  /** Subscribe to the daily-routines store for the "Manage Routines" section. */
   $effect(() => {
     const unsubRoutines = dailyRoutinesStore.subscribe((value) => {
       routines = value;
@@ -95,6 +140,15 @@
     };
   });
 
+  // =============================================================================
+  //                           LIFECYCLE
+  // =============================================================================
+
+  /**
+   * Bootstrap — load calendar progress and routine list in parallel.
+   * Also cleans up `#manage-routines` hash if the user arrived from
+   * the edit page (browser already scrolled, so we just tidy the URL).
+   */
   onMount(async () => {
     await Promise.all([loadCalendarData(), dailyRoutinesStore.load()]);
 
@@ -105,10 +159,19 @@
     }
   });
 
+  /** Tear down — release month-progress store data on unmount. */
   onDestroy(() => {
     monthProgressStore.clear();
   });
 
+  // =============================================================================
+  //                       EVENT HANDLERS
+  // =============================================================================
+
+  /**
+   * Fetch month-progress data for the currently selected month.
+   * Sets `error` on failure so the error banner displays.
+   */
   async function loadCalendarData() {
     try {
       error = null;
@@ -118,15 +181,28 @@
     }
   }
 
+  /**
+   * Calendar month navigation — update `currentDate` and reload progress.
+   * @param newDate - The first day of the newly selected month
+   */
   async function handleMonthChange(newDate: Date) {
     currentDate = newDate;
     await loadCalendarData();
   }
 
+  /**
+   * Calendar day click — navigate to the daily progress page.
+   * @param date - The clicked calendar date
+   */
   function handleDayClick(date: Date) {
     goto(`/routines/${formatDate(date)}`);
   }
 
+  /**
+   * Create a new daily routine via the store, then refresh calendar
+   * data to reflect the newly added routine.
+   * @param data - Routine creation payload from `RoutineForm`
+   */
   async function handleCreateRoutine(data: {
     name: string;
     type: GoalType;
@@ -164,6 +240,10 @@
     }
   }
 
+  /**
+   * Delete a routine after user confirmation, then refresh calendar.
+   * @param id - UUID of the routine to remove
+   */
   async function handleDeleteRoutine(id: string) {
     if (!confirm('Delete this routine? All associated progress data will be lost.')) return;
 
@@ -176,10 +256,19 @@
     }
   }
 
+  /**
+   * Navigate to the routine edit page.
+   * @param id - UUID of the routine to edit
+   */
   function navigateToEdit(id: string) {
     goto(`/routines/${id}`);
   }
 
+  /**
+   * Persist a drag-and-drop reorder of a routine within its group.
+   * @param routineId - UUID of the dragged routine
+   * @param newOrder  - Zero-based target position
+   */
   async function handleReorderRoutine(routineId: string, newOrder: number) {
     try {
       await dailyRoutinesStore.reorder(routineId, newOrder);
@@ -193,6 +282,9 @@
   <title>Calendar - Stellar Planner</title>
 </svelte:head>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Page Header — Title + "Today's Routines" / "+ New Routine" actions
+     ═══════════════════════════════════════════════════════════════════════════ -->
 <div class="container">
   <header class="page-header">
     <h1>Daily Routines</h1>
@@ -213,6 +305,7 @@
     </div>
   {/if}
 
+  <!-- ═══ Calendar — skeleton → live component ═══ -->
   {#if loading}
     <!-- Calendar Skeleton -->
     <div class="calendar-skeleton">
@@ -259,7 +352,9 @@
     </div>
   {/if}
 
-  <!-- Routines Section -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       Manage Routines — Active / Inactive groups with drag-and-drop
+       ═══════════════════════════════════════════════════════════════════════════ -->
   <section id="manage-routines" class="routines-section">
     <h2>Manage Routines</h2>
 
@@ -296,6 +391,7 @@
         </button>
       </EmptyState>
     {:else}
+      <!-- ═══ Active routines group — draggable cards ═══ -->
       {#if activeRoutines.length > 0}
         <div class="routine-group">
           <h3>Active ({activeRoutines.length})</h3>
@@ -360,6 +456,7 @@
         </div>
       {/if}
 
+      <!-- ═══ Inactive routines group — dimmed cards ═══ -->
       {#if inactiveRoutines.length > 0}
         <div class="routine-group">
           <h3>Inactive ({inactiveRoutines.length})</h3>
@@ -427,6 +524,9 @@
   </section>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Modal — Create Daily Routine
+     ═══════════════════════════════════════════════════════════════════════════ -->
 <Modal
   open={showCreateModal}
   title="Create Daily Routine"

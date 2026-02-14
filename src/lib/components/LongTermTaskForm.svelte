@@ -1,22 +1,51 @@
 <script lang="ts">
+  /**
+   * @fileoverview LongTermTaskForm — modal form for creating a new long-term task or reminder.
+   *
+   * Wraps a `Modal` and presents fields for task name, due date, and an optional
+   * **tag** (category) assignment via a custom dropdown.  Supports both standalone
+   * tags and project-owned tags (shown with a star icon).
+   *
+   * Key behaviours:
+   * - Restores previously-entered form state when returning from category creation.
+   * - Custom dropdown with "No tag", standalone tags, project tags, and "Add Tag".
+   * - Tags can be deleted inline from the dropdown (standalone only).
+   * - Category can be locked (read-only) when opened from a project context.
+   * - Auto-focuses the name input on desktop to speed up entry.
+   */
+
   import Modal from './Modal.svelte';
   import type { TaskCategory, AgendaItemType } from '$lib/types';
   import { getTodayDateString } from '$lib/utils/dates';
   import { trackEditing } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
+  // =============================================================================
+  //                                  Props
+  // =============================================================================
+
   interface Props {
+    /** Whether the modal is currently visible */
     open: boolean;
+    /** Available tag categories the user can pick from */
     categories: TaskCategory[];
+    /** Whether to create a `task` or a `reminder` */
     type?: AgendaItemType;
+    /** Pre-fill the due-date field (ISO string) */
     defaultDate?: string;
-    // Allow restoring form state when coming back from category creation
+    /** Restore the task name when coming back from category creation */
     initialName?: string;
+    /** Restore the selected category when coming back from category creation */
     initialCategoryId?: string | null;
+    /** When `true`, the tag field is read-only (project-context usage) */
     lockedCategory?: boolean;
+    /** Close the modal */
     onClose: () => void;
+    /** Create the task — receives name, due date, and optional category ID */
     onCreate: (name: string, dueDate: string, categoryId: string | null) => void;
+    /** Delete a standalone tag from the dropdown */
     onDeleteCategory: (id: string) => void;
+    /** Switch to the "create category" flow, preserving current form state */
     onRequestCreateCategory: (formState: {
       name: string;
       dueDate: string;
@@ -38,27 +67,49 @@
     onRequestCreateCategory
   }: Props = $props();
 
+  // =============================================================================
+  //                          Derived Labels
+  // =============================================================================
+
+  /** Dynamic modal title based on item type */
   const modalTitle = $derived(type === 'task' ? 'New Long-term Task' : 'New Long-term Reminder');
+
+  /** Dynamic submit button label */
   const submitLabel = $derived(type === 'task' ? 'Create Task' : 'Create Reminder');
 
-  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
+  // =============================================================================
+  //                          Utility Actions
+  // =============================================================================
+
+  /**
+   * Svelte action — auto-focuses the node on desktop to avoid triggering the
+   * mobile keyboard popup on small screens.
+   * @param {HTMLElement} node - The element to focus
+   */
   function focus(node: HTMLElement) {
     if (window.innerWidth > 640) {
       node.focus();
     }
   }
 
-  // Form state
+  // =============================================================================
+  //                           Form State
+  // =============================================================================
+
   let name = $state('');
   let dueDate = $state('');
   let categoryId = $state<string | null>(null);
 
-  // Dropdown state
+  /* ── Dropdown visibility ── */
   let dropdownOpen = $state(false);
 
+  /**
+   * Reset / restore form state whenever the modal opens.
+   * Uses `initialName` and `initialCategoryId` so that returning from the
+   * "create tag" flow can re-populate what the user had already typed.
+   */
   $effect(() => {
     if (open) {
-      // Restore state if provided, otherwise reset
       name = initialName || '';
       dueDate = defaultDate || getTodayString();
       categoryId = initialCategoryId;
@@ -66,10 +117,22 @@
     }
   });
 
+  /**
+   * Wrapper around the date utility — produces today's date as an ISO string.
+   * @returns {string} Today in `YYYY-MM-DD` format
+   */
   function getTodayString(): string {
     return getTodayDateString();
   }
 
+  // =============================================================================
+  //                          Event Handlers
+  // =============================================================================
+
+  /**
+   * Handle form submission — validates inputs then delegates to `onCreate`.
+   * @param {Event} e - Native submit event
+   */
   function handleSubmit(e: Event) {
     e.preventDefault();
     if (!name.trim() || !dueDate) return;
@@ -77,6 +140,10 @@
     onClose();
   }
 
+  /**
+   * Global keydown — close dropdown first on Escape, then close modal.
+   * @param {KeyboardEvent} e - Keyboard event
+   */
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       if (dropdownOpen) {
@@ -87,11 +154,21 @@
     }
   }
 
+  /**
+   * Select a category from the dropdown and close it.
+   * @param {string | null} id - Category ID or `null` for "No tag"
+   */
   function selectCategory(id: string | null) {
     categoryId = id;
     dropdownOpen = false;
   }
 
+  /**
+   * Delete a tag with confirmation, resetting `categoryId` if the deleted tag
+   * was currently selected.
+   * @param {Event} e     - Click event (propagation stopped)
+   * @param {string} id   - Category ID to delete
+   */
   function handleDeleteCategory(e: Event, id: string) {
     e.stopPropagation();
     if (confirm('Delete this tag? Tasks will keep their data but lose the tag.')) {
@@ -102,19 +179,32 @@
     }
   }
 
+  /**
+   * Transition to the "create category" flow, passing current form state
+   * so it can be restored when the user returns.
+   */
   function handleAddCategoryClick() {
     dropdownOpen = false;
-    // Pass current form state so it can be restored
     onRequestCreateCategory({ name, dueDate, categoryId });
   }
 
-  // Get selected category
+  // =============================================================================
+  //                          Derived State
+  // =============================================================================
+
+  /** The full category object matching the current `categoryId` selection */
   const selectedCategory = $derived(categories.find((c) => c.id === categoryId));
 
+  /** Tags not owned by a project — can be edited/deleted */
   const standaloneCategories = $derived(categories.filter((c) => !c.project_id));
+
+  /** Tags auto-created by a project — shown with a star icon */
   const projectCategories = $derived(categories.filter((c) => !!c.project_id));
 
-  // Close dropdown when clicking outside
+  /**
+   * Close dropdown when clicking anywhere outside the `.category-dropdown`.
+   * @param {MouseEvent} e - Window click event
+   */
   function handleClickOutside(e: MouseEvent) {
     const target = e.target as HTMLElement;
     if (!target.closest('.category-dropdown')) {
@@ -122,6 +212,10 @@
     }
   }
 </script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Template — Long-Term Task Creation Modal
+     ═══════════════════════════════════════════════════════════════════════════ -->
 
 <svelte:window onkeydown={handleKeydown} onclick={handleClickOutside} />
 
@@ -135,6 +229,7 @@
       formType: 'manual-save'
     }}
   >
+    <!-- ═══ Task Name ═══ -->
     <div class="field">
       <label class="field-label" for="task-name">Task Name</label>
       <input
@@ -147,15 +242,18 @@
       />
     </div>
 
+    <!-- ═══ Due Date ═══ -->
     <div class="field">
       <label class="field-label" for="due-date">Due Date</label>
       <input id="due-date" type="date" bind:value={dueDate} class="field-input date-input" />
     </div>
 
+    <!-- ═══ Tag / Category Selector ═══ -->
     <div class="field" class:field-dropdown={!lockedCategory}>
       <span id="task-form-tag-label" class="field-label">Tag</span>
 
       {#if lockedCategory}
+        <!-- Read-only tag display when category is locked by a project -->
         <div class="locked-tag" role="group" aria-labelledby="task-form-tag-label">
           {#if selectedCategory}
             <span class="selected-category" use:truncateTooltip>
@@ -167,7 +265,7 @@
           {/if}
         </div>
       {:else}
-        <!-- Custom Dropdown -->
+        <!-- Custom Dropdown for tag selection -->
         <div class="category-dropdown">
           <button
             type="button"
@@ -200,7 +298,7 @@
 
           {#if dropdownOpen}
             <div class="dropdown-menu">
-              <!-- No tag option -->
+              <!-- "No tag" option -->
               <button
                 type="button"
                 class="dropdown-item"
@@ -213,7 +311,7 @@
                 </span>
               </button>
 
-              <!-- Standalone tags -->
+              <!-- Standalone tags (user-created, editable) -->
               {#each standaloneCategories as cat (cat.id)}
                 <div class="dropdown-item-wrapper">
                   <button
@@ -248,7 +346,7 @@
                 </div>
               {/each}
 
-              <!-- Project tags -->
+              <!-- Project-owned tags (non-deletable from here, shown with star) -->
               {#if projectCategories.length > 0}
                 <div class="dropdown-divider"></div>
                 {#each projectCategories as cat (cat.id)}
@@ -279,7 +377,7 @@
 
               <div class="dropdown-divider"></div>
 
-              <!-- Add Tag Button -->
+              <!-- "Add Tag" action button -->
               <button
                 type="button"
                 class="dropdown-item add-category-btn"
@@ -304,6 +402,7 @@
       {/if}
     </div>
 
+    <!-- ═══ Form Actions ═══ -->
     <div class="actions">
       <button type="button" class="cancel-btn" onclick={onClose}> Cancel </button>
       <button type="submit" class="submit-btn" disabled={!name.trim() || !dueDate}>
@@ -313,7 +412,13 @@
   </form>
 </Modal>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Styles
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <style>
+  /* ═══ Form Layout ═══ */
+
   .form {
     display: flex;
     flex-direction: column;
@@ -333,6 +438,8 @@
     color: var(--color-text-muted);
     text-transform: uppercase;
   }
+
+  /* ═══ Text & Date Inputs ═══ */
 
   .field-input {
     padding: 0.875rem 1rem;
@@ -355,9 +462,12 @@
     box-shadow: 0 0 20px var(--color-primary-glow);
   }
 
+  /* Force dark color-scheme for the native date picker */
   .date-input {
     color-scheme: dark;
   }
+
+  /* ═══ Locked Tag (read-only) ═══ */
 
   .locked-tag {
     display: flex;
@@ -371,7 +481,8 @@
     opacity: 0.7;
   }
 
-  /* Custom Category Dropdown */
+  /* ═══ Custom Category Dropdown ═══ */
+
   .category-dropdown {
     position: relative;
   }
@@ -420,6 +531,8 @@
   .chevron.open {
     transform: rotate(180deg);
   }
+
+  /* ═══ Dropdown Menu (absolutely positioned) ═══ */
 
   .dropdown-menu {
     position: absolute;
@@ -483,6 +596,8 @@
     gap: 0.5rem;
   }
 
+  /* ═══ Category Color Dot ═══ */
+
   .cat-dot {
     width: 10px;
     height: 10px;
@@ -495,6 +610,8 @@
     background: var(--color-text-muted);
     opacity: 0.3;
   }
+
+  /* ═══ Inline Delete Button (on hover) ═══ */
 
   .delete-btn {
     padding: 0.5rem;
@@ -524,6 +641,7 @@
     margin: 0.25rem 0;
   }
 
+  /* Star icon marking project-owned tags */
   .project-star {
     color: #ffd700;
     opacity: 0.7;
@@ -540,7 +658,8 @@
     background: rgba(108, 92, 231, 0.2) !important;
   }
 
-  /* Form Actions */
+  /* ═══ Form Actions ═══ */
+
   .actions {
     display: flex;
     gap: 0.75rem;
@@ -589,11 +708,13 @@
     box-shadow: 0 0 30px var(--color-primary-glow);
   }
 
+  /* Extra bottom margin so the absolute dropdown has room to expand */
   .field-dropdown {
     margin-bottom: 6rem;
   }
 
-  /* Mobile adjustments for dropdown */
+  /* ═══ Mobile Adjustments ═══ */
+
   @media (max-width: 640px) {
     .dropdown-menu {
       max-height: 140px;
@@ -604,7 +725,7 @@
       font-size: 0.875rem;
     }
 
-    /* Add significant space below dropdown field for the absolute dropdown to expand into */
+    /* More space below dropdown field on mobile for the absolute dropdown */
     .field-dropdown {
       margin-bottom: 10rem;
     }

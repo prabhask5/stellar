@@ -1,3 +1,25 @@
+/**
+ * @fileoverview Repository for **daily task** entities.
+ *
+ * Daily tasks are the user's to-do items for the current day.  They can be
+ * standalone or "spawned" from a {@link LongTermTask} (linked via
+ * `long_term_task_id`).  When a spawned task is toggled or deleted, the
+ * linked long-term task is kept in sync bi-directionally.
+ *
+ * Key behaviours:
+ * - **Toggle sync** — toggling a spawned daily task also toggles its parent
+ *   long-term task (and vice versa, handled in {@link longTermTasks})
+ * - **Cascade delete** — deleting a spawned daily task also deletes the
+ *   linked long-term task
+ * - **Bulk clear** — completed tasks can be cleared in batch, respecting
+ *   the same cascade rules
+ *
+ * Table: `daily_tasks`
+ * Related: `long_term_agenda` (via `long_term_task_id`)
+ *
+ * @module repositories/dailyTasks
+ */
+
 import { generateId, now } from '@prabhask5/stellar-engine/utils';
 import {
   engineCreate,
@@ -10,6 +32,21 @@ import {
 import type { BatchOperation } from '@prabhask5/stellar-engine/types';
 import type { DailyTask, LongTermTask } from '$lib/types';
 
+// =============================================================================
+//                            Write Operations
+// =============================================================================
+
+/**
+ * Creates a new daily task, prepended at the top of the user's list.
+ *
+ * If `longTermTaskId` is provided, the task is marked as "spawned" and will
+ * participate in bi-directional sync with its parent long-term task.
+ *
+ * @param name           - Display name for the task
+ * @param userId         - The owning user's identifier
+ * @param longTermTaskId - Optional link to a parent {@link LongTermTask}
+ * @returns The newly created {@link DailyTask}
+ */
 export async function createDailyTask(
   name: string,
   userId: string,
@@ -17,9 +54,7 @@ export async function createDailyTask(
 ): Promise<DailyTask> {
   const timestamp = now();
 
-  // Get the lowest order to prepend new items at the top
-  // This is backwards-compatible: existing items (order 0,1,2...) stay in place,
-  // new items get -1,-2,-3... and appear first when sorted ascending
+  /* ── Compute prepend order (min - 1) ──── */
   const existing = (await engineQuery('daily_tasks', 'user_id', userId)) as unknown as DailyTask[];
   const activeItems = existing.filter((t) => !t.deleted);
   const minOrder = activeItems.length > 0 ? Math.min(...activeItems.map((t) => t.order)) : 0;
@@ -39,6 +74,13 @@ export async function createDailyTask(
   return result as unknown as DailyTask;
 }
 
+/**
+ * Updates mutable fields on a daily task (name and/or completed status).
+ *
+ * @param id      - The daily task's unique identifier
+ * @param updates - A partial object of allowed fields to update
+ * @returns The updated {@link DailyTask}, or `undefined` if not found
+ */
 export async function updateDailyTask(
   id: string,
   updates: Partial<Pick<DailyTask, 'name' | 'completed'>>
@@ -47,6 +89,16 @@ export async function updateDailyTask(
   return result as unknown as DailyTask | undefined;
 }
 
+/**
+ * Toggles a daily task's `completed` flag with bi-directional sync.
+ *
+ * If the task is spawned from a long-term task, the linked long-term task's
+ * `completed` field is also updated to match — ensuring both entities stay
+ * in sync regardless of which side the user interacts with.
+ *
+ * @param id - The daily task's unique identifier
+ * @returns The updated {@link DailyTask}, or `undefined` if not found
+ */
 export async function toggleDailyTaskComplete(id: string): Promise<DailyTask | undefined> {
   const task = (await engineGet('daily_tasks', id)) as unknown as DailyTask | undefined;
   if (!task) return undefined;
@@ -54,7 +106,7 @@ export async function toggleDailyTaskComplete(id: string): Promise<DailyTask | u
   const newCompleted = !task.completed;
   const result = await engineUpdate('daily_tasks', id, { completed: newCompleted });
 
-  // Bi-directional sync: if this is a spawned task, also update the linked long-term task
+  /* ── Bi-directional sync with linked long-term task ──── */
   if (task.long_term_task_id) {
     const ltTask = (await engineGet('long_term_agenda', task.long_term_task_id)) as unknown as
       | LongTermTask
@@ -67,11 +119,20 @@ export async function toggleDailyTaskComplete(id: string): Promise<DailyTask | u
   return result as unknown as DailyTask | undefined;
 }
 
+/**
+ * Deletes a daily task, with cascade delete for spawned tasks.
+ *
+ * If the task has a `long_term_task_id`, both the daily task and the linked
+ * long-term task are deleted atomically via batch write.  Standalone tasks
+ * are deleted individually.
+ *
+ * @param id - The daily task's unique identifier
+ */
 export async function deleteDailyTask(id: string): Promise<void> {
   const task = (await engineGet('daily_tasks', id)) as unknown as DailyTask | undefined;
 
   if (task?.long_term_task_id) {
-    // Cascade delete: delete both the daily task and the linked long-term task
+    /* ── Cascade delete: daily task + linked long-term task ──── */
     await engineBatchWrite([
       { type: 'delete' as const, table: 'daily_tasks', id },
       { type: 'delete' as const, table: 'long_term_agenda', id: task.long_term_task_id }
@@ -81,6 +142,17 @@ export async function deleteDailyTask(id: string): Promise<void> {
   }
 }
 
+// =============================================================================
+//                            Reorder Operations
+// =============================================================================
+
+/**
+ * Updates the display order of a daily task.
+ *
+ * @param id       - The daily task's unique identifier
+ * @param newOrder - The new ordinal position
+ * @returns The updated {@link DailyTask}, or `undefined` if not found
+ */
 export async function reorderDailyTask(
   id: string,
   newOrder: number
@@ -89,6 +161,18 @@ export async function reorderDailyTask(
   return result as unknown as DailyTask | undefined;
 }
 
+// =============================================================================
+//                          Bulk Operations
+// =============================================================================
+
+/**
+ * Clears (deletes) all completed daily tasks for a user in a single batch.
+ *
+ * For spawned tasks that are completed, the linked long-term task is also
+ * deleted as part of the same batch write — maintaining referential integrity.
+ *
+ * @param userId - The owning user's identifier
+ */
 export async function clearCompletedDailyTasks(userId: string): Promise<void> {
   const tasks = (await engineQuery('daily_tasks', 'user_id', userId)) as unknown as DailyTask[];
   const completedTasks = tasks.filter((t) => t.completed && !t.deleted);
@@ -101,7 +185,7 @@ export async function clearCompletedDailyTasks(userId: string): Promise<void> {
     id: task.id
   })) as BatchOperation[];
 
-  // Also delete linked long-term tasks for spawned completed tasks
+  /* ── Also delete linked long-term tasks for spawned completed tasks ──── */
   for (const task of completedTasks) {
     if (task.long_term_task_id) {
       ops.push({

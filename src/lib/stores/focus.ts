@@ -1,3 +1,34 @@
+/**
+ * @fileoverview Reactive stores for the **Focus / Pomodoro timer** feature.
+ *
+ * This module manages all focus-session state: settings, active session
+ * lifecycle (start / pause / resume / stop / skip), a 100 ms tick loop
+ * for the countdown UI, and multi-device sync via both real-time
+ * subscriptions and sync-complete fallback.
+ *
+ * The file is organized into three main sections:
+ *
+ * 1. **Focus Timer Store** (`focusStore`) — the core Pomodoro engine,
+ *    including the tick loop, phase-completion logic, auto-start
+ *    behaviour, and cross-device realtime synchronization.
+ * 2. **Focus Time Updated** (`focusTimeUpdated`) — a lightweight
+ *    notification store that increments whenever logged focus minutes
+ *    change, so dependent UI (e.g., daily focus summary) can re-fetch.
+ * 3. **Block List Stores** — `blockListStore`, `blockedWebsitesStore`,
+ *    and `singleBlockListStore` for managing website-blocking lists
+ *    that integrate with the focus session.
+ *
+ * Architecture notes:
+ * - All writes go to local DB first via {@link repo} (local-first).
+ * - {@link onSyncComplete} provides a polling-style refresh after sync.
+ * - {@link onRealtimeDataUpdate} provides instant push updates for
+ *   focus sessions and settings from other devices.
+ * - Concurrency guards (`isHandlingPhaseComplete`, `isHandlingRemoteChange`)
+ *   prevent duplicate state mutations from overlapping async operations.
+ *
+ * @module stores/focus
+ */
+
 import { writable, derived, type Writable, type Readable } from 'svelte/store';
 import type { FocusSettings, FocusSession, BlockList, BlockedWebsite } from '$lib/types';
 import * as repo from '$lib/db/repositories';
@@ -9,22 +40,67 @@ import {
   remoteChangesStore
 } from '@prabhask5/stellar-engine/stores';
 
-// ============================================================
-// FOCUS TIMER STORE
-// ============================================================
+// =============================================================================
+//  FOCUS TIMER STORE
+// =============================================================================
 
+/**
+ * Internal shape of the focus store's reactive value.
+ *
+ * Combines settings, active session data, countdown state, and an
+ * animation transition hint for the UI.
+ */
 interface FocusState {
+  /** User's Pomodoro configuration (durations, cycle count, auto-start). */
   settings: FocusSettings | null;
+
+  /** Currently active focus session, or `null` if idle. */
   session: FocusSession | null;
+
+  /** Milliseconds remaining in the current phase (focus / break). */
   remainingMs: number;
+
+  /** Whether the countdown is actively ticking. */
   isRunning: boolean;
-  // Animation state for transitions
+
+  /**
+   * Animation hint for UI transitions between states.
+   * Set on state change, then cleared after 600 ms.
+   */
   stateTransition: 'none' | 'starting' | 'pausing' | 'resuming' | 'stopping' | null;
 }
 
-// Store to notify when focus time should be refreshed
+// ── Focus Time Notification Store ───────────────────────────────────────────
+
+/**
+ * Internal writable that increments each time logged focus minutes change.
+ * Components subscribe to the read-only {@link focusTimeUpdated} export
+ * to know when to re-fetch today's focus time.
+ */
 const focusTimeUpdatedStore = writable(0);
 
+// ── Focus Store Factory ─────────────────────────────────────────────────────
+
+/**
+ * Factory for the **focus timer** store.
+ *
+ * Encapsulates the entire Pomodoro session lifecycle:
+ *
+ * - **load** — fetch settings + any active session, resume ticker if needed
+ * - **start** — create a new session, begin the first focus phase
+ * - **pause / resume** — freeze / restart the countdown
+ * - **stop** — end the session, log elapsed focus time
+ * - **skip** — advance to the next phase (focus → break or vice-versa)
+ * - **updateSettings** — persist setting changes
+ * - **getTodayFocusTime** — query total focus minutes for today
+ * - **destroy** — tear down ticker and subscriptions
+ *
+ * Internally uses a 100 ms `setInterval` tick loop for smooth countdown
+ * updates, with concurrency guards to prevent race conditions when
+ * phases complete or remote changes arrive simultaneously.
+ *
+ * @returns A custom Svelte store with session lifecycle methods.
+ */
 function createFocusStore() {
   const { subscribe, set, update }: Writable<FocusState> = writable({
     settings: null,
@@ -34,20 +110,44 @@ function createFocusStore() {
     stateTransition: null
   });
 
+  /** Whether the initial load is still in flight. */
   const loading = writable(true);
-  let tickInterval: ReturnType<typeof setInterval> | null = null;
-  let currentUserId: string | null = null;
-  let unsubscribeSyncComplete: (() => void) | null = null;
-  let unsubscribeRealtime: (() => void) | null = null;
-  let isHandlingPhaseComplete = false; // Prevent concurrent phase completions
-  let isHandlingRemoteChange = false; // Prevent recursive handling
 
-  // Function to trigger focus time refresh
+  /** Handle for the 100 ms countdown interval. */
+  let tickInterval: ReturnType<typeof setInterval> | null = null;
+
+  /** ID of the user whose session we're tracking. */
+  let currentUserId: string | null = null;
+
+  /** Teardown for the {@link onSyncComplete} fallback listener. */
+  let unsubscribeSyncComplete: (() => void) | null = null;
+
+  /** Teardown for the {@link onRealtimeDataUpdate} primary listener. */
+  let unsubscribeRealtime: (() => void) | null = null;
+
+  /** Guard: prevents concurrent phase-completion handlers. */
+  let isHandlingPhaseComplete = false;
+
+  /** Guard: prevents recursive handling of remote state changes. */
+  let isHandlingRemoteChange = false;
+
+  // ── Internal Helpers ────────────────────────────────────────────────────
+
+  /**
+   * Bump the {@link focusTimeUpdatedStore} so subscribers know to
+   * re-fetch today's focus time total.
+   */
   function notifyFocusTimeUpdated() {
     focusTimeUpdatedStore.update((n) => n + 1);
   }
 
-  // Tick function to update remaining time
+  /**
+   * Tick callback — runs every 100 ms while the session is active.
+   *
+   * Recalculates `remainingMs` from the session's `phase_started_at`
+   * timestamp.  When the remaining time hits zero, triggers
+   * {@link handlePhaseComplete} (guarded against concurrent calls).
+   */
   function tick() {
     update((state) => {
       if (!state.session || state.session.status !== 'running') {
@@ -56,21 +156,30 @@ function createFocusStore() {
 
       const remaining = calculateRemainingMs(state.session);
 
-      // Check if phase completed (prevent concurrent calls)
+      /* ── Phase expired — hand off to async completion handler ── */
       if (remaining <= 0 && !isHandlingPhaseComplete) {
         isHandlingPhaseComplete = true;
         handlePhaseComplete().finally(() => {
           isHandlingPhaseComplete = false;
         });
-        return state; // State will be updated by handlePhaseComplete
+        return state; /* State will be updated by handlePhaseComplete */
       }
 
       return { ...state, remainingMs: remaining };
     });
   }
 
-  // Handle phase completion
+  /**
+   * Handle natural phase completion (timer reached zero).
+   *
+   * Determines the next phase via {@link getNextPhase}:
+   * - If `'idle'` → session is fully complete; stop and log focus time.
+   * - Otherwise → advance to the next focus/break phase, respecting
+   *   auto-start settings.  If auto-start is off, the new phase begins
+   *   in a paused state so the user must manually resume.
+   */
   async function handlePhaseComplete() {
+    /* ── Snapshot current state ── */
     let state: FocusState | null = null;
     update((s) => {
       state = s;
@@ -82,16 +191,16 @@ function createFocusStore() {
     const session = (state as FocusState).session!;
     const settings = (state as FocusState).settings!;
 
-    // Calculate elapsed focus time if completing a focus phase
+    /* ── Calculate elapsed focus time if completing a focus phase ── */
     let elapsedFocusMinutes: number | undefined;
     if (session.phase === 'focus') {
-      elapsedFocusMinutes = session.focus_duration; // Full duration on natural completion
+      elapsedFocusMinutes = session.focus_duration; /* Full duration on natural completion */
     }
 
     const next = getNextPhase(session, settings);
 
     if (next.phase === 'idle') {
-      // Session complete
+      /* ── Session complete — stop and clean up ── */
       await repo.stopFocusSession(session.id, elapsedFocusMinutes);
       const stopped = await repo.getFocusSession(session.id);
       update((s) => ({
@@ -101,14 +210,14 @@ function createFocusStore() {
         isRunning: false
       }));
       stopTicker();
-      // Notify that focus time has been updated
+      /* Notify that focus time has been updated */
       if (elapsedFocusMinutes !== undefined) {
         notifyFocusTimeUpdated();
       }
       return;
     }
 
-    // Advance to next phase
+    /* ── Advance to next phase ── */
     const updated = await repo.advancePhase(
       session.id,
       next.phase,
@@ -118,13 +227,13 @@ function createFocusStore() {
     );
 
     if (updated) {
-      // Check auto-start settings
+      /* ── Check auto-start settings ── */
       const shouldAutoStart =
         (next.phase === 'break' && settings.auto_start_breaks) ||
         (next.phase === 'focus' && settings.auto_start_focus);
 
       if (!shouldAutoStart) {
-        // Pause at the start of new phase
+        /* Pause at the start of new phase — user must manually resume */
         await repo.pauseFocusSession(session.id, next.durationMs);
         const paused = await repo.getFocusSession(session.id);
         update((s) => ({
@@ -143,18 +252,25 @@ function createFocusStore() {
         }));
       }
 
-      // Notify that focus time has been updated after completing a focus phase
+      /* Notify that focus time has been updated after completing a focus phase */
       if (elapsedFocusMinutes !== undefined) {
         notifyFocusTimeUpdated();
       }
     }
   }
 
+  /**
+   * Start the 100 ms countdown interval (idempotent — no-ops if
+   * already running).
+   */
   function startTicker() {
     if (tickInterval) return;
-    tickInterval = setInterval(tick, 100); // Update every 100ms for smooth countdown
+    tickInterval = setInterval(tick, 100); /* 100 ms for smooth countdown */
   }
 
+  /**
+   * Stop the countdown interval and release the handle.
+   */
   function stopTicker() {
     if (tickInterval) {
       clearInterval(tickInterval);
@@ -162,7 +278,19 @@ function createFocusStore() {
     }
   }
 
-  // Handle realtime updates for focus sessions
+  // ── Realtime Sync Handlers ──────────────────────────────────────────────
+
+  /**
+   * Handle realtime updates for `focus_sessions` from another device.
+   *
+   * Compares previous vs. incoming session status to determine the
+   * appropriate UI transition animation (`'starting'`, `'pausing'`,
+   * `'resuming'`, `'stopping'`), then recalculates remaining time
+   * from the server-synced session data.
+   *
+   * @param table     - The table that was updated (must be `'focus_sessions'`).
+   * @param _entityId - The specific row ID (unused — we re-fetch active session).
+   */
   async function handleRealtimeUpdate(table: string, _entityId: string) {
     if (table !== 'focus_sessions' || !currentUserId || isHandlingRemoteChange) {
       return;
@@ -171,7 +299,7 @@ function createFocusStore() {
     isHandlingRemoteChange = true;
 
     try {
-      // Get current state for comparison
+      /* ── Get current state for comparison ── */
       let currentState: FocusState = {
         settings: null,
         session: null,
@@ -184,10 +312,10 @@ function createFocusStore() {
         return s;
       });
 
-      // Fetch the updated session from local DB (already updated by realtime handler)
+      /* ── Fetch updated session (already written to local DB by realtime handler) ── */
       const updatedSession = await repo.getActiveSession(currentUserId);
 
-      // Determine what transition happened
+      /* ── Determine transition type for UI animation ── */
       let transition: FocusState['stateTransition'] = null;
 
       const prevSession = currentState.session;
@@ -208,17 +336,17 @@ function createFocusStore() {
         }
       }
 
-      // Calculate remaining time from the server-synced session
+      /* ── Calculate remaining time from the server-synced session ── */
       let remainingMs = 0;
       let isRunning = false;
 
       if (updatedSession) {
-        // Use the server's phase_remaining_ms for accuracy
+        /* Use the server's `phase_remaining_ms` for accuracy */
         remainingMs = calculateRemainingMs(updatedSession);
         isRunning = updatedSession.status === 'running';
       }
 
-      // Update state with transition
+      /* ── Update state with transition hint ── */
       update((s) => ({
         ...s,
         session: updatedSession,
@@ -227,14 +355,14 @@ function createFocusStore() {
         stateTransition: transition
       }));
 
-      // Start or stop ticker based on running state
+      /* ── Start or stop ticker based on running state ── */
       if (isRunning) {
         startTicker();
       } else {
         stopTicker();
       }
 
-      // Clear transition state after animation duration
+      /* ── Clear transition hint after animation duration (600 ms) ── */
       if (transition) {
         setTimeout(() => {
           update((s) => ({
@@ -248,13 +376,20 @@ function createFocusStore() {
     }
   }
 
-  // Handle realtime updates for focus settings
+  /**
+   * Handle realtime updates for `focus_settings` from another device.
+   *
+   * Simply re-fetches the latest settings and patches them into state.
+   *
+   * @param table     - The table that was updated (must be `'focus_settings'`).
+   * @param _entityId - The specific row ID (unused).
+   */
   async function handleSettingsRealtimeUpdate(table: string, _entityId: string) {
     if (table !== 'focus_settings' || !currentUserId) {
       return;
     }
 
-    // Fetch the updated settings from local DB
+    /* ── Fetch updated settings from local DB ── */
     const updatedSettings = await repo.getFocusSettings(currentUserId);
     if (updatedSettings) {
       update((s) => ({
@@ -264,20 +399,33 @@ function createFocusStore() {
     }
   }
 
+  // ── Public Store API ────────────────────────────────────────────────────
+
   return {
     subscribe,
     loading: { subscribe: loading.subscribe },
 
-    // Load settings and any active session for user
+    /**
+     * Load the user's focus settings and any active session.
+     *
+     * If an active session is found but has expired while the app was
+     * closed (e.g., laptop was sleeping), it is automatically stopped.
+     * Otherwise, the ticker is resumed from where it left off.
+     *
+     * Registers both sync-complete (fallback) and realtime (primary)
+     * listeners for cross-device synchronization.
+     *
+     * @param userId - The authenticated user's ID.
+     */
     load: async (userId: string) => {
       loading.set(true);
       currentUserId = userId;
 
       try {
-        // Get or create settings
+        /* ── Get or create settings ── */
         const settings = await repo.getOrCreateFocusSettings(userId);
 
-        // Check for active session
+        /* ── Check for active session ── */
         const activeSession = await repo.getActiveSession(userId);
 
         let remainingMs = 0;
@@ -287,7 +435,7 @@ function createFocusStore() {
           remainingMs = calculateRemainingMs(activeSession);
           isRunning = activeSession.status === 'running';
 
-          // If session has expired while away, stop it
+          /* ── If session expired while away, stop it ── */
           if (remainingMs <= 0 && isRunning) {
             await repo.stopFocusSession(activeSession.id);
             const stopped = await repo.getFocusSession(activeSession.id);
@@ -309,14 +457,14 @@ function createFocusStore() {
 
         set({ settings, session: activeSession, remainingMs, isRunning, stateTransition: null });
 
-        // Register for sync complete (fallback for when realtime is not available)
+        /* ── Register sync-complete listener (fallback for when realtime is unavailable) ── */
         if (browser && !unsubscribeSyncComplete) {
           unsubscribeSyncComplete = onSyncComplete(async () => {
             if (currentUserId && !isHandlingRemoteChange) {
               const refreshedSettings = await repo.getFocusSettings(currentUserId);
               const refreshedSession = await repo.getActiveSession(currentUserId);
 
-              // Only update if not currently handling a realtime change
+              /* Only update if not currently handling a realtime change */
               let remainingMs = 0;
               let isRunning = false;
               if (refreshedSession) {
@@ -332,7 +480,7 @@ function createFocusStore() {
                 isRunning
               }));
 
-              // Ensure ticker state is correct
+              /* Ensure ticker state is correct */
               if (isRunning) {
                 startTicker();
               } else {
@@ -342,7 +490,7 @@ function createFocusStore() {
           });
         }
 
-        // Register for realtime updates (primary sync method)
+        /* ── Register realtime listener (primary sync method) ── */
         if (browser && !unsubscribeRealtime) {
           unsubscribeRealtime = onRealtimeDataUpdate((table, entityId) => {
             if (table === 'focus_sessions') {
@@ -357,8 +505,15 @@ function createFocusStore() {
       }
     },
 
-    // Start a new focus session
+    /**
+     * Start a new focus session.
+     *
+     * Creates a session record in local DB with the user's configured
+     * durations and cycle count, then starts the ticker.  The first
+     * phase is always `'focus'`.
+     */
     start: async () => {
+      /* ── Snapshot current state ── */
       let state: FocusState | null = null;
       update((s) => {
         state = s;
@@ -369,7 +524,7 @@ function createFocusStore() {
 
       const settings = (state as FocusState).settings!;
 
-      // Create new session
+      /* ── Create new session ── */
       const session = await repo.createFocusSession(
         currentUserId,
         settings.focus_duration,
@@ -389,8 +544,14 @@ function createFocusStore() {
       startTicker();
     },
 
-    // Pause current session
+    /**
+     * Pause the currently running session.
+     *
+     * Snapshots the remaining time and persists it so the session can
+     * be accurately resumed later (even from another device).
+     */
     pause: async () => {
+      /* ── Snapshot current state ── */
       let state: FocusState | null = null;
       update((s) => {
         state = s;
@@ -415,8 +576,14 @@ function createFocusStore() {
       stopTicker();
     },
 
-    // Resume paused session
+    /**
+     * Resume a paused session.
+     *
+     * Restores the countdown from the persisted `phase_remaining_ms`
+     * and restarts the ticker.
+     */
     resume: async () => {
+      /* ── Snapshot current state ── */
       let state: FocusState | null = null;
       update((s) => {
         state = s;
@@ -439,8 +606,15 @@ function createFocusStore() {
       startTicker();
     },
 
-    // Stop session entirely
+    /**
+     * Stop the session entirely (user-initiated cancellation).
+     *
+     * If the session is currently in a focus phase, calculates the
+     * partial elapsed focus time and logs it before stopping.  This
+     * ensures the user gets credit for time already spent focusing.
+     */
     stop: async () => {
+      /* ── Snapshot current state ── */
       let state: FocusState | null = null;
       update((s) => {
         state = s;
@@ -451,7 +625,7 @@ function createFocusStore() {
 
       const session = (state as FocusState).session!;
 
-      // Calculate elapsed focus time if stopping during a focus phase
+      /* ── Calculate elapsed focus time if stopping during a focus phase ── */
       let elapsedFocusMinutes: number | undefined;
       if (session.phase === 'focus') {
         const elapsedMs = Date.now() - new Date(session.phase_started_at).getTime();
@@ -469,14 +643,23 @@ function createFocusStore() {
 
       stopTicker();
 
-      // Notify that focus time has been updated
+      /* Notify that focus time has been updated */
       if (elapsedFocusMinutes !== undefined) {
         notifyFocusTimeUpdated();
       }
     },
 
-    // Skip to next phase
+    /**
+     * Skip to the next phase without waiting for the timer to expire.
+     *
+     * Follows the same phase-advance logic as natural completion:
+     * - If next phase is `'idle'` → session ends.
+     * - Otherwise → advance, preserving the running/paused state.
+     *
+     * Partial focus time is logged if skipping out of a focus phase.
+     */
     skip: async () => {
+      /* ── Snapshot current state ── */
       let state: FocusState | null = null;
       update((s) => {
         state = s;
@@ -489,7 +672,7 @@ function createFocusStore() {
       const settings = (state as FocusState).settings!;
       const wasRunning = session.status === 'running';
 
-      // Calculate elapsed focus time if skipping during a focus phase
+      /* ── Calculate elapsed focus time if skipping during a focus phase ── */
       let elapsedFocusMinutes: number | undefined;
       if (session.phase === 'focus') {
         const elapsedMs = Date.now() - new Date(session.phase_started_at).getTime();
@@ -499,7 +682,7 @@ function createFocusStore() {
       const next = getNextPhase(session, settings);
 
       if (next.phase === 'idle') {
-        // Session complete
+        /* ── Session complete ── */
         await repo.stopFocusSession(session.id, elapsedFocusMinutes);
         update((s) => ({
           ...s,
@@ -508,14 +691,14 @@ function createFocusStore() {
           isRunning: false
         }));
         stopTicker();
-        // Notify that focus time has been updated
+        /* Notify that focus time has been updated */
         if (elapsedFocusMinutes !== undefined) {
           notifyFocusTimeUpdated();
         }
         return;
       }
 
-      // Advance to next phase
+      /* ── Advance to next phase ── */
       const updated = await repo.advancePhase(
         session.id,
         next.phase,
@@ -525,7 +708,7 @@ function createFocusStore() {
       );
 
       if (updated) {
-        // Keep running state if was running
+        /* Keep running state if was running */
         if (wasRunning) {
           update((s) => ({
             ...s,
@@ -544,14 +727,21 @@ function createFocusStore() {
           }));
         }
 
-        // Notify that focus time has been updated after completing a focus phase
+        /* Notify that focus time has been updated after completing a focus phase */
         if (elapsedFocusMinutes !== undefined) {
           notifyFocusTimeUpdated();
         }
       }
     },
 
-    // Update settings
+    /**
+     * Update the user's Pomodoro settings.
+     *
+     * Changes take effect on the *next* session — they do not alter
+     * an in-progress session's durations.
+     *
+     * @param updates - Partial settings to merge.
+     */
     updateSettings: async (
       updates: Partial<
         Pick<
@@ -565,6 +755,7 @@ function createFocusStore() {
         >
       >
     ) => {
+      /* ── Snapshot current state ── */
       let state: FocusState | null = null;
       update((s) => {
         state = s;
@@ -581,13 +772,22 @@ function createFocusStore() {
       }
     },
 
-    // Get today's focus time
+    /**
+     * Query today's total focus time in minutes.
+     *
+     * @returns Minutes spent focusing today (integer).
+     */
     getTodayFocusTime: async (): Promise<number> => {
       if (!currentUserId) return 0;
       return repo.getTodayFocusTime(currentUserId);
     },
 
-    // Cleanup
+    /**
+     * Tear down the ticker interval and all sync listeners.
+     *
+     * Should be called when the focus feature is unmounted (e.g.,
+     * user signs out or navigates to a non-focus section).
+     */
     destroy: () => {
       stopTicker();
       if (unsubscribeSyncComplete) {
@@ -602,25 +802,54 @@ function createFocusStore() {
   };
 }
 
+/** Singleton focus-timer store consumed by the Focus page and timer widget. */
 export const focusStore = createFocusStore();
 
-// Export the focus time updated store for components to subscribe to
+/**
+ * Read-only store that increments whenever logged focus minutes change.
+ *
+ * Components subscribe to this to know when to call
+ * `focusStore.getTodayFocusTime()` for an updated total.
+ */
 export const focusTimeUpdated: Readable<number> = { subscribe: focusTimeUpdatedStore.subscribe };
 
-// ============================================================
-// BLOCK LIST STORE
-// ============================================================
+// =============================================================================
+//  BLOCK LIST STORES
+// =============================================================================
 
+// ── Block Lists Collection Store ────────────────────────────────────────────
+
+/**
+ * Factory for the **block lists** collection store.
+ *
+ * Block lists group websites that should be blocked during focus
+ * sessions.  Each list can be independently enabled/disabled and
+ * configured with active-day schedules.
+ *
+ * @returns A custom Svelte store with `load`, `create`, `update`, `toggle`,
+ *          `delete`, `reorder`, `refresh`, and `getEnabledCount` methods.
+ */
 function createBlockListStore() {
   const { subscribe, set, update }: Writable<BlockList[]> = writable([]);
+
+  /** Whether the initial load is still in flight. */
   const loading = writable(true);
+
+  /** ID of the user whose block lists we're tracking. */
   let currentUserId: string | null = null;
+
+  /** Teardown handle for the `onSyncComplete` listener. */
   let unsubscribe: (() => void) | null = null;
 
   return {
     subscribe,
     loading: { subscribe: loading.subscribe },
 
+    /**
+     * Load all block lists for a user from the local database.
+     *
+     * @param userId - The authenticated user's ID.
+     */
     load: async (userId: string) => {
       loading.set(true);
       currentUserId = userId;
@@ -642,15 +871,28 @@ function createBlockListStore() {
       }
     },
 
+    /**
+     * Create a new block list and prepend it to the store.
+     *
+     * @param name - Display name for the block list.
+     * @returns The newly created {@link BlockList}, or `undefined` if no user.
+     */
     create: async (name: string) => {
       if (!currentUserId) return;
       const newList = await repo.createBlockList(name, currentUserId);
-      // Record for animation before updating store
+      /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newList.id, 'block_lists', 'create');
       update((lists) => [newList, ...lists]);
       return newList;
     },
 
+    /**
+     * Partially update a block list's name, active days, or enabled state.
+     *
+     * @param id      - Block list ID.
+     * @param updates - Partial field updates.
+     * @returns The updated {@link BlockList}, or `null`.
+     */
     update: async (
       id: string,
       updates: Partial<Pick<BlockList, 'name' | 'active_days' | 'is_enabled'>>
@@ -662,6 +904,12 @@ function createBlockListStore() {
       return updated;
     },
 
+    /**
+     * Toggle a block list's `is_enabled` flag.
+     *
+     * @param id - Block list ID.
+     * @returns The updated {@link BlockList}, or `null`.
+     */
     toggle: async (id: string) => {
       const updated = await repo.toggleBlockList(id);
       if (updated) {
@@ -670,11 +918,23 @@ function createBlockListStore() {
       return updated;
     },
 
+    /**
+     * Delete a block list and remove it from the store.
+     *
+     * @param id - Block list ID to delete.
+     */
     delete: async (id: string) => {
       await repo.deleteBlockList(id);
       update((lists) => lists.filter((l) => l.id !== id));
     },
 
+    /**
+     * Move a block list to a new sort position and re-sort the store.
+     *
+     * @param id       - Block list ID.
+     * @param newOrder - Target sort-order value.
+     * @returns The updated record, or `null`.
+     */
     reorder: async (id: string, newOrder: number) => {
       const updated = await repo.reorderBlockList(id, newOrder);
       if (updated) {
@@ -687,6 +947,9 @@ function createBlockListStore() {
       return updated;
     },
 
+    /**
+     * Force-refresh from local DB without touching the loading flag.
+     */
     refresh: async () => {
       if (currentUserId) {
         const lists = await repo.getBlockLists(currentUserId);
@@ -694,28 +957,57 @@ function createBlockListStore() {
       }
     },
 
+    /**
+     * Create a derived store that emits the count of currently enabled
+     * block lists.  Useful for badge / indicator UI.
+     *
+     * @returns A read-only {@link Readable} store of the enabled count.
+     */
     getEnabledCount: (): Readable<number> => {
       return derived({ subscribe }, ($lists) => $lists.filter((l) => l.is_enabled).length);
     }
   };
 }
 
+/** Singleton block-list store consumed by the Focus settings page. */
 export const blockListStore = createBlockListStore();
 
-// ============================================================
-// BLOCKED WEBSITES STORE (for a single block list)
-// ============================================================
+// =============================================================================
+//  BLOCKED WEBSITES STORE (for a single block list)
+// =============================================================================
 
+// ── Blocked Websites Store ──────────────────────────────────────────────────
+
+/**
+ * Factory for the **blocked websites** store.
+ *
+ * Manages the list of {@link BlockedWebsite} entries belonging to a
+ * single block list.  Used on the block-list detail / edit page.
+ *
+ * @returns A custom Svelte store with `load`, `create`, `update`, `delete`,
+ *          and `clear` methods.
+ */
 function createBlockedWebsitesStore() {
   const { subscribe, set, update }: Writable<BlockedWebsite[]> = writable([]);
+
+  /** Whether the initial load is still in flight. */
   const loading = writable(true);
+
+  /** ID of the block list whose websites we're displaying. */
   let currentBlockListId: string | null = null;
+
+  /** Teardown handle for the `onSyncComplete` listener. */
   let unsubscribe: (() => void) | null = null;
 
   return {
     subscribe,
     loading: { subscribe: loading.subscribe },
 
+    /**
+     * Load all blocked websites for a specific block list.
+     *
+     * @param blockListId - The parent block list's ID.
+     */
     load: async (blockListId: string) => {
       loading.set(true);
       currentBlockListId = blockListId;
@@ -737,16 +1029,29 @@ function createBlockedWebsitesStore() {
       }
     },
 
+    /**
+     * Add a new blocked website domain to the current list.
+     *
+     * @param domain - The domain to block (e.g., `"twitter.com"`).
+     * @returns The newly created {@link BlockedWebsite}, or `undefined`.
+     */
     create: async (domain: string) => {
       if (!currentBlockListId) return;
       const newWebsite = await repo.createBlockedWebsite(currentBlockListId, domain);
-      // Record for animation before updating store
+      /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newWebsite.id, 'blocked_websites', 'create');
-      // Prepend to top
+      /* Prepend to top */
       update((websites) => [newWebsite, ...websites]);
       return newWebsite;
     },
 
+    /**
+     * Update a blocked website's domain.
+     *
+     * @param id     - Blocked website ID.
+     * @param domain - New domain string.
+     * @returns The updated {@link BlockedWebsite}, or `null`.
+     */
     update: async (id: string, domain: string) => {
       const updated = await repo.updateBlockedWebsite(id, domain);
       if (updated) {
@@ -755,11 +1060,20 @@ function createBlockedWebsitesStore() {
       return updated;
     },
 
+    /**
+     * Delete a blocked website and remove it from the store.
+     *
+     * @param id - Blocked website ID to delete.
+     */
     delete: async (id: string) => {
       await repo.deleteBlockedWebsite(id);
       update((websites) => websites.filter((w) => w.id !== id));
     },
 
+    /**
+     * Reset the store to an empty array — used when navigating away
+     * from the block-list detail page.
+     */
     clear: () => {
       currentBlockListId = null;
       set([]);
@@ -767,22 +1081,45 @@ function createBlockedWebsitesStore() {
   };
 }
 
+/** Singleton blocked-websites store consumed by the block-list detail page. */
 export const blockedWebsitesStore = createBlockedWebsitesStore();
 
-// ============================================================
-// SINGLE BLOCK LIST STORE (for edit page)
-// ============================================================
+// =============================================================================
+//  SINGLE BLOCK LIST STORE (for edit page)
+// =============================================================================
 
+// ── Single Block List Store ─────────────────────────────────────────────────
+
+/**
+ * Factory for the **single block list** detail store.
+ *
+ * Holds a single {@link BlockList} record for the edit page.  When
+ * updates are made, also refreshes the parent {@link blockListStore}
+ * so collection-level counts (e.g., enabled count) stay in sync.
+ *
+ * @returns A custom Svelte store with `load`, `update`, and `clear` methods.
+ */
 function createSingleBlockListStore() {
   const { subscribe, set }: Writable<BlockList | null> = writable(null);
+
+  /** Whether the initial load is still in flight. */
   const loading = writable(true);
+
+  /** ID of the currently loaded block list (for sync refresh). */
   let currentId: string | null = null;
+
+  /** Teardown handle for the `onSyncComplete` listener. */
   let unsubscribe: (() => void) | null = null;
 
   return {
     subscribe,
     loading: { subscribe: loading.subscribe },
 
+    /**
+     * Load a single block list by ID.
+     *
+     * @param id - Block list ID to fetch.
+     */
     load: async (id: string) => {
       loading.set(true);
       currentId = id;
@@ -791,7 +1128,7 @@ function createSingleBlockListStore() {
         const list = await repo.getBlockList(id);
         set(list);
 
-        // Register for sync complete to auto-refresh
+        /* ── Register sync listener (once) ── */
         if (browser && !unsubscribe) {
           unsubscribe = onSyncComplete(async () => {
             if (currentId) {
@@ -805,6 +1142,16 @@ function createSingleBlockListStore() {
       }
     },
 
+    /**
+     * Update the block list's name, active days, or enabled state.
+     *
+     * Also refreshes the parent {@link blockListStore} so collection-level
+     * derived data (like enabled count) stays current.
+     *
+     * @param id      - Block list ID.
+     * @param updates - Partial field updates.
+     * @returns The updated {@link BlockList}, or `null`.
+     */
     update: async (
       id: string,
       updates: Partial<Pick<BlockList, 'name' | 'active_days' | 'is_enabled'>>
@@ -812,12 +1159,16 @@ function createSingleBlockListStore() {
       const updated = await repo.updateBlockList(id, updates);
       if (updated) {
         set(updated);
-        // Also refresh the main block list store so counts update
+        /* Also refresh the main block list store so counts update */
         blockListStore.refresh();
       }
       return updated;
     },
 
+    /**
+     * Reset the store to `null` — used when navigating away from
+     * the block-list edit page.
+     */
     clear: () => {
       currentId = null;
       set(null);
@@ -825,4 +1176,5 @@ function createSingleBlockListStore() {
   };
 }
 
+/** Singleton single-block-list store consumed by the block-list edit page. */
 export const singleBlockListStore = createSingleBlockListStore();

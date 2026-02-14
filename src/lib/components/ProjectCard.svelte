@@ -1,33 +1,85 @@
 <script lang="ts">
+  /**
+   * @fileoverview ProjectCard — clickable card displaying a project's name, stats, and progress.
+   *
+   * Renders a glassmorphic card for a single `ProjectWithDetails` containing:
+   *   - A colored tag dot + project name
+   *   - A "star" button to set/unset the project as the current active project
+   *     (with cinematic ignition/fade particle animations)
+   *   - A delete button
+   *   - Goal and task completion stats
+   *   - A `ProgressBar` showing combined completion percentage
+   *   - Optional drag handle for reordering via `DraggableList`
+   *
+   * Clicking the card navigates to the project's goal list page.
+   * Integrates with `remoteChangeAnimation` for realtime sync flashes.
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import type { ProjectWithDetails } from '$lib/types';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Full project data including goal list stats and task stats */
     project: ProjectWithDetails;
+    /** Callback to navigate to the project's goal list */
     onNavigate: (goalListId: string) => void;
+    /** Callback to set this project as the current active project */
     onSetCurrent: (projectId: string) => void;
+    /** Callback to delete this project */
     onDelete: (projectId: string) => void;
+    /** Drag handle event props from `DraggableList` — enables reorder handle */
     dragHandleProps?: { onpointerdown: (e: PointerEvent) => void };
   }
 
+  // =============================================================================
+  //  Component State
+  // =============================================================================
+
   let { project, onNavigate, onSetCurrent, onDelete, dragHandleProps }: Props = $props();
 
+  // =============================================================================
+  //  Derived Values — Project Statistics
+  // =============================================================================
+
+  /** Total number of goals in this project */
   const totalGoals = $derived(project.goalList?.totalGoals ?? 0);
+  /** Number of completed goals */
   const completedGoals = $derived(project.goalList?.completedGoals ?? 0);
+  /** Total number of linked tasks */
   const totalTasks = $derived(project.taskStats?.totalTasks ?? 0);
+  /** Number of completed linked tasks */
   const completedTasks = $derived(project.taskStats?.completedTasks ?? 0);
+  /** Combined completion percentage for the progress bar */
   const completionPercentage = $derived(
     project.combinedProgress ?? project.goalList?.completionPercentage ?? 0
   );
+  /** Tag color — defaults to primary purple when no tag is assigned */
   const tagColor = $derived(project.tag?.color ?? '#6c5ce7');
 
-  // Track animation state for star
+  // =============================================================================
+  //  Star Animation State
+  // =============================================================================
+
+  /** Whether the star button is currently playing its animation */
   let starAnimating = $state(false);
+
+  /** Previous value of `is_current` — used to detect transitions */
   let prevIsCurrent: boolean | undefined = undefined;
 
-  // Detect changes to is_current and trigger animation
+  /**
+   * Detects changes to `project.is_current` and triggers the star animation
+   * (ignition burst when becoming current, fade when losing current status).
+   */
   $effect(() => {
     if (prevIsCurrent !== undefined && project.is_current !== prevIsCurrent) {
       starAnimating = true;
@@ -38,6 +90,16 @@
     prevIsCurrent = project.is_current;
   });
 
+  // =============================================================================
+  //  Event Handlers
+  // =============================================================================
+
+  /**
+   * Handles star button click — triggers animation and calls `onSetCurrent`.
+   * Stops propagation to prevent the card's `onclick` from firing.
+   *
+   * @param {MouseEvent} e — the click event
+   */
   function handleStarClick(e: MouseEvent) {
     e.stopPropagation();
     starAnimating = true;
@@ -45,6 +107,7 @@
   }
 </script>
 
+<!-- ═══ Project Card ═══ -->
 <div
   class="project-card"
   class:has-drag-handle={!!dragHandleProps}
@@ -54,17 +117,22 @@
   onkeypress={(e) => e.key === 'Enter' && project.goal_list_id && onNavigate(project.goal_list_id)}
   use:remoteChangeAnimation={{ entityId: project.id, entityType: 'projects' }}
 >
+  <!-- Optional drag handle for reorder mode -->
   {#if dragHandleProps}
     <button class="drag-handle card-drag-handle" {...dragHandleProps} aria-label="Drag to reorder"
       >⋮⋮</button
     >
   {/if}
+
+  <!-- ═══ Card Header ═══ -->
   <div class="project-header">
     <div class="project-title">
+      <!-- Colored dot matching the project's tag color -->
       <span class="tag-dot" style="background-color: {tagColor}"></span>
       <h3 class="project-name" use:truncateTooltip>{project.name}</h3>
     </div>
     <div class="project-actions">
+      <!-- Star button — marks project as current -->
       <button
         class="star-btn"
         class:is-current={project.is_current}
@@ -73,20 +141,20 @@
         aria-label={project.is_current ? 'Current project' : 'Set as current project'}
         title={project.is_current ? 'Current project' : 'Set as current project'}
       >
-        <!-- Glow layer -->
+        <!-- Glow layer behind the star -->
         <span class="star-glow"></span>
 
-        <!-- Particle burst container -->
+        <!-- Particle burst container — 6 particles shoot outward on ignition -->
         <span class="star-particles">
           {#each Array(6) as _, i (i)}
             <span class="particle" style="--i: {i}"></span>
           {/each}
         </span>
 
-        <!-- Ring pulse -->
+        <!-- Ring pulse effect -->
         <span class="star-ring"></span>
 
-        <!-- The star icon -->
+        <!-- The star SVG icon (filled when current, outlined otherwise) -->
         <svg
           class="star-icon"
           viewBox="0 0 24 24"
@@ -101,6 +169,8 @@
           />
         </svg>
       </button>
+
+      <!-- Delete button -->
       <button
         class="delete-btn"
         onclick={(e) => {
@@ -113,16 +183,23 @@
       </button>
     </div>
   </div>
-  <div class="project-stats">
-    <span class="stat-text">
-      {completedGoals}/{totalGoals} goals{#if totalTasks > 0}
-        &middot; {completedTasks}/{totalTasks} tasks{/if}
-    </span>
-  </div>
-  <ProgressBar percentage={completionPercentage} />
+
+  <!-- ═══ Stats & Progress ═══ -->
+  {#if totalGoals > 0 || totalTasks > 0}
+    <div class="project-stats">
+      <span class="stat-text">
+        {#if totalGoals > 0}{completedGoals} / {totalGoals} goals{/if}{#if totalGoals > 0 && totalTasks > 0}
+          &middot;
+        {/if}{#if totalTasks > 0}{completedTasks} / {totalTasks} tasks{/if}
+      </span>
+    </div>
+    <ProgressBar percentage={completionPercentage} />
+  {/if}
 </div>
 
 <style>
+  /* ═══ Card Container ═══ */
+
   .project-card {
     background: linear-gradient(165deg, rgba(15, 15, 30, 0.95) 0%, rgba(20, 20, 40, 0.9) 100%);
     backdrop-filter: blur(24px);
@@ -136,11 +213,13 @@
     overflow: hidden;
   }
 
+  /* Flex column layout when drag handle is present */
   .project-card.has-drag-handle {
     display: flex;
     flex-direction: column;
   }
 
+  /* Horizontal drag handle variant for cards */
   .card-drag-handle {
     align-self: center;
     border-right: none !important;
@@ -152,7 +231,7 @@
     letter-spacing: 0.15em;
   }
 
-  /* Top glow line */
+  /* Top glow line — subtle gradient across card top edge */
   .project-card::before {
     content: '';
     position: absolute;
@@ -170,7 +249,7 @@
     );
   }
 
-  /* Hover nebula effect */
+  /* Hover nebula effect — fades in on the right side */
   .project-card::after {
     content: '';
     position: absolute;
@@ -197,6 +276,8 @@
     opacity: 1;
   }
 
+  /* ═══ Header ═══ */
+
   .project-header {
     display: flex;
     align-items: flex-start;
@@ -214,6 +295,7 @@
     min-width: 0;
   }
 
+  /* Small colored dot representing the project's tag */
   .tag-dot {
     width: 10px;
     height: 10px;
@@ -265,6 +347,7 @@
     transform: scale(1.1);
   }
 
+  /* Active current state — golden glow */
   .star-btn.is-current {
     opacity: 1;
     color: #ffd700;
@@ -272,7 +355,8 @@
     border-color: rgba(255, 215, 0, 0.3);
   }
 
-  /* Star SVG icon */
+  /* ═══ Star SVG Icon ═══ */
+
   .star-icon {
     width: 20px;
     height: 20px;
@@ -290,7 +374,9 @@
     transform: scale(1.1);
   }
 
-  /* Glow layer behind star */
+  /* ═══ Star Glow Layer ═══ */
+
+  /* Radial golden glow behind the star */
   .star-glow {
     position: absolute;
     inset: -4px;
@@ -318,7 +404,9 @@
     }
   }
 
-  /* Ring pulse effect */
+  /* ═══ Star Ring Pulse ═══ */
+
+  /* Expanding ring that plays on ignition/fade transition */
   .star-ring {
     position: absolute;
     inset: 0;
@@ -343,13 +431,15 @@
     }
   }
 
-  /* Particle burst container */
+  /* ═══ Star Particle Burst ═══ */
+
   .star-particles {
     position: absolute;
     inset: 0;
     pointer-events: none;
   }
 
+  /* Small golden dots that burst outward when becoming current */
   .particle {
     position: absolute;
     top: 50%;
@@ -378,7 +468,8 @@
     }
   }
 
-  /* Star ignition animation when becoming current */
+  /* ═══ Star Ignition (becoming current) ═══ */
+
   .star-btn.animating.is-current .star-icon {
     animation: starIgnite 0.6s var(--ease-spring);
   }
@@ -401,7 +492,8 @@
     }
   }
 
-  /* Star fade animation when losing current status */
+  /* ═══ Star Fade (losing current status) ═══ */
+
   .star-btn.animating:not(.is-current) .star-icon {
     animation: starFade 0.5s var(--ease-out);
   }
@@ -443,6 +535,8 @@
 
   /* ═══════════════════════════════════════════════════════════════════════════════ */
 
+  /* ═══ Delete Button ═══ */
+
   .delete-btn {
     width: 36px;
     height: 36px;
@@ -465,6 +559,8 @@
     box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
   }
 
+  /* ═══ Stats ═══ */
+
   .project-stats {
     margin-bottom: 1.25rem;
     position: relative;
@@ -478,13 +574,15 @@
     font-family: var(--font-mono);
   }
 
-  /* Mobile responsive styles */
+  /* ═══ Mobile Responsive ═══ */
+
   @media (max-width: 640px) {
     .project-card {
       padding: 1.25rem;
       border-radius: var(--radius-xl);
     }
 
+    /* Disable lift-on-hover for mobile — use tap feedback instead */
     .project-card:hover {
       transform: none;
     }
@@ -498,6 +596,7 @@
       font-size: 1.125rem;
     }
 
+    /* Larger touch targets on mobile */
     .star-btn,
     .delete-btn {
       width: 44px;
@@ -515,14 +614,16 @@
     }
   }
 
-  /* iPhone 14/15/16 Pro Max specific (430px) */
+  /* ═══ iPhone 14/15/16 Pro Max (430px) ═══ */
+
   @media (min-width: 430px) and (max-width: 640px) {
     .project-card {
       padding: 1.5rem;
     }
   }
 
-  /* Very small devices (iPhone SE) */
+  /* ═══ Very Small Devices (iPhone SE) ═══ */
+
   @media (max-width: 375px) {
     .project-card {
       padding: 1rem;
@@ -533,7 +634,8 @@
     }
   }
 
-  /* Reduced motion */
+  /* ═══ Reduced Motion ═══ */
+
   @media (prefers-reduced-motion: reduce) {
     .star-btn.animating .star-icon,
     .star-btn.animating .star-ring,

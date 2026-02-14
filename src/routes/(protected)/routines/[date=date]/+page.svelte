@@ -1,4 +1,22 @@
 <script lang="ts">
+  /**
+   * @fileoverview **Daily Progress** — Routine progress tracking for a specific date.
+   *
+   * Reached via `/routines/:date` where `:date` is a `YYYY-MM-DD` string.
+   *
+   * Shows every active routine for the given day with its current progress,
+   * a `ProgressBar` summarising overall completion, and drag-and-drop
+   * reordering. Editing is only allowed for past days and today — future
+   * dates display a read-only informational banner.
+   *
+   * For **progressive** routines the target value is dynamically calculated
+   * based on the date within the routine's date range.
+   */
+
+  // =============================================================================
+  //                               IMPORTS
+  // =============================================================================
+
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
@@ -17,22 +35,42 @@
   import DraggableList from '$lib/components/DraggableList.svelte';
   import { parseISO } from 'date-fns';
 
+  // =============================================================================
+  //                              TYPES
+  // =============================================================================
+
+  /** Routine goal enriched with its day-level progress record. */
   interface GoalWithProgress extends DailyRoutineGoal {
     progress?: DailyGoalProgress;
   }
+
+  // =============================================================================
+  //                         COMPONENT STATE
+  // =============================================================================
 
   let routines = $state<DailyRoutineGoal[]>([]);
   let progressMap = $state<Map<string, DailyGoalProgress>>(new Map());
   let loading = $state(true);
   let error = $state<string | null>(null);
 
+  // =============================================================================
+  //                       DERIVED DATA
+  // =============================================================================
+
+  /** Route parameter — the `YYYY-MM-DD` date string */
   const dateStr = $derived($page.params.date!);
+  /** Parsed `Date` object from the route parameter */
   const date = $derived(parseISO(dateStr));
+  /** Human-readable date string for the page title */
   const displayDate = $derived(formatDisplayDate(dateStr));
+  /** `true` when the date is today or in the past — enables editing */
   const canEdit = $derived(isPastDay(date) || isTodayDate(date));
 
-  // Derive goals with their progress attached
-  // For progressive routines, compute and override target_value with the dynamic target for this date
+  /**
+   * Routines merged with their progress for the day.
+   * For **progressive** routines the `target_value` is overridden with
+   * the dynamic target computed by `getProgressiveTargetForDate`.
+   */
   const goalsWithProgress = $derived<GoalWithProgress[]>(
     routines.map((routine) => ({
       ...routine,
@@ -44,6 +82,10 @@
     }))
   );
 
+  /**
+   * Aggregate completion percentage across all goals for the day.
+   * Each goal is scored 0–100 via `calculateGoalProgressCapped`.
+   */
   const totalProgress = $derived(() => {
     if (goalsWithProgress.length === 0) return 0;
     const total = goalsWithProgress.reduce((sum, goal) => {
@@ -56,7 +98,11 @@
     return Math.round(total / goalsWithProgress.length);
   });
 
-  // Subscribe to store
+  // =============================================================================
+  //                    STORE SUBSCRIPTIONS
+  // =============================================================================
+
+  /** Subscribe to the daily-progress store and sync loading state. */
   $effect(() => {
     const unsubStore = dailyProgressStore.subscribe((value) => {
       if (value) {
@@ -74,14 +120,28 @@
     };
   });
 
+  // =============================================================================
+  //                           LIFECYCLE
+  // =============================================================================
+
+  /** Bootstrap — load routine + progress data for this date. */
   onMount(async () => {
     await loadData();
   });
 
+  /** Tear down — release store data on unmount. */
   onDestroy(() => {
     dailyProgressStore.clear();
   });
 
+  // =============================================================================
+  //                       EVENT HANDLERS
+  // =============================================================================
+
+  /**
+   * Fetch daily progress data for the current date.
+   * Sets `error` on failure so the error banner displays.
+   */
   async function loadData() {
     try {
       error = null;
@@ -91,6 +151,10 @@
     }
   }
 
+  /**
+   * Toggle a completion-type goal's done/undone state.
+   * @param goal - The goal to toggle
+   */
   async function handleToggleComplete(goal: GoalWithProgress) {
     if (!canEdit) return;
 
@@ -101,6 +165,11 @@
     }
   }
 
+  /**
+   * Increment / decrement an incremental or progressive goal's value.
+   * @param goal   - The goal to update
+   * @param amount - Positive to increment, negative to decrement
+   */
   async function handleIncrement(goal: GoalWithProgress, amount: number) {
     if (!canEdit || (goal.type !== 'incremental' && goal.type !== 'progressive')) return;
 
@@ -111,6 +180,11 @@
     }
   }
 
+  /**
+   * Set an incremental or progressive goal to an exact value.
+   * @param goal  - The goal to update
+   * @param value - The new absolute value
+   */
   async function handleSetValue(goal: GoalWithProgress, value: number) {
     if (!canEdit || (goal.type !== 'incremental' && goal.type !== 'progressive')) return;
 
@@ -121,6 +195,12 @@
     }
   }
 
+  /**
+   * Persist a drag-and-drop reorder, then reload daily progress
+   * to reflect the new ordering.
+   * @param goalId   - UUID of the dragged goal
+   * @param newOrder - Zero-based target position
+   */
   async function handleReorderGoal(goalId: string, newOrder: number) {
     try {
       await dailyRoutinesStore.reorder(goalId, newOrder);
@@ -136,6 +216,9 @@
   <title>{displayDate} - Stellar Planner</title>
 </svelte:head>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Page Header — Back button + date display + day badge (Today / Past / Future)
+     ═══════════════════════════════════════════════════════════════════════════ -->
 <div class="container">
   <header class="page-header">
     <div class="header-left">
@@ -163,6 +246,7 @@
     </div>
   {/if}
 
+  <!-- ═══ Loading skeleton / Empty state / Goal list ═══ -->
   {#if loading}
     <!-- Daily Progress Skeleton -->
     <div class="skeleton-progress-section">
@@ -195,6 +279,7 @@
       <a href="/routines" class="btn btn-primary">Create Routine</a>
     </EmptyState>
   {:else}
+    <!-- ═══ Progress bar (editable days) / Info banner (future days) ═══ -->
     {#if canEdit}
       <div class="progress-section">
         <ProgressBar percentage={totalProgress()} />
@@ -205,6 +290,7 @@
       </div>
     {/if}
 
+    <!-- ═══ Draggable goal list with per-goal controls ═══ -->
     <DraggableList items={goalsWithProgress} onReorder={handleReorderGoal} disabled={!canEdit}>
       {#snippet renderItem({ item: goal, dragHandleProps })}
         <div class="goal-with-handle">

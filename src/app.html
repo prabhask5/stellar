@@ -1,16 +1,31 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!-- ================================================================= -->
+    <!--                     CORE DOCUMENT META                            -->
+    <!-- ================================================================= -->
     <meta charset="utf-8" />
     <title>Stellar Planner - Goal & Routine Tracker</title>
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+
+    <!--
+      Viewport configuration:
+        - `initial-scale=1`          → no zoom on load
+        - `viewport-fit=cover`       → extend into safe-area insets (notch, home bar)
+        - `width=device-width`       → responsive width
+        - `interactive-widget=overlays-content` → keyboard overlays rather than
+          resizing the viewport (prevents layout shift on mobile)
+    -->
     <meta
       name="viewport"
       content="initial-scale=1, viewport-fit=cover, width=device-width, interactive-widget=overlays-content"
     />
 
-    <!-- SEO Meta Tags -->
-    <!-- Theme color matches --color-void for seamless safe area blending -->
+    <!-- ================================================================= -->
+    <!--                         SEO META TAGS                             -->
+    <!-- ================================================================= -->
+
+    <!-- Theme color matches `--color-void` for seamless safe-area blending -->
     <meta name="theme-color" content="#050510" />
     <meta
       name="description"
@@ -23,7 +38,11 @@
     <meta name="author" content="Stellar" />
     <meta name="robots" content="index, follow" />
 
-    <!-- Open Graph / Social Media -->
+    <!-- ================================================================= -->
+    <!--                    OPEN GRAPH / SOCIAL MEDIA                      -->
+    <!-- ================================================================= -->
+
+    <!-- Used by Facebook, LinkedIn, Discord, Slack, etc. for link previews -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Stellar - Goal & Routine Tracker" />
     <meta
@@ -32,7 +51,11 @@
     />
     <meta property="og:image" content="%sveltekit.assets%/icon-512.png" />
 
-    <!-- Twitter Card -->
+    <!-- ================================================================= -->
+    <!--                         TWITTER CARD                              -->
+    <!-- ================================================================= -->
+
+    <!-- "summary" card type → square image + title + description -->
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Stellar - Goal & Routine Tracker" />
     <meta
@@ -40,38 +63,63 @@
       content="Track your goals, daily routines, and focus sessions."
     />
 
-    <!-- PWA Manifest -->
+    <!-- ================================================================= -->
+    <!--                      PWA / MANIFEST CONFIG                        -->
+    <!-- ================================================================= -->
+
+    <!-- Web App Manifest — defines name, icons, theme, display mode -->
     <link rel="manifest" href="%sveltekit.assets%/manifest.json" />
 
-    <!-- iOS PWA meta tags -->
+    <!-- ================================================================= -->
+    <!--                       iOS PWA META TAGS                           -->
+    <!-- ================================================================= -->
+
+    <!--
+      iOS-specific PWA configuration:
+        - `apple-mobile-web-app-capable`            → enables standalone PWA mode
+        - `apple-mobile-web-app-status-bar-style`   → `black-translucent` lets
+          content extend behind the status bar for a true full-screen feel
+        - `apple-mobile-web-app-title`              → name shown on home screen
+        - `apple-touch-icon`                        → icon used when "Add to Home Screen"
+    -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Stellar" />
     <link rel="apple-touch-icon" href="%sveltekit.assets%/icon-192.png" />
 
-    <!-- Prevent iOS from auto-detecting phone numbers -->
+    <!-- Prevent iOS from auto-detecting and styling phone numbers as links -->
     <meta name="format-detection" content="telephone=no" />
 
+    <!-- SvelteKit injects component-level <head> content here -->
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
-    <!-- Landscape blocker for phones -->
+    <!-- ================================================================= -->
+    <!--               LANDSCAPE ORIENTATION BLOCKER                       -->
+    <!-- ================================================================= -->
+    <!--
+      Stellar is a portrait-only mobile app. When a phone is rotated to
+      landscape, this overlay appears with a space-themed animation asking
+      the user to rotate back. Hidden by default — shown via the
+      `@media (orientation: landscape)` query at the bottom of its <style>.
+    -->
     <div id="landscape-blocker">
-      <!-- Star field background -->
+      <!-- Star field background — two layers drifting at different speeds -->
       <div class="lb-stars"></div>
       <div class="lb-stars lb-stars-2"></div>
 
-      <!-- Nebula effects -->
+      <!-- Nebula glow effects — positioned in opposite corners -->
       <div class="lb-nebula lb-nebula-1"></div>
       <div class="lb-nebula lb-nebula-2"></div>
 
-      <!-- Orbital ring -->
+      <!-- Orbital ring + orbiting particle for visual interest -->
       <div class="lb-orbit"></div>
       <div class="lb-orbit-particle"></div>
 
-      <!-- Content -->
+      <!-- Central content: phone icon + rotate message + decorative stars -->
       <div class="lb-content">
         <div class="lb-icon-glow"></div>
+        <!-- Phone icon (SVG) — rectangle with a dot representing home button -->
         <svg
           class="lb-icon"
           viewBox="0 0 24 24"
@@ -85,6 +133,7 @@
           <line x1="12" y1="18" x2="12.01" y2="18" />
         </svg>
         <p class="lb-message">Please rotate to portrait</p>
+        <!-- Three pulsing dots — decorative hint below the message -->
         <div class="lb-hint">
           <span class="lb-star"></span>
           <span class="lb-star"></span>
@@ -92,7 +141,13 @@
         </div>
       </div>
     </div>
+
+    <!-- ================================================================= -->
+    <!--              LANDSCAPE BLOCKER STYLES                             -->
+    <!-- ================================================================= -->
     <style>
+      /* ── Base Container ─────────────────────────────────────────────── */
+      /* Hidden by default; shown only on phones in landscape orientation  */
       #landscape-blocker {
         display: none;
         position: fixed;
@@ -115,7 +170,8 @@
         box-sizing: border-box;
       }
 
-      /* Stars */
+      /* ── Star Field ─────────────────────────────────────────────────── */
+      /* Two layers of tiny radial-gradient "stars" that drift slowly      */
       .lb-stars {
         position: absolute;
         inset: 0;
@@ -130,6 +186,7 @@
         background-size: 200px 200px;
         animation: lbStarsDrift 80s linear infinite;
       }
+      /* Second star layer — larger tile, slower, reversed direction */
       .lb-stars-2 {
         background-size: 300px 300px;
         animation: lbStarsDrift 120s linear infinite reverse;
@@ -144,7 +201,8 @@
         }
       }
 
-      /* Nebula - positioned within safe area bounds */
+      /* ── Nebula Glow Effects ────────────────────────────────────────── */
+      /* Blurred circles positioned in opposite corners for ambient depth  */
       .lb-nebula {
         position: absolute;
         border-radius: 50%;
@@ -152,6 +210,7 @@
         opacity: 0.4;
         pointer-events: none;
       }
+      /* Top-right nebula — purple (#6c5ce7) */
       .lb-nebula-1 {
         width: 200px;
         height: 200px;
@@ -160,6 +219,7 @@
         background: radial-gradient(ellipse, rgba(108, 92, 231, 0.5) 0%, transparent 70%);
         animation: lbNebulaPulse 8s ease-in-out infinite;
       }
+      /* Bottom-left nebula — pink (#ff79c6) */
       .lb-nebula-2 {
         width: 180px;
         height: 180px;
@@ -180,7 +240,8 @@
         }
       }
 
-      /* Orbit - sized for landscape viewport (max ~380pt height available) */
+      /* ── Orbital Ring + Particle ────────────────────────────────────── */
+      /* A faint ring that rotates, with a glowing dot orbiting along it   */
       .lb-orbit {
         position: absolute;
         width: 220px;
@@ -217,7 +278,8 @@
         }
       }
 
-      /* Content - compact layout for landscape viewport */
+      /* ── Central Content Area ───────────────────────────────────────── */
+      /* Phone icon, message text, and decorative hint dots                */
       .lb-content {
         position: relative;
         z-index: 10;
@@ -229,6 +291,7 @@
         /* Ensure content stays within safe area */
         max-width: calc(100% - 2rem);
       }
+      /* Glow halo behind the phone icon */
       .lb-icon-glow {
         position: absolute;
         top: -16px;
@@ -254,6 +317,7 @@
           transform: scale(1.2);
         }
       }
+      /* Phone SVG icon — gentle rocking rotation */
       .lb-icon {
         position: relative;
         color: #f0f0ff;
@@ -275,6 +339,7 @@
           transform: rotate(15deg);
         }
       }
+      /* Message text — gradient shimmer effect */
       .lb-message {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: 1.125rem;
@@ -296,6 +361,7 @@
           background-position: 200% center;
         }
       }
+      /* Three decorative dots below the message */
       .lb-hint {
         display: flex;
         gap: 6px;
@@ -309,6 +375,7 @@
         box-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
         animation: lbStarPulse 2s ease-in-out infinite;
       }
+      /* Staggered animation delays for wave-like pulsing */
       .lb-star:nth-child(2) {
         animation-delay: 0.3s;
       }
@@ -327,14 +394,22 @@
         }
       }
 
-      /* Show on phones in landscape */
+      /* ── Visibility Trigger ─────────────────────────────────────────── */
+      /*
+       * Show the blocker ONLY on phones in landscape:
+       *   - max-height: 500px   → landscape phone viewports
+       *   - orientation          → landscape
+       *   - hover: none          → excludes desktop/laptop (they have hover)
+       *   - pointer: coarse      → excludes stylus / mouse devices
+       */
       @media (max-height: 500px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
         #landscape-blocker {
           display: flex;
         }
       }
 
-      /* Reduced motion */
+      /* ── Accessibility: Reduced Motion ──────────────────────────────── */
+      /* Disable all animations if the user prefers reduced motion         */
       @media (prefers-reduced-motion: reduce) {
         .lb-stars,
         .lb-nebula,
@@ -351,9 +426,25 @@
         }
       }
     </style>
+
+    <!-- ================================================================= -->
+    <!--                      SVELTEKIT APP MOUNT                          -->
+    <!-- ================================================================= -->
+    <!-- `display: contents` makes the wrapper invisible to CSS layout     -->
     <div style="display: contents">%sveltekit.body%</div>
 
-    <!-- Prevent zoom and bounce gestures on iOS PWA -->
+    <!-- ================================================================= -->
+    <!--              iOS GESTURE / ZOOM PREVENTION SCRIPT                 -->
+    <!-- ================================================================= -->
+    <!--
+      Prevents unwanted zoom gestures in the iOS PWA:
+        1. `gesturestart/change/end` → blocks pinch-to-zoom (Safari-specific)
+        2. `touchend` debounce       → blocks double-tap zoom (300 ms window)
+        3. `touchmove` multi-touch   → blocks two-finger zoom/scroll
+
+      All listeners use `{ passive: false }` so `preventDefault()` works.
+      Wrapped in an IIFE to avoid polluting the global scope.
+    -->
     <script>
       (function () {
         // Prevent pinch-to-zoom
@@ -381,7 +472,7 @@
           { passive: false }
         );
 
-        // Prevent double-tap zoom
+        // Prevent double-tap zoom — if two taps land within 300 ms, cancel the second
         var lastTouchEnd = 0;
         document.addEventListener(
           'touchend',
@@ -395,7 +486,7 @@
           { passive: false }
         );
 
-        // Prevent multi-touch zoom
+        // Prevent multi-touch zoom — block touchmove when more than one finger is down
         document.addEventListener(
           'touchmove',
           function (e) {
@@ -408,7 +499,19 @@
       })();
     </script>
 
-    <!-- Register service worker (deferred to reduce main-thread work) -->
+    <!-- ================================================================= -->
+    <!--                SERVICE WORKER REGISTRATION                        -->
+    <!-- ================================================================= -->
+    <!--
+      Deferred registration strategy:
+        - Uses `requestIdleCallback` (with `setTimeout` fallback) so the SW
+          doesn't compete with first-paint work on the main thread.
+        - After registration, sets up three update-check triggers:
+            1. `visibilitychange` → check when tab becomes visible again
+            2. `setInterval`      → every 5 minutes (iOS fallback — it doesn't
+               reliably fire visibilitychange in standalone PWA mode)
+            3. `online`           → check when connectivity is restored
+    -->
     <script>
       if ('serviceWorker' in navigator) {
         // Use requestIdleCallback to defer SW registration until browser is idle
@@ -416,10 +519,22 @@
           navigator.serviceWorker
             .register('/sw.js')
             .then(function (registration) {
+              // Primary: check for updates when tab becomes visible
               document.addEventListener('visibilitychange', function () {
                 if (document.visibilityState === 'visible') {
                   registration.update();
                 }
+              });
+              // Fallback: periodic update check (iOS PWA doesn't fire visibilitychange reliably)
+              setInterval(
+                function () {
+                  registration.update();
+                },
+                5 * 60 * 1000
+              );
+              // Also check when device comes back online
+              window.addEventListener('online', function () {
+                registration.update();
               });
             })
             .catch(function () {});

@@ -1,17 +1,54 @@
 <script lang="ts">
+  /**
+   * @fileoverview Main focus timer display with circular SVG progress ring.
+   *
+   * This is the centrepiece of the Focus feature — a 320px circular timer that
+   * renders an animated progress arc, a countdown clock, phase text, and cycle
+   * indicator. The component also layers a three-tier CSS starfield, a nebula
+   * background, and orbital ring decorations to create the cosmic aesthetic.
+   *
+   * Visual layers (back → front):
+   * 1. CSS starfield (three density layers with twinkling animation)
+   * 2. Nebula radial gradient (pulses when timer is running)
+   * 3. Orbital rings with glowing dots (visible only while running)
+   * 4. SVG progress ring (background track + gradient arc + glow)
+   * 5. Timer content (time, phase label, cycle count)
+   *
+   * The component also accepts a `stateTransition` prop that triggers one-shot
+   * CSS animations for remote-sync visual feedback.
+   */
+
   import type { FocusSession, FocusSettings } from '$lib/types';
   import { formatTime, calculateProgress, getPhaseText } from '$lib/utils/focus';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Active focus session object — `null` before a session starts */
     session: FocusSession | null;
+    /** User's Pomodoro configuration (durations, cycle settings) */
     settings: FocusSettings | null;
+    /** Milliseconds remaining in the current phase */
     remainingMs: number;
+    /** Whether the timer is actively counting down */
     isRunning: boolean;
+    /** Transition state for remote-sync animations */
     stateTransition?: 'none' | 'starting' | 'pausing' | 'resuming' | 'stopping' | null;
   }
 
   let { session, settings, remainingMs, isRunning, stateTransition = null }: Props = $props();
 
+  // =============================================================================
+  //  Derived State
+  // =============================================================================
+
+  /**
+   * Total duration (in ms) for the current phase — used as the denominator
+   * when computing progress. Falls back to `focus_duration` from settings
+   * if no session is active yet.
+   */
   // Calculate total duration for progress
   const totalMs = $derived(() => {
     if (!session || !settings) {
@@ -28,25 +65,44 @@
       : session.break_duration * 60 * 1000;
   });
 
+  /** Progress percentage (0–100) derived from `remainingMs / totalMs` */
   const progress = $derived(calculateProgress(remainingMs, totalMs()));
+
+  /** Formatted time string — e.g., "25:00" */
   const timeDisplay = $derived(formatTime(remainingMs));
+
+  /** Whether the current phase is a break (short or long) */
   const isBreak = $derived(session?.phase === 'break');
+
+  /** Whether the current break qualifies as a long break (cycle threshold met) */
   const isLongBreak = $derived(
     session?.phase === 'break' &&
       settings &&
       session.current_cycle >= settings.cycles_before_long_break
   );
+
+  /** Human-readable phase label — "Focus", "Short Break", "Long Break", or "Ready to Focus" */
   const phaseText = $derived(
     session ? getPhaseText(session.phase, isLongBreak ?? false) : 'Ready to Focus'
   );
 
-  // SVG circle calculations
+  // =============================================================================
+  //  SVG Ring Geometry
+  // =============================================================================
+
+  /* ── Circle constants ──── */
   const radius = 140;
   const strokeWidth = 8;
   const circumference = 2 * Math.PI * radius;
+
+  /**
+   * Dash-offset that reveals the correct arc length for the current progress.
+   * Full circumference = 0% progress; zero offset = 100% progress.
+   */
   const strokeDashoffset = $derived(circumference - (progress / 100) * circumference);
 </script>
 
+<!-- ═══ Timer Container ═══ -->
 <div
   class="timer-container"
   class:running={isRunning}
@@ -55,17 +111,17 @@
   class:transition-resuming={stateTransition === 'resuming'}
   class:transition-stopping={stateTransition === 'stopping'}
 >
-  <!-- 3-Layer CSS Starfield -->
+  <!-- 3-Layer CSS Starfield — small / medium / large stars with offset twinkle timing -->
   <div class="stars-container">
     <div class="stars stars-small"></div>
     <div class="stars stars-medium"></div>
     <div class="stars stars-large"></div>
   </div>
 
-  <!-- Nebula background -->
+  <!-- Nebula background — subtle radial glow, intensifies when running -->
   <div class="nebula" class:active={isRunning}></div>
 
-  <!-- Orbital rings (visible when running) -->
+  <!-- Orbital rings — decorative spinning rings visible only while the timer runs -->
   {#if isRunning}
     <div class="orbital-ring orbital-ring-1" class:break={isBreak}>
       <div class="orbital-dot"></div>
@@ -75,9 +131,9 @@
     </div>
   {/if}
 
-  <!-- Timer ring -->
+  <!-- ═══ SVG Progress Ring ═══ -->
   <svg class="timer-ring" viewBox="0 0 320 320">
-    <!-- Background ring -->
+    <!-- Background track ring (always visible) -->
     <circle
       cx="160"
       cy="160"
@@ -87,7 +143,7 @@
       stroke-width={strokeWidth}
     />
 
-    <!-- Progress ring -->
+    <!-- Foreground progress arc — rotated -90deg so 0% starts at 12 o'clock -->
     <circle
       class="progress-ring"
       class:focus={!isBreak}
@@ -104,7 +160,7 @@
       transform="rotate(-90 160 160)"
     />
 
-    <!-- Glow effect -->
+    <!-- Blurred glow ring — renders behind the progress arc for a bloom effect -->
     {#if isRunning}
       <circle
         class="glow-ring"
@@ -123,14 +179,17 @@
     {/if}
   </svg>
 
-  <!-- Timer content -->
+  <!-- ═══ Timer Content (Centre) ═══ -->
   <div class="timer-content">
+    <!-- Countdown display — gains a text glow when running -->
     <div class="time-display" class:running={isRunning}>
       {timeDisplay}
     </div>
+    <!-- Phase label (e.g., "FOCUS", "SHORT BREAK") -->
     <div class="phase-text" class:break={isBreak}>
       {phaseText}
     </div>
+    <!-- Cycle progress indicator — e.g., "Cycle 2 of 4" -->
     {#if session}
       <div class="cycle-indicator">
         Cycle {session.current_cycle} of {session.total_cycles}
@@ -139,7 +198,7 @@
   </div>
 </div>
 
-<!-- SVG gradient definitions (hidden) -->
+<!-- Hidden SVG gradient definitions — referenced by the progress ring via `url(#...)` -->
 <svg width="0" height="0" style="position: absolute;">
   <defs>
     <linearGradient id="focusGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -154,6 +213,8 @@
 </svg>
 
 <style>
+  /* ═══ Timer Container ═══ */
+
   .timer-container {
     position: relative;
     width: 320px;
@@ -161,10 +222,11 @@
     margin: 0 auto;
   }
 
-  /* 3-Layer CSS Starfield */
+  /* ═══ 3-Layer CSS Starfield ═══ */
+
   .stars-container {
     position: absolute;
-    inset: -60px;
+    inset: -60px; /* extend beyond container for peripheral stars */
     overflow: hidden;
     pointer-events: none;
     border-radius: 50%;
@@ -176,6 +238,7 @@
     background-repeat: repeat;
   }
 
+  /* Small stars — 1px dots, fastest twinkle */
   .stars-small {
     background-image:
       radial-gradient(1px 1px at 20px 30px, white, transparent),
@@ -194,6 +257,7 @@
     animation: twinkle 4s ease-in-out infinite;
   }
 
+  /* Medium stars — 1.5px dots, offset phase */
   .stars-medium {
     background-image:
       radial-gradient(1.5px 1.5px at 100px 50px, white, transparent),
@@ -208,6 +272,7 @@
     animation-delay: 0.5s;
   }
 
+  /* Large stars — 2px dots, slowest twinkle */
   .stars-large {
     background-image:
       radial-gradient(2px 2px at 150px 100px, white, transparent),
@@ -230,7 +295,8 @@
     }
   }
 
-  /* Nebula Background */
+  /* ═══ Nebula Background ═══ */
+
   .nebula {
     position: absolute;
     inset: -80px;
@@ -245,6 +311,7 @@
     transition: opacity 0.5s ease;
   }
 
+  /* Intensify and pulse while the timer is running */
   .nebula.active {
     opacity: 1;
     animation: nebulaPulse 8s ease-in-out infinite;
@@ -262,7 +329,8 @@
     }
   }
 
-  /* Orbital Rings */
+  /* ═══ Orbital Rings ═══ */
+
   .orbital-ring {
     position: absolute;
     border: 1px solid rgba(108, 92, 231, 0.2);
@@ -270,11 +338,13 @@
     pointer-events: none;
   }
 
+  /* Inner orbit — 12s clockwise rotation */
   .orbital-ring-1 {
     inset: -20px;
     animation: orbitRotate 12s linear infinite;
   }
 
+  /* Outer orbit — 18s counter-clockwise rotation */
   .orbital-ring-2 {
     inset: -40px;
     animation: orbitRotate 18s linear infinite reverse;
@@ -294,6 +364,7 @@
       0 0 16px var(--color-primary-glow);
   }
 
+  /* Second dot sits on the opposite side of its ring */
   .orbital-ring-2 .orbital-dot {
     left: auto;
     right: 0;
@@ -309,7 +380,7 @@
     }
   }
 
-  /* Break phase orbital styling */
+  /* Break phase — switch orbital colours to green */
   .orbital-ring.break {
     border-color: rgba(38, 222, 129, 0.2);
   }
@@ -321,7 +392,8 @@
       0 0 16px rgba(38, 222, 129, 0.5);
   }
 
-  /* Timer ring */
+  /* ═══ SVG Timer Ring ═══ */
+
   .timer-ring {
     position: absolute;
     inset: 0;
@@ -333,10 +405,12 @@
     transition: stroke-dashoffset 0.3s ease-out;
   }
 
+  /* Slower transition while running for smooth per-second ticking */
   .progress-ring.running {
     transition: stroke-dashoffset 1s linear;
   }
 
+  /* Gradient strokes — reference hidden SVG `<defs>` */
   .progress-ring.focus {
     stroke: url(#focusGradient);
   }
@@ -345,6 +419,7 @@
     stroke: url(#breakGradient);
   }
 
+  /* Multi-layer drop-shadow glow while running */
   .progress-ring.running {
     filter: drop-shadow(0 0 4px var(--color-primary)) drop-shadow(0 0 8px var(--color-primary-glow))
       drop-shadow(0 0 16px var(--color-primary-glow));
@@ -355,6 +430,7 @@
       drop-shadow(0 0 16px rgba(38, 222, 129, 0.3));
   }
 
+  /* Blurred glow ring — slightly wider stroke, low opacity */
   .glow-ring {
     opacity: 0.3;
     filter: blur(8px);
@@ -368,7 +444,8 @@
     stroke: #26de81;
   }
 
-  /* Timer content */
+  /* ═══ Timer Content (Centre Text) ═══ */
+
   .timer-content {
     position: absolute;
     inset: 0;
@@ -382,7 +459,7 @@
   .time-display {
     font-size: 4rem;
     font-weight: 700;
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums; /* prevent layout shift between digits */
     letter-spacing: -0.02em;
     color: var(--color-text);
     transition:
@@ -390,6 +467,7 @@
       color 0.5s ease;
   }
 
+  /* Multi-layer text glow while running */
   .time-display.running {
     text-shadow:
       0 0 10px var(--color-primary-glow),
@@ -417,7 +495,8 @@
     margin-top: 0.5rem;
   }
 
-  /* Responsive */
+  /* ═══ Responsive ═══ */
+
   @media (max-width: 400px) {
     .timer-container {
       width: 280px;
@@ -433,7 +512,7 @@
      STATE TRANSITION ANIMATIONS — Remote Sync Visual Feedback
      ═══════════════════════════════════════════════════════════════════════════════ */
 
-  /* Starting animation - pulse and glow */
+  /* Starting animation — scale bounce + opacity fade-in */
   .timer-container.transition-starting {
     animation: timerStart 0.6s var(--ease-spring);
   }
@@ -452,6 +531,7 @@
     }
   }
 
+  /* Ring flash — brief intense glow on the SVG ring when starting */
   .timer-container.transition-starting .timer-ring {
     animation: ringFlash 0.6s var(--ease-out);
   }
@@ -469,7 +549,7 @@
     }
   }
 
-  /* Pausing animation - gentle fade and settle */
+  /* Pausing animation — gentle brightness dip and subtle scale-down */
   .timer-container.transition-pausing {
     animation: timerPause 0.5s var(--ease-out);
   }
@@ -488,6 +568,7 @@
     }
   }
 
+  /* Time display pulse — flickers opacity during pause transition */
   .timer-container.transition-pausing .time-display {
     animation: timePulse 0.5s var(--ease-out);
   }
@@ -502,7 +583,7 @@
     }
   }
 
-  /* Resuming animation - energize */
+  /* Resuming animation — brightness boost with spring scale */
   .timer-container.transition-resuming {
     animation: timerResume 0.5s var(--ease-spring);
   }
@@ -522,6 +603,7 @@
     }
   }
 
+  /* Ring energize — glow burst on the progress ring when resuming */
   .timer-container.transition-resuming .progress-ring {
     animation: ringEnergize 0.5s var(--ease-out);
   }
@@ -539,7 +621,7 @@
     }
   }
 
-  /* Stopping animation - fade out and reset */
+  /* Stopping animation — brief fade-down then recover */
   .timer-container.transition-stopping {
     animation: timerStop 0.6s var(--ease-out);
   }
@@ -559,6 +641,7 @@
     }
   }
 
+  /* Ring fade — progress arc blinks during stop transition */
   .timer-container.transition-stopping .progress-ring {
     animation: ringFade 0.6s var(--ease-out);
   }
@@ -575,7 +658,7 @@
     }
   }
 
-  /* Remote sync shimmer overlay */
+  /* Remote sync shimmer — radial pulse overlay on start / resume */
   .timer-container.transition-starting::before,
   .timer-container.transition-resuming::before {
     content: '';

@@ -1,4 +1,19 @@
 <script lang="ts">
+  /**
+   * @fileoverview LongTermTaskCalendar — monthly calendar grid showing tasks on their due dates.
+   *
+   * Renders a standard 7-column month view with navigation arrows, a "today"
+   * shortcut, and coloured task chips inside each day cell.  On desktop the
+   * chips show truncated task names; on mobile a compact numeric badge is
+   * displayed instead.  Overdue task chips pulse with a red glow animation.
+   *
+   * Key behaviours:
+   * - `getTasksForDate` filters incomplete tasks whose `due_date` matches a cell.
+   * - Desktop shows up to 2 task chips plus a "+N" overflow label.
+   * - Mobile replaces chips with a small count badge (`task-count-indicator`).
+   * - A "today" pill appears in the header when viewing a non-current month.
+   */
+
   import {
     getDaysInMonth,
     getWeekdayNames,
@@ -12,32 +27,71 @@
   import type { LongTermTaskWithCategory } from '$lib/types';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
+  // =============================================================================
+  //                                  Props
+  // =============================================================================
+
   interface Props {
+    /** The Date object representing the currently viewed month */
     currentDate: Date;
+    /** Full list of long-term tasks to overlay on the calendar */
     tasks: LongTermTaskWithCategory[];
+    /** Callback when a day cell is clicked */
     onDayClick: (date: Date) => void;
+    /** Callback when a task chip is clicked */
     onTaskClick: (task: LongTermTaskWithCategory) => void;
+    /** Callback when the month changes (via arrows or "today" button) */
     onMonthChange: (date: Date) => void;
   }
 
   let { currentDate, tasks, onDayClick, onTaskClick, onMonthChange }: Props = $props();
 
+  // =============================================================================
+  //                          Derived Grid Data
+  // =============================================================================
+
+  /** Short weekday labels (e.g. ["Sun", "Mon", ...]) — constant across renders */
   const weekdays = getWeekdayNames();
+
+  /** Array of Date objects for every day in the current month */
   const days = $derived(getDaysInMonth(currentDate));
+
+  /** Number of blank cells before the 1st of the month (0 = Sunday start) */
   const firstDayOffset = $derived(getFirstDayOfMonthWeekday(currentDate));
 
+  // =============================================================================
+  //                       Month Navigation Handlers
+  // =============================================================================
+
+  /**
+   * Navigate to the previous month.
+   */
   function goToPreviousMonth() {
     onMonthChange(subMonths(currentDate, 1));
   }
 
+  /**
+   * Navigate to the next month.
+   */
   function goToNextMonth() {
     onMonthChange(addMonths(currentDate, 1));
   }
 
+  /**
+   * Jump back to the current real-world month.
+   */
   function goToToday() {
     onMonthChange(new Date());
   }
 
+  // =============================================================================
+  //                          Derived Helpers
+  // =============================================================================
+
+  /**
+   * Whether the calendar is currently showing the real-world month.
+   * Controls visibility of the "today" shortcut pill.
+   */
   const isViewingCurrentMonth = $derived(() => {
     const today = new Date();
     return (
@@ -46,11 +100,25 @@
     );
   });
 
+  // =============================================================================
+  //                          Utility Functions
+  // =============================================================================
+
+  /**
+   * Return incomplete tasks whose `due_date` matches the given calendar date.
+   * @param {Date} date - The calendar cell date
+   * @returns {LongTermTaskWithCategory[]} Matching incomplete tasks
+   */
   function getTasksForDate(date: Date): LongTermTaskWithCategory[] {
     const dateStr = formatDate(date);
     return tasks.filter((t) => t.due_date === dateStr && !t.completed);
   }
 
+  /**
+   * Check whether a task is past its due date (and still incomplete).
+   * @param {LongTermTaskWithCategory} task - The task to check
+   * @returns {boolean} `true` if the task is overdue
+   */
   function isOverdue(task: LongTermTaskWithCategory): boolean {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -59,7 +127,12 @@
   }
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Template — Calendar Container
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <div class="calendar">
+  <!-- ═══ Header — Month Title & Navigation Arrows ═══ -->
   <div class="calendar-header">
     <button class="nav-btn" onclick={goToPreviousMonth} aria-label="Previous month">
       <svg
@@ -77,6 +150,7 @@
     <div class="month-title-wrapper">
       <h2 class="month-title">
         {formatMonthYear(currentDate)}
+        <!-- "today" pill — only visible when viewing a different month -->
         {#if !isViewingCurrentMonth()}
           <button class="today-btn" onclick={goToToday}>today</button>
         {/if}
@@ -97,17 +171,21 @@
     </button>
   </div>
 
+  <!-- ═══ Weekday Header Row ═══ -->
   <div class="calendar-weekdays">
     {#each weekdays as day (day)}
       <div class="weekday">{day}</div>
     {/each}
   </div>
 
+  <!-- ═══ Day Grid — Blank Offsets + Day Cells ═══ -->
   <div class="calendar-grid">
+    <!-- Leading empty cells for days before the 1st of the month -->
     {#each Array(firstDayOffset) as _, _i (_i)}
       <div class="day-cell empty" aria-hidden="true"></div>
     {/each}
 
+    <!-- One cell per day in the month -->
     {#each days as day (day.toISOString())}
       {@const isToday = isTodayDate(day)}
       {@const dayTasks = getTasksForDate(day)}
@@ -125,7 +203,7 @@
       >
         <span class="day-number">{day.getDate()}</span>
         {#if hasTasksDue}
-          <!-- Desktop: Show task chips -->
+          <!-- ═══ Desktop: Coloured Task Chips (max 2 + overflow) ═══ -->
           <div class="task-chips desktop-only">
             {#each dayTasks.slice(0, 2) as task (task.id)}
               <button
@@ -145,7 +223,7 @@
               <span class="more-tasks">+{dayTasks.length - 2}</span>
             {/if}
           </div>
-          <!-- Mobile: Show minimal task count indicator -->
+          <!-- ═══ Mobile: Compact Numeric Task Count Badge ═══ -->
           <div class="task-count-indicator mobile-only">
             <span class="task-count" class:multiple={dayTasks.length > 1}>
               {dayTasks.length}
@@ -157,7 +235,13 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Styles
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <style>
+  /* ═══ Calendar Container ═══ */
+
   .calendar {
     background: linear-gradient(
       165deg,
@@ -177,6 +261,7 @@
     position: relative;
   }
 
+  /* Top edge iridescent shine line */
   .calendar::before {
     content: '';
     position: absolute;
@@ -194,6 +279,8 @@
     );
   }
 
+  /* ═══ Calendar Header ═══ */
+
   .calendar-header {
     display: flex;
     align-items: center;
@@ -204,6 +291,8 @@
     position: relative;
     z-index: 1;
   }
+
+  /* ═══ Navigation Buttons ═══ */
 
   .nav-btn {
     width: 40px;
@@ -227,6 +316,8 @@
     color: white;
   }
 
+  /* ═══ Month Title ═══ */
+
   .month-title-wrapper {
     display: flex;
     align-items: center;
@@ -248,6 +339,8 @@
     background-clip: text;
     letter-spacing: -0.02em;
   }
+
+  /* ═══ "Today" Shortcut Pill ═══ */
 
   .today-btn {
     font-size: 0.5625rem;
@@ -280,6 +373,8 @@
     transform: scale(0.95);
   }
 
+  /* ═══ Weekday Header Row ═══ */
+
   .calendar-weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -299,6 +394,8 @@
     letter-spacing: 0.1em;
   }
 
+  /* ═══ Day Grid ═══ */
+
   .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -308,6 +405,8 @@
     position: relative;
     z-index: 1;
   }
+
+  /* ═══ Day Cell ═══ */
 
   .day-cell {
     min-height: 80px;
@@ -337,6 +436,7 @@
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
   }
 
+  /* Today highlight — purple border + glow */
   .day-cell.today {
     border-color: var(--color-primary);
     box-shadow: 0 0 20px var(--color-primary-glow);
@@ -353,6 +453,8 @@
     color: var(--color-primary-light);
     font-weight: 700;
   }
+
+  /* ═══ Task Chips (Desktop) ═══ */
 
   .task-chips {
     display: flex;
@@ -385,6 +487,7 @@
     box-shadow: 0 0 12px var(--chip-color);
   }
 
+  /* Overdue chip — pulsing red glow */
   .task-chip.overdue {
     animation: overdueGlow 2s ease-in-out infinite;
   }
@@ -406,7 +509,8 @@
     padding: 0.125rem 0.25rem;
   }
 
-  /* Desktop/Mobile visibility */
+  /* ═══ Desktop / Mobile Visibility ═══ */
+
   .desktop-only {
     display: flex;
   }
@@ -415,7 +519,8 @@
     display: none;
   }
 
-  /* Mobile task count indicator */
+  /* ═══ Mobile Task Count Badge ═══ */
+
   .task-count-indicator {
     position: absolute;
     bottom: 4px;
@@ -440,6 +545,8 @@
   .task-count.multiple {
     background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
   }
+
+  /* ═══ Mobile Adjustments ═══ */
 
   @media (max-width: 640px) {
     .calendar {

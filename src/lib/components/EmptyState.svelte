@@ -1,22 +1,60 @@
 <script lang="ts">
+  /**
+   * @fileoverview EmptyState — decorative placeholder shown when a list or view has no content.
+   *
+   * Renders a centered column with an animated emoji icon, a gradient-shimmer title,
+   * an optional description, and an optional action slot (e.g. "Create" button).
+   * The entire block floats over two layered nebula pseudo-element glows for
+   * visual richness on the space-themed UI.
+   *
+   * Usage:
+   *   <EmptyState icon="🚀" title="No projects yet" description="Get started!">
+   *     <Button>Create Project</Button>
+   *   </EmptyState>
+   */
+
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Emoji displayed as the large hero icon — defaults to clipboard */
     icon?: string;
+    /** Headline text shown below the icon */
     title: string;
+    /** Optional body copy rendered below the title */
     description?: string;
+    /** Optional slot for CTA buttons / actions */
     children?: import('svelte').Snippet;
   }
 
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
+
+  // =============================================================================
+  //  Component State
+  // =============================================================================
 
   let { icon = '📋', title, description, children }: Props = $props();
 </script>
 
+<!-- ═══ Layout ═══ -->
 <div class="empty-state">
+  <!-- Hero emoji icon — animated with `iconOrbit` keyframes -->
   <span class="empty-icon">{icon}</span>
+
+  <!-- Gradient-shimmer title with truncation tooltip for overflow -->
   <h3 class="empty-title" use:truncateTooltip>{title}</h3>
+
+  <!-- Optional descriptive paragraph -->
   {#if description}
     <p class="empty-description">{description}</p>
   {/if}
+
+  <!-- Optional action slot (buttons, links, etc.) -->
   {#if children}
     <div class="empty-actions">
       {@render children()}
@@ -25,6 +63,8 @@
 </div>
 
 <style>
+  /* ═══ Container ═══ */
+
   .empty-state {
     display: flex;
     flex-direction: column;
@@ -35,7 +75,9 @@
     position: relative;
   }
 
-  /* Main nebula glow */
+  /* ═══ Nebula Glow Layers ═══ */
+
+  /* Main nebula glow — purple-to-pink radial gradient */
   .empty-state::before {
     content: '';
     position: absolute;
@@ -65,7 +107,7 @@
     }
   }
 
-  /* Secondary accent glow */
+  /* Secondary accent glow — green tint, offset right */
   .empty-state::after {
     content: '';
     position: absolute;
@@ -80,6 +122,8 @@
     animation: nebulaFloat 10s var(--ease-smooth) infinite reverse;
   }
 
+  /* ═══ Icon ═══ */
+
   .empty-icon {
     font-size: 5rem;
     margin-bottom: 2rem;
@@ -89,6 +133,7 @@
     z-index: 1;
   }
 
+  /* Gentle bobbing orbit to make the icon feel alive */
   @keyframes iconOrbit {
     0%,
     100% {
@@ -104,6 +149,8 @@
       transform: translateY(-10px) rotate(-5deg);
     }
   }
+
+  /* ═══ Title ═══ */
 
   .empty-title {
     font-size: 1.75rem;
@@ -124,6 +171,7 @@
     animation: textShimmer 6s linear infinite;
   }
 
+  /* Continuously scrolls the gradient for a shimmer effect */
   @keyframes textShimmer {
     0% {
       background-position: 0% center;
@@ -132,6 +180,8 @@
       background-position: 200% center;
     }
   }
+
+  /* ═══ Description ═══ */
 
   .empty-description {
     color: var(--color-text-muted);
@@ -143,6 +193,8 @@
     font-size: 1rem;
   }
 
+  /* ═══ Actions Slot ═══ */
+
   .empty-actions {
     display: flex;
     gap: 1rem;
@@ -150,9 +202,7 @@
     z-index: 1;
   }
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     MOBILE RESPONSIVE — iPhone 16 Pro Optimized
-     ═══════════════════════════════════════════════════════════════════════════════════ */
+  /* ═══ Mobile Responsive — iPhone 16 Pro Optimized ═══ */
 
   @media (max-width: 640px) {
     .empty-state {
@@ -192,13 +242,15 @@
       max-width: 280px;
     }
 
+    /* Force full-width buttons on mobile */
     .empty-actions :global(.btn) {
       width: 100%;
       justify-content: center;
     }
   }
 
-  /* iPhone SE */
+  /* ═══ iPhone SE (≤375px) ═══ */
+
   @media (max-width: 375px) {
     .empty-state {
       padding: 2.5rem 1rem;
@@ -217,7 +269,8 @@
     }
   }
 
-  /* iPhone Pro Max (430px+) */
+  /* ═══ iPhone Pro Max (430px+) ═══ */
+
   @media (min-width: 430px) and (max-width: 640px) {
     .empty-state {
       padding: 4rem 2rem;

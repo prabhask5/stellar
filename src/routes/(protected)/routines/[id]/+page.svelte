@@ -1,4 +1,19 @@
 <script lang="ts">
+  /**
+   * @fileoverview **Edit Routine** — Single routine editing page.
+   *
+   * Reached via `/routines/:id` where `:id` is a routine UUID.
+   *
+   * Loads the routine into a `RoutineForm` for editing name, type,
+   * target values, date range, active days, and progression schedule.
+   * On save, navigates back to the routines index (scrolled to the
+   * "Manage Routines" section via `#manage-routines` hash).
+   */
+
+  // =============================================================================
+  //                               IMPORTS
+  // =============================================================================
+
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
@@ -6,14 +21,24 @@
   import type { DailyRoutineGoal, GoalType, DayOfWeek } from '$lib/types';
   import RoutineForm from '$lib/components/RoutineForm.svelte';
 
+  // =============================================================================
+  //                         COMPONENT STATE
+  // =============================================================================
+
   let routine = $state<DailyRoutineGoal | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
+  /** Guards against double-submits while the save request is in-flight */
   let saving = $state(false);
 
+  /** Route parameter — the routine UUID */
   const routineId = $derived($page.params.id!);
 
-  // Subscribe to store
+  // =============================================================================
+  //                    STORE SUBSCRIPTIONS
+  // =============================================================================
+
+  /** Subscribe to the single-routine store and sync loading state. */
   $effect(() => {
     const unsubRoutine = routineStore.subscribe((value) => {
       routine = value;
@@ -28,14 +53,30 @@
     };
   });
 
+  // =============================================================================
+  //                           LIFECYCLE
+  // =============================================================================
+
+  /** Bootstrap — fetch routine data by ID. */
   onMount(async () => {
     await routineStore.load(routineId);
   });
 
+  /** Tear down — release store data on unmount. */
   onDestroy(() => {
     routineStore.clear();
   });
 
+  // =============================================================================
+  //                       EVENT HANDLERS
+  // =============================================================================
+
+  /**
+   * Persist routine changes via the daily-routines store, then navigate
+   * back to the routines index with `#manage-routines` hash so the
+   * browser scrolls to the management section.
+   * @param data - Updated routine payload from `RoutineForm`
+   */
   async function handleUpdateRoutine(data: {
     name: string;
     type: GoalType;
@@ -69,6 +110,10 @@
     }
   }
 
+  /**
+   * Delete the routine after user confirmation, then navigate back
+   * to the routines index.
+   */
   async function handleDeleteRoutine() {
     if (!routine) return;
     if (!confirm('Delete this routine? All associated progress data will be lost.')) return;
@@ -86,6 +131,9 @@
   <title>Edit Routine - Stellar Planner</title>
 </svelte:head>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Page Header — Back button + "Edit Routine" title + Delete action
+     ═══════════════════════════════════════════════════════════════════════════ -->
 <div class="container">
   <header class="page-header">
     <div class="header-left">
@@ -108,6 +156,7 @@
     </div>
   {/if}
 
+  <!-- ═══ Loading skeleton / Edit form / Not-found error ═══ -->
   {#if loading}
     <!-- Form Skeleton -->
     <div class="form-skeleton">
@@ -154,6 +203,7 @@
       <div class="skeleton-shimmer"></div>
     </div>
   {:else if routine}
+    <!-- ═══ RoutineForm — pre-populated with existing routine data ═══ -->
     <div class="form-card">
       <RoutineForm
         name={routine.name}

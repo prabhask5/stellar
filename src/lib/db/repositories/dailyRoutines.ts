@@ -1,3 +1,20 @@
+/**
+ * @fileoverview Repository for **daily routine goal** entities.
+ *
+ * A daily routine goal is a recurring habit or metric the user tracks each
+ * day (e.g. "Drink 8 glasses of water").  Routines support three goal types:
+ * `completion` (boolean), `incremental` (fixed target), and `progressive`
+ * (target that ramps over time).
+ *
+ * Cascade behaviour: deleting a routine also soft-deletes all its child
+ * `daily_goal_progress` records via a batch write.
+ *
+ * Table: `daily_routine_goals`
+ * Children: `daily_goal_progress` (via `daily_routine_goal_id`)
+ *
+ * @module repositories/dailyRoutines
+ */
+
 import { generateId, now } from '@prabhask5/stellar-engine/utils';
 import {
   engineCreate,
@@ -8,6 +25,34 @@ import {
 import type { BatchOperation } from '@prabhask5/stellar-engine/types';
 import type { DailyRoutineGoal, GoalType, DayOfWeek } from '$lib/types';
 
+// =============================================================================
+//                            Write Operations
+// =============================================================================
+
+/**
+ * Creates a new daily routine goal, prepended at the top of the user's list.
+ *
+ * The `order` is computed as `min(existing orders) - 1` so new routines
+ * appear first when sorted ascending — backwards-compatible with older items
+ * that start at `0, 1, 2, ...`.
+ *
+ * Type-specific fields are conditionally set:
+ * - `incremental` → `target_value`
+ * - `progressive` → `start_target_value`, `end_target_value`, `progression_schedule`
+ * - `completion`  → all target fields set to `null`
+ *
+ * @param name               - Display name for the routine
+ * @param type               - The {@link GoalType} (`completion` | `incremental` | `progressive`)
+ * @param targetValue        - Fixed target for incremental goals
+ * @param startDate          - ISO date when the routine becomes active
+ * @param endDate            - Optional ISO date when the routine expires
+ * @param userId             - The owning user's identifier
+ * @param activeDays         - Optional day-of-week restriction (`null` → all days)
+ * @param startTargetValue   - Starting target for progressive goals
+ * @param endTargetValue     - Ending target for progressive goals
+ * @param progressionSchedule - Number of days between target increases
+ * @returns The newly created {@link DailyRoutineGoal}
+ */
 export async function createDailyRoutineGoal(
   name: string,
   type: GoalType,
@@ -15,16 +60,14 @@ export async function createDailyRoutineGoal(
   startDate: string,
   endDate: string | null,
   userId: string,
-  activeDays: DayOfWeek[] | null = null, // null = all days (backwards compatible)
+  activeDays: DayOfWeek[] | null = null,
   startTargetValue: number | null = null,
   endTargetValue: number | null = null,
   progressionSchedule: number | null = null
 ): Promise<DailyRoutineGoal> {
   const timestamp = now();
 
-  // Get the current min order to prepend new items at the top
-  // This is backwards-compatible: existing items (order 0,1,2...) stay in place,
-  // new items get -1,-2,-3... and appear first when sorted ascending
+  /* ── Compute prepend order ──── */
   const existingRoutines = (await engineQuery(
     'daily_routine_goals',
     'user_id',
@@ -56,6 +99,13 @@ export async function createDailyRoutineGoal(
   return result as unknown as DailyRoutineGoal;
 }
 
+/**
+ * Updates mutable fields on a daily routine goal.
+ *
+ * @param id      - The routine goal's unique identifier
+ * @param updates - A partial object of allowed fields to update
+ * @returns The updated {@link DailyRoutineGoal}, or `undefined` if not found
+ */
 export async function updateDailyRoutineGoal(
   id: string,
   updates: Partial<
@@ -77,11 +127,18 @@ export async function updateDailyRoutineGoal(
   return result as unknown as DailyRoutineGoal | undefined;
 }
 
+/**
+ * Deletes a daily routine goal **and** all its child progress records atomically.
+ *
+ * Uses {@link engineBatchWrite} to ensure the routine and every associated
+ * `daily_goal_progress` row are soft-deleted together.
+ *
+ * @param id - The routine goal's unique identifier
+ */
 export async function deleteDailyRoutineGoal(id: string): Promise<void> {
-  // Get all progress records for this routine to soft delete them
+  /* ── Gather child progress records for cascade delete ──── */
   const progressRecords = await engineQuery('daily_goal_progress', 'daily_routine_goal_id', id);
 
-  // Use batch write to atomically delete the routine and all its progress records
   const ops: BatchOperation[] = [
     ...progressRecords.map((progress) => ({
       type: 'delete' as const,
@@ -98,6 +155,17 @@ export async function deleteDailyRoutineGoal(id: string): Promise<void> {
   await engineBatchWrite(ops);
 }
 
+// =============================================================================
+//                            Reorder Operations
+// =============================================================================
+
+/**
+ * Updates the display order of a daily routine goal.
+ *
+ * @param id       - The routine goal's unique identifier
+ * @param newOrder - The new ordinal position
+ * @returns The updated {@link DailyRoutineGoal}, or `undefined` if not found
+ */
 export async function reorderDailyRoutineGoal(
   id: string,
   newOrder: number

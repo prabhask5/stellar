@@ -1,31 +1,85 @@
 <script lang="ts">
+  /**
+   * @fileoverview SyncStatus — animated sync-state indicator with tooltip and PWA refresh.
+   *
+   * Displays a circular button whose icon morphs between five states:
+   * **offline** (wifi-off), **syncing** (spinner), **synced** (checkmark),
+   * **error** (exclamation), and **pending** (refresh arrows).  Each state
+   * has its own colour, ring animation, and SVG draw-in transition.
+   *
+   * Key behaviours:
+   * - Icons cross-fade via absolute positioning + opacity + scale/rotation.
+   * - `isTransitioning` triggers a brief pulse when moving from syncing to
+   *   synced/error, giving a satisfying "morph" feel.
+   * - A **live indicator** (green dot + expanding ring) shows when the
+   *   realtime subscription is connected.
+   * - Hovering reveals a tooltip with sync status, description, last-sync
+   *   time, and (when in error state) an expandable error-details panel.
+   * - A **mobile refresh button** (visible < 640 px) triggers a full page
+   *   reload to pull the latest PWA deployment.
+   * - `prefers-reduced-motion` disables all animations gracefully.
+   */
+
   import { syncStatusStore, isOnline } from '@prabhask5/stellar-engine/stores';
   import type { SyncError, RealtimeState } from '@prabhask5/stellar-engine/types';
   import { runFullSync } from '@prabhask5/stellar-engine';
   import type { SyncStatus } from '$lib/types';
 
+  // =============================================================================
+  //                          Local Reactive State
+  // =============================================================================
+
+  /** Current sync status (`idle` | `syncing` | `error` | ...) */
   let status = $state<SyncStatus>('idle');
+  /** Whether a PWA page-reload is in progress */
   let isRefreshing = $state(false);
+  /** Number of un-synced local changes */
   let pendingCount = $state(0);
+  /** Whether the browser is online */
   let online = $state(true);
+  /** Human-readable error message (last sync failure) */
   let lastError = $state<string | null>(null);
+  /** Technical error details (for the expandable panel) */
   let lastErrorDetails = $state<string | null>(null);
+  /** Array of per-entity sync errors for the detail panel */
   let syncErrors = $state<SyncError[]>([]);
+  /** ISO timestamp of the last successful sync */
   let lastSyncTime = $state<string | null>(null);
+  /** Transient message shown during sync (e.g. "Syncing goals...") */
   let syncMessage = $state<string | null>(null);
+  /** Supabase Realtime connection state */
   let realtimeState = $state<RealtimeState>('disconnected');
+  /** Whether the tooltip is visible */
   let showTooltip = $state(false);
+  /** Whether the error-details panel inside the tooltip is expanded */
   let showDetails = $state(false);
+  /** Handle for the delayed tooltip show/hide */
   let tooltipTimeout: ReturnType<typeof setTimeout> | null = null;
+  /** Whether the cursor is currently over the indicator */
   let isMouseOver = $state(false);
 
-  // Track previous state for transitions
+  // =============================================================================
+  //                     Transition Tracking State
+  // =============================================================================
+
+  /** Previous display-state string — used to detect state changes */
   let prevDisplayState = $state<string>('idle');
+  /** Previous realtime state — used to detect realtime transitions */
   let prevRealtimeState = $state<RealtimeState>('disconnected');
+  /** Brief flag that triggers the icon-core "pulse" animation */
   let isTransitioning = $state(false);
+  /** Brief flag for the live-indicator pop animation */
   let isRealtimeTransitioning = $state(false);
 
-  // Subscribe to stores
+  // =============================================================================
+  //                     Store Subscriptions (via $effect)
+  // =============================================================================
+
+  /**
+   * Subscribe to `syncStatusStore` and `isOnline` stores, copying their
+   * values into local state.  Also tracks realtime state transitions
+   * so the live-indicator can play a smooth pop animation.
+   */
   $effect(() => {
     const unsubSync = syncStatusStore.subscribe((value) => {
       status = value.status;
@@ -57,28 +111,46 @@
     };
   });
 
-  // Derive if realtime is live (connected and healthy)
+  // =============================================================================
+  //                     Derived — Realtime Live Check
+  // =============================================================================
+
+  /** Whether the realtime channel is connected and the browser is online */
   const isRealtimeLive = $derived(() => {
     return online && realtimeState === 'connected';
   });
 
+  // =============================================================================
+  //                          Event Handlers
+  // =============================================================================
+
+  /**
+   * Trigger a full manual sync when the indicator is clicked (only if online
+   * and not already syncing).
+   */
   function handleSyncClick() {
     if (online && status !== 'syncing') {
       runFullSync(false);
     }
   }
 
-  // Manual refresh for PWA - full page reload to get new deployments
+  /**
+   * Trigger a full page reload to fetch the latest PWA deployment.
+   * Debounced — ignored if already in progress.
+   */
   function handleRefresh() {
     if (isRefreshing) return;
     isRefreshing = true;
 
-    // Full page reload to fetch latest PWA version
+    // Short delay for visual feedback before reload
     setTimeout(() => {
       window.location.reload();
     }, 300);
   }
 
+  /**
+   * Show the tooltip after a brief hover delay.
+   */
   function handleMouseEnter() {
     isMouseOver = true;
     if (tooltipTimeout) clearTimeout(tooltipTimeout);
@@ -89,6 +161,9 @@
     }, 200);
   }
 
+  /**
+   * Hide the tooltip (and error details) after a brief leave delay.
+   */
   function handleMouseLeave() {
     isMouseOver = false;
     if (tooltipTimeout) clearTimeout(tooltipTimeout);
@@ -100,7 +175,14 @@
     }, 150);
   }
 
-  // Derive the display state
+  // =============================================================================
+  //                     Derived — Display State
+  // =============================================================================
+
+  /**
+   * Map the raw sync status + online flag into one of five display states:
+   * `offline` | `syncing` | `error` | `pending` | `synced`.
+   */
   const displayState = $derived(() => {
     if (!online) return 'offline';
     if (status === 'syncing') return 'syncing';
@@ -109,11 +191,17 @@
     return 'synced';
   });
 
-  // Track state changes for transitions
+  // =============================================================================
+  //                     Effect — Transition Animation Trigger
+  // =============================================================================
+
+  /**
+   * When the display state changes from `syncing` to `synced` or `error`,
+   * briefly set `isTransitioning` to trigger the morph-in CSS animation.
+   */
   $effect(() => {
     const current = displayState();
     if (current !== prevDisplayState) {
-      // Trigger transition animation when changing from syncing to another state
       if (prevDisplayState === 'syncing' && (current === 'synced' || current === 'error')) {
         isTransitioning = true;
         setTimeout(() => {
@@ -124,7 +212,14 @@
     }
   });
 
-  // Format last sync time to relative time
+  // =============================================================================
+  //                     Derived — Tooltip Labels
+  // =============================================================================
+
+  /**
+   * Relative time label for the last successful sync
+   * (e.g. "Just now", "5m ago", "2h ago").
+   */
   const formattedLastSync = $derived(() => {
     if (!lastSyncTime) return null;
     const date = new Date(lastSyncTime);
@@ -142,7 +237,7 @@
     return `${diffDays}d ago`;
   });
 
-  // Get status label for tooltip
+  /** Short status label for the tooltip header (e.g. "All Synced") */
   const statusLabel = $derived(() => {
     const state = displayState();
     switch (state) {
@@ -159,7 +254,7 @@
     }
   });
 
-  // Get realtime label for tooltip
+  /** Realtime connection label (e.g. "Live", "Connecting...") */
   const realtimeLabel = $derived(() => {
     if (!online) return null;
     switch (realtimeState) {
@@ -174,7 +269,7 @@
     }
   });
 
-  // Get status description for tooltip
+  /** Longer description for the tooltip body */
   const statusDescription = $derived(() => {
     const state = displayState();
     if (syncMessage) return syncMessage;
@@ -196,12 +291,24 @@
     }
   });
 
-  // Format table name for display
+  // =============================================================================
+  //                     Utility — Error Detail Formatting
+  // =============================================================================
+
+  /**
+   * Convert a snake_case table name to Title Case for display.
+   * @param {string} table - Database table name (e.g. "daily_routine_goals")
+   * @returns {string} Formatted name (e.g. "Daily Routine Goals")
+   */
   function formatTableName(table: string): string {
     return table.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  // Format operation name for display
+  /**
+   * Capitalise a CRUD operation name for display.
+   * @param {string} op - Operation string ("create" | "update" | "delete")
+   * @returns {string} Capitalised label
+   */
   function formatOperation(op: string): string {
     switch (op) {
       case 'create':
@@ -215,7 +322,11 @@
     }
   }
 
-  // Get operation color
+  /**
+   * Return the appropriate CSS colour variable for a CRUD operation.
+   * @param {string} op - Operation string
+   * @returns {string} CSS variable reference
+   */
   function getOperationColor(op: string): string {
     switch (op) {
       case 'create':
@@ -230,6 +341,10 @@
   }
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Template — Sync Indicator + Tooltip + Mobile Refresh
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <!-- Sync indicator with tooltip and mobile refresh button -->
 <div
   class="sync-container"
@@ -237,7 +352,7 @@
   onmouseenter={handleMouseEnter}
   onmouseleave={handleMouseLeave}
 >
-  <!-- Mobile Refresh Button -->
+  <!-- ═══ Mobile Refresh Button (visible < 640 px) ═══ -->
   <button
     class="refresh-btn"
     class:refreshing={isRefreshing}
@@ -265,6 +380,7 @@
   </button>
 
   <div class="sync-wrapper">
+    <!-- ═══ Main Sync Indicator Button ═══ -->
     <button
       class="sync-indicator"
       class:offline={displayState() === 'offline'}
@@ -276,11 +392,12 @@
       disabled={!online || status === 'syncing'}
       aria-label={statusLabel()}
     >
+      <!-- Animated ring around the button -->
       <span class="indicator-ring"></span>
 
-      <!-- Morphing Icon Container -->
+      <!-- ═══ Morphing Icon Container ═══ -->
       <span class="indicator-core" class:transitioning={isTransitioning}>
-        <!-- Offline Icon -->
+        <!-- Offline Icon (wifi-off) -->
         <svg
           class="icon icon-offline"
           class:active={displayState() === 'offline'}
@@ -318,7 +435,7 @@
           <path class="spinner-arc" d="M21 12a9 9 0 1 1-6.219-8.56" />
         </svg>
 
-        <!-- Success Checkmark -->
+        <!-- Success Checkmark (draw-in animation) -->
         <svg
           class="icon icon-synced"
           class:active={displayState() === 'synced'}
@@ -336,7 +453,7 @@
           <polyline class="check-mark" points="8 12 11 15 16 9" />
         </svg>
 
-        <!-- Error Icon -->
+        <!-- Error Icon (draw-in animation) -->
         <svg
           class="icon icon-error"
           class:active={displayState() === 'error'}
@@ -354,7 +471,7 @@
           <line class="error-dot" x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
 
-        <!-- Pending Icon -->
+        <!-- Pending Icon (refresh arrows) -->
         <svg
           class="icon icon-pending"
           class:active={displayState() === 'pending'}
@@ -372,11 +489,12 @@
         </svg>
       </span>
 
+      <!-- Pending count badge -->
       {#if displayState() === 'pending'}
         <span class="pending-badge">{pendingCount}</span>
       {/if}
 
-      <!-- Live Indicator - Shows when realtime is connected -->
+      <!-- ═══ Live Indicator (green dot when realtime connected) ═══ -->
       <span
         class="live-indicator"
         class:active={isRealtimeLive()}
@@ -388,7 +506,7 @@
       </span>
     </button>
 
-    <!-- Beautiful Tooltip -->
+    <!-- ═══ Tooltip (hover-reveal) ═══ -->
     {#if showTooltip}
       <div
         class="tooltip"
@@ -397,7 +515,7 @@
       >
         <div class="tooltip-arrow"></div>
         <div class="tooltip-content">
-          <!-- Status Header -->
+          <!-- ── Status Header (dot + label + realtime badge + last sync) ── -->
           <div class="tooltip-header">
             <div
               class="status-dot"
@@ -425,10 +543,10 @@
             {/if}
           </div>
 
-          <!-- Status Description -->
+          <!-- ── Status Description ── -->
           <p class="tooltip-description">{statusDescription()}</p>
 
-          <!-- Error Details Section -->
+          <!-- ── Error Details (expandable panel) ── -->
           {#if displayState() === 'error' && (syncErrors.length > 0 || lastErrorDetails)}
             <button
               class="details-toggle"
@@ -457,6 +575,7 @@
             {#if showDetails}
               <div class="error-details-panel">
                 {#if syncErrors.length > 0}
+                  <!-- Per-entity error cards -->
                   <div class="error-list">
                     {#each syncErrors as error, i (i)}
                       <div class="error-item" style="animation-delay: {i * 50}ms">
@@ -481,6 +600,7 @@
                     {/each}
                   </div>
                 {:else if lastErrorDetails}
+                  <!-- Fallback raw error text -->
                   <div class="error-fallback">
                     <code>{lastErrorDetails}</code>
                   </div>
@@ -489,7 +609,7 @@
             {/if}
           {/if}
 
-          <!-- Action hint -->
+          <!-- ── Action Hint ("Tap to sync now") ── -->
           {#if displayState() === 'error' || displayState() === 'pending'}
             <div class="tooltip-action">
               <span class="action-hint">Tap to sync now</span>
@@ -515,16 +635,20 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Styles
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <style>
+  /* ═══ Sync Container ═══ */
+
   .sync-container {
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     MOBILE REFRESH BUTTON
-     ═══════════════════════════════════════════════════════════════════════════════════ */
+  /* ═══ Mobile Refresh Button ═══ */
 
   .refresh-btn {
     display: none;
@@ -557,6 +681,7 @@
     transform: scale(0.95);
   }
 
+  /* Radial glow behind the refresh button */
   .refresh-glow {
     position: absolute;
     inset: -2px;
@@ -618,10 +743,14 @@
     }
   }
 
+  /* ═══ Sync Wrapper (relative container for tooltip positioning) ═══ */
+
   .sync-wrapper {
     position: relative;
     display: inline-flex;
   }
+
+  /* ═══ Main Sync Indicator Button ═══ */
 
   .sync-indicator {
     position: relative;
@@ -654,7 +783,7 @@
     transform: scale(0.95);
   }
 
-  /* Transition pulse effect - only on the icon core, not the whole button */
+  /* Transition pulse effect — only on the icon core, not the whole button */
   .indicator-core.transitioning {
     animation: transitionPulse 0.6s var(--ease-spring);
   }
@@ -671,7 +800,7 @@
     }
   }
 
-  /* The animated ring around the indicator */
+  /* Animated ring around the indicator */
   .indicator-ring {
     position: absolute;
     inset: -3px;
@@ -680,9 +809,7 @@
     transition: all 0.4s var(--ease-smooth);
   }
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     MORPHING ICON SYSTEM
-     ═══════════════════════════════════════════════════════════════════════════════════ */
+  /* ═══ Morphing Icon System ═══ */
 
   .indicator-core {
     position: relative;
@@ -694,7 +821,7 @@
     transition: transform 0.3s var(--ease-spring);
   }
 
-  /* Base icon styles - all icons are absolutely positioned and transition */
+  /* Base icon styles — all icons absolutely positioned, cross-fading */
   .icon {
     position: absolute;
     opacity: 0;
@@ -710,9 +837,7 @@
     transform: scale(1) rotate(0deg);
   }
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     SYNCING STATE - Spinning animation
-     ═══════════════════════════════════════════════════════════════════════════════════ */
+  /* ═══ Syncing State — Spinning Animation ═══ */
 
   .sync-indicator.syncing {
     border-color: rgba(108, 92, 231, 0.5);
@@ -756,9 +881,7 @@
     }
   }
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     SYNCED STATE - Checkmark with draw animation
-     ═══════════════════════════════════════════════════════════════════════════════════ */
+  /* ═══ Synced State — Checkmark with Draw Animation ═══ */
 
   .sync-indicator.synced {
     border-color: rgba(38, 222, 129, 0.3);
@@ -768,6 +891,7 @@
     color: var(--color-green);
   }
 
+  /* SVG stroke-dash draw-in for the circle and checkmark */
   .icon-synced .check-circle {
     stroke-dasharray: 60;
     stroke-dashoffset: 60;
@@ -788,7 +912,7 @@
     stroke-dashoffset: 0;
   }
 
-  /* Morph-in animation from spinner */
+  /* Morph-in animation from spinner to checkmark */
   .icon-synced.morph-in {
     animation: morphInSuccess 0.5s var(--ease-spring);
   }
@@ -827,9 +951,7 @@
     }
   }
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     ERROR STATE - With shake and draw animation
-     ═══════════════════════════════════════════════════════════════════════════════════ */
+  /* ═══ Error State — Shake + Draw Animation ═══ */
 
   .sync-indicator.error {
     border-color: rgba(255, 107, 107, 0.5);
@@ -839,6 +961,7 @@
     color: var(--color-red);
   }
 
+  /* SVG stroke-dash draw-in for error icon parts */
   .icon-error .error-circle {
     stroke-dasharray: 60;
     stroke-dashoffset: 60;
@@ -868,7 +991,7 @@
     opacity: 1;
   }
 
-  /* Morph-in animation from spinner */
+  /* Morph-in animation from spinner to error */
   .icon-error.morph-in {
     animation: morphInError 0.5s var(--ease-spring);
   }
@@ -911,9 +1034,7 @@
     }
   }
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     PENDING STATE
-     ═══════════════════════════════════════════════════════════════════════════════════ */
+  /* ═══ Pending State ═══ */
 
   .sync-indicator.pending {
     border-color: rgba(108, 92, 231, 0.4);
@@ -927,6 +1048,7 @@
     box-shadow: 0 0 25px var(--color-primary-glow);
   }
 
+  /* Pending count badge (top-right) */
   .pending-badge {
     position: absolute;
     top: -2px;
@@ -958,9 +1080,7 @@
     }
   }
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     OFFLINE STATE
-     ═══════════════════════════════════════════════════════════════════════════════════ */
+  /* ═══ Offline State ═══ */
 
   .sync-indicator.offline {
     border-color: rgba(255, 217, 61, 0.4);
@@ -989,9 +1109,7 @@
     }
   }
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     LIVE INDICATOR - Subtle realtime connection indicator
-     ═══════════════════════════════════════════════════════════════════════════════════ */
+  /* ═══ Live Indicator (realtime connection dot) ═══ */
 
   .live-indicator {
     position: absolute;
@@ -1036,6 +1154,7 @@
     }
   }
 
+  /* Green dot */
   .live-dot {
     width: 6px;
     height: 6px;
@@ -1088,6 +1207,7 @@
     }
   }
 
+  /* Expanding ring around the live dot */
   .live-ring {
     position: absolute;
     inset: -2px;
@@ -1112,9 +1232,7 @@
     }
   }
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     BEAUTIFUL TOOLTIP
-     ═══════════════════════════════════════════════════════════════════════════════════ */
+  /* ═══ Tooltip ═══ */
 
   .tooltip {
     position: absolute;
@@ -1136,6 +1254,7 @@
     }
   }
 
+  /* Arrow pointing up from tooltip to indicator */
   .tooltip-arrow {
     position: absolute;
     top: -6px;
@@ -1178,6 +1297,8 @@
     max-width: 380px;
   }
 
+  /* ═══ Tooltip Header ═══ */
+
   .tooltip-header {
     display: flex;
     align-items: center;
@@ -1185,6 +1306,7 @@
     margin-bottom: 8px;
   }
 
+  /* Status dot inside the tooltip header */
   .status-dot {
     width: 8px;
     height: 8px;
@@ -1247,7 +1369,8 @@
     opacity: 0.7;
   }
 
-  /* Realtime badge in tooltip */
+  /* ═══ Realtime Badge (in tooltip) ═══ */
+
   .realtime-badge {
     display: inline-flex;
     align-items: center;
@@ -1294,6 +1417,8 @@
     }
   }
 
+  /* ═══ Tooltip Description ═══ */
+
   .tooltip-description {
     font-size: 0.8125rem;
     line-height: 1.5;
@@ -1304,6 +1429,8 @@
   .tooltip.error .tooltip-description {
     color: rgba(255, 150, 150, 0.9);
   }
+
+  /* ═══ Tooltip Action Hint ═══ */
 
   .tooltip-action {
     display: flex;
@@ -1338,9 +1465,7 @@
     color: rgba(255, 150, 150, 0.9);
   }
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     ERROR DETAILS PANEL
-     ═══════════════════════════════════════════════════════════════════════════════════ */
+  /* ═══ Error Details Panel ═══ */
 
   .details-toggle {
     display: flex;
@@ -1390,6 +1515,8 @@
     }
   }
 
+  /* ═══ Error List (scrollable) ═══ */
+
   .error-list {
     display: flex;
     flex-direction: column;
@@ -1412,6 +1539,8 @@
     background: rgba(255, 107, 107, 0.3);
     border-radius: 2px;
   }
+
+  /* ═══ Individual Error Card ═══ */
 
   .error-item {
     padding: 10px 12px;
@@ -1486,6 +1615,8 @@
     cursor: help;
   }
 
+  /* ═══ Error Fallback (raw text) ═══ */
+
   .error-fallback {
     padding: 10px;
     background: rgba(0, 0, 0, 0.3);
@@ -1503,7 +1634,8 @@
     white-space: pre-wrap;
   }
 
-  /* Mobile optimization */
+  /* ═══ Mobile Adjustments ═══ */
+
   @media (max-width: 640px) {
     .sync-indicator {
       width: 40px;
@@ -1533,7 +1665,8 @@
     }
   }
 
-  /* Reduced motion */
+  /* ═══ Reduced Motion ═══ */
+
   @media (prefers-reduced-motion: reduce) {
     .tooltip {
       animation: none;

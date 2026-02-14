@@ -1,14 +1,41 @@
 /*
  * ════════════════════════════════════════════════════════════════════════════════
- * STELLAR — Design System
+ * STELLAR — Global Design System & CSS Foundation
  * ════════════════════════════════════════════════════════════════════════════════
+ *
+ * The single source of truth for Stellar's visual identity. This file defines:
+ *
+ *   1. **Design Tokens** — CSS custom properties for colors, spacing, radii,
+ *      shadows, gradients, timing, and typography
+ *   2. **CSS Reset** — Box-sizing, margin/padding reset, font smoothing
+ *   3. **Cosmic Background** — Animated starfield (`body::before`) and
+ *      rotating orbital ring (`body::after`) that create the deep-space feel
+ *   4. **Base Typography** — Heading styles, gradient text shimmer on `h1`
+ *   5. **Form Elements** — Inputs, textareas, selects with glassmorphism styling
+ *   6. **Button System** — `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-danger`,
+ *      `.btn-sm`, `.btn-ghost` — all with hover/active micro-interactions
+ *   7. **Card Component** — Glassmorphic card with top highlight + corner accents
+ *   8. **Container** — Responsive centered layout wrapper
+ *   9. **Animation Library** — Keyframes for fades, pulses, shimmers, glows, spins
+ *  10. **Page Transitions** — Cinematic `pageEnter` + staggered list items
+ *  11. **Overflow Celebration** — Cosmic glow, supernova shimmer, nebula breathing
+ *      for goals exceeding 100%
+ *  12. **Utility Classes** — `.gradient-text`, `.loading-shimmer`
+ *  13. **Responsive Typography** — Fluid heading sizes across breakpoints
+ *  14. **Mobile/iPhone Optimizations** — Safe areas, Dynamic Island, touch targets,
+ *      OLED dark mode, high contrast, reduced motion
+ *  15. **Comprehensive Animation System** — Item CRUD animations, checkbox pops,
+ *      drag-and-drop, inline editing, toggle switches, counters, progress bars,
+ *      panels, button flashes, focus rings — all with cosmic shimmer sweeps
+ *  16. **Truncate Tooltip** — Floating glassmorphic tooltip for overflowed text
+ *  17. **Print Styles** — Strip cosmic elements for paper output
  *
  * CONCEPT: You are at the center of your own universe.
  *
  * Goal lists are planets orbiting around you.
  * Individual goals are stars that ignite as you complete them.
  * Progress transforms dim embers into brilliant supernovas.
- * The calendar is your star chart—a map of your journey through time.
+ * The calendar is your star chart — a map of your journey through time.
  *
  * The purple orbital ring represents potential and the path forward.
  * The green checkmark marks stellar achievement.
@@ -16,24 +43,42 @@
  * ════════════════════════════════════════════════════════════════════════════════
  */
 
+/* ═══════════════════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — CSS Custom Properties (`:root`)
+   ═══════════════════════════════════════════════════════════════════════════════════
+
+   All visual values are defined here as CSS custom properties so components can
+   reference them consistently. Organized into logical groups:
+     - Colors (deep space palette, star ignition spectrum, accents)
+     - Border radii (orbital geometry)
+     - Shadows and glows (cosmic depth)
+     - Gradients (nebula, star, and dark gradients)
+     - Timing and easing (orbital motion physics)
+     - Typography (font stacks and letter spacing)
+
+   ═══════════════════════════════════════════════════════════════════════════════════ */
+
 :root {
   /* ═══════════════════════════════════════════════════════════════════════════════
      THE COSMOS — Deep Space Color Palette
      ═══════════════════════════════════════════════════════════════════════════════ */
 
-  /* Deep Space - The void between stars */
+  /* Deep Space — The void between stars
+     Ranges from near-black (#050510) to a subtle elevated dark (#222240) */
   --color-void: #050510;
   --color-bg: #0a0a14;
   --color-bg-secondary: #0f0f1a;
   --color-bg-tertiary: #1a1a2e;
   --color-bg-elevated: #222240;
 
-  /* Starlight - Text that shines */
+  /* Starlight — Text that shines
+     Three luminance levels for content hierarchy */
   --color-text: #f0f0ff;
   --color-text-secondary: #c8c8e0;
   --color-text-muted: #7878a0;
 
-  /* The Orbital Ring — Primary Purple (from icon) */
+  /* The Orbital Ring — Primary Purple (derived from the app icon)
+     Full tonal range: dark → base → light → hover, plus glow + subtle overlay */
   --color-primary: #6c5ce7;
   --color-primary-light: #8b7cf0;
   --color-primary-dark: #5849c4;
@@ -41,11 +86,14 @@
   --color-primary-glow: rgba(108, 92, 231, 0.6);
   --color-primary-subtle: rgba(108, 92, 231, 0.15);
 
-  /* Borders - Nebula edges */
+  /* Borders — Nebula edges
+     Two opacity levels for default and emphasized borders */
   --color-border: rgba(108, 92, 231, 0.25);
   --color-border-strong: rgba(108, 92, 231, 0.5);
 
-  /* Star Ignition Spectrum — From cold to hot */
+  /* Star Ignition Spectrum — From cold to hot
+     Used for progress bars, heatmaps, and status indicators.
+     Each color has a matching glow variant at 50% opacity */
   --color-red: #ff6b6b;
   --color-red-glow: rgba(255, 107, 107, 0.5);
   --color-orange: #ffa502;
@@ -57,24 +105,28 @@
   --color-green: #26de81;
   --color-green-glow: rgba(38, 222, 129, 0.5);
 
-  /* Stellar Achievement — Success Green (from icon checkmark) */
+  /* Stellar Achievement — Success Green (derived from the app icon checkmark)
+     Full tonal range for completion states and success feedback */
   --color-success: #26de81;
   --color-success-light: #4aea9a;
   --color-success-dark: #1fb86a;
   --color-success-glow: rgba(38, 222, 129, 0.6);
   --color-success-subtle: rgba(38, 222, 129, 0.15);
 
-  /* Nebula Accent — Cosmic pink highlights */
+  /* Nebula Accent — Cosmic pink for highlights, badges, and decorations */
   --color-accent: #ff79c6;
   --color-accent-glow: rgba(255, 121, 198, 0.4);
 
-  /* Cyan Accent — For special highlights */
+  /* Cyan Accent — For special highlights and celebration effects */
   --color-cyan: #00d4ff;
   --color-cyan-glow: rgba(0, 212, 255, 0.4);
 
   /* ═══════════════════════════════════════════════════════════════════════════════
-     ORBITAL GEOMETRY — Celestial shapes
-     ═══════════════════════════════════════════════════════════════════════════════ */
+     ORBITAL GEOMETRY — Border Radii
+     ═══════════════════════════════════════════════════════════════════════════════
+
+     A consistent radius scale from sharp (4px) to fully-rounded pill (9999px).
+     Components reference these tokens instead of hardcoding pixel values. */
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -82,27 +134,31 @@
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-2xl: 32px;
-  --radius-full: 9999px;
+  --radius-full: 9999px; /* Pill shape for badges, scrollbars, tags */
 
   /* ═══════════════════════════════════════════════════════════════════════════════
-     COSMIC DEPTH — Layers of space
-     ═══════════════════════════════════════════════════════════════════════════════ */
+     COSMIC DEPTH — Box Shadows & Glows
+     ═══════════════════════════════════════════════════════════════════════════════
 
+     Layered shadow system that creates depth in the dark UI.
+     Shadows use high-opacity black; glows use colored translucency. */
+
+  /* Standard elevation shadows — sm → xl intensity scale */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.4); /* Alias for `--shadow-md` */
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-xl: 0 16px 64px rgba(0, 0, 0, 0.6);
   --shadow-inset: inset 0 2px 8px rgba(0, 0, 0, 0.3);
 
-  /* Stellar Glows */
+  /* Stellar Glows — colored light emission for interactive elements */
   --glow-primary: 0 0 30px var(--color-primary-glow);
   --glow-primary-strong: 0 0 50px var(--color-primary-glow), 0 0 100px rgba(108, 92, 231, 0.3);
   --glow-success: 0 0 30px var(--color-success-glow);
   --glow-success-strong: 0 0 50px var(--color-success-glow), 0 0 100px rgba(38, 222, 129, 0.3);
   --shadow-glow: 0 0 40px var(--color-primary-glow), 0 8px 32px rgba(0, 0, 0, 0.5);
 
-  /* Cosmic Gradients */
+  /* Cosmic Gradients — reusable gradient backgrounds for cards, buttons, and overlays */
   --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
   --gradient-success: linear-gradient(135deg, var(--color-success) 0%, var(--color-cyan) 100%);
   --gradient-nebula: linear-gradient(
@@ -120,27 +176,36 @@
   --gradient-star: radial-gradient(circle, #fff 0%, var(--color-primary) 30%, transparent 70%);
 
   /* ═══════════════════════════════════════════════════════════════════════════════
-     ORBITAL MOTION — Physics of the cosmos
-     ═══════════════════════════════════════════════════════════════════════════════ */
+     ORBITAL MOTION — Transition Timing & Easing Curves
+     ═══════════════════════════════════════════════════════════════════════════════
 
-  --duration-instant: 100ms;
-  --duration-fast: 200ms;
-  --duration-normal: 300ms;
-  --duration-slow: 500ms;
-  --duration-orbital: 800ms;
-  --duration-stellar: 1200ms;
+     Duration scale from instant (100ms micro-interactions) to stellar (1200ms
+     dramatic entrances). Easing curves range from standard ease-out to
+     physics-inspired spring/bounce/gravity curves. */
 
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  --ease-orbital: cubic-bezier(0.4, 0, 0, 1);
-  --ease-gravity: cubic-bezier(0.55, 0, 0.1, 1);
+  /* Duration scale — named for cosmic time perception */
+  --duration-instant: 100ms; /* Micro-interactions: hover highlights, focus rings */
+  --duration-fast: 200ms; /* Quick feedback: button presses, color changes */
+  --duration-normal: 300ms; /* Standard transitions: card hovers, panel slides */
+  --duration-slow: 500ms; /* Deliberate motion: page elements settling */
+  --duration-orbital: 800ms; /* Dramatic: expanding sections, large transforms */
+  --duration-stellar: 1200ms; /* Cinematic: page entrances, celebration sequences */
+
+  /* Easing curves — each tuned for different motion personalities */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1); /* Quick start, gentle stop */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1); /* Balanced acceleration */
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1); /* Alias for `--ease-in-out` */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* Overshoots then settles — organic feel */
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Bouncy with pre-anticipation */
+  --ease-orbital: cubic-bezier(0.4, 0, 0, 1); /* Smooth deceleration like orbital decay */
+  --ease-gravity: cubic-bezier(0.55, 0, 0.1, 1); /* Heavy object falling — fast then cushioned */
 
   /* ═══════════════════════════════════════════════════════════════════════════════
-     TYPOGRAPHY — Carved from starlight
-     ═══════════════════════════════════════════════════════════════════════════════ */
+     TYPOGRAPHY — Font Stacks & Letter Spacing
+     ═══════════════════════════════════════════════════════════════════════════════
+
+     Apple SF Pro preferred, with system-ui fallback chain for cross-platform.
+     Three roles: `display` (headings), `body` (paragraphs), `mono` (code). */
 
   --font-sans:
     'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -149,6 +214,7 @@
   --font-body: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
 
+  /* Letter spacing tokens — tight for headings, wide for labels/caps */
   --tracking-tight: -0.03em;
   --tracking-normal: 0;
   --tracking-wide: 0.05em;
@@ -156,8 +222,11 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   FOUNDATIONS — The fabric of space-time
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   FOUNDATIONS — Universal Reset & Base Styles
+   ═══════════════════════════════════════════════════════════════════════════════════
+
+   Standard box-sizing reset + aggressive margin/padding removal on all elements
+   and pseudo-elements. This ensures components start from a clean baseline. */
 
 *,
 *::before,
@@ -167,16 +236,16 @@
   padding: 0;
 }
 
+/* Root `<html>` element — fills entire viewport including safe areas on iOS */
 html {
-  /* Fill entire viewport including safe areas */
   height: 100%;
-  height: 100dvh; /* Dynamic viewport height for mobile */
+  height: 100dvh; /* `dvh` = dynamic viewport height — accounts for mobile browser chrome */
   width: 100%;
-  width: 100dvw; /* Dynamic viewport width */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  /* Allow content to extend into safe areas while respecting them */
+  width: 100dvw; /* `dvw` = dynamic viewport width */
+  -webkit-font-smoothing: antialiased; /* Smoother text on macOS/iOS */
+  -moz-osx-font-smoothing: grayscale; /* Smoother text on Firefox macOS */
+  text-rendering: optimizeLegibility; /* Better kerning and ligatures */
+  /* Background on html to extend into safe areas on iOS PWA */
   background: var(--color-void);
 }
 
@@ -188,40 +257,47 @@ body {
   width: 100dvw;
 }
 
+/* `<body>` element — sets global font, color, and background */
 body {
   min-height: 100%;
   min-height: 100dvh;
   width: 100%;
   width: 100dvw;
   font-family: var(--font-body);
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 16px; /* Base size — all `rem` values are relative to this */
+  line-height: 1.6; /* Comfortable reading line height */
   color: var(--color-text);
   background: var(--color-void);
-  overflow-x: hidden;
-  /* Ensure body fills behind safe areas */
+  overflow-x: hidden; /* Prevent horizontal scroll from cosmic effects */
   margin: 0;
   padding: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   THE COSMOS — Animated starfield background
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   THE COSMOS — Animated Starfield Background (`body::before`)
+   ═══════════════════════════════════════════════════════════════════════════════════
+
+   A fixed pseudo-element behind all content that renders a starfield using
+   stacked radial gradients. Includes:
+     - 10 individual "star" dots at various positions and colors
+     - 3 large nebula cloud gradients (purple, pink, green)
+     - Slow twinkle animation (8s cycle) for a gentle breathing effect
+
+   The element extends into iOS safe areas via `env()` calculations to prevent
+   black bars behind the notch or Dynamic Island. */
 
 body::before {
   content: '';
   position: fixed;
-  /* Cover entire screen including safe areas */
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  /* Use 100vh + safe area to extend into notch/Dynamic Island area */
+  /* Extend past the viewport into notch/Dynamic Island area */
   height: calc(100vh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
-  /* Pull up into the safe area */
-  margin-top: calc(-1 * env(safe-area-inset-top, 0px));
+  margin-top: calc(-1 * env(safe-area-inset-top, 0px)); /* Pull up behind the notch */
   background:
-    /* Distant star clusters */
+    /* Distant star clusters — white dots at various positions and opacities */
     radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.8) 0%, transparent 100%),
     radial-gradient(1px 1px at 40% 70%, rgba(255, 255, 255, 0.6) 0%, transparent 100%),
     radial-gradient(1px 1px at 50% 20%, rgba(255, 255, 255, 0.7) 0%, transparent 100%),
@@ -232,15 +308,16 @@ body::before {
     radial-gradient(1px 1px at 10% 80%, rgba(255, 255, 255, 0.7) 0%, transparent 100%),
     radial-gradient(1.5px 1.5px at 30% 50%, rgba(255, 121, 198, 0.7) 0%, transparent 100%),
     radial-gradient(1px 1px at 85% 90%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
-    /* Nebula clouds */
+    /* Nebula clouds — large soft ellipses at screen edges */
     radial-gradient(ellipse 80% 60% at 70% 100%, rgba(108, 92, 231, 0.15) 0%, transparent 50%),
     radial-gradient(ellipse 60% 40% at 20% 0%, rgba(255, 121, 198, 0.08) 0%, transparent 50%),
     radial-gradient(ellipse 50% 50% at 90% 50%, rgba(38, 222, 129, 0.06) 0%, transparent 40%);
-  pointer-events: none;
+  pointer-events: none; /* Click-through so content below remains interactive */
   z-index: 0;
   animation: starTwinkle 8s ease-in-out infinite;
 }
 
+/* Gentle opacity oscillation — makes the starfield "breathe" */
 @keyframes starTwinkle {
   0%,
   100% {
@@ -251,32 +328,39 @@ body::before {
   }
 }
 
-/* Orbital ring that slowly rotates - extends into safe areas */
+/* ═══════════════════════════════════════════════════════════════════════════════════
+   THE COSMOS — Rotating Orbital Ring (`body::after`)
+   ═══════════════════════════════════════════════════════════════════════════════════
+
+   A massive (200vmax) circular conic gradient that slowly rotates behind content.
+   Creates the illusion of being inside a rotating galaxy. Uses three color bands
+   (purple, green, pink) at very low opacity so it's subtle but perceptible. */
+
 body::after {
   content: '';
   position: fixed;
-  /* Use full viewport including safe areas */
-  top: calc(50% - env(safe-area-inset-top, 0px) / 2);
+  top: calc(50% - env(safe-area-inset-top, 0px) / 2); /* Centered, adjusted for safe area */
   left: 50%;
-  width: 200vmax;
+  width: 200vmax; /* Oversized to fill any viewport orientation */
   height: 200vmax;
   transform: translate(-50%, -50%);
   background: conic-gradient(
     from 0deg at 50% 50%,
     transparent 0deg,
     rgba(108, 92, 231, 0.03) 60deg,
-    transparent 120deg,
+    /* Purple band */ transparent 120deg,
     rgba(38, 222, 129, 0.02) 180deg,
-    transparent 240deg,
+    /* Green band */ transparent 240deg,
     rgba(255, 121, 198, 0.02) 300deg,
-    transparent 360deg
+    /* Pink band */ transparent 360deg
   );
   border-radius: 50%;
-  animation: cosmicRotation 120s linear infinite;
+  animation: cosmicRotation 120s linear infinite; /* Full rotation every 2 minutes */
   pointer-events: none;
   z-index: 0;
 }
 
+/* Continuous 360-degree rotation — `translate` is repeated to maintain centering */
 @keyframes cosmicRotation {
   from {
     transform: translate(-50%, -50%) rotate(0deg);
@@ -287,14 +371,16 @@ body::after {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   SELECTION & SCROLLBARS
+   SELECTION & SCROLLBARS — Browser chrome customization
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
+/* Text selection highlight — primary purple with white text */
 ::selection {
   background: var(--color-primary);
   color: white;
 }
 
+/* WebKit scrollbar — styled to match the cosmic theme */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -305,21 +391,24 @@ body::after {
   border-radius: var(--radius-full);
 }
 
+/* Scrollbar thumb — subtle primary gradient with 2px inset border */
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, var(--color-primary-subtle) 0%, rgba(108, 92, 231, 0.3) 100%);
   border-radius: var(--radius-full);
-  border: 2px solid var(--color-bg);
+  border: 2px solid var(--color-bg); /* Creates the inset "floating" look */
   transition: background 0.3s;
 }
 
+/* Brighter gradient on hover for feedback */
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, var(--color-primary-glow) 0%, var(--color-primary) 100%);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   TYPOGRAPHY — Words written in starlight
+   TYPOGRAPHY — Base heading and link styles
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
+/* All headings share display font, bold weight, and tight tracking */
 h1,
 h2,
 h3,
@@ -333,6 +422,8 @@ h6 {
   color: var(--color-text);
 }
 
+/* `h1` — Extra bold with an animated gradient text shimmer effect.
+   The gradient is 200% wide and slides horizontally via `background-position`. */
 h1 {
   font-size: 2.5rem;
   font-weight: 800;
@@ -349,6 +440,7 @@ h1 {
   animation: textShimmer 8s linear infinite;
 }
 
+/* Horizontal sweep of the gradient — 0% → 200% creates a looping shimmer */
 @keyframes textShimmer {
   0% {
     background-position: 0% center;
@@ -358,6 +450,7 @@ h1 {
   }
 }
 
+/* Links — inherit color, no underline, smooth color transition */
 a {
   color: inherit;
   text-decoration: none;
@@ -365,8 +458,11 @@ a {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   FORM ELEMENTS — Control panels
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   FORM ELEMENTS — Glassmorphic inputs, textareas, and selects
+   ═══════════════════════════════════════════════════════════════════════════════════
+
+   All form controls share a dark translucent background with `backdrop-filter: blur`
+   for the glassmorphism effect. Focus states add a purple glow and subtle lift. */
 
 input,
 textarea,
@@ -374,11 +470,11 @@ select {
   font-family: inherit;
   font-size: 1rem;
   color: var(--color-text);
-  background: rgba(26, 26, 46, 0.6);
+  background: rgba(26, 26, 46, 0.6); /* Semi-transparent dark base */
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 0.875rem 1.125rem;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px); /* Glassmorphism blur */
   transition:
     border-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out),
@@ -386,6 +482,7 @@ select {
     transform var(--duration-fast) var(--ease-out);
 }
 
+/* Hover — slightly stronger border and more opaque background */
 input:hover,
 textarea:hover,
 select:hover {
@@ -393,6 +490,7 @@ select:hover {
   background: rgba(26, 26, 46, 0.8);
 }
 
+/* Focus — purple border, glow, inset light, subtle upward lift */
 input:focus,
 textarea:focus,
 select:focus {
@@ -401,45 +499,57 @@ select:focus {
   background: rgba(34, 34, 64, 0.9);
   box-shadow:
     var(--glow-primary),
-    inset 0 0 20px rgba(108, 92, 231, 0.1);
-  transform: translateY(-1px);
+    inset 0 0 20px rgba(108, 92, 231, 0.1); /* Inner glow for depth */
+  transform: translateY(-1px); /* Micro-lift for "focused" feel */
 }
 
+/* Placeholder text — muted with reduced opacity */
 input::placeholder {
   color: var(--color-text-muted);
   opacity: 0.7;
 }
 
+/* Button reset — remove all browser defaults for custom styling */
 button {
   font-family: inherit;
   cursor: pointer;
   border: none;
   background: none;
-  touch-action: manipulation;
+  touch-action: manipulation; /* Disable double-tap zoom on buttons */
   color: inherit;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   BUTTONS — Launch controls
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   BUTTONS — Themed button system with micro-interactions
+   ═══════════════════════════════════════════════════════════════════════════════════
+
+   Base `.btn` class handles layout and transitions. Variants:
+     - `.btn-primary` — gradient purple → pink with glow
+     - `.btn-secondary` — dark glass with border
+     - `.btn-danger` — gradient red with glow
+     - `.btn-sm` — compact size
+     - `.btn-ghost` — invisible until hovered
+
+   All buttons have a `::before` overlay that creates a light sweep on hover. */
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.625rem;
+  gap: 0.625rem; /* Space between icon and label */
   padding: 0.75rem 1.5rem;
-  font-size: 0.9375rem;
+  font-size: 0.9375rem; /* 15px — slightly below 1rem for refinement */
   font-weight: 600;
   letter-spacing: var(--tracking-wide);
   line-height: 1.4;
   border-radius: var(--radius-lg);
   transition: all var(--duration-normal) var(--ease-out);
   position: relative;
-  overflow: hidden;
+  overflow: hidden; /* Contains the `::before` light sweep */
   white-space: nowrap;
 }
 
+/* Light sweep overlay — diagonal gradient from top-left, hidden by default */
 .btn::before {
   content: '';
   position: absolute;
@@ -449,9 +559,12 @@ button {
   transition: opacity var(--duration-fast);
 }
 
+/* Reveal the light sweep on hover */
 .btn:hover::before {
   opacity: 1;
 }
+
+/* ─── Primary Button — gradient background with outer glow ─── */
 
 .btn-primary {
   background: var(--gradient-primary);
@@ -459,10 +572,11 @@ button {
   box-shadow:
     var(--shadow-md),
     0 0 0 1px rgba(255, 255, 255, 0.1) inset,
-    0 0 30px var(--color-primary-glow);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    /* Inner highlight ring */ 0 0 30px var(--color-primary-glow); /* Outer glow */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); /* Legibility on gradient */
 }
 
+/* Hover — lift up, scale slightly, intensify glow */
 .btn-primary:hover {
   transform: translateY(-2px) scale(1.02);
   box-shadow:
@@ -471,12 +585,15 @@ button {
     var(--glow-primary-strong);
 }
 
+/* Active/pressed — push down, shrink slightly, reduce glow */
 .btn-primary:active {
   transform: translateY(0) scale(0.98);
   box-shadow:
     var(--shadow-sm),
     0 0 20px var(--color-primary-glow);
 }
+
+/* ─── Secondary Button — glass panel with border ─── */
 
 .btn-secondary {
   background: rgba(34, 34, 64, 0.8);
@@ -494,6 +611,8 @@ button {
   transform: translateY(-1px);
 }
 
+/* ─── Danger Button — red gradient with red glow ─── */
+
 .btn-danger {
   background: linear-gradient(135deg, var(--color-red) 0%, #ff8787 100%);
   color: white;
@@ -509,11 +628,15 @@ button {
     0 0 40px var(--color-red-glow);
 }
 
+/* ─── Small Button — compact padding and font ─── */
+
 .btn-sm {
   padding: 0.5rem 1rem;
-  font-size: 0.8125rem;
+  font-size: 0.8125rem; /* 13px */
   border-radius: var(--radius-md);
 }
+
+/* ─── Ghost Button — invisible until hovered, for toolbar actions ─── */
 
 .btn-ghost {
   background: transparent;
@@ -527,8 +650,14 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   CARDS — Space stations and satellites
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   CARDS — Glassmorphic containers with gradient border accents
+   ═══════════════════════════════════════════════════════════════════════════════════
+
+   Cards use a dark gradient background with `backdrop-filter: blur` for the
+   glass effect. Two pseudo-elements add visual polish:
+     - `::before` — a thin horizontal highlight line across the top
+     - `::after` — gradient border accents in opposite corners (purple → green)
+       using the `mask-composite: exclude` technique for border-only rendering */
 
 .card {
   background: linear-gradient(145deg, rgba(15, 15, 26, 0.9) 0%, rgba(26, 26, 46, 0.8) 100%);
@@ -543,7 +672,7 @@ button {
     border-color var(--duration-normal) var(--ease-out);
 }
 
-/* Subtle top highlight */
+/* Subtle top highlight — a 1px gradient line across the card's upper edge */
 .card::before {
   content: '';
   position: absolute;
@@ -562,7 +691,8 @@ button {
   border-radius: var(--radius-full);
 }
 
-/* Corner accents */
+/* Corner gradient accents — uses `mask-composite: exclude` to render only
+   the border pixels of a gradient overlay (purple top-left, green bottom-right) */
 .card::after {
   content: '';
   position: absolute;
@@ -583,10 +713,11 @@ button {
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  mask-composite: exclude; /* Only the 1px border gap is visible */
   pointer-events: none;
 }
 
+/* Card hover — lift, strengthen border, add layered glow */
 .card:hover {
   transform: translateY(-4px);
   border-color: var(--color-border-strong);
@@ -597,7 +728,7 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   CONTAINER — The viewport into space
+   CONTAINER — Responsive centered layout wrapper
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
 .container {
@@ -606,15 +737,17 @@ button {
   margin: 0 auto;
   padding: 2rem;
   position: relative;
-  z-index: 1;
+  z-index: 1; /* Above the cosmic background pseudo-elements */
 }
 
+/* Tablet — slightly more padding */
 @media (min-width: 768px) {
   .container {
     padding: 2.5rem;
   }
 }
 
+/* Mobile — tighter padding */
 @media (max-width: 768px) {
   .container {
     padding: 1.25rem;
@@ -622,9 +755,13 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   ANIMATIONS — Cosmic motion
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   CORE ANIMATION KEYFRAMES — Reusable cosmic motion primitives
+   ═══════════════════════════════════════════════════════════════════════════════════
 
+   These keyframes are referenced throughout the app by animation utility classes
+   and individual component styles. Each is a self-contained motion primitive. */
+
+/* Simple fade-in from transparent */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -634,6 +771,7 @@ button {
   }
 }
 
+/* Fade in while sliding up 30px — for entering content */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -645,6 +783,7 @@ button {
   }
 }
 
+/* Fade in while sliding down 30px — for dropdown menus, tooltips */
 @keyframes fadeInDown {
   from {
     opacity: 0;
@@ -656,6 +795,7 @@ button {
   }
 }
 
+/* Pulsing scale + opacity — for attention-drawing elements */
 @keyframes pulse {
   0%,
   100% {
@@ -668,6 +808,7 @@ button {
   }
 }
 
+/* Horizontal shimmer sweep — moves background position for loading skeletons */
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -677,6 +818,7 @@ button {
   }
 }
 
+/* Box-shadow glow oscillation — purple glow + pink accent intensifies at midpoint */
 @keyframes glow {
   0%,
   100% {
@@ -691,6 +833,7 @@ button {
   }
 }
 
+/* Continuous 360-degree rotation — for spinners and loading indicators */
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -700,6 +843,7 @@ button {
   }
 }
 
+/* Expanding ring pulse — a ring that grows outward then fades */
 @keyframes ringPulse {
   0%,
   100% {
@@ -712,8 +856,13 @@ button {
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
    CINEMATIC PAGE TRANSITIONS — Like drifting through space
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════════════════════════
 
+   Two variants:
+     - `pageEnter` — desktop: fade + slide up + tiny scale + blur clear
+     - `pageEnterMobile` — mobile: lighter version without scale/blur for perf */
+
+/* Desktop page entrance — with blur-to-focus effect */
 @keyframes pageEnter {
   from {
     opacity: 0;
@@ -727,6 +876,7 @@ button {
   }
 }
 
+/* Mobile page entrance — simpler, no blur for better performance */
 @keyframes pageEnterMobile {
   from {
     opacity: 0;
@@ -738,18 +888,21 @@ button {
   }
 }
 
-/* Page content entrance animation */
+/* Utility class applied to page wrappers for entrance animation */
 .page-content-enter {
   animation: pageEnter 0.4s var(--ease-out) forwards;
 }
 
+/* Switch to lighter animation on mobile */
 @media (max-width: 640px) {
   .page-content-enter {
     animation: pageEnterMobile 0.35s var(--ease-out) forwards;
   }
 }
 
-/* Staggered content animation for lists and cards */
+/* ─── Staggered Content Animation — for lists and card grids ─── */
+
+/* Each `.stagger-item` child gets an incrementing delay (50ms apart) */
 @keyframes staggerFadeIn {
   from {
     opacity: 0;
@@ -765,6 +918,7 @@ button {
   animation: staggerFadeIn 0.4s var(--ease-out) backwards;
 }
 
+/* Stagger delays — 50ms increments for up to 8 items */
 .stagger-item:nth-child(1) {
   animation-delay: 0.05s;
 }
@@ -792,9 +946,15 @@ button {
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
    OVERFLOW CELEBRATION ANIMATIONS — For goals exceeding 100%
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════════════════════════
 
-/* Cosmic glow that scales with intensity (uses CSS custom properties for dynamic values) */
+   When a goal's progress exceeds 100%, these animations celebrate the
+   achievement with escalating cosmic effects. All animations use CSS custom
+   properties (e.g., `--glow-size`, `--glow-color`) so JavaScript can
+   dynamically control intensity based on the overflow percentage. */
+
+/* Cosmic glow — pulsing brightness + drop-shadow, intensity driven by
+   `--glow-size` and `--glow-brightness` custom properties */
 @keyframes cosmicGlow {
   0%,
   100% {
@@ -807,7 +967,7 @@ button {
   }
 }
 
-/* Fast shimmer for supernova effect */
+/* Fast shimmer for supernova effect — a bright streak sweeps left to right */
 @keyframes supernovaShimmer {
   0% {
     left: -100%;
@@ -822,7 +982,8 @@ button {
   }
 }
 
-/* Nebula breathing effect */
+/* Nebula breathing — gentle scale + opacity pulse, intensity driven by
+   `--nebula-min` and `--nebula-max` custom properties */
 @keyframes nebulaBreath {
   0%,
   100% {
@@ -835,7 +996,8 @@ button {
   }
 }
 
-/* Orbiting stars around the progress bar */
+/* Orbiting stars — circular path around the progress bar, radius driven by
+   `--orbit-radius` custom property */
 @keyframes orbitalStar {
   from {
     transform: rotate(0deg) translateX(var(--orbit-radius, 50px)) rotate(0deg);
@@ -845,7 +1007,8 @@ button {
   }
 }
 
-/* Star twinkle for celebration particles */
+/* Star twinkle for celebration particles — scale + opacity oscillation,
+   range driven by `--twinkle-min` and `--twinkle-max` custom properties */
 @keyframes celebrationTwinkle {
   0%,
   100% {
@@ -858,7 +1021,7 @@ button {
   }
 }
 
-/* Disable celebration animations for reduced motion preference */
+/* Disable all celebration animations when user prefers reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .celebrating,
   .celebrating * {
@@ -867,9 +1030,10 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   UTILITY CLASSES — Cosmic tools
+   UTILITY CLASSES — Reusable visual effects
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
+/* Gradient text — animated multi-color shimmer using `background-clip: text` */
 .gradient-text {
   background: linear-gradient(
     135deg,
@@ -885,6 +1049,7 @@ button {
   animation: textShimmer 10s linear infinite;
 }
 
+/* Loading shimmer — skeleton placeholder with sweeping highlight */
 .loading-shimmer {
   background: linear-gradient(
     90deg,
@@ -898,9 +1063,10 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   RESPONSIVE TYPOGRAPHY
+   RESPONSIVE TYPOGRAPHY — Fluid heading sizes across breakpoints
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
+/* Tablet — scale down headings */
 @media (max-width: 768px) {
   h1 {
     font-size: 2rem;
@@ -913,9 +1079,10 @@ button {
   }
 }
 
+/* Small mobile — reduce base font size to 15px and further shrink h1 */
 @media (max-width: 640px) {
   html {
-    font-size: 15px;
+    font-size: 15px; /* All `rem` values shrink proportionally */
   }
 
   h1 {
@@ -924,22 +1091,27 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   MOBILE & IPHONE OPTIMIZATIONS — iPhone 16 Pro Optimized
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   MOBILE & iPHONE OPTIMIZATIONS — iPhone 16 Pro Optimized
+   ═══════════════════════════════════════════════════════════════════════════════════
 
-/* iOS PWA Full Screen Hack - eliminates black bars on notch/Dynamic Island devices */
+   This section handles:
+     - iOS PWA full-screen rendering (eliminating black bars)
+     - Safe area management for notch and Dynamic Island
+     - Touch target sizing per Apple HIG (44px minimum)
+     - Overscroll behavior, text size adjustment, tap highlights
+     - Device-specific breakpoints for iPhone SE, 14/15/16, Pro, Pro Max
+     - OLED dark mode, high contrast, and reduced motion support */
+
+/* iOS PWA Full Screen Hack — eliminates black bars on notch/Dynamic Island devices.
+   The `min-height` includes the safe area to prevent bottom white/black bar. */
 html {
-  /* The key hack: min-height includes safe area to prevent bottom white/black bar */
   min-height: calc(100% + env(safe-area-inset-top));
-  /* Background must be on html and use background-attachment: fixed */
   background: var(--color-void);
   background-attachment: fixed;
-  /* Let body scroll, not html */
-  overflow: hidden;
+  overflow: hidden; /* Let body handle scrolling, not html */
 }
 
 body {
-  /* Fill the viewport */
   min-height: 100%;
   min-height: 100dvh;
   width: 100%;
@@ -947,13 +1119,12 @@ body {
   padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: none;
-  /* Background on body too for consistency */
+  -webkit-overflow-scrolling: touch; /* Momentum scrolling on iOS */
+  overscroll-behavior: none; /* Prevent pull-to-refresh / rubber-banding */
   background: var(--color-void);
 }
 
-/* Better touch targets for mobile - minimum 44px per Apple HIG */
+/* Better touch targets for mobile — minimum 44px per Apple Human Interface Guidelines */
 @media (max-width: 768px) {
   button,
   a,
@@ -964,25 +1135,25 @@ body {
     min-width: 44px;
   }
 
-  /* Exception for inline elements */
+  /* Exception for inline text links — they shouldn't be forced to 44px */
   a:not(.btn):not(.nav-link):not(.tab-item) {
     min-height: auto;
     min-width: auto;
   }
 
-  /* Exception for toggle switches - they need fixed dimensions for proper aspect ratio */
+  /* Exception for toggle switches — they need fixed dimensions for proper aspect ratio */
   .toggle-btn {
     min-height: auto;
     min-width: auto;
   }
 
-  /* Exception for styled checkboxes within labels - the label provides the touch target */
+  /* Exception for styled checkboxes within labels — the label provides the touch target */
   .checkbox-label input[type='checkbox'] {
     min-height: auto;
     min-width: auto;
   }
 
-  /* Exception for custom circular checkboxes - they have explicit sizes and
+  /* Exception for custom circular checkboxes — they have explicit sizes and
      the surrounding row already provides an adequate touch target */
   .checkbox {
     min-height: auto;
@@ -990,13 +1161,13 @@ body {
   }
 }
 
-/* Prevent text size adjustment on orientation change */
+/* Prevent text size adjustment on orientation change (iOS/Android) */
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
-/* Prevent overscroll bounce */
+/* Prevent overscroll bounce (rubber-banding) on iOS */
 html,
 body {
   overscroll-behavior: none;
@@ -1004,7 +1175,7 @@ body {
   text-size-adjust: 100%;
 }
 
-/* Prevent callout on long-press for iOS */
+/* Prevent callout on long-press for iOS (the "Copy / Look Up" popup) */
 a,
 button,
 img {
@@ -1013,19 +1184,20 @@ img {
   user-select: none;
 }
 
-/* Disable tap highlight on mobile */
+/* Disable the blue/grey tap highlight on all elements (mobile WebKit) */
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Allow text selection only in inputs and textareas */
+/* Allow text selection only in text inputs and textareas */
 input,
 textarea {
   -webkit-user-select: text;
   user-select: text;
 }
 
-/* Better focus states for touch devices */
+/* Remove focus outlines on touch devices — visual focus rings are distracting
+   when using fingers (focus is implied by the active touch) */
 @media (hover: none) and (pointer: coarse) {
   .btn:focus,
   .nav-link:focus,
@@ -1035,10 +1207,10 @@ textarea {
   }
 }
 
-/* iPhone SE (375px) specific adjustments */
+/* ─── iPhone SE (375px logical width) ─── */
 @media (max-width: 375px) {
   :root {
-    --radius-xl: 20px;
+    --radius-xl: 20px; /* Slightly tighter radii for smaller screen */
     --radius-2xl: 24px;
   }
 
@@ -1057,14 +1229,14 @@ textarea {
   }
 }
 
-/* iPhone 14/15/16 (390px - 430px) */
+/* ─── iPhone 14/15/16 (390px–430px logical width) ─── */
 @media (min-width: 390px) and (max-width: 430px) {
   .container {
     padding: 1.25rem;
   }
 }
 
-/* iPhone 14/15/16 Pro Max and Plus models (430px+) */
+/* ─── iPhone 14/15/16 Pro Max and Plus models (430px+ logical width) ─── */
 @media (min-width: 430px) and (max-width: 640px) {
   .container {
     padding: 1.5rem;
@@ -1077,20 +1249,22 @@ textarea {
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
    iPHONE PRO DYNAMIC ISLAND SPECIFIC STYLES
-   The Dynamic Island is ~126px wide on iPhone 14/15/16 Pro models
-   Time displays on the LEFT, battery/signal on the RIGHT of the island
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════════════════════════
 
-/* iPhone 14 Pro / 15 Pro / 16 Pro (393px logical width, Dynamic Island) */
+   The Dynamic Island is ~126px wide on iPhone 14/15/16 Pro models.
+   Time displays on the LEFT, battery/signal on the RIGHT of the island.
+   These rules ensure content doesn't overlap with the island's flanking
+   status bar areas by using `env(safe-area-inset-*)` with `max()` fallbacks. */
+
+/* iPhone 14 Pro / 15 Pro / 16 Pro (393px logical width) */
 @media (min-width: 390px) and (max-width: 395px) and (max-width: 640px) {
   .container {
-    /* Ensure content doesn't overlap with status bar on sides */
     padding-left: max(1.25rem, env(safe-area-inset-left, 1.25rem));
     padding-right: max(1.25rem, env(safe-area-inset-right, 1.25rem));
   }
 }
 
-/* iPhone 14/15/16 Pro Max (430px logical width, Dynamic Island) */
+/* iPhone 14/15/16 Pro Max (430px logical width) */
 @media (min-width: 428px) and (max-width: 435px) {
   .container {
     padding-left: max(1.5rem, env(safe-area-inset-left, 1.5rem));
@@ -1098,36 +1272,37 @@ textarea {
   }
 }
 
-/* Dynamic Island detection via safe-area height
-   - Notch devices (iPhone X-13): ~47px safe-area-inset-top
-   - Dynamic Island devices (iPhone 14-16 Pro): ~59px safe-area-inset-top
-   We can't directly query this, but we use the combination of screen size + safe area support */
+/* Dynamic Island detection via safe-area height:
+     - Notch devices (iPhone X–13): ~47px `safe-area-inset-top`
+     - Dynamic Island devices (iPhone 14–16 Pro): ~59px `safe-area-inset-top`
+   We can't directly query this value, but we use the combination of
+   screen size + safe area support as a reasonable heuristic. */
 @supports (padding-top: env(safe-area-inset-top)) {
   @media (max-width: 640px) {
-    /* Page headers should have extra top margin on Dynamic Island devices */
+    /* Extra top margin on page headers to clear the Dynamic Island */
     .page-header {
       margin-top: 0.5rem;
     }
 
-    /* Ensure modals don't overlap with Dynamic Island */
+    /* Modals must not render behind the Dynamic Island */
     .modal-content {
       margin-top: max(1rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
     }
   }
 }
 
-/* Landscape mode placeholder - handled in app.html */
+/* Landscape mode placeholder — handled in `app.html` via viewport meta */
 
-/* Dark mode optimizations for OLED screens */
+/* ─── OLED Dark Mode — Pure black backgrounds for power savings ─── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-void: #000000;
+    --color-void: #000000; /* True black for OLED pixel-off */
     --color-bg: #000000;
     --color-bg-secondary: #0a0a0a;
   }
 }
 
-/* High contrast mode support */
+/* ─── High Contrast Mode — Stronger text and borders for accessibility ─── */
 @media (prefers-contrast: high) {
   :root {
     --color-text: #ffffff;
@@ -1136,11 +1311,11 @@ textarea {
   }
 
   .btn-primary {
-    border: 2px solid white;
+    border: 2px solid white; /* Visible boundary for primary action */
   }
 }
 
-/* Reduced motion - respect user preference */
+/* ─── Reduced Motion — Respect user's accessibility preference ─── */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1151,6 +1326,7 @@ textarea {
     scroll-behavior: auto !important;
   }
 
+  /* Completely disable the cosmic background animations */
   body::before,
   body::after {
     animation: none !important;
@@ -1162,7 +1338,8 @@ textarea {
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
 @media (max-width: 640px) {
-  /* Prevent iOS auto-zoom on input focus - requires minimum 16px font-size */
+  /* Prevent iOS auto-zoom on input focus — requires minimum 16px font-size.
+     iOS Safari zooms in when focusing inputs smaller than 16px. */
   input,
   input[type='text'],
   input[type='email'],
@@ -1176,7 +1353,8 @@ textarea {
     font-size: 16px !important; /* Prevents iOS zoom on focus */
   }
 
-  /* Stacking form buttons on mobile */
+  /* Stack form buttons vertically on mobile — reverse order puts
+     primary action at bottom (thumb-friendly) */
   .form-actions {
     flex-direction: column-reverse;
     gap: 0.75rem;
@@ -1187,7 +1365,7 @@ textarea {
     justify-content: center;
   }
 
-  /* Full-width cards on mobile */
+  /* Full-width cards on mobile — negative margins bleed into container padding */
   .card {
     border-radius: var(--radius-xl);
     margin-left: -0.5rem;
@@ -1199,26 +1377,28 @@ textarea {
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
    COMPREHENSIVE ANIMATION SYSTEM — Beautiful animations for every action
+   ═══════════════════════════════════════════════════════════════════════════════════
+
+   This animation system provides beautiful, seamless animations for:
+     - Remote changes from other devices (realtime sync via Supabase)
+     - Local actions (create, delete, toggle, reorder, rename)
+     - Form interactions and state changes
+
+   Design principles:
+     - Subtle and non-jarring — enhance, don't distract
+     - Spring easing (`--ease-spring`) for organic feel
+     - Consistent timing across actions
+     - Cosmic shimmer sweeps (purple → pink → cyan) as the signature effect
+     - Graceful degradation with `prefers-reduced-motion: reduce`
+
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
-/*
- * This animation system provides beautiful, seamless animations for:
- * - Remote changes from other devices (realtime sync)
- * - Local actions (create, delete, toggle, reorder, rename)
- * - Form interactions and state changes
- *
- * Design principles:
- * - Subtle and non-jarring
- * - Spring easing for organic feel
- * - Consistent timing across actions
- * - Graceful degradation with reduced-motion
- */
-
 /* ─────────────────────────────────────────────────────────────────────────────────
-   ITEM CHANGE ANIMATIONS — Local and remote sync updates
+   ITEM CHANGE ANIMATIONS — Highlight items updated by local or remote sync
    ───────────────────────────────────────────────────────────────────────────────── */
 
-/* Base class for items that can be animated */
+/* Base class for any list item that can receive sync updates.
+   Provides smooth transitions on background, shadow, transform, and opacity. */
 .syncable-item {
   position: relative;
   transition:
@@ -1230,8 +1410,15 @@ textarea {
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    COSMIC SHIMMER SYSTEM — Stardust sweep across all realtime changes
-   ═══════════════════════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════════════════════
 
+   The signature visual effect: a horizontal gradient streak that sweeps left
+   to right across an element via `::after` pseudo-elements. Reused across
+   multiple animation classes (`.item-changed`, `.item-toggled`,
+   `.item-created`, `.item-deleting`, `.item-reordering`, etc.) with
+   different color palettes. */
+
+/* Shared shimmer keyframe — translates the pseudo-element from -100% to +100% */
 @keyframes cosmicShimmer {
   0% {
     left: -100%;
@@ -1249,13 +1436,15 @@ textarea {
   }
 }
 
-/* Applied when a change was just made (local or remote) */
+/* ─── Generic Change Highlight — applied when any field is updated ─── */
+
+/* Background flash: subtle purple fade-out over 1.5s */
 .item-changed {
   animation: itemChangeHighlight 1.5s var(--ease-out);
-  overflow: hidden;
+  overflow: hidden; /* Contains the shimmer pseudo-element */
 }
 
-/* Applied when a toggle action (completed, is_enabled) was made */
+/* Toggle highlight — green flash with spring-scale bounce */
 .item-toggled {
   animation: itemToggleHighlight 0.6s var(--ease-spring);
   overflow: hidden;
@@ -1268,7 +1457,7 @@ textarea {
   }
   30% {
     background-color: rgba(38, 222, 129, 0.2);
-    transform: scale(1.02);
+    transform: scale(1.02); /* Slight "pop" at peak */
   }
   100% {
     background-color: transparent;
@@ -1285,7 +1474,7 @@ textarea {
   }
 }
 
-/* Cosmic shimmer sweep — purple → pink → cyan → stardust point */
+/* Cosmic shimmer sweep for generic changes — purple → pink → cyan → stardust */
 .item-changed::after {
   content: '';
   position: absolute;
@@ -1310,7 +1499,7 @@ textarea {
   z-index: 1;
 }
 
-/* Success shimmer sweep — green → cyan → stardust */
+/* Success shimmer sweep for toggle actions — green → cyan → stardust */
 .item-toggled::after {
   content: '';
   position: absolute;
@@ -1334,7 +1523,8 @@ textarea {
   z-index: 1;
 }
 
-/* For items entering the list */
+/* ─── Item Enter — elements appearing in a list (e.g., from realtime sync) ─── */
+
 .item-enter {
   animation: itemEnter 0.5s var(--ease-spring);
 }
@@ -1355,11 +1545,13 @@ textarea {
   }
 }
 
-/* For items being removed */
+/* ─── Item Exit — elements being removed from a list ─── */
+
 .item-exit {
   animation: itemExit 0.4s var(--ease-out) forwards;
 }
 
+/* Collapse animation: shrink opacity + scale, then collapse height/padding */
 @keyframes itemExit {
   0% {
     opacity: 1;
@@ -1381,7 +1573,8 @@ textarea {
   }
 }
 
-/* Field-level change indicator — cosmic shimmer sweep */
+/* ─── Field-Level Change Indicator — cosmic shimmer on individual fields ─── */
+
 .field-changed {
   position: relative;
   overflow: hidden;
@@ -1411,11 +1604,14 @@ textarea {
   z-index: 1;
 }
 
-/* Indicator for deferred changes (entity being edited) */
+/* ─── Deferred Changes Indicator — pulsing orange dot for entities being edited
+   on another device while the current user is also editing them ─── */
+
 .has-deferred-changes {
   position: relative;
 }
 
+/* Orange pulsing dot at top-right corner — signals pending remote changes */
 .has-deferred-changes::before {
   content: '';
   position: absolute;
@@ -1444,15 +1640,19 @@ textarea {
 
 /* ─────────────────────────────────────────────────────────────────────────────────
    LOCAL ACTION ANIMATIONS — Creating, toggling, deleting, reordering
-   ───────────────────────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────────────────────────
 
-/* === ITEM CREATION — New items appearing in lists === */
+   These classes are applied by Svelte components when the user performs
+   direct actions. Each has a body animation + shimmer pseudo-elements. */
+
+/* ═══ ITEM CREATION — New items appearing in lists ═══ */
 
 .item-created {
   animation: itemCreate 0.5s var(--ease-spring) forwards;
   overflow: hidden;
 }
 
+/* Spring entrance: slide down, blur-to-focus, tiny overshoot bounce */
 @keyframes itemCreate {
   0% {
     opacity: 0;
@@ -1461,7 +1661,7 @@ textarea {
   }
   60% {
     opacity: 1;
-    transform: translateY(2px) scale(1.01);
+    transform: translateY(2px) scale(1.01); /* Slight overshoot */
     filter: blur(0);
   }
   100% {
@@ -1471,7 +1671,7 @@ textarea {
   }
 }
 
-/* Nebula birth shimmer — purple → cyan → white stardust */
+/* Nebula birth shimmer — purple → cyan → white stardust sweep */
 .item-created::before {
   content: '';
   position: absolute;
@@ -1490,11 +1690,11 @@ textarea {
     transparent 100%
   );
   pointer-events: none;
-  animation: cosmicShimmer 0.8s var(--ease-out) 0.15s forwards;
+  animation: cosmicShimmer 0.8s var(--ease-out) 0.15s forwards; /* 150ms delay for stagger */
   z-index: 1;
 }
 
-/* Celebration burst for newly created items */
+/* Celebration burst — radial glow that expands outward and fades */
 .item-created::after {
   content: '';
   position: absolute;
@@ -1522,14 +1722,15 @@ textarea {
   }
 }
 
-/* === ITEM DELETION — Graceful removal from lists === */
+/* ═══ ITEM DELETION — Graceful removal from lists ═══ */
 
 .item-deleting {
   animation: itemDelete 0.4s var(--ease-out) forwards;
-  pointer-events: none;
+  pointer-events: none; /* Prevent interaction during exit animation */
   overflow: hidden;
 }
 
+/* Slide right + fade + blur as the item dissolves */
 @keyframes itemDelete {
   0% {
     opacity: 1;
@@ -1548,7 +1749,7 @@ textarea {
   }
 }
 
-/* Red flash on delete */
+/* Red flash overlay on delete */
 .item-deleting::before {
   content: '';
   position: absolute;
@@ -1591,8 +1792,9 @@ textarea {
   z-index: 1;
 }
 
-/* === CHECKBOX TOGGLE — Satisfying completion animation === */
+/* ═══ CHECKBOX TOGGLE — Satisfying completion animation ═══ */
 
+/* Pop-bounce on the checkbox circle itself */
 .checkbox-animating {
   animation: checkboxPop 0.4s var(--ease-spring);
 }
@@ -1602,21 +1804,21 @@ textarea {
     transform: scale(1);
   }
   40% {
-    transform: scale(1.3);
+    transform: scale(1.3); /* Overshoot big */
   }
   70% {
-    transform: scale(0.9);
+    transform: scale(0.9); /* Bounce back past 1.0 */
   }
   100% {
     transform: scale(1);
   }
 }
 
-/* Checkmark drawing animation */
+/* SVG checkmark draw animation — stroke-dasharray reveals the path progressively */
 .checkmark-animate {
   stroke-dasharray: 24;
   stroke-dashoffset: 24;
-  animation: drawCheckmark 0.3s var(--ease-out) 0.1s forwards;
+  animation: drawCheckmark 0.3s var(--ease-out) 0.1s forwards; /* 100ms delay after pop */
 }
 
 @keyframes drawCheckmark {
@@ -1625,7 +1827,7 @@ textarea {
   }
 }
 
-/* Task completion strike-through animation */
+/* Strike-through line that sweeps across the task name on completion */
 .task-completing .task-name {
   position: relative;
 }
@@ -1638,7 +1840,7 @@ textarea {
   height: 2px;
   background: var(--color-green);
   animation: strikeThrough 0.3s var(--ease-out) forwards;
-  box-shadow: 0 0 8px var(--color-green-glow);
+  box-shadow: 0 0 8px var(--color-green-glow); /* Green glow trail */
 }
 
 @keyframes strikeThrough {
@@ -1652,7 +1854,7 @@ textarea {
   }
 }
 
-/* Completion celebration ripple */
+/* Radial green ripple that expands outward from the checkbox center */
 .completion-ripple {
   position: absolute;
   top: 50%;
@@ -1677,8 +1879,9 @@ textarea {
   }
 }
 
-/* === DRAG AND REORDER — Smooth position changes === */
+/* ═══ DRAG AND REORDER — Smooth position changes ═══ */
 
+/* Element being actively dragged — elevated, glowing, grabbing cursor */
 .item-dragging {
   z-index: 100;
   cursor: grabbing !important;
@@ -1691,6 +1894,7 @@ textarea {
     box-shadow 0.15s var(--ease-out);
 }
 
+/* Drop target highlight — purple tint + border + downward shift */
 .item-drag-over {
   background-color: rgba(108, 92, 231, 0.15);
   border-color: var(--color-primary) !important;
@@ -1698,6 +1902,7 @@ textarea {
   transition: all 0.2s var(--ease-spring);
 }
 
+/* After reorder completes — brief flash as items settle */
 .item-reordering {
   animation: reorderSlide 0.35s var(--ease-spring);
   overflow: hidden;
@@ -1717,7 +1922,7 @@ textarea {
   }
 }
 
-/* Orbital shift shimmer — purple → blue → purple sweep */
+/* Orbital shift shimmer — purple → cyan → purple sweep after reorder */
 .item-reordering::after {
   content: '';
   position: absolute;
@@ -1740,15 +1945,16 @@ textarea {
   z-index: 1;
 }
 
-/* Ghost placeholder during drag */
+/* Ghost placeholder — semi-transparent dashed outline left behind during drag */
 .item-ghost {
   opacity: 0.4;
   border-style: dashed !important;
   transform: scale(0.98);
 }
 
-/* === INLINE EDIT — Text change animations === */
+/* ═══ INLINE EDIT — Text change animations ═══ */
 
+/* Focus-in animation for editable fields — background tint + glow ring */
 .field-editing {
   animation: fieldFocusIn 0.3s var(--ease-out);
 }
@@ -1764,6 +1970,7 @@ textarea {
   }
 }
 
+/* Save confirmation flash — green tint + ring that fades out */
 .field-saved {
   animation: fieldSaveFlash 0.5s var(--ease-out);
 }
@@ -1779,7 +1986,7 @@ textarea {
   }
 }
 
-/* Nebula text shimmer — purple → pink sweep over renamed text */
+/* Nebula text shimmer — purple → pink sweep over renamed/updated text */
 .text-changed {
   position: relative;
   overflow: hidden;
@@ -1807,8 +2014,10 @@ textarea {
   z-index: 1;
 }
 
-/* === TOGGLE SWITCHES — Smooth state transitions === */
+/* ═══ TOGGLE SWITCHES — Smooth state transitions ═══ */
 
+/* Bouncy knob animation using CSS custom properties for start/mid/end positions.
+   JS sets `--toggle-start`, `--toggle-mid`, `--toggle-end` based on direction. */
 .toggle-animating .toggle-knob {
   animation: toggleBounce 0.35s var(--ease-spring);
 }
@@ -1818,21 +2027,21 @@ textarea {
     transform: translateX(var(--toggle-start, 0)) scale(1);
   }
   50% {
-    transform: translateX(var(--toggle-mid, 8px)) scale(1.15);
+    transform: translateX(var(--toggle-mid, 8px)) scale(1.15); /* Squash/stretch feel */
   }
   100% {
     transform: translateX(var(--toggle-end, 16px)) scale(1);
   }
 }
 
-/* === INCREMENT/DECREMENT — Counter animations === */
+/* ═══ INCREMENT/DECREMENT — Counter value change animations ═══ */
 
 .counter-increment {
   position: relative;
   overflow: hidden;
 }
 
-/* Stellar ascent shimmer — green → cyan → stardust */
+/* Stellar ascent shimmer — green → cyan → stardust (for value going up) */
 .counter-increment::after {
   content: '';
   position: absolute;
@@ -1860,7 +2069,7 @@ textarea {
   overflow: hidden;
 }
 
-/* Stellar descent shimmer — orange → red → stardust */
+/* Stellar descent shimmer — orange → red → stardust (for value going down) */
 .counter-decrement::after {
   content: '';
   position: absolute;
@@ -1883,13 +2092,16 @@ textarea {
   z-index: 1;
 }
 
-/* Progress bar fill animation */
+/* ═══ PROGRESS BAR — Fill and completion animations ═══ */
+
+/* Smooth width transitions as progress changes — spring easing for organic feel */
 .progress-animating {
   transition:
     width 0.5s var(--ease-spring),
     background 0.3s var(--ease-out);
 }
 
+/* Flash of brightness when progress hits 100% */
 .progress-complete {
   animation: progressComplete 0.6s var(--ease-spring);
 }
@@ -1908,8 +2120,9 @@ textarea {
   }
 }
 
-/* === MODAL AND PANEL TRANSITIONS === */
+/* ═══ MODAL AND PANEL TRANSITIONS ═══ */
 
+/* Panel expand — slides down from top with spring scaleY */
 .panel-expanding {
   animation: panelExpand 0.35s var(--ease-spring);
 }
@@ -1926,6 +2139,7 @@ textarea {
   }
 }
 
+/* Panel collapse — reverse of expand, faster (250ms) */
 .panel-collapsing {
   animation: panelCollapse 0.25s var(--ease-out) forwards;
 }
@@ -1942,8 +2156,9 @@ textarea {
   }
 }
 
-/* === BUTTON INTERACTIONS === */
+/* ═══ BUTTON INTERACTIONS — Success flash feedback ═══ */
 
+/* Brief green flash on successful action buttons (e.g., "Saved!") */
 .btn-success-flash {
   animation: buttonSuccessFlash 0.5s var(--ease-out);
 }
@@ -1959,8 +2174,9 @@ textarea {
   }
 }
 
-/* === FOCUS STATES WITH ANIMATION === */
+/* ═══ FOCUS STATES WITH ANIMATION — Accessible focus ring ═══ */
 
+/* Pulsing focus ring for keyboard navigation — draws attention to focused element */
 .focus-ring-animate {
   animation: focusRingPulse 1.5s ease-in-out infinite;
 }
@@ -1978,11 +2194,16 @@ textarea {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────────
-   REDUCED MOTION SUPPORT — Respect user preferences
-   ───────────────────────────────────────────────────────────────────────────────── */
+   REDUCED MOTION SUPPORT — Disable all animation system animations
+   ─────────────────────────────────────────────────────────────────────────────────
+
+   Comprehensive override that disables every animation class defined above.
+   This is separate from the earlier global `prefers-reduced-motion` rule
+   because it specifically targets the named animation classes rather than
+   using the universal `*` selector. */
 
 @media (prefers-reduced-motion: reduce) {
-  /* Item changes */
+  /* Realtime sync animations */
   .item-changed,
   .item-enter,
   .item-exit,
@@ -1999,7 +2220,7 @@ textarea {
     animation: none;
   }
 
-  /* Local actions */
+  /* Local action animations */
   .item-created,
   .item-deleting,
   .checkbox-animating,
@@ -2022,6 +2243,7 @@ textarea {
     transition: none !important;
   }
 
+  /* Pseudo-element animations on creation/deletion */
   .item-created::after,
   .item-deleting::before,
   .item-deleting::after {
@@ -2030,27 +2252,30 @@ textarea {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   TRUNCATE TOOLTIP — Floating tooltip for overflowed text
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   TRUNCATE TOOLTIP — Floating glassmorphic tooltip for overflowed text
+   ═══════════════════════════════════════════════════════════════════════════════════
+
+   Shows the full text of a truncated element on hover/focus. Positioned via
+   JavaScript (fixed positioning), styled as a dark glass panel with blur. */
 
 .truncate-tooltip {
   position: fixed;
-  z-index: 10000;
-  max-width: min(90vw, 400px);
+  z-index: 10000; /* Above everything including modals */
+  max-width: min(90vw, 400px); /* Responsive max — 90% of viewport or 400px */
   padding: 0.5rem 0.75rem;
   font-size: 0.8125rem;
   line-height: 1.4;
   color: var(--color-text);
-  background: rgba(15, 15, 26, 0.92);
+  background: rgba(15, 15, 26, 0.92); /* Near-opaque dark glass */
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   backdrop-filter: blur(16px);
   box-shadow:
     var(--shadow-lg),
-    0 0 20px rgba(108, 92, 231, 0.15);
-  pointer-events: none;
+    0 0 20px rgba(108, 92, 231, 0.15); /* Subtle purple ambient glow */
+  pointer-events: none; /* Click-through — purely visual */
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateY(4px); /* Starts slightly below final position */
   transition:
     opacity var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-out);
@@ -2058,16 +2283,21 @@ textarea {
   white-space: normal;
 }
 
+/* Visible state — JS adds this class when tooltip should appear */
 .truncate-tooltip.visible {
   opacity: 1;
   transform: translateY(0);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════
-   PRINT STYLES
-   ═══════════════════════════════════════════════════════════════════════════════════ */
+   PRINT STYLES — Clean output for paper
+   ═══════════════════════════════════════════════════════════════════════════════════
+
+   Strips all cosmic visual effects and navigation elements, switches to
+   white background with black text, and simplifies card borders. */
 
 @media print {
+  /* Remove cosmic backgrounds and navigation */
   body::before,
   body::after,
   .nav-desktop,
@@ -2075,11 +2305,13 @@ textarea {
     display: none !important;
   }
 
+  /* White background, black text for readability on paper */
   body {
     background: white;
     color: black;
   }
 
+  /* Simplified card borders — no shadows or glows */
   .card {
     border: 1px solid #ccc;
     box-shadow: none;

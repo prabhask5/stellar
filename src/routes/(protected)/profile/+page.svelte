@@ -1,4 +1,23 @@
 <script lang="ts">
+  /**
+   * @fileoverview **Profile** — User profile & administration page.
+   *
+   * Allows the authenticated user to:
+   * - Update personal information (first name, last name)
+   * - Change their 6-digit access code (gate)
+   * - Change their email address (with confirmation modal)
+   * - Manage trusted devices
+   * - Toggle debug mode and access sync/database debug tools
+   * - Reset the local IndexedDB database
+   * - Sign out on mobile (desktop uses navbar)
+   *
+   * All engine API calls are imported from `@prabhask5/stellar-engine`.
+   */
+
+  // =============================================================================
+  //                               IMPORTS
+  // =============================================================================
+
   import { goto } from '$app/navigation';
   import {
     changeSingleUserGate,
@@ -18,33 +37,43 @@
   import type { TrustedDevice } from '@prabhask5/stellar-engine';
   import { onMount } from 'svelte';
 
-  // Form state
+  // =============================================================================
+  //                         COMPONENT STATE
+  // =============================================================================
+
+  /* ── Profile form fields ──── */
   let firstName = $state('');
   let lastName = $state('');
 
-  // Gate change state - using digit arrays like login page
+  /* ── Gate (6-digit code) change — digit-array approach ──── */
   let oldCodeDigits = $state(['', '', '', '', '', '']);
   let newCodeDigits = $state(['', '', '', '', '', '']);
   let confirmCodeDigits = $state(['', '', '', '', '', '']);
+
+  /** Concatenated old code string → derived from individual digit inputs */
   const oldCode = $derived(oldCodeDigits.join(''));
+  /** Concatenated new code string → derived from individual digit inputs */
   const newCode = $derived(newCodeDigits.join(''));
+  /** Concatenated confirm code string — must match `newCode` */
   const confirmNewCode = $derived(confirmCodeDigits.join(''));
 
-  // Input refs for digit inputs
+  /* ── Input element refs for auto-focus advancement ──── */
   let oldCodeInputs: HTMLInputElement[] = $state([]);
   let newCodeInputs: HTMLInputElement[] = $state([]);
   let confirmCodeInputs: HTMLInputElement[] = $state([]);
 
-  // Email change state
+  /* ── Email change fields ──── */
   let currentEmail = $state('');
   let newEmail = $state('');
   let emailLoading = $state(false);
   let emailError = $state<string | null>(null);
   let emailSuccess = $state<string | null>(null);
+  /** Whether the email confirmation modal overlay is visible */
   let showEmailConfirmationModal = $state(false);
+  /** Seconds remaining before the user can re-send the confirmation email */
   let emailResendCooldown = $state(0);
 
-  // UI state
+  /* ── General UI / feedback state ──── */
   let profileLoading = $state(false);
   let codeLoading = $state(false);
   let profileError = $state<string | null>(null);
@@ -54,7 +83,7 @@
   let debugMode = $state(isDebugMode());
   let resetting = $state(false);
 
-  // Debug tools state
+  /* ── Debug tools loading flags ──── */
   let forceSyncing = $state(false);
   let triggeringSyncManual = $state(false);
   let resettingCursor = $state(false);
@@ -62,13 +91,18 @@
   let viewingTombstones = $state(false);
   let cleaningTombstones = $state(false);
 
-  // Trusted devices state
+  /* ── Trusted devices ──── */
   let trustedDevices = $state<TrustedDevice[]>([]);
   let currentDeviceId = $state('');
   let devicesLoading = $state(true);
+  /** ID of the device currently being removed — shows spinner on that row */
   let removingDeviceId = $state<string | null>(null);
 
-  // Get initial values from user data
+  // =============================================================================
+  //                           LIFECYCLE
+  // =============================================================================
+
+  /** Populate form fields from the engine and load trusted devices on mount. */
   onMount(async () => {
     const info = await getSingleUserInfo();
     if (info) {
@@ -90,7 +124,18 @@
     devicesLoading = false;
   });
 
-  // Digit input helpers (same pattern as login page)
+  // =============================================================================
+  //                     DIGIT INPUT HELPERS
+  // =============================================================================
+
+  /**
+   * Handle single-digit input in a code field.
+   * Auto-advances focus to the next input when a digit is entered.
+   * @param digits  - Reactive digit array to mutate
+   * @param index   - Position in the 6-digit code (0–5)
+   * @param event   - Native input event
+   * @param inputs  - Array of `<input>` refs for focus management
+   */
   function handleDigitInput(
     digits: string[],
     index: number,
@@ -110,6 +155,14 @@
     }
   }
 
+  /**
+   * Handle Backspace in a digit field — moves focus backward when the current
+   * digit is already empty.
+   * @param digits  - Reactive digit array to mutate
+   * @param index   - Position in the 6-digit code (0–5)
+   * @param event   - Native keyboard event
+   * @param inputs  - Array of `<input>` refs for focus management
+   */
   function handleDigitKeydown(
     digits: string[],
     index: number,
@@ -126,6 +179,12 @@
     }
   }
 
+  /**
+   * Handle paste into a digit field — distributes pasted digits across all 6 inputs.
+   * @param digits  - Reactive digit array to mutate
+   * @param event   - Native clipboard event
+   * @param inputs  - Array of `<input>` refs for focus management
+   */
   function handleDigitPaste(digits: string[], event: ClipboardEvent, inputs: HTMLInputElement[]) {
     event.preventDefault();
     const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '');
@@ -137,6 +196,15 @@
     if (inputs[focusIndex]) inputs[focusIndex].focus();
   }
 
+  // =============================================================================
+  //                      FORM SUBMISSION HANDLERS
+  // =============================================================================
+
+  /**
+   * Submit profile name changes to the engine and update the auth store
+   * so the navbar reflects changes immediately.
+   * @param e - Form submit event
+   */
   async function handleProfileSubmit(e: Event) {
     e.preventDefault();
     profileLoading = true;
@@ -159,6 +227,11 @@
     profileLoading = false;
   }
 
+  /**
+   * Validate and submit a 6-digit gate code change.
+   * Resets all digit arrays on success.
+   * @param e - Form submit event
+   */
   async function handleCodeSubmit(e: Event) {
     e.preventDefault();
 
@@ -195,6 +268,16 @@
     codeLoading = false;
   }
 
+  // =============================================================================
+  //                      EMAIL CHANGE FLOW
+  // =============================================================================
+
+  /**
+   * Initiate an email change — sends a confirmation link to the new address.
+   * Opens the confirmation modal and starts listening for the cross-tab
+   * `BroadcastChannel` auth event.
+   * @param e - Form submit event
+   */
   async function handleEmailSubmit(e: Event) {
     e.preventDefault();
     emailError = null;
@@ -228,6 +311,7 @@
     emailLoading = false;
   }
 
+  /** Start a 30-second countdown preventing repeated confirmation emails. */
   function startResendCooldown() {
     emailResendCooldown = 30;
     const interval = setInterval(() => {
@@ -236,6 +320,7 @@
     }, 1000);
   }
 
+  /** Re-send the email change confirmation (guarded by cooldown). */
   async function handleResendEmailChange() {
     if (emailResendCooldown > 0) return;
     try {
@@ -246,6 +331,11 @@
     }
   }
 
+  /**
+   * Listen on a `BroadcastChannel` for the confirmation tab to signal
+   * that the user clicked the email-change link. Once received, complete
+   * the email change server-side and update local state.
+   */
   function listenForEmailConfirmation() {
     if (!('BroadcastChannel' in window)) return;
     const channel = new BroadcastChannel('stellar-auth-channel');
@@ -271,19 +361,30 @@
     };
   }
 
+  /** Close the email confirmation modal without completing the change. */
   function dismissEmailModal() {
     showEmailConfirmationModal = false;
   }
 
+  // =============================================================================
+  //                     ADMINISTRATION HANDLERS
+  // =============================================================================
+
+  /** Toggle debug mode on/off — requires a page refresh to take full effect. */
   function toggleDebugMode() {
     debugMode = !debugMode;
     setDebugMode(debugMode);
   }
 
+  /** Navigate back to the main tasks view. */
   function goBack() {
     goto('/tasks');
   }
 
+  /**
+   * Delete and recreate the local IndexedDB, then reload the page.
+   * Session is preserved in localStorage so the app will re-hydrate.
+   */
   async function handleResetDatabase() {
     if (
       !confirm(
@@ -304,6 +405,10 @@
     }
   }
 
+  /**
+   * Remove a trusted device by ID and update the local list.
+   * @param id - Database ID of the trusted device row
+   */
   async function handleRemoveDevice(id: string) {
     removingDeviceId = id;
     try {
@@ -315,11 +420,20 @@
     removingDeviceId = null;
   }
 
-  // Debug tool handlers
+  // =============================================================================
+  //                     DEBUG TOOL HANDLERS
+  // =============================================================================
+
+  /**
+   * Cast `window` to an untyped record for accessing runtime-injected
+   * debug helpers (e.g., `__stellarSync`, `__stellarSyncStats`).
+   * @returns The global `window` as a loose `Record`
+   */
   function getDebugWindow(): Record<string, unknown> {
     return window as unknown as Record<string, unknown>;
   }
 
+  /** Resets the sync cursor and re-downloads all data from Supabase. */
   async function handleForceFullSync() {
     if (
       !confirm(
@@ -344,6 +458,7 @@
     forceSyncing = false;
   }
 
+  /** Manually trigger a single push/pull sync cycle. */
   async function handleTriggerSync() {
     triggeringSyncManual = true;
     try {
@@ -360,6 +475,7 @@
     triggeringSyncManual = false;
   }
 
+  /** Reset the sync cursor so the next cycle pulls all remote data. */
   async function handleResetSyncCursor() {
     resettingCursor = true;
     try {
@@ -378,6 +494,7 @@
     resettingCursor = false;
   }
 
+  /** Test connectivity to Supabase and show the result in an alert. */
   async function handleCheckConnection() {
     checkingConnection = true;
     try {
@@ -406,6 +523,7 @@
     checkingConnection = false;
   }
 
+  /** Display current sync cursor and pending operations count in an alert. */
   function handleGetSyncStatus() {
     const fn = getDebugWindow().__stellarSync as
       | { getStatus: () => { cursor: unknown; pendingOps: Promise<number> } }
@@ -424,6 +542,7 @@
     }
   }
 
+  /** Show the realtime WebSocket connection state and health. */
   function handleRealtimeStatus() {
     const fn = getDebugWindow().__stellarSync as
       | { realtimeStatus: () => { state: string; healthy: boolean } }
@@ -438,6 +557,7 @@
     }
   }
 
+  /** Display sync cycle stats in an alert; full details logged to console. */
   function handleViewSyncStats() {
     const fn = getDebugWindow().__stellarSyncStats as
       | (() => { totalSyncCycles: number; recentMinute: number; recent: unknown[] })
@@ -452,6 +572,7 @@
     }
   }
 
+  /** Display data-transfer / egress stats; per-table breakdown in console. */
   function handleViewEgress() {
     const fn = getDebugWindow().__stellarEgress as
       | (() => { totalFormatted: string; totalRecords: number; sessionStart: string })
@@ -466,6 +587,7 @@
     }
   }
 
+  /** Log soft-deleted record counts per table to the browser console. */
   async function handleViewTombstones() {
     viewingTombstones = true;
     try {
@@ -484,6 +606,7 @@
     viewingTombstones = false;
   }
 
+  /** Permanently remove old soft-deleted records from local + remote DBs. */
   async function handleCleanupTombstones() {
     if (
       !confirm(
@@ -508,6 +631,7 @@
     cleaningTombstones = false;
   }
 
+  /** Dispatch a custom event that the app shell listens for to sign out on mobile. */
   function handleMobileSignOut() {
     window.dispatchEvent(new CustomEvent('stellar:signout'));
   }
@@ -517,8 +641,9 @@
   <title>Profile - Stellar Planner</title>
 </svelte:head>
 
+<!-- ═══ Page Container ═══ -->
 <div class="profile-page">
-  <!-- Header -->
+  <!-- ═══ Navigation Header ═══ -->
   <header class="profile-header">
     <button class="back-btn" onclick={goBack}>
       <svg
@@ -540,7 +665,7 @@
     <div class="header-spacer"></div>
   </header>
 
-  <!-- Profile Avatar -->
+  <!-- ═══ Avatar Section — Cosmic orb with orbiting particles ═══ -->
   <div class="profile-avatar-section">
     <div class="avatar-container">
       <div class="avatar-ring"></div>
@@ -555,7 +680,7 @@
     </div>
   </div>
 
-  <!-- Profile Form Card -->
+  <!-- ═══ Personal Information Card ═══ -->
   <div class="profile-card">
     <div class="card-header">
       <h2 class="card-title">Personal Information</h2>
@@ -607,7 +732,7 @@
     </form>
   </div>
 
-  <!-- Change Email Card -->
+  <!-- ═══ Change Email Card ═══ -->
   <div class="profile-card">
     <div class="card-header">
       <h2 class="card-title">Change Email</h2>
@@ -653,7 +778,7 @@
     </form>
   </div>
 
-  <!-- Email Confirmation Modal -->
+  <!-- ═══ Email Confirmation Modal — shown after initiating email change ═══ -->
   {#if showEmailConfirmationModal}
     <div class="modal-overlay" role="dialog" aria-modal="true">
       <div class="modal-card">
@@ -693,7 +818,7 @@
     </div>
   {/if}
 
-  <!-- Change Code Card -->
+  <!-- ═══ Change 6-Digit Code Card ═══ -->
   <div class="profile-card">
     <div class="card-header">
       <h2 class="card-title">Change Code</h2>
@@ -789,7 +914,7 @@
     </form>
   </div>
 
-  <!-- Trusted Devices -->
+  <!-- ═══ Trusted Devices Card ═══ -->
   <div class="profile-card">
     <div class="card-header">
       <h2 class="card-title">Trusted Devices</h2>
@@ -849,7 +974,7 @@
     {/if}
   </div>
 
-  <!-- Administration -->
+  <!-- ═══ Administration & Debug Tools Card ═══ -->
   <div class="profile-card">
     <div class="card-header">
       <h2 class="card-title">Administration</h2>

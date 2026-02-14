@@ -1,31 +1,106 @@
+<!--
+  @fileoverview Landing / Home page — the authenticated user's welcome screen.
+
+  This is the first page a logged-in user sees. It renders a cinematic,
+  space-themed greeting with:
+
+  1. **Time-aware greeting** — "Good morning / afternoon / evening" that
+     transitions smoothly when the time-of-day period changes.
+  2. **Personalised name** — resolved from the Supabase session profile or
+     offline cached credentials, with fallbacks to email username.
+  3. **Motivational compliment** — randomly selected from a curated list,
+     with occasional PWA install prompts for first-time visitors.
+  4. **Immersive background** — animated star field, nebula effects, orbital
+     rings, shooting stars, floating particles, and a constellation SVG.
+  5. **Auth redirect** — if the auth store resolves to `'none'`, the user
+     is redirected to `/login` automatically.
+
+  The page also subscribes to sync-completion events to detect overnight
+  time-period changes without requiring a manual refresh.
+-->
+
 <script lang="ts">
+  /**
+   * @fileoverview Home page script — greeting logic, compliment selection,
+   * PWA install prompts, and auth-redirect guard.
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
+  /* ── SvelteKit Utilities ── */
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
+
+  /* ── Stellar Engine — Stores & Auth ── */
   import { onSyncComplete, authState } from '@prabhask5/stellar-engine/stores';
   import { getUserProfile } from '@prabhask5/stellar-engine/auth';
   import { browser } from '$app/environment';
+
+  /* ── Components ── */
   import PWAInstallModal from '$lib/components/PWAInstallModal.svelte';
+
+  /* ── Actions ── */
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
+
+  // =============================================================================
+  //  Component State
+  // =============================================================================
+
+  /** Whether the page is still initialising (shows the stellar loader). */
   let isLoading = $state(true);
+
+  /** The currently displayed motivational message or PWA prompt. */
   let selectedCompliment = $state('');
+
+  /** The time-of-day greeting text (e.g. "Good morning"). */
   let timeGreeting = $state('Good day');
+
+  /** When `true`, the greeting text is fading out for a period transition. */
   let isGreetingTransitioning = $state(false);
+
+  /** Whether to show the "See how" PWA install button below the compliment. */
   let showPWAButton = $state(false);
+
+  /** Controls the `PWAInstallModal` open/close state. */
   let isPWAModalOpen = $state(false);
 
-  // LocalStorage key for tracking first-time home page visit
+  // =============================================================================
+  //  Constants
+  // =============================================================================
+
+  /** LocalStorage key for tracking whether the user has visited the home page before. */
   const FIRST_HOME_VISIT_KEY = 'stellar_first_home_visit_complete';
 
-  // PWA-specific messages
+  /* ── PWA-Specific Messages ── */
+  /** Shown on the very first visit to the home page. */
   const PWA_WELCOME_MESSAGE =
     'Welcome! Make sure to download Stellar onto your phone as an app to track tasks on the go!';
+
+  /** Shown with a 1/50 probability on subsequent visits as a gentle reminder. */
   const PWA_REMINDER_MESSAGE =
     "By the way, if you haven't, you can download Stellar onto your phone as an app!";
 
-  // Time periods for comparison (avoids string comparison overhead)
+  // =============================================================================
+  //  Time-of-Day Helpers
+  // =============================================================================
+
+  /** Union type representing the three greeting periods. */
   type TimePeriod = 'morning' | 'afternoon' | 'evening';
+
+  /** Tracks the current period so we can detect transitions. */
   let currentTimePeriod = $state<TimePeriod>('morning');
 
+  /**
+   * Determines the current time-of-day period based on the hour.
+   *
+   * - 05:00 -- 11:59 → `'morning'`
+   * - 12:00 -- 16:59 → `'afternoon'`
+   * - 17:00 -- 04:59 → `'evening'`
+   *
+   * @returns The current `TimePeriod`
+   */
   function getTimePeriod(): TimePeriod {
     const hour = new Date().getHours();
     if (hour >= 5 && hour < 12) {
@@ -37,6 +112,12 @@
     }
   }
 
+  /**
+   * Maps a `TimePeriod` to its human-readable greeting string.
+   *
+   * @param period - The time period to convert
+   * @returns A greeting like `"Good morning"`
+   */
   function getGreetingForPeriod(period: TimePeriod): string {
     switch (period) {
       case 'morning':
@@ -48,11 +129,16 @@
     }
   }
 
-  // Smoothly transition greeting when time period changes
+  /**
+   * Checks whether the time-of-day period has changed and, if so,
+   * smoothly transitions the greeting text with a fade-out / fade-in.
+   *
+   * Called on sync completion events to handle overnight changes.
+   */
   function updateGreetingIfNeeded(): void {
     const newPeriod = getTimePeriod();
     if (newPeriod !== currentTimePeriod) {
-      // Time period changed - animate the transition
+      // Time period changed — animate the transition
       isGreetingTransitioning = true;
 
       // After fade out, update the text
@@ -68,9 +154,18 @@
     }
   }
 
-  // Cleanup function for sync subscription
+  // =============================================================================
+  //  Cleanup References
+  // =============================================================================
+
+  /** Unsubscribe function for the sync-completion listener. */
   let unsubscribeSyncComplete: (() => void) | null = null;
 
+  // =============================================================================
+  //  Compliment Data
+  // =============================================================================
+
+  /** Pool of motivational compliments, randomly selected on each visit. */
   const compliments = [
     "you're going to do great things.",
     'the universe is on your side.',
@@ -89,16 +184,39 @@
     'your hard work will pay off.'
   ];
 
+  /**
+   * Picks a random compliment from the pool.
+   *
+   * @returns A motivational string (lowercase, no prefix)
+   */
   function getRandomCompliment(): string {
     return compliments[Math.floor(Math.random() * compliments.length)];
   }
 
+  // =============================================================================
+  //  Message Selection Logic
+  // =============================================================================
+
+  /** Result shape from `getMessageForDisplay`. */
   interface MessageResult {
+    /** The message text to display. */
     message: string;
+
+    /** Whether this is a PWA install prompt (shows the "See how" button). */
     isPWAMessage: boolean;
+
+    /** Whether this is the user's very first visit to the home page. */
     isFirstVisit: boolean;
   }
 
+  /**
+   * Determines which message to display based on visit history.
+   *
+   * - **First visit:** PWA welcome message (always).
+   * - **Returning visit:** 1/50 chance of a PWA reminder, otherwise a random compliment.
+   *
+   * @returns A `MessageResult` with the message and PWA flag
+   */
   function getMessageForDisplay(): MessageResult {
     if (!browser) {
       return { message: getRandomCompliment(), isPWAMessage: false, isFirstVisit: false };
@@ -107,12 +225,12 @@
     const hasVisitedBefore = localStorage.getItem(FIRST_HOME_VISIT_KEY);
 
     if (!hasVisitedBefore) {
-      // First time visiting home page - show welcome PWA message
+      // First time visiting home page — show welcome PWA message
       localStorage.setItem(FIRST_HOME_VISIT_KEY, 'true');
       return { message: PWA_WELCOME_MESSAGE, isPWAMessage: true, isFirstVisit: true };
     }
 
-    // Returning user - 1/50 chance to show PWA reminder
+    // Returning user — 1/50 chance to show PWA reminder
     const showPWAReminder = Math.random() < 0.02; // 1/50 = 0.02
     if (showPWAReminder) {
       return { message: PWA_REMINDER_MESSAGE, isPWAMessage: true, isFirstVisit: false };
@@ -122,7 +240,20 @@
     return { message: getRandomCompliment(), isPWAMessage: false, isFirstVisit: false };
   }
 
-  // Use the auth store for user info - works for both online and offline modes
+  // =============================================================================
+  //  Derived State
+  // =============================================================================
+
+  /**
+   * Derives the user's first name for the greeting display.
+   *
+   * Resolution order:
+   * 1. `firstName` / `first_name` from the Supabase session profile
+   * 2. Email username (before `@`) from the Supabase session
+   * 3. `firstName` from the offline cached profile
+   * 4. Email username from the offline cached profile
+   * 5. Fallback → `'Explorer'`
+   */
   const firstName = $derived.by(() => {
     if ($authState.session?.user) {
       const profile = getUserProfile($authState.session.user);
@@ -142,33 +273,50 @@
     return 'Explorer';
   });
 
+  // =============================================================================
+  //  Lifecycle — Mount
+  // =============================================================================
+
   onMount(() => {
-    // Initialize greeting based on current time
+    // Initialise greeting based on current time
     currentTimePeriod = getTimePeriod();
     timeGreeting = getGreetingForPeriod(currentTimePeriod);
 
-    // Get message for display
+    // Select the message to display (compliment or PWA prompt)
     const messageResult = getMessageForDisplay();
     selectedCompliment = messageResult.message;
     showPWAButton = messageResult.isPWAMessage;
 
     isLoading = false;
 
-    // Subscribe to sync completion - check if greeting needs update
-    // This handles the case where the page is open overnight
+    // Subscribe to sync completion — check if greeting needs update.
+    // This handles the case where the page is open overnight.
     unsubscribeSyncComplete = onSyncComplete(() => {
       updateGreetingIfNeeded();
     });
   });
 
-  // Use reactive effect to handle auth redirects
-  // This uses the authState from the layout instead of re-checking
+  // =============================================================================
+  //  Reactive Effects
+  // =============================================================================
+
+  /**
+   * Effect: auth redirect guard.
+   *
+   * Once the auth store finishes loading and resolves to `'none'` (no session),
+   * redirect to `/login` with a `redirect` query param so the login page knows
+   * this was an automatic redirect rather than direct navigation.
+   */
   $effect(() => {
     if (!$authState.isLoading && $authState.mode === 'none') {
       // Include redirect param so login page knows this was a redirect, not direct navigation
       goto('/login?redirect=%2F', { replaceState: true });
     }
   });
+
+  // =============================================================================
+  //  Lifecycle — Destroy
+  // =============================================================================
 
   onDestroy(() => {
     // Clean up sync subscription
@@ -183,6 +331,9 @@
   <title>Home - Stellar Planner</title>
 </svelte:head>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Loading State — full-screen stellar spinner while auth resolves
+     ═══════════════════════════════════════════════════════════════════════════ -->
 {#if isLoading}
   <div class="loading-screen">
     <div class="stellar-loader">
@@ -199,20 +350,23 @@
     </div>
   </div>
 {:else}
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       Home Container — immersive space-themed welcome screen
+       ═══════════════════════════════════════════════════════════════════════ -->
   <div class="home-container">
-    <!-- Animated Star Field -->
+    <!-- ── Animated Star Field — three layers of parallax stars ── -->
     <div class="starfield">
       <div class="stars stars-small"></div>
       <div class="stars stars-medium"></div>
       <div class="stars stars-large"></div>
     </div>
 
-    <!-- Nebula Effects -->
+    <!-- ── Nebula Effects — blurred radial gradients for depth ── -->
     <div class="nebula nebula-1"></div>
     <div class="nebula nebula-2"></div>
     <div class="nebula nebula-3"></div>
 
-    <!-- Orbital Rings -->
+    <!-- ── Orbital Rings — concentric rotating ring borders with particles ── -->
     <div class="orbital-system">
       <div class="orbit orbit-1"></div>
       <div class="orbit orbit-2"></div>
@@ -222,12 +376,12 @@
       <div class="orbit-particle particle-3"></div>
     </div>
 
-    <!-- Shooting Stars -->
+    <!-- ── Shooting Stars — periodic streak animations ── -->
     <div class="shooting-star shooting-star-1"></div>
     <div class="shooting-star shooting-star-2"></div>
     <div class="shooting-star shooting-star-3"></div>
 
-    <!-- Central Content -->
+    <!-- ── Central Content — greeting, compliment, and optional PWA button ── -->
     <div class="content">
       <div class="greeting-wrapper">
         <div class="greeting-glow"></div>
@@ -239,6 +393,7 @@
         </h1>
       </div>
 
+      <!-- Compliment / PWA message — prefixed with "Remember, " for regular compliments -->
       <p class="compliment">
         {#if showPWAButton}
           {selectedCompliment}
@@ -247,6 +402,7 @@
         {/if}
       </p>
 
+      <!-- PWA Install Button — shown on first visit or 1/50 chance -->
       {#if showPWAButton}
         <button class="pwa-button" onclick={() => (isPWAModalOpen = true)}>
           <span class="pwa-button-text">See how</span>
@@ -254,7 +410,7 @@
         </button>
       {/if}
 
-      <!-- Decorative constellation -->
+      <!-- ── Decorative Constellation — SVG lines connecting pulsing star dots ── -->
       <div class="constellation">
         <span class="star star-1"></span>
         <span class="star star-2"></span>
@@ -285,7 +441,7 @@
       </div>
     </div>
 
-    <!-- Floating Particles -->
+    <!-- ── Floating Particles — 20 randomly-positioned drifting dots ── -->
     <div class="particles">
       {#each Array(20) as _, _i (_i)}
         <span
@@ -303,6 +459,7 @@
     </div>
   </div>
 
+  <!-- PWA Install Modal — opened by the "See how" button -->
   <PWAInstallModal bind:open={isPWAModalOpen} onClose={() => (isPWAModalOpen = false)} />
 {/if}
 
@@ -320,7 +477,8 @@
     background: var(--color-void);
   }
 
-  /* ── Stellar Loader — A star being born ── */
+  /* ═══ Stellar Loader — animated "star being born" spinner ═══ */
+
   .stellar-loader {
     position: relative;
     width: 120px;
@@ -338,6 +496,8 @@
       transform: scale(1);
     }
   }
+
+  /* ── Orbital Rings ── */
 
   .loader-ring {
     position: absolute;
@@ -375,6 +535,8 @@
       transform: rotate(360deg);
     }
   }
+
+  /* ── Core ── */
 
   .loader-core {
     position: absolute;
@@ -436,6 +598,8 @@
         0 0 100px rgba(255, 121, 198, 0.2);
     }
   }
+
+  /* ── Orbiting Particles ── */
 
   .loader-particle {
     position: absolute;
@@ -581,7 +745,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     STAR FIELD
+     STAR FIELD — three layers of parallax-drifting stars
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .starfield {
@@ -596,6 +760,7 @@
     background-repeat: repeat;
   }
 
+  /* Small white dots — fast drift */
   .stars-small {
     background-image:
       radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.8) 0%, transparent 100%),
@@ -610,6 +775,7 @@
     animation: starsDrift 100s linear infinite;
   }
 
+  /* Medium coloured dots — slow reverse drift */
   .stars-medium {
     background-image:
       radial-gradient(1.5px 1.5px at 20% 30%, rgba(108, 92, 231, 0.9) 0%, transparent 100%),
@@ -620,6 +786,7 @@
     animation: starsDrift 150s linear infinite reverse;
   }
 
+  /* Large bright dots — twinkle + very slow drift */
   .stars-large {
     background-image:
       radial-gradient(2px 2px at 25% 25%, rgba(255, 255, 255, 1) 0%, transparent 100%),
@@ -651,7 +818,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     NEBULA EFFECTS
+     NEBULA EFFECTS — blurred radial gradients for cosmic depth
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .nebula {
@@ -662,6 +829,7 @@
     pointer-events: none;
   }
 
+  /* Top-right purple nebula */
   .nebula-1 {
     width: 600px;
     height: 600px;
@@ -673,6 +841,7 @@
       nebulaFloat 20s ease-in-out infinite;
   }
 
+  /* Bottom-left pink nebula */
   .nebula-2 {
     width: 500px;
     height: 500px;
@@ -684,6 +853,7 @@
       nebulaFloat 25s ease-in-out infinite reverse;
   }
 
+  /* Centre green nebula */
   .nebula-3 {
     width: 400px;
     height: 400px;
@@ -720,7 +890,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     ORBITAL SYSTEM
+     ORBITAL SYSTEM — concentric rotating rings with glowing particles
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .orbital-system {
@@ -768,6 +938,8 @@
       transform: translate(-50%, -50%) rotate(360deg);
     }
   }
+
+  /* ── Orbit Particles — glowing dots that travel along each ring ── */
 
   .orbit-particle {
     position: absolute;
@@ -834,7 +1006,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     SHOOTING STARS
+     SHOOTING STARS — periodic diagonal streak animations
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .shooting-star {
@@ -894,7 +1066,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     CENTRAL CONTENT
+     CENTRAL CONTENT — greeting text, compliment, and PWA button
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .content {
@@ -922,6 +1094,7 @@
     margin-bottom: 1.5rem;
   }
 
+  /* Blurred glow behind the greeting text */
   .greeting-glow {
     position: absolute;
     top: 50%;
@@ -963,6 +1136,7 @@
     gap: 0.25rem;
   }
 
+  /* Time-of-day sub-heading (e.g. "Good morning,") */
   .greeting-hello {
     color: var(--color-text-secondary);
     font-size: 0.5em;
@@ -982,6 +1156,7 @@
     transform: translateY(-4px);
   }
 
+  /* User's name — gradient shimmer text */
   .greeting-name {
     background: linear-gradient(
       135deg,
@@ -1022,6 +1197,7 @@
     }
   }
 
+  /* Compliment text below the greeting */
   .compliment {
     font-size: clamp(1.125rem, 3vw, 1.5rem);
     color: var(--color-text-muted);
@@ -1106,7 +1282,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     CONSTELLATION
+     CONSTELLATION — decorative SVG star pattern below the greeting
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .constellation {
@@ -1125,6 +1301,7 @@
     height: 100%;
   }
 
+  /* Individual constellation star dots */
   .star {
     position: absolute;
     width: 4px;
@@ -1179,7 +1356,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     FLOATING PARTICLES
+     FLOATING PARTICLES — randomly-positioned drifting dots
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .particles {
@@ -1223,7 +1400,7 @@
      RESPONSIVE
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
-  /* Tablet - still has top navbar */
+  /* ── Tablet (<=768px) — shrink orbits and nebulae ── */
   @media (max-width: 768px) {
     .orbit-1 {
       width: 200px;
@@ -1289,6 +1466,7 @@
     }
   }
 
+  /* ── Small Mobile (<=480px) — reduce shooting star length and glow sizes ── */
   @media (max-width: 480px) {
     .shooting-star {
       width: 60px;
@@ -1305,7 +1483,7 @@
     }
   }
 
-  /* Reduced motion */
+  /* ── Reduced Motion — disable all cosmetic animations ── */
   @media (prefers-reduced-motion: reduce) {
     .stars,
     .nebula,

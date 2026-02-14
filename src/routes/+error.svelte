@@ -1,10 +1,51 @@
+<!--
+  @fileoverview Error boundary page — SvelteKit's catch-all error handler.
+
+  Displayed whenever a route throws an unhandled error or returns a non-200
+  status code. The component adapts its messaging to three distinct scenarios:
+
+  1. **Offline** — the user has no network connection; shows a wifi-off icon
+     and a "Try Again" button that reloads the page.
+  2. **404 Not Found** — the requested route does not exist; shows a sad-face
+     icon with a "Refresh Page" button.
+  3. **Generic error** — any other server/client error; shows a warning triangle
+     and falls back to `$page.error.message` or a generic message.
+
+  Uses `$page.status` from SvelteKit stores and browser `navigator.onLine` to
+  determine which variant to render. Listens for online/offline events to update
+  the display in real time.
+-->
+
 <script lang="ts">
+  /**
+   * @fileoverview Error boundary component script — manages offline detection
+   * and provides navigation helpers for error recovery.
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { browser } from '$app/environment';
 
+  // =============================================================================
+  //  State
+  // =============================================================================
+
+  /** Whether the user is currently offline — drives which error variant is shown. */
   let isOffline = $state(false);
 
+  // =============================================================================
+  //  Reactive Effects
+  // =============================================================================
+
+  /**
+   * Effect: tracks the browser's online/offline status in real time.
+   * Sets `isOffline` on mount and attaches `online` / `offline` event listeners.
+   * Returns a cleanup function that removes the listeners on destroy.
+   */
   $effect(() => {
     if (browser) {
       isOffline = !navigator.onLine;
@@ -26,19 +67,35 @@
     }
   });
 
+  // =============================================================================
+  //  Event Handlers
+  // =============================================================================
+
+  /**
+   * Reload the current page — useful when the user regains connectivity or
+   * wants to retry after a transient server error.
+   */
   function handleRetry() {
     window.location.reload();
   }
 
+  /**
+   * Navigate back to the home page via SvelteKit client-side routing.
+   */
   function handleGoHome() {
     goto('/');
   }
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Error Page Container
+     ═══════════════════════════════════════════════════════════════════════════ -->
 <div class="error-page">
   <div class="error-container glass-card">
+    <!-- ── Error Icon — changes based on error type ── -->
     <div class="error-icon">
       {#if isOffline}
+        <!-- Wifi-off icon for offline state -->
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="64"
@@ -59,6 +116,7 @@
           <line x1="12" y1="20" x2="12.01" y2="20"></line>
         </svg>
       {:else if $page.status === 404}
+        <!-- Sad-face icon for page not found -->
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="64"
@@ -76,6 +134,7 @@
           <line x1="15" y1="9" x2="15.01" y2="9"></line>
         </svg>
       {:else}
+        <!-- Warning triangle for generic errors -->
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="64"
@@ -95,6 +154,7 @@
       {/if}
     </div>
 
+    <!-- ── Error Title — adapts to error type ── -->
     <h1 class="error-title">
       {#if isOffline}
         You're Offline
@@ -105,6 +165,7 @@
       {/if}
     </h1>
 
+    <!-- ── Error Description — provides context-specific guidance ── -->
     <p class="error-message">
       {#if isOffline}
         This page isn't available offline. Please check your connection and try again.
@@ -115,6 +176,7 @@
       {/if}
     </p>
 
+    <!-- ── Action Buttons — retry or navigate home ── -->
     <div class="error-actions">
       {#if isOffline}
         <button class="btn btn-primary" onclick={handleRetry}> Try Again </button>
@@ -124,6 +186,7 @@
       <button class="btn btn-ghost" onclick={handleGoHome}> Go Home </button>
     </div>
 
+    <!-- ── Persistent Error Hint — shown only for generic (non-404, non-offline) errors ── -->
     {#if !isOffline && $page.status !== 404}
       <p class="error-hint">
         If this problem persists, try refreshing the page or clearing your browser cache.
@@ -133,6 +196,8 @@
 </div>
 
 <style>
+  /* ═══ Layout ═══ */
+
   .error-page {
     min-height: 100dvh;
     display: flex;
@@ -149,6 +214,8 @@
     text-align: center;
   }
 
+  /* ═══ Icon ═══ */
+
   .error-icon {
     color: var(--text-tertiary);
     margin-bottom: var(--space-4);
@@ -158,6 +225,8 @@
     width: 64px;
     height: 64px;
   }
+
+  /* ═══ Typography ═══ */
 
   .error-title {
     font-size: var(--font-size-2xl);
@@ -172,11 +241,15 @@
     line-height: 1.5;
   }
 
+  /* ═══ Actions ═══ */
+
   .error-actions {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
   }
+
+  /* ═══ Hint ═══ */
 
   .error-hint {
     margin-top: var(--space-6);

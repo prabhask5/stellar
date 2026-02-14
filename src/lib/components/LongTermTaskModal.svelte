@@ -1,21 +1,52 @@
 <script lang="ts">
+  /**
+   * @fileoverview LongTermTaskModal — detail / edit modal for a single long-term task.
+   *
+   * Displays task name, due date, category tag, and completion status inside
+   * a reusable `Modal` shell.  Most fields support inline editing with
+   * auto-save behaviour (changes are pushed via `onUpdate` immediately on
+   * blur / Enter / selection).
+   *
+   * Key behaviours:
+   * - Name field toggles between a read-only display and an `<input>` on click.
+   * - Due-date changes are committed instantly via `onchange`.
+   * - Category is selected through a custom dropdown split into standalone
+   *   and project-owned groups.
+   * - The `lockedCategory` prop disables the dropdown (used in project views).
+   * - `trackEditing` marks the entity as "being edited" for cross-device
+   *   conflict awareness; `remoteChangeAnimation` flashes when another device
+   *   updates this task.
+   */
+
   import Modal from './Modal.svelte';
   import type { LongTermTaskWithCategory, TaskCategory } from '$lib/types';
   import { parseDateString } from '$lib/utils/dates';
   import { remoteChangeAnimation, trackEditing } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
+  // =============================================================================
+  //                                  Props
+  // =============================================================================
+
   interface Props {
+    /** Whether the modal is currently visible */
     open: boolean;
+    /** The task to display/edit, or `null` when closed */
     task: LongTermTaskWithCategory | null;
+    /** All available categories for the tag dropdown */
     categories: TaskCategory[];
+    /** When `true`, the category dropdown is replaced with a static display */
     lockedCategory?: boolean;
+    /** Close the modal */
     onClose: () => void;
+    /** Persist field-level updates (name, due_date, category_id) */
     onUpdate: (
       id: string,
       updates: { name?: string; due_date?: string; category_id?: string | null }
     ) => void;
+    /** Toggle completion status */
     onToggle: (id: string) => void;
+    /** Delete the task */
     onDelete: (id: string) => void;
   }
 
@@ -30,28 +61,61 @@
     onDelete
   }: Props = $props();
 
-  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
+  // =============================================================================
+  //                          Utility Actions
+  // =============================================================================
+
+  /**
+   * Auto-focus action — skipped on mobile to avoid an unwanted keyboard popup.
+   * @param {HTMLElement} node - Element to focus
+   */
   function focus(node: HTMLElement) {
     if (window.innerWidth > 640) {
       node.focus();
     }
   }
 
+  // =============================================================================
+  //                          Local Form State
+  // =============================================================================
+
+  /** Whether the name field is in edit mode */
   let editingName = $state(false);
+  /** Local copy of the task name (two-way bound to the input) */
   let name = $state('');
+  /** Local copy of the due date string */
   let dueDate = $state('');
+  /** Local copy of the selected category ID */
   let categoryId = $state<string | null>(null);
+  /** Local copy of the completion flag */
   let completed = $state(false);
+  /** Whether the category dropdown is open */
   let dropdownOpen = $state(false);
 
-  // Derive selected category from local state for immediate UI feedback
+  // =============================================================================
+  //                          Derived State
+  // =============================================================================
+
+  /** Resolved category object for the locally-selected `categoryId` */
   const selectedCategory = $derived(
     categoryId ? categories.find((c) => c.id === categoryId) : null
   );
 
+  /** Categories that are NOT owned by a project */
   const standaloneCategories = $derived(categories.filter((c) => !c.project_id));
+
+  /** Categories created by / owned by a project */
   const projectCategories = $derived(categories.filter((c) => !!c.project_id));
 
+  // =============================================================================
+  //                          Effects — Sync Props to Local State
+  // =============================================================================
+
+  /**
+   * Whenever the `task` prop changes (e.g. modal re-opened with a different
+   * task), copy its values into local state so the form fields reflect the
+   * current task.
+   */
   $effect(() => {
     if (task) {
       name = task.name;
@@ -62,6 +126,14 @@
     }
   });
 
+  // =============================================================================
+  //                          Event Handlers
+  // =============================================================================
+
+  /**
+   * Select a category and persist the change immediately.
+   * @param {string | null} id - The chosen category ID, or `null` for "No tag"
+   */
   function selectCategory(id: string | null) {
     categoryId = id;
     dropdownOpen = false;
@@ -70,6 +142,10 @@
     }
   }
 
+  /**
+   * Close the category dropdown when the user clicks outside of it.
+   * @param {MouseEvent} e - The click event
+   */
   function handleClickOutside(e: MouseEvent) {
     const target = e.target as HTMLElement;
     if (!target.closest('.category-dropdown')) {
@@ -77,6 +153,9 @@
     }
   }
 
+  /**
+   * Commit the edited name on blur / Enter, only if it actually changed.
+   */
   function handleNameSubmit() {
     if (task && name.trim() && name !== task.name) {
       onUpdate(task.id, { name: name.trim() });
@@ -84,12 +163,18 @@
     editingName = false;
   }
 
+  /**
+   * Commit due-date change immediately when the native date-picker value changes.
+   */
   function handleDueDateChange() {
     if (task && dueDate !== task.due_date) {
       onUpdate(task.id, { due_date: dueDate });
     }
   }
 
+  /**
+   * Confirm and delete the task, then close the modal.
+   */
   function handleDelete() {
     if (task && confirm(task.type === 'reminder' ? 'Delete this reminder?' : 'Delete this task?')) {
       onDelete(task.id);
@@ -97,14 +182,22 @@
     }
   }
 
+  /**
+   * Toggle completion — updates local state immediately for a responsive feel,
+   * then fires the callback.
+   */
   function handleToggle() {
     if (task) {
-      // Update local state immediately for responsive UI
       completed = !completed;
       onToggle(task.id);
     }
   }
 
+  // =============================================================================
+  //                      Derived Status Badges
+  // =============================================================================
+
+  /** Whether the task's due date is before today (and still incomplete) */
   const isOverdue = $derived.by(() => {
     if (!dueDate) return false;
     const today = new Date();
@@ -113,6 +206,7 @@
     return taskDueDate < today && !completed;
   });
 
+  /** Whether the task's due date is exactly today (and still incomplete) */
   const isDueToday = $derived.by(() => {
     if (!dueDate) return false;
     const today = new Date();
@@ -122,7 +216,12 @@
   });
 </script>
 
+<!-- Close category dropdown on any window click -->
 <svelte:window onclick={handleClickOutside} />
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Template — Task Detail Modal
+     ═══════════════════════════════════════════════════════════════════════════ -->
 
 <Modal {open} title={task?.type === 'reminder' ? 'Reminder Details' : 'Task Details'} {onClose}>
   {#if task}
@@ -135,6 +234,7 @@
         formType: 'auto-save'
       }}
     >
+      <!-- ═══ Name Field (click-to-edit) ═══ -->
       <div class="field">
         <span id="task-modal-name-label" class="field-label">Name</span>
         {#if editingName}
@@ -158,6 +258,7 @@
         {/if}
       </div>
 
+      <!-- ═══ Due Date Field (native date picker) ═══ -->
       <div class="field">
         <label class="field-label" for="task-modal-due-date">Due Date</label>
         <input
@@ -167,6 +268,7 @@
           class="field-input date-input"
           onchange={handleDueDateChange}
         />
+        <!-- Status badges — shown below the date input -->
         {#if isOverdue}
           <span class="overdue-badge">Overdue</span>
         {:else if isDueToday}
@@ -174,9 +276,11 @@
         {/if}
       </div>
 
+      <!-- ═══ Tag / Category Field ═══ -->
       <div class="field">
         <span id="task-modal-tag-label" class="field-label">Tag</span>
         {#if lockedCategory}
+          <!-- Read-only tag display (used in project context) -->
           <div class="field-value locked-tag" role="group" aria-labelledby="task-modal-tag-label">
             {#if selectedCategory}
               <span class="selected-category" use:truncateTooltip>
@@ -191,6 +295,7 @@
             {/if}
           </div>
         {:else}
+          <!-- Interactive category dropdown -->
           <div class="category-dropdown">
             <button
               type="button"
@@ -224,8 +329,10 @@
               </svg>
             </button>
 
+            <!-- ═══ Dropdown Menu — Standalone + Project Categories ═══ -->
             {#if dropdownOpen}
               <div class="dropdown-menu">
+                <!-- "No tag" option -->
                 <button
                   type="button"
                   class="dropdown-item"
@@ -236,6 +343,7 @@
                   No tag
                 </button>
 
+                <!-- Standalone categories -->
                 {#each standaloneCategories as cat (cat.id)}
                   <button
                     type="button"
@@ -248,6 +356,7 @@
                   </button>
                 {/each}
 
+                <!-- Project-owned categories (separated by divider with star icon) -->
                 {#if projectCategories.length > 0}
                   <div class="dropdown-divider"></div>
                   {#each projectCategories as cat (cat.id)}
@@ -279,6 +388,7 @@
         {/if}
       </div>
 
+      <!-- ═══ Status Toggle (hidden for reminders) ═══ -->
       {#if task.type !== 'reminder'}
         <div class="field">
           <span id="task-modal-status-label" class="field-label">Status</span>
@@ -317,6 +427,7 @@
         </div>
       {/if}
 
+      <!-- ═══ Danger Zone — Delete Action ═══ -->
       <div class="actions">
         <button class="delete-btn" onclick={handleDelete}>
           <svg
@@ -339,7 +450,13 @@
   {/if}
 </Modal>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Styles
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <style>
+  /* ═══ Detail Layout ═══ */
+
   .task-details {
     display: flex;
     flex-direction: column;
@@ -360,6 +477,8 @@
     text-transform: uppercase;
   }
 
+  /* ═══ Field Input ═══ */
+
   .field-input {
     padding: 0.75rem 1rem;
     background: rgba(15, 15, 30, 0.8);
@@ -379,6 +498,8 @@
   .date-input {
     color-scheme: dark;
   }
+
+  /* ═══ Read-Only Field Value ═══ */
 
   .field-value {
     padding: 0.75rem 1rem;
@@ -407,6 +528,8 @@
     border-color: rgba(108, 92, 231, 0.4);
     background: rgba(20, 20, 40, 0.8);
   }
+
+  /* ═══ Status Badges (Overdue / Due Today) ═══ */
 
   .overdue-badge {
     display: inline-flex;
@@ -438,7 +561,8 @@
     width: fit-content;
   }
 
-  /* Custom Category Dropdown */
+  /* ═══ Category Dropdown ═══ */
+
   .category-dropdown {
     position: relative;
   }
@@ -487,6 +611,8 @@
   .chevron.open {
     transform: rotate(180deg);
   }
+
+  /* ═══ Dropdown Menu ═══ */
 
   .dropdown-menu {
     position: absolute;
@@ -538,6 +664,8 @@
     color: var(--color-primary-light);
   }
 
+  /* ═══ Category Dot ═══ */
+
   .cat-dot {
     width: 10px;
     height: 10px;
@@ -564,6 +692,8 @@
     margin-left: auto;
   }
 
+  /* ═══ Completion Status Toggle ═══ */
+
   .status-toggle {
     display: flex;
     align-items: center;
@@ -588,6 +718,8 @@
     border-color: rgba(38, 222, 129, 0.4);
     color: var(--color-green);
   }
+
+  /* ═══ Actions (Delete) ═══ */
 
   .actions {
     margin-top: 1rem;

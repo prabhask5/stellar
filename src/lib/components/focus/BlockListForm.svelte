@@ -1,15 +1,43 @@
 <script lang="ts">
+  /**
+   * @fileoverview Form for creating or editing a website block list.
+   *
+   * Renders a form with two fields:
+   * - **Name** — text input for the block list's display name
+   * - **Active Days** — a 7-day toggle selector (Sun–Sat) with quick-select
+   *   presets for "Every day", "Weekdays", and "Weekends"
+   *
+   * When editing an existing block list (`entityId` is provided), the form
+   * integrates with the `trackEditing` action and the `DeferredChangesBanner`
+   * component to handle remote-sync conflicts — showing a banner when the
+   * server-side data diverges from the user's local edits and offering to
+   * load the remote values with a shimmer highlight animation.
+   *
+   * The form uses a "manual-save" pattern: changes are local until the
+   * user explicitly clicks the submit button.
+   */
+
   import type { DayOfWeek } from '$lib/types';
   import { trackEditing } from '@prabhask5/stellar-engine/actions';
   import DeferredChangesBanner from '../DeferredChangesBanner.svelte';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Initial block list name — empty string for new lists */
     name?: string;
+    /** Initial active days — `null` means every day; array for specific days */
     activeDays?: DayOfWeek[] | null;
+    /** Label text for the submit button (e.g., "Create" or "Save") */
     submitLabel?: string;
+    /** Entity ID of the block list being edited — `null` for new lists */
     // For trackEditing - existing entity being edited
     entityId?: string | null;
+    /** Callback → fires with validated form data on submission */
     onSubmit: (data: { name: string; activeDays: DayOfWeek[] | null }) => void;
+    /** Optional callback → fires when the cancel button is clicked */
     onCancel?: () => void;
   }
 
@@ -22,6 +50,11 @@
     onCancel
   }: Props = $props();
 
+  // =============================================================================
+  //  Constants
+  // =============================================================================
+
+  /** Day-of-week metadata — maps numeric `DayOfWeek` values to short / full labels */
   // Day labels for the selector
   const dayLabels: { short: string; full: string; value: DayOfWeek }[] = [
     { short: 'S', full: 'Sun', value: 0 },
@@ -33,12 +66,22 @@
     { short: 'S', full: 'Sat', value: 6 }
   ];
 
+  // =============================================================================
+  //  Local Form State
+  // =============================================================================
+
   // svelte-ignore state_referenced_locally
   let name = $state(initialName);
 
+  /** Fields currently showing the shimmer highlight after loading remote data */
   // Track which fields were recently animated for shimmer effect
   let highlightedFields = $state<Set<string>>(new Set());
 
+  /**
+   * Set of selected day-of-week values.
+   * - `null` active-days input → all 7 days selected
+   * - Non-null → only the specified days
+   */
   // Active days state - null means all days, empty array means no days (invalid)
   // Default to all days selected if null
   // svelte-ignore state_referenced_locally
@@ -47,8 +90,19 @@
       ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
       : new Set(initialActiveDays)
   );
+
+  /** Whether every day of the week is currently selected */
   let allDaysSelected = $derived(selectedDays.size === 7);
 
+  // =============================================================================
+  //  Day Selection Handlers
+  // =============================================================================
+
+  /**
+   * Toggles a single day on or off — prevents deselecting the last remaining day.
+   *
+   * @param day - The `DayOfWeek` numeric value (0 = Sun, 6 = Sat)
+   */
   function toggleDay(day: DayOfWeek) {
     const newSet = new Set(selectedDays);
     if (newSet.has(day)) {
@@ -62,18 +116,35 @@
     selectedDays = newSet;
   }
 
+  /**
+   * Quick-select preset — selects all 7 days (Sun–Sat).
+   */
   function selectAllDays() {
     selectedDays = new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[]);
   }
 
+  /**
+   * Quick-select preset — selects weekdays only (Mon–Fri).
+   */
   function selectWeekdays() {
     selectedDays = new Set([1, 2, 3, 4, 5] as DayOfWeek[]);
   }
 
+  /**
+   * Quick-select preset — selects weekends only (Sun, Sat).
+   */
   function selectWeekends() {
     selectedDays = new Set([0, 6] as DayOfWeek[]);
   }
 
+  // =============================================================================
+  //  Derived Descriptions
+  // =============================================================================
+
+  /**
+   * Human-readable summary of the selected active days
+   * — e.g., "every day", "weekdays only", or "Sun, Wed, Fri".
+   */
   // Helper to get active days description
   const activeDaysDescription = $derived(() => {
     if (selectedDays.size === 7) return 'every day';
@@ -87,13 +158,25 @@
     return days.map((d) => dayLabels[d].full).join(', ');
   });
 
+  // =============================================================================
+  //  Remote Sync / Deferred Changes
+  // =============================================================================
+
+  /** Human-readable labels for the `DeferredChangesBanner` field display */
   const blockListFieldLabels: Record<string, string> = {
     name: 'Name',
     active_days: 'Active Days'
   };
 
+  /* ── Short day labels for compact formatting ──── */
   const dayShortLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+  /**
+   * Formats an `active_days` array into a short display string.
+   *
+   * @param days - Array of `DayOfWeek` values, or `null` for every day
+   * @returns Formatted string — "Everyday", "Weekdays", "Weekends", or comma-separated letters
+   */
   function formatActiveDays(days: DayOfWeek[] | null): string {
     if (days === null) return 'Everyday';
     if (days.length === 5 && !days.includes(0) && !days.includes(6)) return 'Weekdays';
@@ -101,6 +184,13 @@
     return days.map((d) => dayShortLabels[d]).join(', ');
   }
 
+  /**
+   * Generic field value formatter for the deferred-changes banner.
+   *
+   * @param field - Field key (e.g., "name", "active_days")
+   * @param value - Raw field value
+   * @returns Human-readable string representation
+   */
   function formatFieldValue(field: string, value: unknown): string {
     if (field === 'active_days') return formatActiveDays(value as DayOfWeek[] | null);
     if (typeof value === 'boolean') return value ? 'On' : 'Off';
@@ -109,11 +199,20 @@
     return String(value);
   }
 
+  /**
+   * The local active-days value normalised for comparison / submission.
+   * Returns `null` when all days are selected (semantically "every day").
+   */
   // Derive remote data by comparing reactive props (DB state) to local form state
   const localActiveDays = $derived(
     allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
   );
 
+  /**
+   * Computes the remote (server-side) data snapshot when it diverges from local
+   * form state. Returns `null` when there is no conflict — meaning either we are
+   * creating a new entity or the local form matches the prop values.
+   */
   const remoteData = $derived.by(() => {
     if (!entityId) return null;
     const hasDiff =
@@ -125,6 +224,10 @@
     };
   });
 
+  /**
+   * Replaces local form state with the latest remote (prop) values and
+   * triggers a shimmer highlight on changed fields for visual feedback.
+   */
   function loadRemoteData() {
     const fieldsToHighlight: string[] = [];
     if (name !== initialName) fieldsToHighlight.push('name');
@@ -134,18 +237,30 @@
     if (JSON.stringify(currentActiveDays) !== JSON.stringify(initialActiveDays))
       fieldsToHighlight.push('active_days');
 
+    /* ── Apply remote values ──── */
     name = initialName;
     selectedDays =
       initialActiveDays === null
         ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
         : new Set(initialActiveDays);
 
+    /* ── Trigger shimmer then clear after animation completes ──── */
     highlightedFields = new Set(fieldsToHighlight);
     setTimeout(() => {
       highlightedFields = new Set();
     }, 1400);
   }
 
+  // =============================================================================
+  //  Form Submission
+  // =============================================================================
+
+  /**
+   * Validates and submits the form data. Prevents submission when name is
+   * blank or no days are selected.
+   *
+   * @param event - Native form submit event (prevented)
+   */
   function handleSubmit(event: Event) {
     event.preventDefault();
     if (!name.trim()) return;
@@ -163,6 +278,7 @@
   }
 </script>
 
+<!-- ═══ Block List Form ═══ -->
 <form
   class="block-list-form"
   onsubmit={handleSubmit}
@@ -172,6 +288,7 @@
     formType: 'manual-save'
   }}
 >
+  <!-- Deferred changes banner — visible only when editing an existing list with remote conflicts -->
   {#if entityId}
     <DeferredChangesBanner
       {entityId}
@@ -188,6 +305,7 @@
     />
   {/if}
 
+  <!-- ═══ Name Input ═══ -->
   <div class="form-group">
     <label for="block-list-name">Block List Name</label>
     <input
@@ -200,7 +318,7 @@
     />
   </div>
 
-  <!-- Active Days Selector -->
+  <!-- ═══ Active Days Selector ═══ -->
   <div class="form-group">
     <span id="blocklist-active-days-label" class="label">Active Days</span>
     <div
@@ -224,6 +342,7 @@
         </button>
       {/each}
     </div>
+    <!-- Quick-select preset buttons -->
     <div class="quick-select">
       <button
         type="button"
@@ -252,10 +371,12 @@
     </div>
   </div>
 
+  <!-- Help text summarising the active-days selection -->
   <p class="help-text">
     This block list will be active on <strong>{activeDaysDescription()}</strong> during focus sessions.
   </p>
 
+  <!-- ═══ Form Actions ═══ -->
   <div class="form-actions">
     {#if onCancel}
       <button type="button" class="btn btn-secondary" onclick={onCancel}> Cancel </button>
@@ -267,6 +388,8 @@
 </form>
 
 <style>
+  /* ═══ Form Layout ═══ */
+
   .block-list-form {
     display: flex;
     flex-direction: column;
@@ -288,7 +411,8 @@
     letter-spacing: 0.05em;
   }
 
-  /* Days Selector */
+  /* ═══ Days Selector ═══ */
+
   .days-selector {
     display: flex;
     gap: 0.375rem;
@@ -312,11 +436,13 @@
     font-weight: 600;
   }
 
+  /* Single-letter label shown on small screens */
   .day-btn .day-short {
     display: block;
     font-size: 0.875rem;
   }
 
+  /* Full abbreviation hidden by default, shown on wider screens */
   .day-btn .day-full {
     display: none;
     font-size: 0.6875rem;
@@ -329,6 +455,7 @@
     transform: translateY(-1px);
   }
 
+  /* Selected day — purple glow + highlighted border */
   .day-btn.active {
     background: linear-gradient(135deg, rgba(108, 92, 231, 0.3) 0%, rgba(108, 92, 231, 0.15) 100%);
     border-color: var(--color-primary);
@@ -340,7 +467,7 @@
     background: linear-gradient(135deg, rgba(108, 92, 231, 0.4) 0%, rgba(108, 92, 231, 0.2) 100%);
   }
 
-  /* Larger screens - show full day name */
+  /* Larger screens — show full day name instead of single letter */
   @media (min-width: 480px) {
     .day-btn {
       height: 52px;
@@ -356,7 +483,8 @@
     }
   }
 
-  /* Quick select buttons */
+  /* ═══ Quick Select Presets ═══ */
+
   .quick-select {
     display: flex;
     gap: 0.5rem;
@@ -400,7 +528,8 @@
     }
   }
 
-  /* Help text */
+  /* ═══ Help Text ═══ */
+
   .help-text {
     font-size: 0.875rem;
     color: var(--color-text-muted);
@@ -416,7 +545,8 @@
     font-weight: 600;
   }
 
-  /* Form actions */
+  /* ═══ Form Actions ═══ */
+
   .form-actions {
     display: flex;
     justify-content: flex-end;

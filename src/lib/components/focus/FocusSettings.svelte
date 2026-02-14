@@ -1,30 +1,76 @@
 <script lang="ts">
+  /**
+   * @fileoverview Modal settings panel for Pomodoro timer configuration.
+   *
+   * Presents a form inside a `Modal` with sliders and toggles for:
+   * - **Focus Duration** (15–240 min, step 15)
+   * - **Short Break** (3–20 min, step 1)
+   * - **Long Break** (10–60 min, step 5)
+   * - **Cycles Before Long Break** (2–6, step 1)
+   * - **Auto-start Breaks** (toggle)
+   * - **Auto-start Focus** (toggle)
+   *
+   * The form uses a "manual-save" pattern — local state is initialised from
+   * the `settings` prop when the modal opens, but changes are only persisted
+   * when the user clicks "Save Settings".
+   *
+   * Remote-sync conflict handling is provided via `DeferredChangesBanner`.
+   * When the server-side settings diverge from the user's local edits, a
+   * banner appears offering to load the remote values. Slider values are
+   * animated smoothly to their new positions using `requestAnimationFrame`.
+   */
+
   import type { FocusSettings } from '$lib/types';
   import { trackEditing } from '@prabhask5/stellar-engine/actions';
   import DeferredChangesBanner from '../DeferredChangesBanner.svelte';
   import Modal from '../Modal.svelte';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Current focus settings from the database — `null` before initial load */
     settings: FocusSettings | null;
+    /** Whether the settings modal is currently visible */
     isOpen: boolean;
+    /** Callback → closes the modal */
     onClose: () => void;
+    /** Callback → persists the updated settings */
     onSave: (updates: Partial<FocusSettings>) => void;
   }
 
   let { settings, isOpen, onClose, onSave }: Props = $props();
 
+  // =============================================================================
+  //  Local Form State
+  // =============================================================================
+
+  /** Focus phase duration in minutes */
   // Local state for form -- populated once on mount, not reactively
   let focusDuration = $state(25);
+  /** Short break duration in minutes */
   let breakDuration = $state(5);
+  /** Long break duration in minutes */
   let longBreakDuration = $state(15);
+  /** Number of focus cycles before a long break triggers */
   let cyclesBeforeLongBreak = $state(4);
+  /** Whether break timers start automatically after a focus phase */
   let autoStartBreaks = $state(false);
+  /** Whether focus timers start automatically after a break phase */
   let autoStartFocus = $state(false);
+  /** Guard flag — prevents re-initialising form state when already populated */
   let initialized = $state(false);
 
+  /** Fields currently showing the shimmer highlight after loading remote data */
   // Track which fields were recently animated for highlight effect
   let highlightedFields = $state<Set<string>>(new Set());
 
+  // =============================================================================
+  //  Constants
+  // =============================================================================
+
+  /** Human-readable labels for the `DeferredChangesBanner` field display */
   const fieldLabels: Record<string, string> = {
     focus_duration: 'Focus Duration',
     break_duration: 'Short Break',
@@ -34,6 +80,17 @@
     auto_start_focus: 'Auto-start Focus'
   };
 
+  // =============================================================================
+  //  Formatters
+  // =============================================================================
+
+  /**
+   * Formats a settings field value for display in the deferred-changes banner.
+   *
+   * @param field - Field key (e.g., "focus_duration", "auto_start_breaks")
+   * @param value - Raw field value
+   * @returns Human-readable string — e.g., "25 min", "On", "Off"
+   */
   function formatValue(field: string, value: unknown): string {
     if (typeof value === 'boolean') return value ? 'On' : 'Off';
     if (
@@ -46,6 +103,15 @@
     return String(value ?? 'None');
   }
 
+  // =============================================================================
+  //  Effects
+  // =============================================================================
+
+  /**
+   * Initialises local form state from the `settings` prop the first time
+   * the modal is opened. Resets the `initialized` flag when the modal closes
+   * so that fresh data is loaded on the next open.
+   */
   // Initialize form state when modal opens with settings
   $effect(() => {
     if (isOpen && settings && !initialized) {
@@ -63,6 +129,17 @@
     }
   });
 
+  // =============================================================================
+  //  Remote Sync / Deferred Changes
+  // =============================================================================
+
+  /**
+   * Computes the remote (server-side) data snapshot when it diverges from
+   * local form state. Returns `null` when there is no conflict.
+   *
+   * The `settings` prop updates reactively via realtime writes to IndexedDB;
+   * local state holds the user's unsaved edits.
+   */
   // Derive remote data by comparing reactive settings prop (DB state) to local form state.
   // The settings prop updates when realtime writes to IndexedDB; local state holds user edits.
   const remoteData = $derived.by(() => {
@@ -85,6 +162,20 @@
     };
   });
 
+  // =============================================================================
+  //  Slider Animation
+  // =============================================================================
+
+  /**
+   * Smoothly animates a slider from its current value to a target value
+   * using `requestAnimationFrame` with an ease-out cubic curve.
+   *
+   * @param getCurrentValue - Getter for the current slider value
+   * @param setValue - Setter to update the slider value each frame
+   * @param targetValue - The value to animate towards
+   * @param step - Step size for snapping (prevents intermediate non-step values)
+   * @param duration - Animation duration in milliseconds (default 500)
+   */
   // Animate a slider value smoothly from current to target
   function animateSliderTo(
     getCurrentValue: () => number,
@@ -118,6 +209,11 @@
     requestAnimationFrame(tick);
   }
 
+  /**
+   * Replaces all local form values with the latest server-side settings.
+   * Sliders are animated smoothly; toggles update instantly (they have
+   * their own CSS transitions). Changed fields get a shimmer highlight.
+   */
   function loadRemoteData() {
     if (!settings) return;
 
@@ -133,7 +229,7 @@
       auto_start_focus: settings.auto_start_focus
     };
 
-    // Animate sliders
+    /* ── Animate slider values ──── */
     if (targets.focus_duration !== focusDuration) {
       fieldsToHighlight.push('focus_duration');
       animateSliderTo(
@@ -171,6 +267,7 @@
       );
     }
 
+    /* ── Update toggles immediately (built-in CSS transitions handle visuals) ──── */
     // Toggles update immediately (they have built-in CSS transitions)
     if (targets.auto_start_breaks !== autoStartBreaks) {
       fieldsToHighlight.push('auto_start_breaks');
@@ -181,6 +278,7 @@
       autoStartFocus = targets.auto_start_focus;
     }
 
+    /* ── Trigger shimmer highlight then clear after animation ──── */
     // Apply highlight shimmer
     highlightedFields = new Set(fieldsToHighlight);
     setTimeout(() => {
@@ -188,11 +286,23 @@
     }, 1400);
   }
 
+  /**
+   * No-op dismiss handler — keeps local edits intact. The banner component
+   * clears the store's deferred changes so it won't re-show until a new
+   * remote change arrives.
+   */
   function dismissBanner() {
     // Do nothing -- keep local edits. The banner component clears the store's
     // deferred changes so it won't re-show until a new remote change arrives.
   }
 
+  // =============================================================================
+  //  Save Handler
+  // =============================================================================
+
+  /**
+   * Collects the current form state and calls `onSave`, then closes the modal.
+   */
   function handleSave() {
     onSave({
       focus_duration: focusDuration,
@@ -206,6 +316,7 @@
   }
 </script>
 
+<!-- ═══ Settings Modal ═══ -->
 <Modal open={isOpen} title="Focus Settings" {onClose}>
   <div
     class="modal-body"
@@ -215,6 +326,7 @@
       formType: 'manual-save'
     }}
   >
+    <!-- Deferred changes banner — appears when remote settings differ from local edits -->
     {#if settings?.id}
       <DeferredChangesBanner
         entityId={settings.id}
@@ -235,7 +347,7 @@
       />
     {/if}
 
-    <!-- Focus Duration -->
+    <!-- ═══ Focus Duration Slider ═══ -->
     <div class="setting-group">
       <label class="setting-label" for="focus-duration">
         <span class="label-text">Focus Duration</span>
@@ -253,7 +365,7 @@
       />
     </div>
 
-    <!-- Break Duration -->
+    <!-- ═══ Short Break Slider ═══ -->
     <div class="setting-group">
       <label class="setting-label" for="break-duration">
         <span class="label-text">Short Break</span>
@@ -271,7 +383,7 @@
       />
     </div>
 
-    <!-- Long Break Duration -->
+    <!-- ═══ Long Break Slider ═══ -->
     <div class="setting-group">
       <label class="setting-label" for="long-break-duration">
         <span class="label-text">Long Break</span>
@@ -289,7 +401,7 @@
       />
     </div>
 
-    <!-- Cycles Before Long Break -->
+    <!-- ═══ Cycles Before Long Break Slider ═══ -->
     <div class="setting-group">
       <label class="setting-label" for="cycles-before-long-break">
         <span class="label-text">Cycles Before Long Break</span>
@@ -309,7 +421,7 @@
 
     <hr class="divider" />
 
-    <!-- Auto-start toggles -->
+    <!-- ═══ Auto-start Toggles ═══ -->
     <div class="setting-group toggle-group">
       <span class="toggle-label" id="auto-start-breaks-label">
         <span class="label-text">Auto-start Breaks</span>
@@ -346,6 +458,7 @@
       </button>
     </div>
 
+    <!-- ═══ Modal Footer ═══ -->
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick={onClose}>Cancel</button>
       <button class="btn btn-primary" onclick={handleSave}>Save Settings</button>
@@ -354,11 +467,15 @@
 </Modal>
 
 <style>
+  /* ═══ Modal Body ═══ */
+
   .modal-body {
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
   }
+
+  /* ═══ Setting Group ═══ */
 
   .setting-group {
     display: flex;
@@ -391,7 +508,8 @@
     color: var(--color-primary-light);
   }
 
-  /* Slider styles */
+  /* ═══ Slider Styles ═══ */
+
   .slider {
     width: 100%;
     height: 6px;
@@ -402,6 +520,7 @@
     appearance: none;
   }
 
+  /* WebKit thumb — circular gradient knob */
   .slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 20px;
@@ -417,17 +536,20 @@
     transform: scale(1.15);
   }
 
+  /* Break slider thumb — green-to-cyan gradient */
   .slider.break::-webkit-slider-thumb {
     background: linear-gradient(135deg, #26de81 0%, #00d4ff 100%);
     box-shadow: 0 2px 8px rgba(38, 222, 129, 0.5);
   }
 
+  /* Long break slider thumb — cyan-to-purple gradient */
   .slider.long-break::-webkit-slider-thumb {
     background: linear-gradient(135deg, #00d4ff 0%, #6c5ce7 100%);
     box-shadow: 0 2px 8px rgba(0, 212, 255, 0.5);
   }
 
-  /* Firefox slider styles */
+  /* ═══ Firefox Slider Styles ═══ */
+
   .slider::-moz-range-track {
     height: 6px;
     border-radius: 3px;
@@ -460,13 +582,17 @@
     box-shadow: 0 2px 8px rgba(0, 212, 255, 0.5);
   }
 
+  /* ═══ Divider ═══ */
+
   .divider {
     border: none;
     border-top: 1px solid rgba(108, 92, 231, 0.15);
     margin: 0.5rem 0;
   }
 
-  /* Toggle styles */
+  /* ═══ Toggle Styles ═══ */
+
+  /* Override column direction → row for toggle groups */
   .toggle-group {
     flex-direction: row;
     align-items: center;
@@ -513,9 +639,12 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
+  /* Slide knob right when toggle is active */
   .toggle-btn.active .toggle-knob {
     transform: translateX(20px);
   }
+
+  /* ═══ Modal Footer ═══ */
 
   .modal-footer {
     display: flex;
@@ -557,7 +686,8 @@
     transform: translateY(-1px);
   }
 
-  /* Tablet responsive toggles */
+  /* ═══ Responsive — Tablet ═══ */
+
   @media (min-width: 641px) and (max-width: 900px) {
     .toggle-btn {
       width: 44px;

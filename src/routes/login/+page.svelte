@@ -1,4 +1,30 @@
 <script lang="ts">
+  /**
+   * @fileoverview Login / unlock / device-link page — primary auth entry point.
+   *
+   * This page serves **three distinct modes** depending on the state of
+   * the single-user local auth system:
+   *
+   * 1. **Setup Mode** — First visit, no account exists yet. A two-step
+   *    wizard collects email + name (step 1) then a 6-digit PIN with
+   *    confirmation (step 2). May show an email-confirmation modal.
+   *
+   * 2. **Unlock Mode** — Account already set up on this device. The user
+   *    enters their 6-digit PIN to unlock. On untrusted devices, a
+   *    device-verification modal (email OTP) appears after the code.
+   *
+   * 3. **Link Device Mode** — A remote user exists (fetched via
+   *    `fetchRemoteGateConfig`) but this device has no local keys yet.
+   *    The user enters their existing PIN to link this device.
+   *
+   * Cross-tab communication is handled via `BroadcastChannel` —
+   * the `/confirm` page broadcasts `AUTH_CONFIRMED` which this page
+   * listens for to auto-complete verification without a manual refresh.
+   *
+   * Visual design: deep-space cosmic theme with starfield, nebulae,
+   * orbital rings, shooting stars, and floating particles — all pure CSS.
+   */
+
   import { onMount, onDestroy, tick } from 'svelte';
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/stores';
@@ -14,70 +40,169 @@
   } from '@prabhask5/stellar-engine/auth';
   import { sendDeviceVerification } from '@prabhask5/stellar-engine';
 
-  // Layout data
+  // =============================================================================
+  //  Layout / Page Data
+  // =============================================================================
+
+  /** Whether the single-user account has already been set up on this device */
   const singleUserSetUp = $derived($page.data.singleUserSetUp);
 
-  // Redirect URL from query params
+  /** Post-login redirect URL extracted from `?redirect=` query param */
   const redirectUrl = $derived($page.url.searchParams.get('redirect') || '/');
 
-  // Shared state
+  // =============================================================================
+  //  Shared UI State
+  // =============================================================================
+
+  /** `true` while any async auth operation is in-flight */
   let loading = $state(false);
+
+  /** Current error message shown to the user (null = no error) */
   let error = $state<string | null>(null);
+
+  /** Triggers the CSS shake animation on the login card */
   let shaking = $state(false);
+
+  /** Set to `true` after the component mounts — enables entrance animation */
   let mounted = $state(false);
 
-  // Setup mode state
+  // =============================================================================
+  //  Setup Mode State (step 1 → email/name, step 2 → PIN creation)
+  // =============================================================================
+
+  /** User's email address for account creation */
   let email = $state('');
+
+  /** User's first name */
   let firstName = $state('');
+
+  /** User's last name (optional) */
   let lastName = $state('');
+
+  /** Individual digit values for the 6-digit PIN code */
   let codeDigits = $state(['', '', '', '', '', '']);
+
+  /** Individual digit values for the PIN confirmation */
   let confirmDigits = $state(['', '', '', '', '', '']);
+
+  /** Concatenated PIN code — derived from `codeDigits` */
   const code = $derived(codeDigits.join(''));
+
+  /** Concatenated confirmation code — derived from `confirmDigits` */
   const confirmCode = $derived(confirmDigits.join(''));
+
+  /** Current setup wizard step: 1 = email + name, 2 = PIN creation */
   let setupStep = $state(1); // 1 = email + name, 2 = code
 
-  // Unlock mode state
+  // =============================================================================
+  //  Unlock Mode State (returning user on this device)
+  // =============================================================================
+
+  /** Individual digit values for the unlock PIN */
   let unlockDigits = $state(['', '', '', '', '', '']);
+
+  /** Concatenated unlock code — derived from `unlockDigits` */
   const unlockCode = $derived(unlockDigits.join(''));
+
+  /** Cached user profile info (first/last name) for the welcome message */
   let userInfo = $state<{ firstName: string; lastName: string } | null>(null);
 
-  // Link device mode state (new device, existing remote user)
+  // =============================================================================
+  //  Link Device Mode State (new device, existing remote user)
+  // =============================================================================
+
+  /** Individual digit values for the device-linking PIN */
   let linkDigits = $state(['', '', '', '', '', '']);
+
+  /** Concatenated link code — derived from `linkDigits` */
   const linkCode = $derived(linkDigits.join(''));
+
+  /**
+   * Remote user info fetched from the gate config — contains email,
+   * gate type, code length, and profile data for the welcome message.
+   */
   let remoteUser = $state<{
     email: string;
     gateType: string;
     codeLength: number;
     profile: Record<string, unknown>;
   } | null>(null);
+
+  /** `true` when we detected a remote user and entered link-device mode */
   let linkMode = $state(false);
+
+  /** Loading state specific to the link-device flow */
   let linkLoading = $state(false);
+
+  /** `true` when offline and no local setup exists — shows offline card */
   let offlineNoSetup = $state(false);
 
-  // Rate limit countdown state
+  // =============================================================================
+  //  Rate-Limit Countdown State
+  // =============================================================================
+
+  /** Seconds remaining before the user can retry after a rate-limit */
   let retryCountdown = $state(0);
+
+  /** Interval handle for the retry countdown timer */
   let retryTimer: ReturnType<typeof setInterval> | null = null;
 
-  // Modal state
+  // =============================================================================
+  //  Modal State — Email Confirmation & Device Verification
+  // =============================================================================
+
+  /** Show the "check your email" modal after initial signup */
   let showConfirmationModal = $state(false);
+
+  /** Show the "new device detected" verification modal */
   let showDeviceVerificationModal = $state(false);
+
+  /** Masked email address displayed in the device-verification modal */
   let maskedEmail = $state('');
+
+  /** Seconds remaining before the "resend" button re-enables */
   let resendCooldown = $state(0);
+
+  /** Interval handle for the resend cooldown timer */
   let resendTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** Interval handle for polling device verification status */
   let verificationPollTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** Guard flag to prevent double-execution of verification completion */
   let verificationCompleting = false; // guard against double execution
 
-  // Input refs
+  // =============================================================================
+  //  Input Refs — DOM references for focus management
+  // =============================================================================
+
+  /** References to the 6 setup-code `<input>` elements */
   let codeInputs: HTMLInputElement[] = $state([]);
+
+  /** References to the 6 confirm-code `<input>` elements */
   let confirmInputs: HTMLInputElement[] = $state([]);
+
+  /** References to the 6 unlock-code `<input>` elements */
   let unlockInputs: HTMLInputElement[] = $state([]);
+
+  /** References to the link-code `<input>` elements */
   let linkInputs: HTMLInputElement[] = $state([]);
 
-  // BroadcastChannel for cross-tab communication
+  // =============================================================================
+  //  Cross-Tab Communication
+  // =============================================================================
+
+  /** BroadcastChannel instance for receiving `AUTH_CONFIRMED` from `/confirm` */
   let authChannel: BroadcastChannel | null = null;
+
+  // =============================================================================
+  //  Lifecycle — onMount
+  // =============================================================================
 
   onMount(async () => {
     mounted = true;
+
+    /* ── Existing local account → fetch user info for the welcome card ──── */
     if (singleUserSetUp) {
       const info = await getSingleUserInfo();
       if (info) {
@@ -87,7 +212,7 @@
         };
       }
     } else {
-      // Not set up locally — check if there's a remote user to link to
+      /* ── No local setup → check for a remote user to link to ──── */
       const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
       if (isOffline) {
         offlineNoSetup = true;
@@ -99,20 +224,20 @@
             linkMode = true;
           }
         } catch {
-          // No remote user found — show normal setup
+          /* No remote user found — fall through to normal setup */
         }
       }
     }
 
-    // Listen for auth confirmation from /confirm page
+    /* ── Listen for auth confirmation from the `/confirm` page ──── */
     try {
       authChannel = new BroadcastChannel('stellar-auth-channel');
       authChannel.onmessage = async (event) => {
         if (event.data?.type === 'AUTH_CONFIRMED') {
-          // Bring this tab to the foreground before the confirm tab closes
+          /* Bring this tab to the foreground before the confirm tab closes */
           window.focus();
           if (showConfirmationModal) {
-            // Setup confirmation complete
+            /* Setup confirmation complete → finalize account */
             const result = await completeSingleUserSetup();
             if (!result.error) {
               showConfirmationModal = false;
@@ -123,15 +248,19 @@
               showConfirmationModal = false;
             }
           } else if (showDeviceVerificationModal) {
-            // Device verification complete (same-browser broadcast)
+            /* Device verification complete (same-browser broadcast) */
             await handleVerificationComplete();
           }
         }
       };
     } catch {
-      // BroadcastChannel not supported — user will need to manually refresh
+      /* BroadcastChannel not supported — user must manually refresh */
     }
   });
+
+  // =============================================================================
+  //  Lifecycle — onDestroy (cleanup timers & channels)
+  // =============================================================================
 
   onDestroy(() => {
     authChannel?.close();
@@ -140,6 +269,15 @@
     stopVerificationPolling();
   });
 
+  // =============================================================================
+  //  Device Verification Polling
+  // =============================================================================
+
+  /**
+   * Start polling the engine every 3 seconds to check whether the
+   * device has been trusted (the user clicked the email link on
+   * another device/browser).
+   */
   function startVerificationPolling() {
     stopVerificationPolling();
     verificationPollTimer = setInterval(async () => {
@@ -151,6 +289,9 @@
     }, 3000);
   }
 
+  /**
+   * Stop the verification polling interval and clear the handle.
+   */
   function stopVerificationPolling() {
     if (verificationPollTimer) {
       clearInterval(verificationPollTimer);
@@ -158,6 +299,11 @@
     }
   }
 
+  /**
+   * Finalize device verification — calls `completeDeviceVerification`
+   * and redirects on success. Guarded by `verificationCompleting` to
+   * prevent double-execution from both polling and BroadcastChannel.
+   */
   async function handleVerificationComplete() {
     if (verificationCompleting) return;
     verificationCompleting = true;
@@ -175,6 +321,14 @@
     }
   }
 
+  // =============================================================================
+  //  Resend & Retry Cooldowns
+  // =============================================================================
+
+  /**
+   * Start a 30-second cooldown on the "Resend email" button to
+   * prevent spamming the email service.
+   */
   function startResendCooldown() {
     resendCooldown = 30;
     if (resendTimer) clearInterval(resendTimer);
@@ -187,6 +341,13 @@
     }, 1000);
   }
 
+  /**
+   * Start a countdown after receiving a rate-limit response from the
+   * server. Disables the code inputs and auto-clears the error when
+   * the countdown reaches zero.
+   *
+   * @param ms - The `retryAfterMs` value from the server response
+   */
   function startRetryCountdown(ms: number) {
     retryCountdown = Math.ceil(ms / 1000);
     if (retryTimer) clearInterval(retryTimer);
@@ -203,15 +364,23 @@
     }, 1000);
   }
 
+  // =============================================================================
+  //  Email Resend Handler
+  // =============================================================================
+
+  /**
+   * Resend the confirmation or verification email depending on
+   * which modal is currently visible. Respects the resend cooldown.
+   */
   async function handleResendEmail() {
     if (resendCooldown > 0) return;
     startResendCooldown();
-    // For setup confirmation, resend signup email
+    /* For setup confirmation → resend the signup email */
     if (showConfirmationModal) {
       const { resendConfirmationEmail } = await import('@prabhask5/stellar-engine');
       await resendConfirmationEmail(email);
     }
-    // For device verification, resend OTP
+    /* For device verification → resend the OTP email */
     if (showDeviceVerificationModal) {
       const info = await getSingleUserInfo();
       if (info?.email) {
@@ -220,6 +389,21 @@
     }
   }
 
+  // =============================================================================
+  //  Digit Input Handlers — Shared across all PIN-code fields
+  // =============================================================================
+
+  /**
+   * Handle a single digit being typed into a PIN input box. Filters
+   * non-numeric characters, auto-advances focus, and triggers
+   * `onComplete` when the last digit is filled.
+   *
+   * @param digits    - The reactive digit array being edited
+   * @param index     - Which position in the array this input represents
+   * @param event     - The native `input` DOM event
+   * @param inputs    - Array of `HTMLInputElement` refs for focus management
+   * @param onComplete - Optional callback invoked when all digits are filled
+   */
   function handleDigitInput(
     digits: string[],
     index: number,
@@ -233,11 +417,11 @@
     if (value.length > 0) {
       digits[index] = value.charAt(value.length - 1);
       input.value = digits[index];
-      // Auto-focus next input
+      /* Auto-focus the next input box */
       if (index < digits.length - 1 && inputs[index + 1]) {
         inputs[index + 1].focus();
       }
-      // Auto-submit when all digits are filled (brief delay for visual feedback)
+      /* Auto-submit when the last digit is entered (brief delay for UX) */
       if (index === digits.length - 1 && onComplete && digits.every((d) => d !== '')) {
         setTimeout(() => onComplete(), 300);
       }
@@ -246,6 +430,15 @@
     }
   }
 
+  /**
+   * Handle backspace in a PIN input — moves focus to the previous
+   * input when the current one is already empty.
+   *
+   * @param digits - The reactive digit array
+   * @param index  - Current position index
+   * @param event  - The native `keydown` event
+   * @param inputs - Array of `HTMLInputElement` refs
+   */
   function handleDigitKeydown(
     digits: string[],
     index: number,
@@ -262,6 +455,15 @@
     }
   }
 
+  /**
+   * Handle paste into a PIN input — distributes pasted digits across
+   * all input boxes and auto-submits if the full code was pasted.
+   *
+   * @param digits     - The reactive digit array
+   * @param event      - The native `paste` clipboard event
+   * @param inputs     - Array of `HTMLInputElement` refs
+   * @param onComplete - Optional callback invoked when all digits are filled
+   */
   function handleDigitPaste(
     digits: string[],
     event: ClipboardEvent,
@@ -276,12 +478,20 @@
     }
     const focusIndex = Math.min(pasted.length, digits.length - 1);
     if (inputs[focusIndex]) inputs[focusIndex].focus();
-    // Auto-submit if all digits were pasted
+    /* Auto-submit if the full code was pasted at once */
     if (pasted.length >= digits.length && onComplete && digits.every((d) => d !== '')) {
       onComplete();
     }
   }
 
+  // =============================================================================
+  //  Setup Mode — Step Navigation
+  // =============================================================================
+
+  /**
+   * Validate email and first name, then advance to the PIN-creation
+   * step (step 2). Shows an error if validation fails.
+   */
   function goToCodeStep() {
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       error = 'Please enter a valid email address';
@@ -295,25 +505,47 @@
     setupStep = 2;
   }
 
+  /**
+   * Navigate back from step 2 (PIN creation) to step 1 (email/name).
+   */
   function goBackToNameStep() {
     setupStep = 1;
     error = null;
   }
 
+  /**
+   * Auto-focus the first confirm-code input when the primary code
+   * is fully entered.
+   */
   function autoFocusConfirm() {
     if (confirmInputs[0]) confirmInputs[0].focus();
   }
 
+  /**
+   * Trigger setup submission when the confirm-code auto-completes.
+   */
   function autoSubmitSetup() {
     if (confirmDigits.every((d) => d !== '')) {
       handleSetup();
     }
   }
 
+  /**
+   * Trigger unlock submission when the unlock-code auto-completes.
+   */
   function autoSubmitUnlock() {
     handleUnlock();
   }
 
+  // =============================================================================
+  //  Setup Mode — Account Creation
+  // =============================================================================
+
+  /**
+   * Handle the full setup flow: validate the code matches its
+   * confirmation, call `setupSingleUser`, and handle the response
+   * (which may require email confirmation or succeed immediately).
+   */
   async function handleSetup() {
     if (loading) return;
 
@@ -324,13 +556,14 @@
       return;
     }
 
+    /* Verify code and confirmation match */
     if (code !== confirmCode) {
       error = 'Codes do not match';
       shaking = true;
       setTimeout(() => {
         shaking = false;
       }, 500);
-      // Clear confirm digits, refocus first confirm input
+      /* Clear confirm digits and refocus the first confirm input */
       confirmDigits = ['', '', '', '', '', ''];
       if (confirmInputs[0]) confirmInputs[0].focus();
       return;
@@ -359,11 +592,12 @@
         return;
       }
       if (result.confirmationRequired) {
-        // Show email confirmation modal
+        /* Email confirmation needed → show the "check your email" modal */
         showConfirmationModal = true;
         startResendCooldown();
         return;
       }
+      /* No confirmation needed → go straight to the app */
       await invalidateAll();
       goto('/');
     } catch (err: unknown) {
@@ -380,6 +614,15 @@
     }
   }
 
+  // =============================================================================
+  //  Unlock Mode — PIN Entry for Returning Users
+  // =============================================================================
+
+  /**
+   * Attempt to unlock the local account with the entered 6-digit PIN.
+   * Handles rate-limiting, device verification requirements, and
+   * error feedback with shake animation.
+   */
   async function handleUnlock() {
     if (loading || retryCountdown > 0) return;
 
@@ -407,13 +650,14 @@
         return;
       }
       if (result.deviceVerificationRequired) {
-        // Show device verification modal
+        /* Untrusted device → show verification modal + start polling */
         maskedEmail = result.maskedEmail || '';
         showDeviceVerificationModal = true;
         startResendCooldown();
         startVerificationPolling();
         return;
       }
+      /* Success → navigate to the redirect target */
       await invalidateAll();
       goto(redirectUrl);
     } catch (err: unknown) {
@@ -432,12 +676,24 @@
     }
   }
 
+  // =============================================================================
+  //  Link Device Mode — Connect a New Device to an Existing Account
+  // =============================================================================
+
+  /**
+   * Trigger link submission when the link-code auto-completes.
+   */
   function autoSubmitLink() {
     if (linkDigits.every((d) => d !== '')) {
       handleLink();
     }
   }
 
+  /**
+   * Attempt to link this device to the remote user account by
+   * submitting the PIN. Similar flow to unlock — may require device
+   * verification or trigger rate-limiting.
+   */
   async function handleLink() {
     if (linkLoading || !remoteUser || retryCountdown > 0) return;
 
@@ -470,6 +726,7 @@
         startVerificationPolling();
         return;
       }
+      /* Success → navigate to the redirect target */
       await invalidateAll();
       goto(redirectUrl);
     } catch (err: unknown) {
@@ -493,22 +750,23 @@
   <title>{singleUserSetUp ? 'Unlock' : 'Welcome'} - Stellar Planner</title>
 </svelte:head>
 
+<!-- ═══ Page Root — cosmic-themed full-viewport login ═══ -->
 <div class="login-page" class:mounted>
-  <!-- Starfield (fixed, always covers viewport even when scrolling) -->
+  <!-- ═══ Starfield (fixed backdrop, always covers viewport) ═══ -->
   <div class="starfield">
     <div class="stars stars-small"></div>
     <div class="stars stars-medium"></div>
     <div class="stars stars-large"></div>
   </div>
 
-  <!-- Nebula Effects (fixed, always covers viewport even when scrolling) -->
+  <!-- ═══ Nebula Effects (fixed, ambient color orbs) ═══ -->
   <div class="nebula nebula-1"></div>
   <div class="nebula nebula-2"></div>
   <div class="nebula nebula-3"></div>
 
-  <!-- Background Effects (clipped separately to allow content to grow) -->
+  <!-- ═══ Background Effects (clipped separately so content can scroll) ═══ -->
   <div class="background-effects">
-    <!-- Orbital Rings -->
+    <!-- Orbital Rings — concentric rotating circles -->
     <div class="orbital-system">
       <div class="orbit orbit-1"></div>
       <div class="orbit orbit-2"></div>
@@ -518,11 +776,11 @@
       <div class="orbit-particle particle-3"></div>
     </div>
 
-    <!-- Shooting Stars -->
+    <!-- Shooting Stars — periodic streak animations -->
     <div class="shooting-star shooting-star-1"></div>
     <div class="shooting-star shooting-star-2"></div>
 
-    <!-- Floating Particles -->
+    <!-- Floating Particles — randomly positioned glowing dots -->
     <div class="particles">
       {#each Array(15) as _, _i (_i)}
         <span
@@ -540,9 +798,9 @@
     </div>
   </div>
 
-  <!-- Login Content -->
+  <!-- ═══ Login Content — centered card area ═══ -->
   <div class="login-content">
-    <!-- Brand -->
+    <!-- ═══ Brand Header — logo + title + tagline ═══ -->
     <div class="brand">
       <div class="brand-icon">
         <div class="brand-glow"></div>
@@ -579,11 +837,12 @@
       <p class="brand-tagline">Your universe of productivity awaits</p>
     </div>
 
+    <!-- ═══ Mode: Unlock (returning user) ═══ -->
     {#if singleUserSetUp}
-      <!-- Unlock Mode -->
       <div class="login-card" class:shake={shaking}>
         <div class="card-glow"></div>
         <div class="card-inner">
+          <!-- User avatar + welcome message -->
           <div class="unlock-user-info">
             <div class="avatar-wrapper">
               <div class="avatar-ring-outer"></div>
@@ -598,6 +857,7 @@
             <p class="card-subtitle">Enter your code to continue</p>
           </div>
 
+          <!-- PIN code entry -->
           <div class="form-fields">
             <div class="form-group">
               <div class="code-label">Access Code</div>
@@ -631,6 +891,7 @@
               {/if}
             </div>
 
+            <!-- Error message with retry countdown -->
             {#if error}
               <div class="message error">
                 <svg
@@ -653,11 +914,13 @@
           </div>
         </div>
       </div>
+
+      <!-- ═══ Mode: Link Device (new device, existing remote user) ═══ -->
     {:else if linkMode && remoteUser}
-      <!-- Link Device Mode -->
       <div class="login-card" class:shake={shaking}>
         <div class="card-glow"></div>
         <div class="card-inner">
+          <!-- Remote user avatar + welcome message -->
           <div class="unlock-user-info">
             <div class="avatar-wrapper">
               <div class="avatar-ring-outer"></div>
@@ -672,6 +935,7 @@
             <p class="card-subtitle">Enter your code to link this device</p>
           </div>
 
+          <!-- PIN code entry for device linking -->
           <div class="form-fields">
             <div class="form-group">
               <div class="code-label">Access Code</div>
@@ -704,6 +968,7 @@
               {/if}
             </div>
 
+            <!-- Error message with retry countdown -->
             {#if error}
               <div class="message error">
                 <svg
@@ -726,8 +991,9 @@
           </div>
         </div>
       </div>
+
+      <!-- ═══ Mode: Offline, No Setup ═══ -->
     {:else if offlineNoSetup}
-      <!-- Offline, no setup -->
       <div class="login-card">
         <div class="card-glow"></div>
         <div class="card-inner">
@@ -737,14 +1003,16 @@
           </div>
         </div>
       </div>
+
+      <!-- ═══ Mode: Setup (first-time account creation) ═══ -->
     {:else}
-      <!-- Setup Mode -->
       <div class="login-card">
         <div class="card-glow"></div>
         <div class="card-inner">
+          <!-- Step 1: Email + Name -->
           {#if setupStep === 1}
-            <!-- Step 1: Email + Name -->
             <div class="setup-step">
+              <!-- Step indicator dots (1 active, 2 pending) -->
               <div class="step-indicator">
                 <div class="step-dot active"></div>
                 <div class="step-line"></div>
@@ -755,6 +1023,7 @@
               <p class="card-subtitle">Let's get you set up</p>
 
               <div class="form-fields">
+                <!-- Email input -->
                 <div class="form-group">
                   <label for="email">Email</label>
                   <div class="input-wrapper">
@@ -770,6 +1039,7 @@
                   </div>
                 </div>
 
+                <!-- First / Last name side-by-side -->
                 <div class="name-row">
                   <div class="form-group">
                     <label for="firstName">First Name</label>
@@ -801,6 +1071,7 @@
                   </div>
                 </div>
 
+                <!-- Validation error -->
                 {#if error}
                   <div class="message error">
                     <svg
@@ -821,6 +1092,7 @@
                   </div>
                 {/if}
 
+                <!-- Continue button → advance to step 2 -->
                 <button type="button" class="btn btn-primary submit-btn" onclick={goToCodeStep}>
                   Continue
                   <svg
@@ -839,9 +1111,11 @@
                 </button>
               </div>
             </div>
+
+            <!-- Step 2: PIN Code Creation + Confirmation -->
           {:else}
-            <!-- Step 2: Code -->
             <div class="setup-step" class:shake={shaking}>
+              <!-- Step indicator dots (1 completed, 2 active) -->
               <div class="step-indicator">
                 <div class="step-dot completed">
                   <svg
@@ -861,6 +1135,7 @@
                 <div class="step-dot active"></div>
               </div>
 
+              <!-- Back button to return to step 1 -->
               <button type="button" class="back-link" onclick={goBackToNameStep}>
                 <svg
                   width="14"
@@ -884,6 +1159,7 @@
               </p>
 
               <div class="form-fields">
+                <!-- Primary code entry -->
                 <div class="form-group">
                   <div class="code-label">Your Code</div>
                   <div class="code-input-group">
@@ -910,6 +1186,7 @@
                   </div>
                 </div>
 
+                <!-- Confirmation code entry -->
                 <div class="form-group">
                   <div class="code-label">Confirm Code</div>
                   {#if loading}
@@ -943,6 +1220,7 @@
                   {/if}
                 </div>
 
+                <!-- Error message -->
                 {#if error}
                   <div class="message error">
                     <svg
@@ -970,12 +1248,13 @@
     {/if}
   </div>
 
-  <!-- Email Confirmation Modal (after setup) -->
+  <!-- ═══ Email Confirmation Modal (after setup) ═══ -->
   {#if showConfirmationModal}
     <div class="modal-overlay">
       <div class="modal-card">
         <div class="card-glow"></div>
         <div class="card-inner">
+          <!-- Mail icon -->
           <div class="modal-icon">
             <svg
               width="48"
@@ -1002,6 +1281,7 @@
             We sent a confirmation link to <strong>{email}</strong>. Click it to activate your
             account.
           </p>
+          <!-- Resend button with cooldown -->
           <button
             type="button"
             class="btn btn-primary submit-btn"
@@ -1015,12 +1295,13 @@
     </div>
   {/if}
 
-  <!-- Device Verification Modal (after unlock on untrusted device) -->
+  <!-- ═══ Device Verification Modal (after unlock on untrusted device) ═══ -->
   {#if showDeviceVerificationModal}
     <div class="modal-overlay">
       <div class="modal-card">
         <div class="card-glow"></div>
         <div class="card-inner">
+          <!-- Shield icon -->
           <div class="modal-icon">
             <svg
               width="48"
@@ -1047,6 +1328,7 @@
             device.
           </p>
           <p class="card-hint">This page will update automatically once verified.</p>
+          <!-- Resend button with cooldown -->
           <button
             type="button"
             class="btn btn-primary submit-btn"
@@ -1231,7 +1513,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     ORBITAL SYSTEM
+     ORBITAL SYSTEM — Rotating rings with glowing particles
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .orbital-system {
@@ -1341,7 +1623,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     SHOOTING STARS
+     SHOOTING STARS — Periodic diagonal streak animations
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .shooting-star {
@@ -1394,7 +1676,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     FLOATING PARTICLES
+     FLOATING PARTICLES — Randomly placed drifting dots
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .particles {
@@ -1435,7 +1717,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     LOGIN CONTENT
+     LOGIN CONTENT — Centered card area with entrance animation
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .login-content {
@@ -1471,7 +1753,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     BRAND
+     BRAND — Logo icon, title with shimmer gradient, tagline
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .brand {
@@ -1584,6 +1866,7 @@
     }
   }
 
+  /* Ambient glow behind the card */
   .card-glow {
     position: absolute;
     inset: -40px;
@@ -1603,6 +1886,7 @@
     }
   }
 
+  /* Inner card surface — glassmorphism with frosted backdrop */
   .card-inner {
     background: linear-gradient(165deg, rgba(15, 15, 30, 0.95) 0%, rgba(20, 20, 40, 0.92) 100%);
     border-radius: calc(var(--radius-2xl) - 2px);
@@ -1616,7 +1900,7 @@
     overflow: hidden;
   }
 
-  /* Subtle inner light streaks */
+  /* Subtle inner light streak at the top edge */
   .card-inner::before {
     content: '';
     position: absolute;
@@ -1634,6 +1918,7 @@
     );
   }
 
+  /* Subtle inner light streak at the bottom edge */
   .card-inner::after {
     content: '';
     position: absolute;
@@ -1705,6 +1990,7 @@
       0 0 40px rgba(108, 92, 231, 0.2);
   }
 
+  /* Animated concentric rings around the avatar */
   .avatar-ring-outer {
     position: absolute;
     inset: -12px;
@@ -1817,7 +2103,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     FORM ELEMENTS
+     FORM ELEMENTS — Text inputs, labels, layout
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .form-fields {
@@ -1850,6 +2136,7 @@
     position: relative;
   }
 
+  /* Glow effect behind focused inputs */
   .input-glow {
     position: absolute;
     inset: -1px;
@@ -1891,7 +2178,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     PIN CODE INPUTS — Glowing digit boxes
+     PIN CODE INPUTS — Glowing digit boxes with focus/filled states
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .code-input-group {
@@ -1904,6 +2191,7 @@
     position: relative;
   }
 
+  /* Glow pseudo-element behind filled digit boxes */
   .code-digit-wrapper::after {
     content: '';
     position: absolute;
@@ -1963,7 +2251,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     MESSAGES
+     MESSAGES — Error feedback with fade-in animation
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .message {
@@ -2001,7 +2289,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     BUTTONS
+     BUTTONS — Primary submit with shimmer overlay
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .submit-btn {
@@ -2017,7 +2305,7 @@
     overflow: hidden;
   }
 
-  /* Shimmer effect on button */
+  /* Animated shimmer overlay on the button surface */
   .submit-btn::after {
     content: '';
     position: absolute;
@@ -2066,7 +2354,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     SHAKE ANIMATION
+     SHAKE ANIMATION — Error feedback for incorrect codes
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @keyframes shake {
@@ -2094,7 +2382,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     RESPONSIVE — Large Screens
+     RESPONSIVE — Large Screens (1200px+)
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @media (min-width: 1200px) {
@@ -2140,7 +2428,10 @@
     }
   }
 
-  /* Tablets */
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     RESPONSIVE — Tablets (768px - 1199px)
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   @media (min-width: 768px) and (max-width: 1199px) {
     .login-content {
       max-width: 460px;
@@ -2158,7 +2449,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     RESPONSIVE — Mobile Devices
+     RESPONSIVE — Mobile Devices (< 768px)
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @media (max-width: 767px) {
@@ -2183,6 +2474,7 @@
       font-size: 1.375rem;
     }
 
+    /* Smaller orbital rings for mobile viewports */
     .orbit-1 {
       width: 320px;
       height: 320px;
@@ -2196,6 +2488,7 @@
       height: 640px;
     }
 
+    /* Re-scoped orbit particle radii for smaller rings */
     @keyframes orbitParticle1 {
       from {
         transform: rotate(0deg) translateX(160px) rotate(0deg);
@@ -2235,7 +2528,10 @@
     }
   }
 
-  /* iPhone 16 Pro / 15 Pro / 14 Pro (393px width) */
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     RESPONSIVE — iPhone 16 Pro / 15 Pro / 14 Pro (~393px width)
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   @media (min-width: 390px) and (max-width: 429px) {
     .login-content {
       padding: 1.25rem;
@@ -2293,7 +2589,10 @@
     }
   }
 
-  /* iPhone 16 Pro Max / 15 Pro Max (430px width) */
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     RESPONSIVE — iPhone 16 Pro Max / 15 Pro Max (~430px width)
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   @media (min-width: 430px) and (max-width: 480px) {
     .login-content {
       padding: 1.5rem;
@@ -2333,7 +2632,10 @@
     }
   }
 
-  /* Small devices (iPhone SE, older phones) */
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     RESPONSIVE — Small Devices (iPhone SE, older phones < 390px)
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   @media (max-width: 389px) {
     .login-content {
       padding: 1rem;
@@ -2391,6 +2693,7 @@
       width: 40px;
     }
 
+    /* Even smaller orbital rings */
     .orbit-1 {
       width: 240px;
       height: 240px;
@@ -2444,7 +2747,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     REDUCED MOTION
+     REDUCED MOTION — Respect prefers-reduced-motion preference
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @media (prefers-reduced-motion: reduce) {
@@ -2517,6 +2820,7 @@
     }
   }
 
+  /* Modal card — reuses the same glass card styling as the login card */
   .modal-card {
     width: 100%;
     max-width: 400px;
@@ -2538,6 +2842,7 @@
     text-align: center;
   }
 
+  /* Circular icon badge in the modal header */
   .modal-icon {
     margin: 0 auto 1.25rem;
     width: 72px;

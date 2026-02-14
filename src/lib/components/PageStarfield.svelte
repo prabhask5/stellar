@@ -1,18 +1,31 @@
 <script lang="ts">
+  /**
+   * @fileoverview PageStarfield — subtle decorative starfield background for content pages.
+   *
+   * Renders a fixed, full-viewport overlay (pointer-events disabled) containing:
+   *   1. Two tiling star layers with offset twinkle animations
+   *   2. Two nebula accent blobs (top-right purple, bottom-left green)
+   *   3. Twelve floating particles with randomized positions and timing
+   *
+   * Lighter than the home-page starfield to keep CPU/GPU usage low on
+   * content-heavy views. Respects `prefers-reduced-motion`.
+   */
+
   // A subtle but visible starfield background for content pages
   // Inspired by the home page but less intensive for performance
 </script>
 
+<!-- ═══ Starfield Container ═══ -->
 <div class="page-starfield">
-  <!-- Static stars layer -->
+  <!-- Static stars layer — two layers with different tile sizes and twinkle speeds -->
   <div class="stars stars-layer-1"></div>
   <div class="stars stars-layer-2"></div>
 
-  <!-- Nebula accents -->
+  <!-- Nebula accents — soft blurred blobs in opposing corners -->
   <div class="nebula nebula-top"></div>
   <div class="nebula nebula-bottom"></div>
 
-  <!-- Floating particles -->
+  <!-- Floating particles — 12 small dots that drift in gentle loops -->
   <div class="floating-particles">
     {#each Array(12) as _, i (i)}
       <span
@@ -30,21 +43,25 @@
 </div>
 
 <style>
+  /* ═══ Container ═══ */
+
   .page-starfield {
     position: fixed;
     inset: 0;
-    pointer-events: none;
+    pointer-events: none; /* click-through — purely decorative */
     z-index: 0;
     overflow: hidden;
   }
 
-  /* Star layers */
+  /* ═══ Star Layers ═══ */
+
   .stars {
     position: absolute;
     inset: 0;
     background-repeat: repeat;
   }
 
+  /* Layer 1 — smaller, denser star dots in a 250px tile */
   .stars-layer-1 {
     background-image:
       radial-gradient(1px 1px at 10% 15%, rgba(255, 255, 255, 0.7) 0%, transparent 100%),
@@ -63,6 +80,7 @@
     animation: twinkle 6s ease-in-out infinite;
   }
 
+  /* Layer 2 — larger, sparser star dots in a 400px tile (reverse twinkle) */
   .stars-layer-2 {
     background-image:
       radial-gradient(2px 2px at 20% 30%, rgba(108, 92, 231, 0.9) 0%, transparent 100%),
@@ -86,7 +104,8 @@
     }
   }
 
-  /* Nebula accents */
+  /* ═══ Nebula Accents ═══ */
+
   .nebula {
     position: absolute;
     border-radius: 50%;
@@ -95,6 +114,7 @@
     animation: nebulaPulse 12s ease-in-out infinite;
   }
 
+  /* Top-right nebula — purple-to-pink gradient */
   .nebula-top {
     width: 500px;
     height: 400px;
@@ -108,6 +128,7 @@
     );
   }
 
+  /* Bottom-left nebula — green-to-cyan gradient */
   .nebula-bottom {
     width: 450px;
     height: 350px;
@@ -119,7 +140,7 @@
       rgba(0, 212, 255, 0.2) 50%,
       transparent 70%
     );
-    animation-delay: -6s;
+    animation-delay: -6s; /* offset from top nebula for variety */
   }
 
   @keyframes nebulaPulse {
@@ -134,12 +155,14 @@
     }
   }
 
-  /* Floating particles */
+  /* ═══ Floating Particles ═══ */
+
   .floating-particles {
     position: absolute;
     inset: 0;
   }
 
+  /* Each particle is positioned via CSS custom properties set inline */
   .particle {
     position: absolute;
     left: var(--x);
@@ -170,7 +193,8 @@
     }
   }
 
-  /* Reduced motion */
+  /* ═══ Reduced Motion ═══ */
+
   @media (prefers-reduced-motion: reduce) {
     .stars,
     .nebula,

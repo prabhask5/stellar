@@ -1,35 +1,103 @@
+<!--
+  @fileoverview Root layout component — the **app shell** that wraps every page in Stellar.
+
+  This is the top-level Svelte component rendered by SvelteKit for all routes.
+  It provides:
+
+  1. **Auth state hydration** — syncs the `authState` store from layout load data
+     so every child page can reactively read the current auth mode and session.
+  2. **Navigation chrome** — desktop top navbar, mobile Dynamic-Island header,
+     and iOS-style bottom tab bar with animated active indicators.
+  3. **Global overlays** — auth-loading spinner, sign-out transition overlay,
+     and a toast notification system for offline chunk-load errors.
+  4. **PWA lifecycle** — service worker communication for background precaching
+     of all app chunks, ensuring full offline support.
+  5. **Chunk error recovery** — catches `unhandledrejection` events from failed
+     dynamic imports (offline navigation) and surfaces a friendly toast.
+-->
+
 <script lang="ts">
+  /**
+   * @fileoverview Root layout script — auth state management, navigation logic,
+   * service worker communication, and global event handlers.
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
+  /* ── Global Styles ── */
   import '../app.css';
+
+  /* ── Svelte Lifecycle & Transitions ── */
   import { onMount, onDestroy } from 'svelte';
   import { fade } from 'svelte/transition';
+
+  /* ── SvelteKit Utilities ── */
   import { page } from '$app/stores';
   import { browser } from '$app/environment';
+
+  /* ── Stellar Engine — Auth & Stores ── */
   import { lockSingleUser, getUserProfile } from '@prabhask5/stellar-engine/auth';
   import { authState } from '@prabhask5/stellar-engine/stores';
   import { debug } from '@prabhask5/stellar-engine/utils';
+
+  /* ── Types ── */
   import type { LayoutData } from './+layout';
+
+  /* ── Components ── */
   import SyncStatus from '$lib/components/SyncStatus.svelte';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
 
+  // =============================================================================
+  //  Props
+  // =============================================================================
+
   interface Props {
+    /** Default slot content — the matched page component. */
     children?: import('svelte').Snippet;
+
+    /** Layout data from `+layout.ts` — session, auth mode, offline profile. */
     data: LayoutData;
   }
 
   let { children, data }: Props = $props();
 
-  // Toast state for notifications
+  // =============================================================================
+  //  Component State
+  // =============================================================================
+
+  /* ── Toast Notification ── */
+  /** Whether the toast notification is currently visible. */
   let showToast = $state(false);
+
+  /** The text content of the current toast notification. */
   let toastMessage = $state('');
+
+  /** The visual style of the toast — `'info'` (purple) or `'error'` (pink). */
   let toastType = $state<'info' | 'error'>('info');
 
-  // Signing out state - used to hide navbar immediately during sign out
+  /* ── Sign-Out ── */
+  /** When `true`, a full-screen overlay is shown to mask the sign-out transition. */
   let isSigningOut = $state(false);
 
-  // Reference for cleanup
+  /* ── Cleanup References ── */
+  /** Stored reference to the chunk error handler so we can remove it on destroy. */
   let chunkErrorHandler: ((event: PromiseRejectionEvent) => void) | null = null;
 
-  // Initialize auth state from layout data
+  // =============================================================================
+  //  Reactive Effects
+  // =============================================================================
+
+  /**
+   * Effect: hydrate the global `authState` store from layout load data.
+   *
+   * Runs whenever `data` changes (e.g. after navigation or revalidation).
+   * Maps the three possible auth modes to the corresponding store setter:
+   * - `'supabase'` + session → `setSupabaseAuth`
+   * - `'offline'` + cached profile → `setOfflineAuth`
+   * - anything else → `setNoAuth`
+   */
   $effect(() => {
     if (data.authMode === 'supabase' && data.session) {
       authState.setSupabaseAuth(data.session);
@@ -40,8 +108,12 @@
     }
   });
 
+  // =============================================================================
+  //  Lifecycle — Mount
+  // =============================================================================
+
   onMount(() => {
-    // Handle chunk loading failures during offline navigation
+    // ── Chunk Error Handler ────────────────────────────────────────────────
     // When navigating offline to a page whose JS chunks aren't cached,
     // the dynamic import fails and shows a cryptic error. Catch and show a friendly message.
     chunkErrorHandler = (event: PromiseRejectionEvent) => {
@@ -68,11 +140,13 @@
 
     window.addEventListener('unhandledrejection', chunkErrorHandler);
 
+    // ── Sign-Out Event Listener ───────────────────────────────────────────
     // Listen for sign out requests from child pages (e.g. mobile profile page)
     window.addEventListener('stellar:signout', handleSignOut);
 
-    // Proactively cache all app chunks for full offline support
-    // This runs in the background after page load, so it doesn't affect Lighthouse scores
+    // ── Service Worker — Background Precaching ────────────────────────────
+    // Proactively cache all app chunks for full offline support.
+    // This runs in the background after page load, so it doesn't affect Lighthouse scores.
     if ('serviceWorker' in navigator) {
       // Listen for precache completion messages from service worker
       navigator.serviceWorker.addEventListener('message', (event) => {
@@ -99,7 +173,7 @@
             return;
           }
 
-          // First, cache current page's assets
+          // First, cache current page's assets (scripts + stylesheets)
           const scripts = Array.from(document.querySelectorAll('script[src]'))
             .map((el) => (el as HTMLScriptElement).src)
             .filter((src) => src.startsWith(location.origin));
@@ -118,8 +192,8 @@
             });
           }
 
-          // Then trigger full background precaching for all app chunks
-          // This ensures offline support for all pages, not just visited ones
+          // Then trigger full background precaching for all app chunks.
+          // This ensures offline support for all pages, not just visited ones.
           debug('log', '[PWA] Triggering background precache of all app chunks...');
           controller.postMessage({
             type: 'PRECACHE_ALL'
@@ -128,6 +202,10 @@
       });
     }
   });
+
+  // =============================================================================
+  //  Lifecycle — Destroy
+  // =============================================================================
 
   onDestroy(() => {
     if (browser) {
@@ -140,7 +218,20 @@
     }
   });
 
-  // Get user's first name from appropriate source
+  // =============================================================================
+  //  Derived State
+  // =============================================================================
+
+  /**
+   * Derives the user's first name for display in the greeting and avatar.
+   *
+   * Resolution order:
+   * 1. `firstName` from the Supabase session profile metadata
+   * 2. Email username (the part before `@`) from the Supabase session
+   * 3. `firstName` from the offline cached profile
+   * 4. Email username from the offline cached profile
+   * 5. Fallback → `'there'`
+   */
   const greeting = $derived(() => {
     // Try firstName from session profile
     if (data.session?.user) {
@@ -163,9 +254,16 @@
     return 'there';
   });
 
-  // Check if user is authenticated (either mode)
-  // Hide navbar on login page (it has its own full-screen layout)
-  // Also hide during initial loading to prevent flicker
+  /**
+   * Derived booleans for determining navigation visibility.
+   *
+   * - `isOnLoginPage` — true when on `/login` or any sub-route
+   * - `isOnSetupPage` — true when on `/setup` or any sub-route
+   * - `isSetupNoAuth` — true when on setup AND no auth (first-time user)
+   * - `isAuthPage` — true when on login OR setup-without-auth (hide nav)
+   * - `isAuthenticated` — true when the user has a valid session AND we're
+   *   not on an auth page AND the auth store has finished loading
+   */
   const isOnLoginPage = $derived($page.url.pathname.startsWith('/login'));
   const isOnSetupPage = $derived($page.url.pathname.startsWith('/setup'));
   const isSetupNoAuth = $derived(isOnSetupPage && data.authMode === 'none');
@@ -174,6 +272,14 @@
     data.authMode !== 'none' && !isAuthPage && !$authState.isLoading
   );
 
+  // =============================================================================
+  //  Constants
+  // =============================================================================
+
+  /**
+   * Navigation items for both the desktop top-nav and mobile bottom tab bar.
+   * Each entry maps a route `href` to its label, icon key, and mobile label.
+   */
   const navItems = [
     { href: '/agenda', label: 'Agenda', icon: 'tasks', mobileLabel: 'Agenda' },
     { href: '/plans', label: 'Plans', icon: 'goals', mobileLabel: 'Plans' },
@@ -181,6 +287,19 @@
     { href: '/focus', label: 'Focus', icon: 'focus', mobileLabel: 'Focus' }
   ];
 
+  // =============================================================================
+  //  Event Handlers
+  // =============================================================================
+
+  /**
+   * Handles the sign-out flow with a visual transition.
+   *
+   * 1. Shows a full-screen "Locking..." overlay immediately.
+   * 2. Waits 250ms for the overlay fade-in to complete.
+   * 3. Calls `lockSingleUser()` to stop the engine and clear the session
+   *    (but NOT destroy user data).
+   * 4. Hard-navigates to `/login` (full page reload to reset all state).
+   */
   async function handleSignOut() {
     // Show full-screen overlay immediately
     isSigningOut = true;
@@ -195,17 +314,30 @@
     window.location.href = '/login';
   }
 
+  /**
+   * Checks whether a given route `href` matches the current page path.
+   * Used to highlight the active nav item.
+   *
+   * @param href - The route path to check (e.g. `'/agenda'`)
+   * @returns `true` if the current path starts with `href`
+   */
   function isActive(href: string): boolean {
     return $page.url.pathname.startsWith(href);
   }
 
+  /**
+   * Dismisses the currently visible toast notification.
+   */
   function dismissToast() {
     showToast = false;
   }
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     App Shell Container
+     ═══════════════════════════════════════════════════════════════════════════ -->
 <div class="app" class:authenticated={isAuthenticated} class:loading={$authState.isLoading}>
-  <!-- Initial Loading State - prevents flash during auth check -->
+  <!-- ── Auth Loading Overlay — prevents flash during initial auth check ── -->
   {#if $authState.isLoading && !isAuthPage}
     <div class="auth-loading-overlay">
       <div class="stellar-loader">
@@ -223,7 +355,7 @@
     </div>
   {/if}
 
-  <!-- Sign Out Overlay - covers everything during sign out -->
+  <!-- ── Sign-Out Overlay — full-screen transition during lock ── -->
   {#if isSigningOut}
     <div class="signout-overlay" transition:fade={{ duration: 200 }}>
       <div class="signout-content">
@@ -262,11 +394,12 @@
     </div>
   {/if}
 
-  <!-- Toast Notification -->
+  <!-- ── Toast Notification — appears at top center for offline errors ── -->
   {#if showToast}
     <div class="app-toast" class:toast-error={toastType === 'error'}>
       <div class="toast-content">
         {#if toastType === 'error'}
+          <!-- Error icon (exclamation in circle) -->
           <svg
             width="20"
             height="20"
@@ -282,6 +415,7 @@
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
         {:else}
+          <!-- Info icon (inverted exclamation in circle) -->
           <svg
             width="20"
             height="20"
@@ -317,11 +451,13 @@
     </div>
   {/if}
 
-  <!-- iPhone Pro Dynamic Island Status Bar (Mobile Only) -->
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       Mobile Dynamic Island Header (visible < 640px)
+       ═══════════════════════════════════════════════════════════════════════ -->
   {#if isAuthenticated}
     <header class="island-header">
+      <!-- Left: brand logo + "Stellar" text -->
       <div class="island-left">
-        <!-- Brand matches desktop: logo + "Stellar" text -->
         <a href="/" class="island-brand-link">
           <span class="island-brand">
             <svg class="island-logo" viewBox="0 0 100 100" fill="none">
@@ -356,19 +492,22 @@
           <span class="island-brand-text">Stellar</span>
         </a>
       </div>
-      <!-- Center gap for Dynamic Island -->
+      <!-- Center: reserved gap for iPhone Dynamic Island -->
       <div class="island-center"></div>
+      <!-- Right: sync status indicator -->
       <div class="island-right">
         <SyncStatus />
       </div>
     </header>
   {/if}
 
-  <!-- Desktop/Tablet Top Navigation -->
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       Desktop / Tablet Top Navigation (visible >= 640px)
+       ═══════════════════════════════════════════════════════════════════════ -->
   {#if isAuthenticated}
     <nav class="nav-desktop">
       <div class="nav-inner">
-        <!-- Brand -->
+        <!-- ── Brand ── -->
         <a href="/" class="nav-brand">
           <span class="brand-icon">
             <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
@@ -403,7 +542,7 @@
           <span class="brand-text">Stellar</span>
         </a>
 
-        <!-- Center Navigation Links -->
+        <!-- ── Center Navigation Links — absolutely centred pill bar ── -->
         <div class="nav-center">
           {#each navItems as item (item.href)}
             <a href={item.href} class="nav-link" class:active={isActive(item.href)}>
@@ -452,6 +591,7 @@
                     <circle cx="12" cy="12" r="2" />
                   </svg>
                 {:else}
+                  <!-- Calendar icon (default / routines) -->
                   <svg
                     width="20"
                     height="20"
@@ -477,7 +617,7 @@
           {/each}
         </div>
 
-        <!-- Right Actions -->
+        <!-- ── Right Actions — sync status, user menu, logout ── -->
         <div class="nav-actions">
           <SyncStatus />
           <a href="/profile" class="user-menu user-menu-link">
@@ -506,7 +646,7 @@
       </div>
     </nav>
   {:else if !isAuthPage && !isSigningOut && !$authState.isLoading}
-    <!-- Unauthenticated header (hidden on login page and during sign out) -->
+    <!-- ── Unauthenticated Navigation — simple brand + "Get Started" CTA ── -->
     <nav class="nav-desktop nav-simple">
       <div class="nav-inner">
         <a href="/" class="nav-brand">
@@ -550,15 +690,19 @@
     </nav>
   {/if}
 
-  <!-- Main Content Area -->
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       Main Content Area — renders the matched page
+       ═══════════════════════════════════════════════════════════════════════ -->
   <main class="main" class:with-bottom-nav={isAuthenticated}>
     {@render children?.()}
   </main>
 
-  <!-- Mobile Bottom Tab Bar (iOS-style) - Redesigned for iPhone 16 Pro -->
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       Mobile Bottom Tab Bar (iOS-style) — visible < 640px
+       ═══════════════════════════════════════════════════════════════════════ -->
   {#if isAuthenticated}
     <nav class="nav-mobile">
-      <!-- Floating glass effect background -->
+      <!-- Glass morphism background layer -->
       <div class="nav-mobile-bg"></div>
 
       <div class="tab-bar">
@@ -618,6 +762,7 @@
                   <circle cx="12" cy="12" r="2" />
                 </svg>
               {:else}
+                <!-- Calendar icon (routines) -->
                 <svg
                   width="24"
                   height="24"
@@ -642,7 +787,7 @@
           </a>
         {/each}
 
-        <!-- Profile/Logout - Simplified, no sync status here -->
+        <!-- ── Profile Tab — avatar with first-letter initial ── -->
         <a href="/profile" class="tab-item tab-profile">
           <span class="tab-glow"></span>
           <span class="tab-icon">
@@ -654,6 +799,7 @@
     </nav>
   {/if}
 
+  <!-- ── Global Update Prompt — shown when a new service worker is available ── -->
   <UpdatePrompt />
 </div>
 
@@ -685,7 +831,8 @@
     overflow: hidden;
   }
 
-  /* ── Stellar Loader — A star being born ── */
+  /* ═══ Stellar Loader — animated "star being born" spinner ═══ */
+
   .stellar-loader {
     position: relative;
     width: 120px;
@@ -704,7 +851,8 @@
     }
   }
 
-  /* Orbital rings */
+  /* ── Orbital Rings — three concentric spinning borders ── */
+
   .loader-ring {
     position: absolute;
     inset: 0;
@@ -742,7 +890,8 @@
     }
   }
 
-  /* Core — the star igniting */
+  /* ── Core — the glowing centre of the star ── */
+
   .loader-core {
     position: absolute;
     inset: 36px;
@@ -804,7 +953,8 @@
     }
   }
 
-  /* Orbiting particles — stardust */
+  /* ── Orbiting Particles — stardust dots orbiting the core ── */
+
   .loader-particle {
     position: absolute;
     width: 4px;
@@ -970,7 +1120,8 @@
     padding-bottom: 0;
   }
 
-  /* Left side - Brand (logo + Stellar text, matching desktop) */
+  /* ── Left Side — Brand (logo + Stellar text) ── */
+
   .island-left {
     display: flex;
     align-items: center;
@@ -1023,7 +1174,7 @@
     }
   }
 
-  /* Brand text - matches desktop brand-text style */
+  /* Brand text - gradient shimmer matching desktop */
   .island-brand-text {
     font-size: 1.5rem;
     font-weight: 700;
@@ -1051,7 +1202,8 @@
     }
   }
 
-  /* Center gap - Reserved space for Dynamic Island */
+  /* ── Centre Gap — reserved space for Dynamic Island (~126px on iPhone Pro) ── */
+
   .island-center {
     /* Dynamic Island is ~126px wide on iPhone 14/15/16 Pro */
     /* Add extra margin for visual comfort */
@@ -1060,7 +1212,8 @@
     height: 100%;
   }
 
-  /* Right side - Sync status (ONLY place for sync on mobile) */
+  /* ── Right Side — Sync status indicator ── */
+
   .island-right {
     display: flex;
     align-items: center;
@@ -1081,7 +1234,8 @@
     }
   }
 
-  /* Sync indicator sizing for island header */
+  /* ── Sync Indicator Sizing for Island Header ── */
+
   .island-right :global(.sync-indicator) {
     width: 40px;
     height: 40px;
@@ -1182,7 +1336,8 @@
     position: relative;
   }
 
-  /* Brand */
+  /* ── Brand ── */
+
   .nav-brand {
     display: flex;
     align-items: center;
@@ -1233,7 +1388,8 @@
     }
   }
 
-  /* Center Navigation */
+  /* ── Centre Navigation — pill bar with gradient active state ── */
+
   .nav-center {
     display: flex;
     align-items: center;
@@ -1264,7 +1420,7 @@
     overflow: hidden;
   }
 
-  /* Sliding background effect */
+  /* Sliding background effect on hover */
   .nav-link::before {
     content: '';
     position: absolute;
@@ -1300,7 +1456,7 @@
     color: white;
   }
 
-  /* Shimmer effect on active */
+  /* Shimmer effect on active link */
   .nav-link.active::after {
     content: '';
     position: absolute;
@@ -1358,6 +1514,7 @@
     transform: translateX(2px);
   }
 
+  /* Active indicator dot — glowing dot below the active link */
   .active-indicator {
     position: absolute;
     bottom: -8px;
@@ -1377,7 +1534,8 @@
     transform: translateX(-50%) scale(1);
   }
 
-  /* Right Actions */
+  /* ── Right Actions — sync, user menu, logout ── */
+
   .nav-actions {
     display: flex;
     align-items: center;
@@ -1455,7 +1613,8 @@
     transform: scale(1.1);
   }
 
-  /* Simple nav for unauthenticated */
+  /* ── Simple Nav — unauthenticated header ── */
+
   .nav-simple .nav-inner {
     justify-content: space-between;
   }
@@ -1542,7 +1701,7 @@
       0 -10px 40px rgba(0, 0, 0, 0.3);
   }
 
-  /* Animated cosmic glow line at top */
+  /* Animated cosmic glow line at top of bottom nav */
   .nav-mobile-bg::before {
     content: '';
     position: absolute;
@@ -1584,6 +1743,8 @@
     pointer-events: none;
   }
 
+  /* ── Tab Bar Container ── */
+
   .tab-bar {
     position: relative;
     display: flex;
@@ -1598,6 +1759,8 @@
     padding-right: max(0.75rem, env(safe-area-inset-right, 0));
     z-index: 1;
   }
+
+  /* ── Individual Tab Item ── */
 
   .tab-item {
     position: relative;
@@ -1618,7 +1781,7 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     min-width: 56px;
-    /* Staggered entry animation */
+    /* Staggered entry animation — each tab fades in slightly after the previous */
     animation: tabItemEnter 0.5s var(--ease-spring) backwards;
     animation-delay: calc(var(--tab-index, 0) * 0.05s);
   }
@@ -1662,6 +1825,8 @@
     color: var(--color-text);
   }
 
+  /* ── Tab Icon ── */
+
   .tab-icon {
     position: relative;
     display: flex;
@@ -1685,6 +1850,8 @@
     filter: drop-shadow(0 0 10px var(--color-primary-glow));
   }
 
+  /* ── Tab Label ── */
+
   .tab-label {
     transition: all 0.3s var(--ease-out);
   }
@@ -1694,7 +1861,8 @@
     text-shadow: 0 0 10px var(--color-primary-glow);
   }
 
-  /* Active indicator - orbital dot effect */
+  /* ── Active Indicator — glowing dot above the active tab ── */
+
   .tab-active-indicator {
     position: absolute;
     top: 0px;
@@ -1725,6 +1893,8 @@
         0 0 32px rgba(108, 92, 231, 0.4);
     }
   }
+
+  /* ── Profile Tab ── */
 
   .tab-profile {
     min-width: auto;
@@ -1758,7 +1928,7 @@
      RESPONSIVE BREAKPOINTS — Optimized for iPhone 16 Pro and all modern phones
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
-  /* Wide tablet - start hiding user greeting earlier to prevent overlap */
+  /* ── Wide Tablet (<=1100px) — hide greeting text to prevent nav overlap ── */
   @media (max-width: 1100px) {
     .user-greeting {
       display: none;
@@ -1773,7 +1943,7 @@
     }
   }
 
-  /* Tablet - hide link text */
+  /* ── Tablet (<=900px) — collapse nav link labels to icons only ── */
   @media (max-width: 900px) {
     .link-text {
       display: none;
@@ -1792,7 +1962,7 @@
     }
   }
 
-  /* Mobile - Show bottom nav, hide desktop, show island header */
+  /* ── Mobile (<=640px) — switch to bottom nav + island header ── */
   @media (max-width: 640px) {
     /* Hide desktop nav completely on mobile */
     .nav-desktop {
@@ -1835,7 +2005,7 @@
     }
   }
 
-  /* iPhone SE and smaller (375px) - No Dynamic Island, uses notch */
+  /* ── iPhone SE and smaller (<=375px) — no Dynamic Island, uses notch ── */
   @media (max-width: 375px) {
     .tab-bar {
       padding: 0 0.25rem;
@@ -1881,7 +2051,7 @@
     }
   }
 
-  /* Small phones (376px - 389px) */
+  /* ── Small Phones (376px–389px) ── */
   @media (min-width: 376px) and (max-width: 389px) {
     .island-center {
       flex: 0 0 110px;
@@ -1893,7 +2063,7 @@
     }
   }
 
-  /* iPhone 14/15/16 Pro (390px - 402px width) - Dynamic Island */
+  /* ── iPhone 14/15/16 Pro (390px–402px) — Dynamic Island ── */
   @media (min-width: 390px) and (max-width: 402px) {
     .island-center {
       flex: 0 0 135px;
@@ -1919,7 +2089,7 @@
     }
   }
 
-  /* iPhone 16 Pro (402px logical width) - Primary target */
+  /* ── iPhone 16 Pro (400px–415px) — primary target device ── */
   @media (min-width: 400px) and (max-width: 415px) {
     .island-center {
       flex: 0 0 140px;
@@ -1954,7 +2124,7 @@
     }
   }
 
-  /* iPhone 14/15/16 Pro Max (430px+, has Dynamic Island) */
+  /* ── iPhone 14/15/16 Pro Max (430px+) — larger Dynamic Island ── */
   @media (min-width: 430px) and (max-width: 640px) {
     .tab-bar {
       max-width: 450px;
@@ -2005,7 +2175,7 @@
     }
   }
 
-  /* Landscape mobile - hide ALL navigation (landscape blocker in app.html handles display) */
+  /* ── Landscape Mobile — hide ALL navigation (landscape blocker handles display) ── */
   @media (max-height: 500px) and (max-width: 900px) and (orientation: landscape) {
     .nav-mobile,
     .island-header,
@@ -2189,7 +2359,8 @@
     background: rgba(255, 255, 255, 0.1);
   }
 
-  /* User menu as link */
+  /* ═══ User Menu Link ═══ */
+
   .user-menu-link {
     text-decoration: none;
     cursor: pointer;

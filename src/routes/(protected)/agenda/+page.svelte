@@ -1,4 +1,22 @@
 <script lang="ts">
+  /**
+   * @fileoverview **Agenda** — Daily tasks + long-term tasks / reminders page.
+   *
+   * Split into two sections:
+   * 1. **Today's Tasks** — Quick daily tasks with drag-and-drop reordering,
+   *    plus a commitments modal for managing ongoing commitments.
+   * 2. **Long-term Tasks & Reminders** — Calendar view with overdue / due-today /
+   *    upcoming / completed task lists. Supports task creation, tag management,
+   *    and category creation via modal chaining.
+   *
+   * On mount, linked daily tasks are auto-spawned for long-term tasks that are
+   * due today or before but don't yet have a corresponding daily task.
+   */
+
+  // =============================================================================
+  //                               IMPORTS
+  // =============================================================================
+
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import {
@@ -29,18 +47,23 @@
   import TaskTagsModal from '$lib/components/TaskTagsModal.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
 
-  // State
+  // =============================================================================
+  //                         COMPONENT STATE
+  // =============================================================================
+
+  /* ── Store-backed data ──── */
   let categories = $state<TaskCategory[]>([]);
   let commitments = $state<Commitment[]>([]);
   let dailyTasks = $state<DailyTask[]>([]);
   let longTermTasks = $state<LongTermTaskWithCategory[]>([]);
 
+  /* ── Loading flags (prefixed with `_` when unused in template) ──── */
   let _categoriesLoading = $state(true);
   let _commitmentsLoading = $state(true);
   let dailyTasksLoading = $state(true);
   let longTermTasksLoading = $state(true);
 
-  // Modal state
+  /* ── Modal visibility toggles ──── */
   let showCommitmentsModal = $state(false);
   let showTaskForm = $state(false);
   let showReminderForm = $state(false);
@@ -49,25 +72,33 @@
   let showTagsModal = $state(false);
   let selectedTask = $state<LongTermTaskWithCategory | null>(null);
   let defaultTaskDate = $state<string | undefined>(undefined);
-  let returnToTagsModal = $state(false); // Track if we should return to Tags modal
+  /** When `true`, closing the task modal will re-open the Tags modal */
+  let returnToTagsModal = $state(false);
 
-  // Saved task form state (for when switching to category creation)
+  /**
+   * Preserved task form state while the user creates a new category.
+   * Restored when the category modal closes so the user doesn't lose input.
+   */
   let savedTaskFormState = $state<{
     name: string;
     dueDate: string;
     categoryId: string | null;
   } | null>(null);
 
-  // Gate flag: prevents flicker while spawned tasks are synced on mount
+  /** Gate flag — prevents flicker while spawned daily tasks are synced on mount */
   let spawnSyncDone = $state(false);
 
-  // Keep backdrop visible during modal transitions
+  /** Keeps backdrop visible during modal-to-modal transitions */
   let modalTransitioning = $state(false);
 
-  // Calendar state
+  /* ── Calendar navigation ──── */
   let currentDate = $state(new Date());
 
-  // Subscribe to stores
+  // =============================================================================
+  //                       STORE SUBSCRIPTIONS
+  // =============================================================================
+
+  /** Subscribe to all four data stores and mirror values into local state. */
   $effect(() => {
     const unsubs = [
       taskCategoriesStore.subscribe((v) => (categories = v)),
@@ -83,6 +114,14 @@
     return () => unsubs.forEach((u) => u());
   });
 
+  // =============================================================================
+  //                           LIFECYCLE
+  // =============================================================================
+
+  /**
+   * Load all stores on mount, then auto-spawn linked daily tasks for
+   * long-term tasks that are due today or earlier.
+   */
   onMount(async () => {
     await Promise.all([
       taskCategoriesStore.load(),
@@ -117,38 +156,60 @@
     spawnSyncDone = true;
   });
 
-  // Derived data for long-term tasks
+  // =============================================================================
+  //                      DERIVED DATA
+  // =============================================================================
+
+  /** Today's date as a `YYYY-MM-DD` string for task filtering */
   const today = $derived(formatDate(new Date()));
 
+  /** Long-term tasks past their due date and not completed — sorted oldest first */
   const overdueTasks = $derived(
     longTermTasks
       .filter((t) => t.due_date < today && !t.completed)
       .sort((a, b) => a.due_date.localeCompare(b.due_date))
   );
 
+  /** Long-term tasks due exactly today — sorted alphabetically */
   const dueTodayTasks = $derived(
     longTermTasks
       .filter((t) => t.due_date === today && !t.completed)
       .sort((a, b) => a.name.localeCompare(b.name))
   );
 
+  /** Long-term tasks with a future due date — sorted soonest first */
   const upcomingTasks = $derived(
     longTermTasks
       .filter((t) => t.due_date > today && !t.completed)
       .sort((a, b) => a.due_date.localeCompare(b.due_date))
   );
 
+  /** Already-completed long-term tasks — sorted earliest due date first */
   const completedTasks = $derived(
     longTermTasks.filter((t) => t.completed).sort((a, b) => a.due_date.localeCompare(b.due_date)) // Earliest to latest
   );
 
-  // Helper to get user ID
+  // =============================================================================
+  //                         HELPERS
+  // =============================================================================
+
+  /**
+   * Extract the current user's ID from the SvelteKit page session.
+   * @returns The authenticated user's UUID, or empty string if unavailable
+   */
   function getUserId(): string {
     const session = $page.data.session;
     return session?.user?.id ?? '';
   }
 
-  // Daily task handlers
+  // =============================================================================
+  //                    DAILY TASK HANDLERS
+  // =============================================================================
+
+  /**
+   * Create a new daily task.
+   * @param name - Task name entered by the user
+   */
   async function handleCreateDailyTask(name: string) {
     const userId = getUserId();
     if (!userId) return;
@@ -167,7 +228,15 @@
     await dailyTasksStore.reorder(id, newOrder);
   }
 
-  // Commitment handlers
+  // =============================================================================
+  //                   COMMITMENT HANDLERS
+  // =============================================================================
+
+  /**
+   * Create a new commitment under the specified section.
+   * @param name    - Commitment name
+   * @param section - Which section of the commitments modal to place it in
+   */
   async function handleCreateCommitment(name: string, section: CommitmentSection) {
     const userId = getUserId();
     if (!userId) return;
@@ -186,7 +255,15 @@
     await commitmentsStore.reorder(id, newOrder);
   }
 
-  // Category handlers
+  // =============================================================================
+  //                    CATEGORY HANDLERS
+  // =============================================================================
+
+  /**
+   * Create a new task category (tag).
+   * @param name  - Category display name
+   * @param color - Hex color for the category badge
+   */
   async function handleCreateCategory(name: string, color: string) {
     const userId = getUserId();
     if (!userId) return;
@@ -211,8 +288,16 @@
     );
   }
 
-  // Modal swapping for category creation
-  // Simple approach: open new modal BEFORE closing old one, so backdrops overlap
+  // =============================================================================
+  //               MODAL SWAP — Category creation mid-flow
+  // =============================================================================
+
+  /**
+   * Save the current task form state and swap to the category-create modal.
+   * Opens the new modal *before* closing the old one so backdrops overlap
+   * seamlessly (no flash of the underlying page).
+   * @param formState - Current name / dueDate / categoryId from the task form
+   */
   function handleRequestCreateCategory(formState: {
     name: string;
     dueDate: string;
@@ -242,7 +327,17 @@
     handleCategoryCreateClose();
   }
 
-  // Long-term task handlers
+  // =============================================================================
+  //                  LONG-TERM TASK HANDLERS
+  // =============================================================================
+
+  /**
+   * Create a new long-term task (or reminder).
+   * @param name       - Task name
+   * @param dueDate    - ISO date string (YYYY-MM-DD)
+   * @param categoryId - Optional category/tag ID
+   * @param type       - `'task'` (default) or `'reminder'`
+   */
   async function handleCreateLongTermTask(
     name: string,
     dueDate: string,
@@ -277,17 +372,23 @@
     await longTermTasksStore.delete(id);
   }
 
-  // Calendar handlers
+  // =============================================================================
+  //                    CALENDAR HANDLERS
+  // =============================================================================
+
+  /** Open the task-creation form with the clicked date pre-filled. */
   function handleDayClick(date: Date) {
     defaultTaskDate = formatDate(date);
     showTaskForm = true;
   }
 
+  /** Open the task detail modal for the clicked task. */
   function handleTaskClick(task: LongTermTaskWithCategory) {
     selectedTask = task;
     showTaskModal = true;
   }
 
+  /** Update the calendar's displayed month. */
   function handleMonthChange(date: Date) {
     currentDate = date;
   }
@@ -297,8 +398,9 @@
   <title>Agenda - Stellar Planner</title>
 </svelte:head>
 
+<!-- ═══ Page Container ═══ -->
 <div class="container">
-  <!-- TODAY'S TASKS Section -->
+  <!-- ═══ TODAY'S TASKS Section ═══ -->
   <section class="section">
     <header class="section-header">
       <h2 class="section-title">Today's Tasks</h2>
@@ -342,7 +444,7 @@
     </div>
   </section>
 
-  <!-- LONG-TERM TASKS Section -->
+  <!-- ═══ LONG-TERM TASKS & REMINDERS Section ═══ -->
   <section class="section">
     <header class="section-header">
       <h2 class="section-title">Long-term Tasks & Reminders</h2>
@@ -481,7 +583,9 @@
   </section>
 </div>
 
-<!-- Modals -->
+<!-- ═══ Modals ═══ -->
+
+<!-- Commitments modal — manage ongoing commitment items -->
 <CommitmentsModal
   open={showCommitmentsModal}
   {commitments}
@@ -492,6 +596,7 @@
   onReorder={handleReorderCommitment}
 />
 
+<!-- Long-term task creation form (type = task) -->
 <LongTermTaskForm
   open={showTaskForm}
   {categories}
@@ -508,6 +613,7 @@
   onRequestCreateCategory={handleRequestCreateCategory}
 />
 
+<!-- Long-term task creation form (type = reminder) -->
 <LongTermTaskForm
   open={showReminderForm}
   {categories}
@@ -527,12 +633,14 @@
   }}
 />
 
+<!-- Inline category creation — opened mid-task-form flow -->
 <CategoryCreateModal
   open={showCategoryCreate}
   onClose={handleCategoryCreateClose}
   onCreate={handleCategoryCreateSubmit}
 />
 
+<!-- Task detail / edit modal — returns to Tags modal if opened from there -->
 <LongTermTaskModal
   open={showTaskModal}
   task={selectedTask}
@@ -551,6 +659,7 @@
   onDelete={handleDeleteLongTermTask}
 />
 
+<!-- Tags management modal — view/edit categories, browse tasks by tag -->
 <TaskTagsModal
   open={showTagsModal}
   {categories}

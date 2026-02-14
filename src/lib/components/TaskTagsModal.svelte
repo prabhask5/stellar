@@ -1,4 +1,22 @@
 <script lang="ts">
+  /**
+   * @fileoverview TaskTagsModal — modal for browsing and managing task tags (categories).
+   *
+   * Provides a full-featured tag management interface: inline name editing,
+   * colour picker, delete with confirmation, and a grouped list of incomplete
+   * tasks under each tag.  Tags are split into two groups:
+   * - **Standalone** tags — user-created; editable name, colour, and deletable.
+   * - **Project-owned** tags — managed by a project; read-only header with a
+   *   star icon, but tasks can still be toggled / deleted.
+   *
+   * Key behaviours:
+   * - `tasksByCategory` groups incomplete tasks into a `Map<string | null, ...>`.
+   * - Escape key is intercepted to close nested UI (colour picker / name edit)
+   *   before the modal itself.
+   * - `remoteChangeAnimation` highlights tags and tasks updated by another device.
+   * - Untagged tasks appear in a dashed-border "Untagged" section at the bottom.
+   */
+
   import Modal from './Modal.svelte';
   import { scale } from 'svelte/transition';
   import type { TaskCategory, LongTermTaskWithCategory } from '$lib/types';
@@ -6,7 +24,11 @@
   import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
-  // Available colors for categories (same as CategoryCreateModal)
+  // =============================================================================
+  //                               Constants
+  // =============================================================================
+
+  /** Palette of selectable tag colours (same as CategoryCreateModal) */
   const CATEGORY_COLORS = [
     '#6c5ce7', // Purple (primary)
     '#a29bfe', // Light purple
@@ -20,15 +42,28 @@
     '#55efc4' // Teal
   ];
 
+  // =============================================================================
+  //                                  Props
+  // =============================================================================
+
   interface Props {
+    /** Whether the modal is visible */
     open: boolean;
+    /** All task categories (standalone + project-owned) */
     categories: TaskCategory[];
+    /** All long-term tasks (will be filtered to incomplete internally) */
     tasks: LongTermTaskWithCategory[];
+    /** Close the modal */
     onClose: () => void;
+    /** Open a task detail modal */
     onTaskClick: (task: LongTermTaskWithCategory) => void;
+    /** Toggle a task's completion */
     onToggle: (id: string) => void;
+    /** Delete a task */
     onDelete: (id: string) => void;
+    /** Delete a category (standalone only) */
     onDeleteCategory: (id: string) => void;
+    /** Update a category's name or colour */
     onUpdateCategory: (id: string, updates: { name?: string; color?: string }) => void;
   }
 
@@ -44,24 +79,45 @@
     onUpdateCategory
   }: Props = $props();
 
-  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
+  // =============================================================================
+  //                          Utility Actions
+  // =============================================================================
+
+  /**
+   * Auto-focus action — skipped on mobile to avoid keyboard popup.
+   * @param {HTMLElement} node - Element to focus
+   */
   function focus(node: HTMLElement) {
     if (window.innerWidth > 640) {
       node.focus();
     }
   }
 
-  // Editing state
+  // =============================================================================
+  //                          Editing State
+  // =============================================================================
+
+  /** ID of the category whose name is being edited, or `null` */
   let editingCategoryId = $state<string | null>(null);
+  /** Temporary buffer for the edited category name */
   let editingCategoryName = $state('');
+  /** ID of the category whose colour picker is open, or `null` */
   let showColorPicker = $state<string | null>(null);
 
-  // Group incomplete tasks by category, sorted by date (soonest first)
+  // =============================================================================
+  //                      Derived — Task Grouping
+  // =============================================================================
+
+  /**
+   * Groups incomplete tasks by `category_id`, including empty groups for
+   * categories that have no incomplete tasks.  Each group is sorted by
+   * `due_date` ascending (soonest first).
+   */
   const tasksByCategory = $derived(() => {
     const incompleteTasks = tasks.filter((t) => !t.completed);
     const grouped = new Map<string | null, LongTermTaskWithCategory[]>();
 
-    // Initialize with all categories (even empty ones)
+    // Initialise with all categories (even empty ones)
     for (const cat of categories) {
       grouped.set(cat.id, []);
     }
@@ -85,14 +141,35 @@
     return grouped;
   });
 
-  // Check if a category is project-owned (cannot be edited/deleted independently)
+  // =============================================================================
+  //                 Derived — Category Partitions
+  // =============================================================================
+
+  /**
+   * Check whether a category is owned by a project (not independently editable).
+   * @param {TaskCategory} category - The category to check
+   * @returns {boolean} `true` if the category belongs to a project
+   */
   function isProjectOwned(category: TaskCategory): boolean {
     return !!category.project_id;
   }
 
+  /** Standalone (user-created) categories — editable */
   const standaloneCategories = $derived(categories.filter((c) => !isProjectOwned(c)));
+
+  /** Project-owned categories — read-only headers */
   const projectCategories = $derived(categories.filter((c) => isProjectOwned(c)));
 
+  // =============================================================================
+  //                          Utility Functions
+  // =============================================================================
+
+  /**
+   * Format a due-date string into a human-readable relative label
+   * (e.g. "Today", "Tomorrow", "3d", "2d overdue", or "Feb 13").
+   * @param {string} dateStr - ISO date string (`YYYY-MM-DD`)
+   * @returns {string} Formatted date label
+   */
   function formatDate(dateStr: string): string {
     const date = parseDateString(dateStr);
     const today = new Date();
@@ -113,12 +190,22 @@
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
+  /**
+   * Check whether a date string is before today.
+   * @param {string} dateStr - ISO date string
+   * @returns {boolean} `true` if the date is in the past
+   */
   function isOverdue(dateStr: string): boolean {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return parseDateString(dateStr) < today;
   }
 
+  /**
+   * Check whether a date string is exactly today.
+   * @param {string} dateStr - ISO date string
+   * @returns {boolean} `true` if the date is today
+   */
   function isDueToday(dateStr: string): boolean {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -126,7 +213,15 @@
     return taskDate.getTime() === today.getTime();
   }
 
-  // Handle Escape key for nested states (color picker, editing)
+  // =============================================================================
+  //                    Keyboard — Escape Key Handling
+  // =============================================================================
+
+  /**
+   * Intercept Escape to close nested UI (name edit or colour picker) first,
+   * before the modal itself.
+   * @param {KeyboardEvent} event - The keydown event
+   */
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       if (editingCategoryId) {
@@ -140,14 +235,23 @@
     }
   }
 
-  // Start editing category name
+  // =============================================================================
+  //                   Category Name Editing
+  // =============================================================================
+
+  /**
+   * Enter name-editing mode for a category.
+   * @param {TaskCategory} category - The category to rename
+   */
   function startEditName(category: TaskCategory) {
     editingCategoryId = category.id;
     editingCategoryName = category.name;
     showColorPicker = null;
   }
 
-  // Save category name
+  /**
+   * Persist the edited name and exit editing mode.
+   */
   function saveEditName() {
     if (editingCategoryId && editingCategoryName.trim()) {
       onUpdateCategory(editingCategoryId, { name: editingCategoryName.trim() });
@@ -155,13 +259,18 @@
     cancelEditName();
   }
 
-  // Cancel editing
+  /**
+   * Discard the edit and exit editing mode.
+   */
   function cancelEditName() {
     editingCategoryId = null;
     editingCategoryName = '';
   }
 
-  // Handle name input keydown
+  /**
+   * Handle keystrokes inside the name input — Enter saves, Escape cancels.
+   * @param {KeyboardEvent} event - The keydown event
+   */
   function handleNameKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -172,23 +281,44 @@
     }
   }
 
-  // Toggle color picker
+  // =============================================================================
+  //                   Colour Picker
+  // =============================================================================
+
+  /**
+   * Toggle the colour picker for a given category.
+   * Closes name editing if it was open.
+   * @param {string} categoryId - Category whose picker to toggle
+   */
   function toggleColorPicker(categoryId: string) {
     if (showColorPicker === categoryId) {
       showColorPicker = null;
     } else {
       showColorPicker = categoryId;
-      editingCategoryId = null; // Close name editing if open
+      editingCategoryId = null;
     }
   }
 
-  // Select color
+  /**
+   * Apply a new colour to a category and close the picker.
+   * @param {string} categoryId - The target category
+   * @param {string} color       - Hex colour value
+   */
   function selectColor(categoryId: string, color: string) {
     onUpdateCategory(categoryId, { color });
     showColorPicker = null;
   }
 
-  // Confirm before deleting tag
+  // =============================================================================
+  //                   Category Deletion
+  // =============================================================================
+
+  /**
+   * Confirm before deleting a tag; warns if tasks will become untagged.
+   * @param {string} id        - Category ID
+   * @param {string} name      - Category name (for the confirmation message)
+   * @param {number} taskCount - Number of tasks currently using this tag
+   */
   function handleDeleteTag(id: string, name: string, taskCount: number) {
     const message =
       taskCount > 0
@@ -201,10 +331,16 @@
   }
 </script>
 
+<!-- Intercept Escape for nested UI before the modal -->
 <svelte:window onkeydown={handleKeydown} />
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Template — Task Tags Modal
+     ═══════════════════════════════════════════════════════════════════════════ -->
 
 <Modal {open} title="Task Tags" {onClose}>
   <div class="tags-content">
+    <!-- ═══ Empty State ═══ -->
     {#if categories.length === 0}
       <div class="empty-state">
         <div class="empty-icon">🏷️</div>
@@ -213,6 +349,7 @@
       </div>
     {:else}
       <div class="categories-list">
+        <!-- ═══ Standalone Categories ═══ -->
         {#if standaloneCategories.length > 0}
           {#each standaloneCategories as category (category.id)}
             {@const categoryTasks = tasksByCategory().get(category.id) || []}
@@ -220,8 +357,10 @@
               class="category-section"
               use:remoteChangeAnimation={{ entityId: category.id, entityType: 'task_categories' }}
             >
+              <!-- ── Category Header (colour dot + name + count + delete) ── -->
               <div class="category-header">
                 <div class="category-info">
+                  <!-- Clickable colour dot — opens colour picker -->
                   <button
                     class="category-color"
                     style="background-color: {category.color}"
@@ -229,6 +368,7 @@
                     aria-label="Change color"
                   ></button>
 
+                  <!-- Inline name editing or clickable label -->
                   {#if editingCategoryId === category.id}
                     <input
                       type="text"
@@ -269,6 +409,7 @@
                 </button>
               </div>
 
+              <!-- ── Inline Colour Picker (scale transition) ── -->
               {#if showColorPicker === category.id}
                 <div class="color-picker" transition:scale={{ duration: 150, start: 0.95 }}>
                   {#each CATEGORY_COLORS as color (color)}
@@ -283,6 +424,7 @@
                 </div>
               {/if}
 
+              <!-- ── Tasks Under This Category ── -->
               {#if categoryTasks.length > 0}
                 <div class="tasks-list">
                   {#each categoryTasks as task (task.id)}
@@ -295,6 +437,7 @@
                         entityType: 'long_term_agenda'
                       }}
                     >
+                      <!-- Reminder bell or completion checkbox -->
                       {#if task.type === 'reminder'}
                         <span class="bell-icon" aria-label="Reminder">
                           <svg
@@ -317,6 +460,7 @@
                         ></button>
                       {/if}
 
+                      <!-- Task name + due date -->
                       <button class="task-info" onclick={() => onTaskClick(task)}>
                         <span class="task-name" use:truncateTooltip>{task.name}</span>
                         <span
@@ -328,6 +472,7 @@
                         </span>
                       </button>
 
+                      <!-- Delete task button (hover-reveal) -->
                       <button
                         class="delete-btn"
                         onclick={() => onDelete(task.id)}
@@ -355,6 +500,7 @@
           {/each}
         {/if}
 
+        <!-- ═══ Project-Owned Categories (read-only headers) ═══ -->
         {#if projectCategories.length > 0}
           <div class="section-divider">
             <span class="section-label">Projects</span>
@@ -366,6 +512,7 @@
               class="category-section project-owned"
               use:remoteChangeAnimation={{ entityId: category.id, entityType: 'task_categories' }}
             >
+              <!-- ── Project Category Header (static colour + star icon) ── -->
               <div class="category-header">
                 <div class="category-info">
                   <span
@@ -385,6 +532,7 @@
                 </div>
               </div>
 
+              <!-- ── Tasks Under This Project Category ── -->
               {#if categoryTasks.length > 0}
                 <div class="tasks-list">
                   {#each categoryTasks as task (task.id)}
@@ -457,7 +605,7 @@
           {/each}
         {/if}
 
-        <!-- Untagged tasks -->
+        <!-- ═══ Untagged Tasks ═══ -->
         {#if (tasksByCategory().get(null) || []).length > 0}
           {@const untaggedTasks = tasksByCategory().get(null) || []}
           <div class="category-section untagged">
@@ -543,14 +691,21 @@
   </div>
 </Modal>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Styles
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <style>
+  /* ═══ Content Container ═══ */
+
   .tags-content {
     display: flex;
     flex-direction: column;
     gap: 1rem;
   }
 
-  /* Empty state */
+  /* ═══ Empty State ═══ */
+
   .empty-state {
     text-align: center;
     padding: 2rem 1rem;
@@ -574,12 +729,15 @@
     color: var(--color-text-muted);
   }
 
-  /* Categories list */
+  /* ═══ Categories List ═══ */
+
   .categories-list {
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
   }
+
+  /* ═══ Projects Section Divider ═══ */
 
   .section-divider {
     display: flex;
@@ -605,6 +763,8 @@
     white-space: nowrap;
   }
 
+  /* ═══ Category Section ═══ */
+
   .category-section {
     position: relative;
   }
@@ -627,6 +787,8 @@
     min-width: 0;
   }
 
+  /* ═══ Category Colour Dot (clickable) ═══ */
+
   .category-color {
     width: 12px;
     height: 12px;
@@ -645,6 +807,7 @@
     box-shadow: 0 0 8px currentColor;
   }
 
+  /* Static colour dot (project-owned / untagged) */
   .category-color-static {
     width: 12px;
     height: 12px;
@@ -652,7 +815,8 @@
     flex-shrink: 0;
   }
 
-  /* Inline color picker — rendered below the header */
+  /* ═══ Colour Picker ═══ */
+
   .color-picker {
     display: flex;
     flex-wrap: wrap;
@@ -683,7 +847,8 @@
     box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
   }
 
-  /* Editable category name */
+  /* ═══ Category Name (editable button / input) ═══ */
+
   .category-name {
     font-weight: 600;
     font-size: 0.9375rem;
@@ -730,6 +895,8 @@
     box-shadow: 0 0 0 2px var(--color-primary-glow);
   }
 
+  /* ═══ Task Count Badge ═══ */
+
   .task-count {
     font-size: 0.75rem;
     font-weight: 600;
@@ -739,6 +906,8 @@
     color: var(--color-primary-light);
     flex-shrink: 0;
   }
+
+  /* ═══ Delete Tag Button (hover-reveal) ═══ */
 
   .delete-tag-btn {
     width: 28px;
@@ -766,7 +935,8 @@
     background: rgba(255, 107, 107, 0.2);
   }
 
-  /* Tasks list */
+  /* ═══ Tasks List ═══ */
+
   .tasks-list {
     display: flex;
     flex-direction: column;
@@ -792,6 +962,7 @@
     transform: translateX(4px);
   }
 
+  /* Variant-specific left borders */
   .task-row.overdue {
     border-left: 2px solid var(--color-red);
   }
@@ -799,6 +970,8 @@
   .task-row.due-today {
     border-left: 2px solid var(--color-yellow);
   }
+
+  /* ═══ Reminder Bell ═══ */
 
   .bell-icon {
     width: 18px;
@@ -810,6 +983,8 @@
     color: var(--color-primary-light);
     opacity: 0.7;
   }
+
+  /* ═══ Completion Checkbox ═══ */
 
   .checkbox {
     width: 18px;
@@ -826,6 +1001,8 @@
     border-color: var(--color-green);
     transform: scale(1.1);
   }
+
+  /* ═══ Task Info Button ═══ */
 
   .task-info {
     flex: 1;
@@ -850,6 +1027,8 @@
     white-space: nowrap;
   }
 
+  /* ═══ Due Date Label ═══ */
+
   .due-date {
     font-size: 0.6875rem;
     font-weight: 600;
@@ -865,6 +1044,8 @@
   .due-date.due-today {
     color: var(--color-yellow);
   }
+
+  /* ═══ Delete Task Button (hover-reveal) ═══ */
 
   .delete-btn {
     width: 24px;
@@ -892,6 +1073,8 @@
     background: rgba(255, 107, 107, 0.2);
   }
 
+  /* ═══ No Tasks Placeholder ═══ */
+
   .no-tasks {
     padding: 0.75rem 1rem;
     margin-top: 0.5rem;
@@ -904,13 +1087,15 @@
     border: 1px dashed rgba(108, 92, 231, 0.1);
   }
 
-  /* Uncategorized section */
+  /* ═══ Untagged Section ═══ */
+
   .category-section.untagged .category-header {
     background: rgba(30, 30, 50, 0.4);
     border-style: dashed;
   }
 
-  /* Project-owned tags */
+  /* ═══ Project-Owned Tag Headers ═══ */
+
   .category-section.project-owned .category-header {
     border-color: rgba(255, 215, 0, 0.15);
     background: rgba(255, 215, 0, 0.03);
@@ -929,7 +1114,8 @@
     justify-content: center;
   }
 
-  /* Mobile adjustments */
+  /* ═══ Mobile Adjustments ═══ */
+
   @media (max-width: 640px) {
     .delete-btn {
       opacity: 0.3;

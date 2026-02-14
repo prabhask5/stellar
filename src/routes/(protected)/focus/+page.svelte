@@ -1,4 +1,20 @@
 <script lang="ts">
+  /**
+   * @fileoverview **Focus** — Pomodoro-style focus timer page.
+   *
+   * Presents a circular countdown timer with start / pause / resume / stop /
+   * skip controls. Supports customizable focus/break durations via a settings
+   * modal. Displays today's accumulated focus time and active block-list count.
+   *
+   * The timer logic lives in `focusStore`; this page wires up the UI controls,
+   * subscribes to store state, and manages a 30-second tick for live focus-time
+   * updates while a focus phase is running.
+   */
+
+  // =============================================================================
+  //                               IMPORTS
+  // =============================================================================
+
   import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { focusStore, blockListStore, focusTimeUpdated } from '$lib/stores/focus';
@@ -11,24 +27,38 @@
   import FocusSettingsModal from '$lib/components/focus/FocusSettings.svelte';
   import BlockListManager from '$lib/components/focus/BlockListManager.svelte';
 
-  // State from store
+  // =============================================================================
+  //                         COMPONENT STATE
+  // =============================================================================
+
+  /* ── Focus store mirrors ──── */
   let settings = $state<FocusSettings | null>(null);
   let session = $state<FocusSession | null>(null);
   let remainingMs = $state(0);
   let isRunning = $state(false);
   let loading = $state(true);
+  /** Describes the current UI transition animation (e.g., 'starting', 'pausing') */
   let stateTransition = $state<'none' | 'starting' | 'pausing' | 'resuming' | 'stopping' | null>(
     null
   );
 
-  // Block lists state
+  /* ── Block lists ──── */
   let blockLists = $state<BlockList[]>([]);
 
-  // UI state
+  /* ── UI ──── */
   let showSettings = $state(false);
+  /** Accumulated focus-phase time for today, in milliseconds */
   let todayFocusTime = $state(0);
 
-  // Get user ID helper
+  // =============================================================================
+  //                           HELPERS
+  // =============================================================================
+
+  /**
+   * Extract the current user's ID — checks Supabase session first,
+   * then falls back to offline profile.
+   * @returns User UUID or empty string
+   */
   function getUserId(): string {
     const pageData = $page.data;
     // Check for Supabase session
@@ -42,7 +72,11 @@
     return '';
   }
 
-  // Subscribe to stores
+  // =============================================================================
+  //                    STORE SUBSCRIPTIONS
+  // =============================================================================
+
+  /** Mirror focus store, block-list store, and focus-time-updated signal into local state. */
   $effect(() => {
     const unsubs = [
       focusStore.subscribe((state) => {
@@ -63,10 +97,13 @@
     return () => unsubs.forEach((u) => u());
   });
 
-  // Focus time tick interval for live updates
+  /** Interval handle for the 30-second focus-time refresh tick */
   let focusTimeTickInterval: ReturnType<typeof setInterval> | null = null;
 
-  // Start/stop focus time tick based on session state
+  /**
+   * Start a 30-second tick to refresh today's focus time while a focus
+   * phase is actively running. Clears the interval when the phase ends.
+   */
   $effect(() => {
     const isRunningFocusPhase = session?.status === 'running' && session?.phase === 'focus';
 
@@ -82,7 +119,10 @@
     }
   });
 
-  // Load data on mount
+  // =============================================================================
+  //                           LIFECYCLE
+  // =============================================================================
+
   onMount(async () => {
     const userId = getUserId();
     if (userId) {
@@ -91,7 +131,7 @@
     }
   });
 
-  // Cleanup on destroy
+  /** Clean up the focus store and tick interval on component destroy. */
   onDestroy(() => {
     focusStore.destroy();
     if (focusTimeTickInterval) {
@@ -100,11 +140,16 @@
     }
   });
 
+  /** Refresh today's accumulated focus time from the store. */
   async function loadTodayFocusTime() {
     todayFocusTime = await focusStore.getTodayFocusTime();
   }
 
-  // Control handlers
+  // =============================================================================
+  //                     TIMER CONTROL HANDLERS
+  // =============================================================================
+
+  /** Start a new focus session. */
   function handleStart() {
     focusStore.start();
   }
@@ -130,7 +175,16 @@
     focusStore.updateSettings(updates);
   }
 
-  // Helper to check if a block list is active today
+  // =============================================================================
+  //                       DERIVED VALUES
+  // =============================================================================
+
+  /**
+   * Check whether a block list should be active for the current day-of-week.
+   * A `null` `active_days` array means "every day."
+   * @param list - The block list to check
+   * @returns `true` if the list is enabled and scheduled for today
+   */
   function isBlockListActiveToday(list: BlockList): boolean {
     if (!list.is_enabled) return false;
     if (list.active_days === null) return true; // null means every day
@@ -138,8 +192,9 @@
     return list.active_days.includes(currentDay);
   }
 
-  // Derived values
+  /** Number of block lists active today — shown in the stats row */
   const enabledBlockListCount = $derived(blockLists.filter(isBlockListActiveToday).length);
+  /** Human-readable today's focus time (e.g., "1h 25m") */
   const todayFocusFormatted = $derived(formatDuration(todayFocusTime));
 </script>
 
@@ -183,7 +238,7 @@
       </div>
     </div>
   {:else}
-    <!-- Timer Section -->
+    <!-- ═══ Timer + Controls ═══ -->
     <section class="timer-section" class:transitioning={stateTransition}>
       <FocusTimer {session} {settings} {remainingMs} {isRunning} {stateTransition} />
 
@@ -200,10 +255,10 @@
       />
     </section>
 
-    <!-- Schedule Section -->
+    <!-- ═══ Session Schedule (phase indicator pills) ═══ -->
     <SessionSchedule {session} {settings} />
 
-    <!-- Stats Row -->
+    <!-- ═══ Stats Row — Focus time + active block lists ═══ -->
     <div class="stats-row">
       <div class="stat-card">
         <span class="stat-label">Focus Time Today</span>
@@ -215,12 +270,12 @@
       </div>
     </div>
 
-    <!-- Block List Manager -->
+    <!-- ═══ Block List Manager — CRUD for website block lists ═══ -->
     <BlockListManager userId={getUserId()} />
   {/if}
 </div>
 
-<!-- Settings Modal -->
+<!-- ═══ Settings Modal — focus/break durations, auto-start, etc. ═══ -->
 <FocusSettingsModal
   {settings}
   isOpen={showSettings}

@@ -1,17 +1,52 @@
 <script lang="ts">
+  /**
+   * @fileoverview DeferredChangesBanner — notification banner for cross-device data conflicts.
+   *
+   * When another device pushes a change to an entity (e.g. a goal or project) via
+   * realtime sync, but the user is currently editing that entity, this banner
+   * appears to let them choose:
+   *   - **Update** — overwrite local form state with the remote values
+   *   - **Dismiss** — keep local edits and discard the remote notification
+   *   - **Show/Hide changes** — expand a diff preview showing field-by-field
+   *     old → new values
+   *
+   * The banner polls `remoteChangesStore` every 500ms to detect deferred changes,
+   * and uses a CSS `grid-template-rows` transition for smooth expand/collapse.
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import { remoteChangesStore } from '@prabhask5/stellar-engine/stores';
   import { onMount, onDestroy } from 'svelte';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Unique identifier of the entity being edited */
     entityId: string;
+    /** Entity collection name (e.g. `'goals'`, `'projects'`) */
     entityType: string;
+    /** Remote (latest) data snapshot — `null` when no diff exists */
     remoteData: Record<string, unknown> | null;
+    /** Current local form data to compare against */
     localData: Record<string, unknown>;
+    /** Map of field keys → human-readable labels (e.g. `{ name: 'Name' }`) */
     fieldLabels: Record<string, string>;
+    /** Optional custom formatter for display values — receives `(fieldKey, rawValue)` */
     formatValue?: (field: string, value: unknown) => string;
+    /** Callback to apply the remote data into the local form */
     onLoadRemote: () => void;
+    /** Callback to silently discard the remote notification */
     onDismiss: () => void;
   }
+
+  // =============================================================================
+  //  Component State
+  // =============================================================================
 
   let {
     entityId,
@@ -24,10 +59,20 @@
     onDismiss
   }: Props = $props();
 
+  /** Controls the banner's visibility (drives CSS transition) */
   let showBanner = $state(false);
+
+  /** Whether the diff-preview section is expanded */
   let showPreview = $state(false);
+
+  /** Interval handle for polling deferred changes */
   let checkInterval: ReturnType<typeof setInterval> | null = null;
 
+  // =============================================================================
+  //  Diff Calculation
+  // =============================================================================
+
+  /** Shape of a single field difference */
   interface FieldDiff {
     field: string;
     label: string;
@@ -35,6 +80,11 @@
     newValue: string;
   }
 
+  /**
+   * Computes an array of `FieldDiff` objects by comparing `localData` against
+   * `remoteData` for every key listed in `fieldLabels`. Uses JSON.stringify
+   * for deep equality (handles arrays, nested objects).
+   */
   const diffs = $derived.by(() => {
     if (!remoteData) return [] as FieldDiff[];
     const result: FieldDiff[] = [];
@@ -54,6 +104,18 @@
     return result;
   });
 
+  // =============================================================================
+  //  Utility Functions
+  // =============================================================================
+
+  /**
+   * Default value formatter — converts booleans, nulls, arrays, and
+   * other types to human-readable strings.
+   *
+   * @param {string}  _field — the field key (unused in default formatter)
+   * @param {unknown} value  — the raw field value
+   * @returns {string} formatted string representation
+   */
   function defaultFormat(_field: string, value: unknown): string {
     if (typeof value === 'boolean') return value ? 'On' : 'Off';
     if (value === null || value === undefined) return 'None';
@@ -61,6 +123,10 @@
     return String(value);
   }
 
+  /**
+   * Checks the remote changes store for deferred changes targeting this entity.
+   * Shows the banner if changes are found.
+   */
   function checkDeferred() {
     const has = remoteChangesStore.hasDeferredChanges(entityId, entityType);
     if (has && !showBanner) {
@@ -68,8 +134,13 @@
     }
   }
 
+  // =============================================================================
+  //  Lifecycle
+  // =============================================================================
+
   onMount(() => {
     checkDeferred();
+    /* Poll every 500ms — lightweight check against in-memory store */
     checkInterval = setInterval(checkDeferred, 500);
   });
 
@@ -77,16 +148,25 @@
     if (checkInterval) clearInterval(checkInterval);
   });
 
+  // =============================================================================
+  //  Action Handlers
+  // =============================================================================
+
+  /**
+   * Applies remote data into the form and clears the deferred-change
+   * record so polling does not re-show the banner.
+   */
   function handleLoadRemote() {
-    // Clear deferred changes from the store so polling doesn't re-show
     remoteChangesStore.clearDeferredChanges(entityId, entityType);
     showBanner = false;
     showPreview = false;
     onLoadRemote();
   }
 
+  /**
+   * Silently dismisses the banner and clears the deferred-change record.
+   */
   function handleDismiss() {
-    // Clear deferred changes from the store so polling doesn't re-show
     remoteChangesStore.clearDeferredChanges(entityId, entityType);
     showBanner = false;
     showPreview = false;
@@ -94,9 +174,10 @@
   }
 </script>
 
-<!-- Always rendered; CSS controls visibility via max-height transition -->
+<!-- Always rendered; CSS controls visibility via grid-template-rows transition -->
 <div class="deferred-banner-wrapper" class:show={showBanner}>
   <div class="deferred-banner">
+    <!-- ═══ Banner Header ═══ -->
     <div class="banner-header">
       <span class="banner-icon">
         <svg
@@ -114,6 +195,8 @@
       </span>
       <span class="banner-text">Changes were made on another device</span>
     </div>
+
+    <!-- ═══ Banner Actions ═══ -->
     <div class="banner-actions">
       <button class="banner-btn update-btn" onclick={handleLoadRemote} type="button">
         Update
@@ -121,6 +204,7 @@
       <button class="banner-btn dismiss-btn" onclick={handleDismiss} type="button">
         Dismiss
       </button>
+      <!-- Toggle to show/hide field-by-field diff preview -->
       {#if diffs.length > 0}
         <button class="toggle-preview" onclick={() => (showPreview = !showPreview)} type="button">
           {showPreview ? 'Hide' : 'Show'} changes
@@ -140,6 +224,7 @@
       {/if}
     </div>
 
+    <!-- ═══ Diff Preview (expandable) ═══ -->
     {#if showPreview && diffs.length > 0}
       <div class="diff-preview">
         {#each diffs as diff (diff.label)}
@@ -156,6 +241,12 @@
 </div>
 
 <style>
+  /* ═══ Banner Wrapper (animated visibility) ═══ */
+
+  /*
+   * Uses `grid-template-rows: 0fr → 1fr` for smooth height animation.
+   * This avoids the need for explicit height values or JS measurement.
+   */
   .deferred-banner-wrapper {
     display: grid;
     grid-template-rows: 0fr;
@@ -170,6 +261,7 @@
     opacity: 1;
   }
 
+  /* Overflow hidden on the inner element enables the grid-row trick */
   .deferred-banner-wrapper > .deferred-banner {
     overflow: hidden;
   }
@@ -179,6 +271,8 @@
       transition: none;
     }
   }
+
+  /* ═══ Banner Container ═══ */
 
   .deferred-banner {
     background: linear-gradient(135deg, rgba(255, 165, 2, 0.12) 0%, rgba(255, 165, 2, 0.06) 100%);
@@ -191,6 +285,7 @@
     animation: bannerGlow 3s ease-in-out infinite;
   }
 
+  /* Subtle pulsing glow to draw attention */
   @keyframes bannerGlow {
     0%,
     100% {
@@ -200,6 +295,8 @@
       box-shadow: 0 0 16px rgba(255, 165, 2, 0.25);
     }
   }
+
+  /* ═══ Header ═══ */
 
   .banner-header {
     display: flex;
@@ -221,6 +318,8 @@
     white-space: nowrap;
   }
 
+  /* ═══ Actions Row ═══ */
+
   .banner-actions {
     display: flex;
     align-items: center;
@@ -228,6 +327,7 @@
     margin-top: 0.5rem;
   }
 
+  /* "Show changes" toggle — pushed to the right via `margin-left: auto` */
   .toggle-preview {
     display: inline-flex;
     align-items: center;
@@ -249,6 +349,7 @@
     color: var(--color-text);
   }
 
+  /* Chevron rotates 180deg when expanded */
   .chevron {
     transition: transform 0.2s var(--ease-smooth);
   }
@@ -256,6 +357,8 @@
   .chevron.expanded {
     transform: rotate(180deg);
   }
+
+  /* ═══ Action Buttons ═══ */
 
   .banner-btn {
     padding: 0.375rem 0.75rem;
@@ -268,6 +371,7 @@
     white-space: nowrap;
   }
 
+  /* Update button — orange theme to match the warning banner */
   .update-btn {
     background: rgba(255, 165, 2, 0.2);
     color: var(--color-orange);
@@ -279,6 +383,7 @@
     box-shadow: 0 0 12px rgba(255, 165, 2, 0.2);
   }
 
+  /* Dismiss button — neutral / muted */
   .dismiss-btn {
     background: rgba(255, 255, 255, 0.05);
     color: var(--color-text-muted);
@@ -290,7 +395,8 @@
     color: var(--color-text);
   }
 
-  /* Diff preview */
+  /* ═══ Diff Preview ═══ */
+
   .diff-preview {
     margin-top: 0.625rem;
     padding-top: 0.625rem;
@@ -313,6 +419,7 @@
     font-weight: 600;
   }
 
+  /* Strikethrough on old value to visually indicate replacement */
   .diff-old {
     color: var(--color-text-muted);
     text-decoration: line-through;
@@ -324,12 +431,14 @@
     font-size: 0.625rem;
   }
 
+  /* New value highlighted in orange to match the banner theme */
   .diff-new {
     color: var(--color-orange);
     font-weight: 600;
   }
 
-  /* Mobile responsive */
+  /* ═══ Mobile Responsive ═══ */
+
   @media (max-width: 480px) {
     .deferred-banner {
       padding: 0.5rem 0.75rem;
@@ -349,6 +458,7 @@
       text-align: center;
     }
 
+    /* Full-width toggle on mobile for easier tap target */
     .toggle-preview {
       flex-basis: 100%;
       justify-content: center;
@@ -357,7 +467,8 @@
     }
   }
 
-  /* Tablet */
+  /* ═══ Tablet ═══ */
+
   @media (min-width: 481px) and (max-width: 900px) {
     .deferred-banner {
       padding: 0.625rem 0.875rem;

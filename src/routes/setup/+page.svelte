@@ -1,33 +1,96 @@
 <script lang="ts">
+  /**
+   * @fileoverview Setup wizard page — first-time Supabase configuration.
+   *
+   * Guides the user through a five-step process to connect their own
+   * Supabase backend to Stellar:
+   *
+   * 1. Create a Supabase project (instructions only).
+   * 2. Configure authentication (enable anonymous sign-ins).
+   * 3. Initialize the database by running the schema SQL.
+   * 4. Enter and validate Supabase credentials (URL + anon key).
+   * 5. Persist configuration via Vercel API (set env vars + redeploy).
+   *
+   * After a successful deploy the page polls for a new service-worker
+   * version — once detected the user is prompted to refresh.
+   *
+   * Access is controlled by the companion `+page.ts` load function:
+   * - Unconfigured → anyone can reach this page (`isFirstSetup: true`).
+   * - Configured → only admin users (`isFirstSetup: false`).
+   */
+
   import { page } from '$app/stores';
   import { setConfig } from '@prabhask5/stellar-engine/config';
   import { isOnline } from '@prabhask5/stellar-engine/stores';
 
-  // Form state
+  // =============================================================================
+  //  Form State — Supabase + Vercel credentials
+  // =============================================================================
+
+  /** Supabase project URL entered by the user */
   let supabaseUrl = $state('');
+
+  /** Supabase public anon key entered by the user */
   let supabaseAnonKey = $state('');
+
+  /** One-time Vercel API token for setting env vars */
   let vercelToken = $state('');
 
-  // UI state
+  // =============================================================================
+  //  UI State — Validation & Deployment feedback
+  // =============================================================================
+
+  /** Whether the "Test Connection" request is in-flight */
   let validating = $state(false);
+
+  /** Whether the deploy/redeploy flow is in-flight */
   let deploying = $state(false);
+
+  /** Error from credential validation, if any */
   let validateError = $state<string | null>(null);
+
+  /** `true` after credentials have been successfully validated */
   let validateSuccess = $state(false);
+
+  /** Error from the deployment step, if any */
   let deployError = $state<string | null>(null);
+
+  /** Current deployment pipeline stage — drives the progress UI */
   let deployStage = $state<'idle' | 'setting-env' | 'deploying' | 'ready'>('idle');
+
+  /** URL returned by Vercel for the triggered deployment (informational) */
   let _deploymentUrl = $state('');
 
-  // Access control from load function
+  // =============================================================================
+  //  Derived State
+  // =============================================================================
+
+  /** Whether this is a first-time setup (public) or admin reconfiguration */
   const isFirstSetup = $derived(($page.data as { isFirstSetup?: boolean }).isFirstSetup ?? false);
 
-  // Track validated credentials to detect changes after validation
+  /**
+   * Snapshot of the credentials at validation time — used to detect
+   * if the user edits the inputs *after* a successful validation.
+   */
   let validatedUrl = $state('');
   let validatedKey = $state('');
+
+  /**
+   * `true` when the user changes credentials after a successful
+   * validation — the "Continue" button should be re-disabled.
+   */
   const credentialsChanged = $derived(
     validateSuccess && (supabaseUrl !== validatedUrl || supabaseAnonKey !== validatedKey)
   );
 
-  // Reset validation when credentials change after successful validation
+  // =============================================================================
+  //  Effects
+  // =============================================================================
+
+  /**
+   * Auto-reset validation state when the user modifies credentials
+   * after they were already validated — forces re-validation.
+   */
   $effect(() => {
     if (credentialsChanged) {
       validateSuccess = false;
@@ -35,6 +98,16 @@
     }
   });
 
+  // =============================================================================
+  //  Validation — "Test Connection"
+  // =============================================================================
+
+  /**
+   * Send the entered Supabase credentials to `/api/setup/validate`
+   * and update UI state based on the result. On success, also
+   * cache the config locally via `setConfig` so the app is usable
+   * immediately after the deployment finishes.
+   */
   async function handleValidate() {
     validateError = null;
     validateSuccess = false;
@@ -53,7 +126,7 @@
         validateSuccess = true;
         validatedUrl = supabaseUrl;
         validatedKey = supabaseAnonKey;
-        // Cache config locally so the app works immediately after deploy
+        /* Cache config locally so the app works immediately after deploy */
         setConfig({
           supabaseUrl,
           supabaseAnonKey,
@@ -69,20 +142,32 @@
     validating = false;
   }
 
+  // =============================================================================
+  //  Deployment Polling
+  // =============================================================================
+
+  /**
+   * Poll for a new service-worker version to detect when the Vercel
+   * redeployment has finished. Checks `registration.update()` every
+   * 3 seconds for up to ~10 minutes.
+   *
+   * A new `installing` or `waiting` SW (different from any pre-existing
+   * one) signals the new build is live.
+   */
   async function pollForDeployment() {
-    const maxAttempts = 200; // 3s * 200 = 10 minutes max
+    const maxAttempts = 200; /* 3s * 200 = 10 minutes max */
     const registration = await navigator.serviceWorker?.getRegistration();
 
-    // If there's already a waiting SW from before, note it so we don't false-positive
+    /* Note any already-waiting SW so we don't false-positive */
     const existingWaiting = registration?.waiting;
 
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise((resolve) => setTimeout(resolve, 3000));
       try {
-        // Force the browser to check for a new service worker version
+        /* Force the browser to check for a new service worker version */
         await registration?.update();
 
-        // A new SW (different from any pre-existing one) means the new build is live
+        /* A new SW (different from any pre-existing one) → build is live */
         if (
           registration?.installing ||
           (registration?.waiting && registration.waiting !== existingWaiting)
@@ -91,13 +176,22 @@
           return;
         }
       } catch {
-        // Network error during poll, keep trying
+        /* Network error during poll — keep trying */
       }
     }
-    // Timed out but deployment was triggered — show ready anyway
+    /* Timed out but deployment was triggered — show ready anyway */
     deployStage = 'ready';
   }
 
+  // =============================================================================
+  //  Deployment — Set env vars + trigger Vercel redeploy
+  // =============================================================================
+
+  /**
+   * Send credentials and the Vercel token to `/api/setup/deploy`,
+   * which sets the environment variables on the Vercel project and
+   * triggers a fresh deployment. Then poll until the new build is live.
+   */
   async function handleDeploy() {
     deployError = null;
     deploying = true;
@@ -115,7 +209,7 @@
       if (data.success) {
         deployStage = 'deploying';
         _deploymentUrl = data.deploymentUrl || '';
-        // Poll /api/config until the new deployment is live with the submitted credentials
+        /* Poll for the new SW version → marks `deployStage = 'ready'` */
         await pollForDeployment();
       } else {
         deployError = data.error || 'Deployment failed';
@@ -134,7 +228,7 @@
   <title>Set Up Stellar Planner</title>
 </svelte:head>
 
-<!-- Cosmic Background -->
+<!-- ═══ Cosmic Background ═══ -->
 <div class="setup-background" class:admin-mode={!isFirstSetup}>
   <div class="stars stars-small"></div>
   <div class="stars stars-medium"></div>
@@ -142,7 +236,7 @@
   <div class="nebula nebula-1"></div>
   <div class="nebula nebula-2"></div>
   <div class="nebula nebula-3"></div>
-  <!-- Orbital System -->
+  <!-- Orbital System — decorative rotating rings -->
   <div class="orbital-system">
     <div class="orbit orbit-1">
       <div class="orbit-particle"></div>
@@ -156,10 +250,10 @@
   </div>
 </div>
 
-<!-- Setup Overlay -->
+<!-- ═══ Setup Overlay ═══ -->
 <div class="setup-overlay" class:admin-mode={!isFirstSetup}>
   <div class="setup-container">
-    <!-- Header -->
+    <!-- ═══ Header — Logo + title ═══ -->
     <div class="setup-header">
       <div class="logo-container">
         <svg
@@ -190,7 +284,7 @@
       <p class="setup-subtitle">Configure Stellar to connect to your own Supabase backend</p>
     </div>
 
-    <!-- Offline Placeholder -->
+    <!-- ═══ Offline Placeholder ═══ -->
     {#if !$isOnline}
       <div class="setup-section">
         <div class="section-content">
@@ -224,7 +318,7 @@
         </div>
       </div>
     {:else}
-      <!-- Security Warning (only on first setup) -->
+      <!-- ═══ Security Warning (first-time setup only) ═══ -->
       {#if isFirstSetup}
         <div class="security-warning">
           <svg
@@ -250,7 +344,7 @@
         </div>
       {/if}
 
-      <!-- Section 1: Create Supabase Project -->
+      <!-- ═══ Section 1 — Create Supabase Project ═══ -->
       <section class="setup-section">
         <div class="section-header">
           <span class="section-number">1</span>
@@ -273,7 +367,7 @@
         </div>
       </section>
 
-      <!-- Section 2: Configure Authentication -->
+      <!-- ═══ Section 2 — Configure Authentication ═══ -->
       <section class="setup-section">
         <div class="section-header">
           <span class="section-number">2</span>
@@ -286,6 +380,7 @@
             </li>
             <li>Enable <strong>Allow anonymous sign-ins</strong></li>
           </ol>
+          <!-- Informational note about SMTP rate limits -->
           <div class="info-note">
             <svg
               width="14"
@@ -309,7 +404,7 @@
         </div>
       </section>
 
-      <!-- Section 3: Initialize Database -->
+      <!-- ═══ Section 3 — Initialize Database ═══ -->
       <section class="setup-section">
         <div class="section-header">
           <span class="section-number">3</span>
@@ -322,6 +417,7 @@
             <li>Copy the entire contents and paste it into the SQL Editor</li>
             <li>Click <strong>Run</strong> to create all tables, RLS policies, and functions</li>
           </ol>
+          <!-- Warning: schema must not be modified -->
           <div class="warning-note">
             <svg
               width="14"
@@ -344,7 +440,7 @@
         </div>
       </section>
 
-      <!-- Section 4: Enter Credentials -->
+      <!-- ═══ Section 4 — Enter & Validate Credentials ═══ -->
       <section class="setup-section">
         <div class="section-header">
           <span class="section-number">4</span>
@@ -355,6 +451,7 @@
             Find these in your Supabase dashboard under <strong>Settings &gt; API</strong>.
           </p>
 
+          <!-- Supabase URL input -->
           <div class="form-group">
             <label for="supabaseUrl">Supabase URL</label>
             <input
@@ -366,6 +463,7 @@
             />
           </div>
 
+          <!-- Supabase anon key input -->
           <div class="form-group">
             <label for="supabaseAnonKey">Supabase Anon Key</label>
             <input
@@ -381,6 +479,7 @@
             >
           </div>
 
+          <!-- Validation feedback messages -->
           {#if validateError}
             <div class="message error">{validateError}</div>
           {/if}
@@ -389,6 +488,7 @@
             <div class="message success">Credentials validated successfully</div>
           {/if}
 
+          <!-- "Test Connection" button -->
           <button
             class="btn btn-secondary"
             onclick={handleValidate}
@@ -408,7 +508,7 @@
         </div>
       </section>
 
-      <!-- Section 5: Persist Configuration -->
+      <!-- ═══ Section 5 — Persist Configuration via Vercel ═══ -->
       <section class="setup-section">
         <div class="section-header">
           <span class="section-number">5</span>
@@ -431,6 +531,7 @@
             <li>Copy the token and paste it below</li>
           </ol>
 
+          <!-- Token usage note — not stored after use -->
           <div class="info-note">
             <svg
               width="14"
@@ -452,6 +553,7 @@
             >
           </div>
 
+          <!-- Vercel token input -->
           <div class="form-group">
             <label for="vercelToken">Vercel API Token</label>
             <input
@@ -463,10 +565,12 @@
             />
           </div>
 
+          <!-- Deploy error feedback -->
           {#if deployError}
             <div class="message error">{deployError}</div>
           {/if}
 
+          <!-- "Continue" (deploy) button — requires validation first -->
           <button
             class="btn btn-primary"
             onclick={handleDeploy}
@@ -482,7 +586,7 @@
         </div>
       </section>
 
-      <!-- Deployment Progress -->
+      <!-- ═══ Deployment Progress Tracker ═══ -->
       {#if deployStage !== 'idle'}
         <section class="setup-section deploy-progress">
           <div class="section-header">
@@ -504,7 +608,9 @@
             <h2 class="section-title">Deployment</h2>
           </div>
           <div class="section-content">
+            <!-- Three-step pipeline: env vars → deploying → ready -->
             <div class="deploy-steps">
+              <!-- Step A: Setting environment variables -->
               <div
                 class="deploy-step"
                 class:active={deployStage === 'setting-env'}
@@ -530,6 +636,8 @@
                 </div>
                 <span>Setting environment variables...</span>
               </div>
+
+              <!-- Step B: Deploying (waiting for new build) -->
               <div
                 class="deploy-step"
                 class:active={deployStage === 'deploying'}
@@ -557,6 +665,8 @@
                 </div>
                 <span>Deploying... (might take a bit)</span>
               </div>
+
+              <!-- Step C: Ready -->
               <div class="deploy-step" class:active={deployStage === 'ready'}>
                 <div class="step-indicator">
                   {#if deployStage === 'ready'}
@@ -580,6 +690,7 @@
               </div>
             </div>
 
+            <!-- Success message when deployment is live -->
             {#if deployStage === 'ready'}
               <div class="message success">
                 Your Stellar instance is configured and the new deployment is live. Use the
@@ -609,7 +720,10 @@
     overflow: hidden;
   }
 
-  /* CSS Starfield */
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     CSS STARFIELD — Three layers at increasing sizes
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   .stars {
     position: absolute;
     inset: 0;
@@ -658,7 +772,10 @@
     }
   }
 
-  /* Nebulae */
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     NEBULAE — Blurred color orbs for ambient depth
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   .nebula {
     position: absolute;
     border-radius: 50%;
@@ -705,7 +822,10 @@
     }
   }
 
-  /* Orbital System */
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     ORBITAL SYSTEM — Decorative rotating rings with particles
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   .orbital-system {
     position: absolute;
     top: 50%;
@@ -751,6 +871,7 @@
     }
   }
 
+  /* Glowing dot positioned at 12-o'clock on each orbit ring */
   .orbit-particle {
     position: absolute;
     width: 4px;
@@ -778,7 +899,7 @@
     padding: 2rem 1rem 4rem;
   }
 
-  /* Admin reconfiguration mode: normal document flow under navbar */
+  /* Admin reconfiguration mode — sits under the navbar instead of overlaying */
   .setup-background.admin-mode {
     z-index: -1;
   }
@@ -798,7 +919,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     HEADER
+     HEADER — Logo + shimmer title
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .setup-header {
@@ -847,7 +968,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     SECURITY WARNING
+     SECURITY WARNING — Amber banner shown during first-time setup
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .security-warning {
@@ -873,7 +994,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     SECTIONS — Glassmorphism cards
+     SECTIONS — Glassmorphism cards with top glow line
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .setup-section {
@@ -889,7 +1010,7 @@
     position: relative;
   }
 
-  /* Top glow line */
+  /* Top glow line — gradient accent at the card's top edge */
   .setup-section::before {
     content: '';
     position: absolute;
@@ -914,6 +1035,7 @@
     padding: 1.25rem 1.5rem 0;
   }
 
+  /* Numbered badge for each section */
   .section-number {
     width: 28px;
     height: 28px;
@@ -950,7 +1072,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     INSTRUCTION LISTS
+     INSTRUCTION LISTS — Numbered steps within each section
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .instruction-list {
@@ -995,7 +1117,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     INFO & WARNING NOTES
+     INFO & WARNING NOTES — Inline callout boxes
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .info-note {
@@ -1036,7 +1158,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     FORM STYLES
+     FORM STYLES — Input fields, labels, hints
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .form-group {
@@ -1087,7 +1209,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     MESSAGES
+     MESSAGES — Error (red) and success (green) feedback banners
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .message {
@@ -1115,7 +1237,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     BUTTONS
+     BUTTONS — Primary (gradient) & secondary (outline) styles
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .btn {
@@ -1162,6 +1284,10 @@
     box-shadow: none !important;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     LOADING SPINNER — Rotating border animation
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
   .loading-spinner {
     width: 18px;
     height: 18px;
@@ -1189,7 +1315,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     DEPLOYMENT PROGRESS
+     DEPLOYMENT PROGRESS — Three-step pipeline tracker
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .deploy-steps {
@@ -1208,11 +1334,13 @@
     transition: all 0.3s;
   }
 
+  /* Active step — highlighted in primary color */
   .deploy-step.active {
     opacity: 1;
     color: var(--color-primary-light, #a78bfa);
   }
 
+  /* Completed step — green */
   .deploy-step.complete {
     opacity: 1;
     color: #26de81;
@@ -1227,6 +1355,7 @@
     flex-shrink: 0;
   }
 
+  /* Inactive dot placeholder before a step begins */
   .step-dot {
     width: 8px;
     height: 8px;
@@ -1235,7 +1364,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     OFFLINE PLACEHOLDER
+     OFFLINE PLACEHOLDER — Shown when navigator is offline
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   .offline-message {
@@ -1264,7 +1393,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     RESPONSIVE
+     RESPONSIVE — Mobile & tablet breakpoints
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @media (max-width: 640px) {
@@ -1294,7 +1423,7 @@
     }
   }
 
-  /* iPhone SE */
+  /* iPhone SE — extra compact layout */
   @media (max-width: 375px) {
     .setup-overlay {
       padding: 0.75rem 0.5rem 2rem;
@@ -1318,7 +1447,7 @@
     }
   }
 
-  /* iPhone 16 Pro (402px) */
+  /* iPhone 16 Pro (~402px) */
   @media (min-width: 400px) and (max-width: 430px) {
     .setup-overlay {
       padding: 1.25rem 1rem 3rem;
@@ -1337,7 +1466,7 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
-     REDUCED MOTION
+     REDUCED MOTION — Respect prefers-reduced-motion preference
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @media (prefers-reduced-motion: reduce) {

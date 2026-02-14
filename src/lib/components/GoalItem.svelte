@@ -1,85 +1,193 @@
 <script lang="ts">
+  /**
+   * @fileoverview GoalItem — single goal row with interactive controls and celebration effects.
+   *
+   * Renders one goal in a list — supports three goal types:
+   * - **completion** — binary checkbox (done / not done).
+   * - **incremental** — +/- buttons with a numeric `current/target` display.
+   * - **progressive** — same controls as incremental (progressive just changes
+   *   how the target increases over the routine's lifespan).
+   *
+   * Key behaviours:
+   * - The progress bar fills proportionally and changes colour via
+   *   `getProgressColor` / `getOverflowColor`.
+   * - When `progress > 100%` the component enters a "celebrating" state with
+   *   escalating visual effects: shimmer, pulse rings, orbiting sparks,
+   *   star icons, particle burst, and energy arcs — all intensity-scaled
+   *   by `celebrationIntensity`.
+   * - Clicking the numeric value opens an inline `<input>` to set an
+   *   arbitrary value (clamped to >= 0, overflow above target is allowed).
+   * - `triggerLocalAnimation` provides immediate feedback on toggle / increment.
+   * - `remoteChangeAnimation` highlights rows updated by another device.
+   * - On mobile, the delete button moves from row 1 to the name row for
+   *   better touch ergonomics.
+   */
+
   import { getProgressColor, calculateGoalProgress, getOverflowColor } from '$lib/utils/colors';
   import { remoteChangeAnimation, triggerLocalAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
   import type { Goal, DailyRoutineGoal, DailyGoalProgress } from '$lib/types';
 
+  // =============================================================================
+  //                                  Props
+  // =============================================================================
+
   interface Props {
+    /** The goal data — either a standalone `Goal` or a `DailyRoutineGoal` with optional progress */
     goal: Goal | (DailyRoutineGoal & { progress?: DailyGoalProgress });
+    /** Toggle completion (completion-type goals) */
     onToggleComplete?: () => void;
+    /** Increment current value by 1 (incremental/progressive goals) */
     onIncrement?: () => void;
+    /** Decrement current value by 1 */
     onDecrement?: () => void;
+    /** Set an arbitrary current value (via inline edit) */
     onSetValue?: (value: number) => void;
+    /** Open the edit form for this goal */
     onEdit?: () => void;
+    /** Delete this goal */
     onDelete?: () => void;
   }
 
   let { goal, onToggleComplete, onIncrement, onDecrement, onSetValue, onEdit, onDelete }: Props =
     $props();
 
-  // Determine entity type for remote change tracking
+  // =============================================================================
+  //                      Entity Type for Remote Tracking
+  // =============================================================================
+
+  /** Determines whether this is a `goals` or `daily_routine_goals` entity for remote animations */
   const entityType = $derived('goal_list_id' in goal ? 'goals' : 'daily_routine_goals');
 
+  // =============================================================================
+  //                      Element Reference (for animations)
+  // =============================================================================
+
+  /** DOM reference for the goal row — used by `triggerLocalAnimation` */
   let element: HTMLElement;
 
+  // =============================================================================
+  //                          Event Handlers
+  // =============================================================================
+
+  /**
+   * Toggle completion with an immediate local animation.
+   */
   function handleToggle() {
     triggerLocalAnimation(element, 'toggle');
     onToggleComplete?.();
   }
 
+  /**
+   * Increment value with an immediate local animation.
+   */
   function handleIncrement() {
     triggerLocalAnimation(element, 'increment');
     onIncrement?.();
   }
 
+  /**
+   * Decrement value with an immediate local animation.
+   */
   function handleDecrement() {
     triggerLocalAnimation(element, 'decrement');
     onDecrement?.();
   }
 
-  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
+  // =============================================================================
+  //                          Utility Actions
+  // =============================================================================
+
+  /**
+   * Auto-focus action — skipped on mobile to avoid keyboard popup.
+   * @param {HTMLElement} node - Element to focus
+   */
   function focus(node: HTMLElement) {
     if (window.innerWidth > 640) {
       node.focus();
     }
   }
 
+  // =============================================================================
+  //                          Inline Value Editing
+  // =============================================================================
+
+  /** Whether the inline value input is visible */
   let editing = $state(false);
+  /** Temporary buffer for the value being edited */
   let inputValue = $state('');
 
-  // Handle both Goal and DailyRoutineGoal with progress
+  // =============================================================================
+  //                    Derived — Goal Value Resolution
+  // =============================================================================
+
+  /** Whether this is a standalone goal (vs. a daily-routine goal) */
   const isRegularGoal = $derived('goal_list_id' in goal);
+
+  /** Raw current value — resolved differently for Goal vs DailyRoutineGoal */
   const rawCurrentValue = $derived(
     isRegularGoal
       ? (goal as Goal).current_value
       : ((goal as DailyRoutineGoal & { progress?: DailyGoalProgress }).progress?.current_value ?? 0)
   );
-  // Allow overflow - don't cap current value
+
+  /** Current value (overflow allowed — NOT capped at target) */
   const currentValue = $derived(rawCurrentValue);
+
+  /** Whether this goal is marked as completed */
   const completed = $derived(
     isRegularGoal
       ? (goal as Goal).completed
       : ((goal as DailyRoutineGoal & { progress?: DailyGoalProgress }).progress?.completed ?? false)
   );
 
+  // =============================================================================
+  //                    Derived — Progress & Colour
+  // =============================================================================
+
+  /** Progress percentage (can exceed 100 for overflow) */
   const progress = $derived(
     calculateGoalProgress(goal.type, completed, currentValue, goal.target_value)
   );
-  // Use overflow color for >100%, regular progress color otherwise
+
+  /**
+   * Bar colour — switches to the overflow palette when progress exceeds 100%.
+   * Regular progress uses green-to-purple gradient; overflow adds gold / hot-pink.
+   */
   const progressColor = $derived(
     progress > 100 ? getOverflowColor(progress) : getProgressColor(progress)
   );
 
-  // Celebration state for overflow
+  // =============================================================================
+  //                    Derived — Celebration Effects
+  // =============================================================================
+
+  /** Whether the goal has exceeded its target (triggers visual celebration) */
   const isCelebrating = $derived(progress > 100);
+
+  /**
+   * Intensity scalar (0..1) that controls the magnitude of celebration effects.
+   * Reaches 1.0 at 200% progress.
+   */
   const celebrationIntensity = $derived(progress <= 100 ? 0 : Math.min(1, (progress - 100) / 100));
 
+  // =============================================================================
+  //                    Inline Value Edit Handlers
+  // =============================================================================
+
+  /**
+   * Enter inline-editing mode for the current value.
+   */
   function startEditing() {
     if (!onSetValue) return;
     inputValue = String(currentValue);
     editing = true;
   }
 
+  /**
+   * Handle keystrokes in the value input — Enter commits, Escape cancels.
+   * @param {KeyboardEvent} e - The keydown event
+   */
   function handleInputKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter') {
       commitValue();
@@ -88,16 +196,22 @@
     }
   }
 
+  /**
+   * Commit the edited value (clamped to >= 0; overflow above target is allowed).
+   */
   function commitValue() {
     editing = false;
     const parsed = parseInt(inputValue, 10);
     if (!isNaN(parsed) && parsed !== currentValue && onSetValue) {
-      // Only prevent negative values - allow overflow above target
       const clamped = Math.max(0, parsed);
       onSetValue(clamped);
     }
   }
 </script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Template — Goal Item Row
+     ═══════════════════════════════════════════════════════════════════════════ -->
 
 <div
   bind:this={element}
@@ -108,9 +222,10 @@
   use:remoteChangeAnimation={{ entityId: goal.id, entityType }}
 >
   <div class="goal-content">
-    <!-- Row 1: Controls and actions -->
+    <!-- ═══ Row 1: Controls + Action Buttons ═══ -->
     <div class="goal-row">
       {#if goal.type === 'completion'}
+        <!-- Completion checkbox -->
         <button
           class="checkbox"
           class:checked={completed}
@@ -125,6 +240,7 @@
           {/if}
         </button>
       {:else}
+        <!-- Incremental / Progressive — decrement, value, increment -->
         <div class="increment-controls">
           <button class="increment-btn" onclick={handleDecrement} aria-label="Decrement">−</button>
           {#if editing}
@@ -152,6 +268,7 @@
         </div>
       {/if}
 
+      <!-- Edit / Delete action buttons -->
       <div class="goal-actions">
         {#if onEdit}
           <button class="action-btn" onclick={onEdit} aria-label="Edit goal">✎</button>
@@ -164,7 +281,7 @@
       </div>
     </div>
 
-    <!-- Row 2: Goal name (+ delete on mobile) -->
+    <!-- ═══ Row 2: Goal Name (+ mobile delete) ═══ -->
     <div class="name-row">
       <span
         class="goal-name"
@@ -173,6 +290,7 @@
       >
         {goal.name}
       </span>
+      <!-- Delete button duplicated here for mobile layout -->
       {#if onDelete}
         <button
           class="action-btn delete name-row-delete"
@@ -182,13 +300,14 @@
       {/if}
     </div>
 
+    <!-- ═══ Row 3: Progress Bar + Celebration Effects (incremental / progressive only) ═══ -->
     {#if goal.type === 'incremental' || goal.type === 'progressive'}
-      <!-- Row 3: Progress bar full width -->
       <div
         class="mini-progress-wrapper"
         class:celebrating={isCelebrating}
         style="--glow-color: {progressColor}; --celebration-intensity: {celebrationIntensity}"
       >
+        <!-- Pulse rings — appear at moderate overflow -->
         {#if celebrationIntensity > 0.3}
           <div class="pulse-ring pulse-ring-1"></div>
           {#if celebrationIntensity > 0.6}
@@ -196,17 +315,20 @@
           {/if}
         {/if}
 
+        <!-- The actual progress bar -->
         <div class="mini-progress" class:celebrating={isCelebrating}>
           <div
             class="mini-progress-fill"
             class:celebrating={isCelebrating}
             style="width: {Math.min(100, progress)}%; background-color: {progressColor}"
           ></div>
+          <!-- Shimmer overlay — sweeps across the bar when celebrating -->
           {#if isCelebrating}
             <div class="shimmer-overlay"></div>
           {/if}
         </div>
 
+        <!-- Particle burst — intensity-scaled count of radiating dots -->
         {#if celebrationIntensity > 0.1}
           <div class="particle-burst">
             {#each Array(Math.floor(celebrationIntensity * 8)) as _, i (i)}
@@ -219,6 +341,7 @@
           </div>
         {/if}
 
+        <!-- Orbiting sparks — appear at high overflow -->
         {#if celebrationIntensity > 0.5}
           <div class="orbit-spark orbit-1"></div>
           {#if celebrationIntensity > 0.75}
@@ -226,6 +349,7 @@
           {/if}
         {/if}
 
+        <!-- Decorative overflow stars -->
         {#if isCelebrating}
           <span class="overflow-star star-1">✦</span>
           {#if celebrationIntensity > 0.4}
@@ -236,6 +360,7 @@
           {/if}
         {/if}
 
+        <!-- Energy arc crackle effects at extreme overflow -->
         {#if celebrationIntensity > 0.6}
           <div class="energy-arc arc-1"></div>
           {#if celebrationIntensity > 0.85}
@@ -247,7 +372,13 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Styles
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <style>
+  /* ═══ Goal Item Container ═══ */
+
   .goal-item {
     padding: 1.25rem 1.75rem;
     background: linear-gradient(135deg, rgba(15, 15, 30, 0.95) 0%, rgba(20, 20, 40, 0.9) 100%);
@@ -289,7 +420,7 @@
     );
   }
 
-  /* Subtle nebula glow */
+  /* Subtle nebula glow (appears on hover) */
   .goal-item::after {
     content: '';
     position: absolute;
@@ -321,7 +452,8 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
-  /* Celebration effects for overflow */
+  /* ═══ Celebration Effects (overflow > 100%) ═══ */
+
   .goal-item.celebrating {
     border-color: color-mix(in srgb, var(--glow-color) 40%, rgba(108, 92, 231, 0.15));
     box-shadow:
@@ -343,6 +475,8 @@
     );
   }
 
+  /* ═══ Goal Row (controls + actions) ═══ */
+
   .goal-row {
     display: flex;
     align-items: center;
@@ -351,6 +485,8 @@
     min-width: 0;
   }
 
+  /* ═══ Progress Bar Wrapper ═══ */
+
   .mini-progress-wrapper {
     position: relative;
     width: 100%;
@@ -358,6 +494,8 @@
     margin: 0;
     flex-shrink: 0;
   }
+
+  /* ═══ Completion Checkbox ═══ */
 
   .checkbox {
     width: 32px;
@@ -373,7 +511,7 @@
     cursor: pointer;
   }
 
-  /* Glow behind checkbox */
+  /* Glow behind checkbox on hover */
   .checkbox::before {
     content: '';
     position: absolute;
@@ -429,6 +567,8 @@
     }
   }
 
+  /* ═══ Increment Controls ═══ */
+
   .increment-controls {
     display: flex;
     align-items: center;
@@ -470,6 +610,8 @@
     box-shadow: 0 0 15px var(--color-primary-glow);
   }
 
+  /* ═══ Current Value Display ═══ */
+
   .current-value {
     font-weight: 800;
     font-size: 1rem;
@@ -496,6 +638,8 @@
     cursor: default;
   }
 
+  /* ═══ Inline Value Input ═══ */
+
   .value-input {
     min-width: 4.5rem;
     width: 4.5rem;
@@ -514,6 +658,7 @@
     font-family: var(--font-mono);
   }
 
+  /* Hide native number spinner */
   .value-input::-webkit-inner-spin-button,
   .value-input::-webkit-outer-spin-button {
     -webkit-appearance: none;
@@ -525,6 +670,8 @@
     appearance: textfield;
   }
 
+  /* ═══ Name Row ═══ */
+
   .name-row {
     display: flex;
     align-items: center;
@@ -532,7 +679,7 @@
     min-width: 0;
   }
 
-  /* Desktop: delete in row 1, hidden beside name */
+  /* Desktop: delete lives in row 1 — hidden beside name */
   .name-row-delete {
     display: none;
   }
@@ -556,12 +703,16 @@
     filter: blur(0.5px);
   }
 
+  /* ═══ Action Buttons (edit / delete) ═══ */
+
   .goal-actions {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     flex-shrink: 0;
   }
+
+  /* ═══ Celebrating Progress Wrapper Glow ═══ */
 
   .mini-progress-wrapper.celebrating {
     filter: drop-shadow(0 0 calc(4px + var(--celebration-intensity, 0) * 12px) var(--glow-color));
@@ -577,6 +728,8 @@
       filter: drop-shadow(0 0 calc(8px + var(--celebration-intensity, 0) * 20px) var(--glow-color));
     }
   }
+
+  /* ═══ Progress Bar ═══ */
 
   .mini-progress {
     width: 100%;
@@ -602,6 +755,7 @@
     overflow: hidden;
   }
 
+  /* Glass-like highlight on top half of the fill bar */
   .mini-progress-fill::after {
     content: '';
     position: absolute;
@@ -631,6 +785,8 @@
     }
   }
 
+  /* ═══ Shimmer Overlay ═══ */
+
   .shimmer-overlay {
     position: absolute;
     top: 0;
@@ -657,7 +813,8 @@
     }
   }
 
-  /* Pulse rings - positioned at right end of bar */
+  /* ═══ Pulse Rings (at right end of bar) ═══ */
+
   .pulse-ring {
     position: absolute;
     top: 50%;
@@ -695,7 +852,8 @@
     }
   }
 
-  /* Particle burst - at right end of bar */
+  /* ═══ Particle Burst ═══ */
+
   .particle-burst {
     position: absolute;
     top: 50%;
@@ -729,7 +887,8 @@
     }
   }
 
-  /* Orbiting sparks - at right end of bar */
+  /* ═══ Orbiting Sparks ═══ */
+
   .orbit-spark {
     position: absolute;
     top: 50%;
@@ -765,7 +924,8 @@
     }
   }
 
-  /* Multiple overflow stars - positioned at right end of bar */
+  /* ═══ Overflow Stars ═══ */
+
   .overflow-star {
     position: absolute;
     font-size: 10px;
@@ -835,7 +995,8 @@
     animation-name: starPulseAlt;
   }
 
-  /* Energy arcs - positioned at right end of bar */
+  /* ═══ Energy Arcs ═══ */
+
   .energy-arc {
     position: absolute;
     width: 2px;
@@ -883,6 +1044,8 @@
     }
   }
 
+  /* ═══ Action Buttons ═══ */
+
   .action-btn {
     width: 48px;
     height: 48px;
@@ -912,6 +1075,8 @@
     box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
   }
 
+  /* ═══ Mobile Adjustments ═══ */
+
   @media (max-width: 480px) {
     .goal-item {
       padding: 1rem 1.125rem;
@@ -922,7 +1087,7 @@
       flex-shrink: 0;
     }
 
-    /* Increment buttons — compact but still 44px touch target */
+    /* Compact increment buttons — still 44px touch target via ::after */
     .increment-btn {
       width: 28px;
       height: 28px;
@@ -937,7 +1102,6 @@
       inset: -8px;
     }
 
-    /* Value display */
     .current-value {
       min-width: 2.75rem;
       font-size: 0.8125rem;
@@ -962,7 +1126,6 @@
       flex-shrink: 0;
     }
 
-    /* Action buttons */
     .action-btn {
       width: 36px;
       height: 36px;
@@ -1022,7 +1185,8 @@
     }
   }
 
-  /* Reduced motion */
+  /* ═══ Reduced Motion ═══ */
+
   @media (prefers-reduced-motion: reduce) {
     .mini-progress-wrapper.celebrating,
     .mini-progress.celebrating,

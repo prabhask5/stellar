@@ -1,14 +1,50 @@
 <script lang="ts">
+  /**
+   * @fileoverview UpdatePrompt — service-worker update notification banner.
+   *
+   * Monitors the service worker lifecycle to detect when a new version of
+   * Stellar has been installed but is waiting to activate. When detected,
+   * a fixed-position toast slides up from the bottom of the screen offering
+   * two actions:
+   *   - **Refresh** — sends `SKIP_WAITING` to the new worker, waits for
+   *     `controllerchange`, then reloads the page
+   *   - **Later** — dismisses the toast (the update will apply on next visit)
+   *
+   * Detection strategy (covers all major browsers and iOS PWA quirks):
+   *   1. Check for `registration.waiting` immediately on mount
+   *   2. Retry after 1s and 3s (iOS PWA sometimes delays worker state)
+   *   3. Listen for `SW_INSTALLED` messages from the worker
+   *   4. Listen for `updatefound` → `statechange` on new workers
+   *   5. Re-check on `visibilitychange` (critical for iOS PWA resume)
+   *   6. Poll for updates every 2 minutes via `registration.update()`
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import { browser } from '$app/environment';
   import { onMount } from 'svelte';
   import { debug } from '@prabhask5/stellar-engine/utils';
 
+  // =============================================================================
+  //  Component State
+  // =============================================================================
+
+  /** Whether the update toast is visible */
   let showPrompt = $state(false);
+
+  // =============================================================================
+  //  Service Worker Monitoring (runs only in browser)
+  // =============================================================================
 
   onMount(() => {
     if (!browser || !navigator.serviceWorker) return;
 
-    // Function to check for waiting worker
+    /**
+     * Queries the SW registration for a waiting worker and shows
+     * the prompt if one is found.
+     */
     function checkForWaitingWorker() {
       navigator.serviceWorker.getRegistration().then((registration) => {
         if (registration?.waiting) {
@@ -18,31 +54,31 @@
       });
     }
 
-    // Check immediately on mount
+    /* Check immediately on mount */
     checkForWaitingWorker();
 
-    // Also check after a short delay (iOS PWA sometimes needs this)
+    /* Retry after delays — iOS PWA sometimes needs extra time */
     setTimeout(checkForWaitingWorker, 1000);
     setTimeout(checkForWaitingWorker, 3000);
 
-    // Listen for messages from service worker
+    /* Listen for messages from the service worker */
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data?.type === 'SW_INSTALLED') {
         debug('log', '[UpdatePrompt] Received SW_INSTALLED message');
-        // Small delay to ensure the worker is in waiting state
+        /* Small delay to ensure the worker is in waiting state */
         setTimeout(checkForWaitingWorker, 500);
       }
     });
 
-    // Listen for new service worker becoming available
+    /* Listen for new service worker becoming available */
     navigator.serviceWorker.ready.then((registration) => {
-      // Check if there's already a waiting worker
+      /* Check if there's already a waiting worker */
       if (registration.waiting) {
         debug('log', '[UpdatePrompt] Waiting worker found on ready');
         showPrompt = true;
       }
 
-      // Listen for update found
+      /* Listen for update found → track new worker's state changes */
       registration.addEventListener('updatefound', () => {
         debug('log', '[UpdatePrompt] Update found');
         const newWorker = registration.installing;
@@ -50,7 +86,7 @@
           newWorker.addEventListener('statechange', () => {
             debug('log', '[UpdatePrompt] New worker state:', newWorker.state);
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New service worker is ready but waiting
+              /* New service worker is ready but waiting to activate */
               showPrompt = true;
             }
           });
@@ -58,19 +94,19 @@
       });
     });
 
-    // Check for updates when app becomes visible (critical for iOS PWA)
+    /* Re-check when app becomes visible — critical for iOS PWA resume */
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         debug('log', '[UpdatePrompt] App became visible, checking for updates');
         navigator.serviceWorker.ready.then((registration) => {
           registration.update();
         });
-        // Also check for waiting worker
+        /* Also check for waiting worker after a brief delay */
         setTimeout(checkForWaitingWorker, 1000);
       }
     });
 
-    // Check for updates periodically (every 2 minutes)
+    /* Periodic update check every 2 minutes */
     setInterval(
       () => {
         navigator.serviceWorker.ready.then((registration) => {
@@ -80,23 +116,32 @@
       2 * 60 * 1000
     );
 
-    // Force an update check on page load
+    /* Force an update check on page load */
     navigator.serviceWorker.ready.then((registration) => {
       registration.update();
     });
   });
 
+  // =============================================================================
+  //  Action Handlers
+  // =============================================================================
+
+  /** Guard flag to prevent double-reload */
   let reloading = false;
 
+  /**
+   * Instructs the waiting service worker to take over via `SKIP_WAITING`,
+   * then reloads the page once the new controller is active.
+   */
   async function handleRefresh() {
     if (reloading) return;
     reloading = true;
     showPrompt = false;
 
-    // Tell the waiting service worker to take over
+    /* Tell the waiting service worker to take over */
     const registration = await navigator.serviceWorker?.getRegistration();
     if (registration?.waiting) {
-      // Listen for the new SW to take control, then reload
+      /* Listen for the new SW to take control, then reload */
       navigator.serviceWorker.addEventListener(
         'controllerchange',
         () => {
@@ -107,20 +152,25 @@
 
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     } else {
-      // No waiting worker, just reload
+      /* No waiting worker found — just reload */
       window.location.reload();
     }
   }
 
+  /**
+   * Dismisses the update prompt without applying the update.
+   * The new worker will activate on the next page visit.
+   */
   function handleDismiss() {
     showPrompt = false;
   }
 </script>
 
-<!-- Update prompt is now mostly automatic, but keep UI as fallback -->
+<!-- ═══ Update Toast ═══ -->
 {#if showPrompt}
   <div class="update-prompt">
     <div class="update-content">
+      <!-- Spinning refresh icon -->
       <span class="update-icon">
         <svg
           width="20"
@@ -136,6 +186,8 @@
       </span>
       <span class="update-text">A new version of this page is available</span>
     </div>
+
+    <!-- Action buttons -->
     <div class="update-actions">
       <button class="update-btn dismiss" onclick={handleDismiss}>Later</button>
       <button class="update-btn refresh" onclick={handleRefresh}>Refresh</button>
@@ -144,6 +196,8 @@
 {/if}
 
 <style>
+  /* ═══ Toast Container ═══ */
+
   .update-prompt {
     position: fixed;
     bottom: 1.5rem;
@@ -164,6 +218,7 @@
     animation: slideUp 0.4s var(--ease-bounce);
   }
 
+  /* Top glow line accent */
   .update-prompt::before {
     content: '';
     position: absolute;
@@ -185,12 +240,15 @@
     }
   }
 
+  /* ═══ Content ═══ */
+
   .update-content {
     display: flex;
     align-items: center;
     gap: 0.75rem;
   }
 
+  /* Spinning refresh icon with purple glow */
   .update-icon {
     color: var(--color-primary);
     display: flex;
@@ -213,6 +271,8 @@
     color: var(--color-text);
   }
 
+  /* ═══ Action Buttons ═══ */
+
   .update-actions {
     display: flex;
     gap: 0.625rem;
@@ -232,6 +292,7 @@
     transform: translateY(-2px);
   }
 
+  /* "Later" dismiss button — muted */
   .update-btn.dismiss {
     background: rgba(37, 37, 61, 0.8);
     color: var(--color-text-muted);
@@ -243,6 +304,7 @@
     border-color: rgba(108, 92, 231, 0.4);
   }
 
+  /* "Refresh" primary action button */
   .update-btn.refresh {
     background: var(--gradient-primary);
     color: white;
@@ -252,6 +314,8 @@
   .update-btn.refresh:hover {
     box-shadow: 0 6px 25px var(--color-primary-glow);
   }
+
+  /* ═══ Mobile Responsive ═══ */
 
   @media (max-width: 640px) {
     .update-prompt {
@@ -285,6 +349,7 @@
     }
   }
 
+  /* Separate mobile slide-up animation (no horizontal transform) */
   @keyframes slideUpMobile {
     from {
       transform: translateY(100%);

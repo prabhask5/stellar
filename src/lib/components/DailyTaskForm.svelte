@@ -1,13 +1,44 @@
 <script lang="ts">
+  /**
+   * @fileoverview DailyTaskForm — inline form for quickly adding a new daily task.
+   *
+   * Renders a single-line text input with a submit button. On submission the
+   * input is cleared and re-focused for rapid sequential entry. The `Enter`
+   * key submits (unless Shift is held) and the button is disabled when the
+   * input is empty.
+   */
+
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Callback fired with the trimmed task name on valid submission */
     onSubmit: (name: string) => void;
   }
 
+  // =============================================================================
+  //  Component State
+  // =============================================================================
+
   let { onSubmit }: Props = $props();
 
+  /** Current text value of the input field */
   let name = $state('');
+
+  /** Reference to the `<input>` element — used for re-focus after submit */
   let inputEl: HTMLInputElement;
 
+  // =============================================================================
+  //  Event Handlers
+  // =============================================================================
+
+  /**
+   * Handles form submission. Guards against blank input, invokes the
+   * callback with the trimmed name, then resets and re-focuses the field.
+   *
+   * @param {Event} e — the `submit` event from the `<form>`
+   */
   function handleSubmit(e: Event) {
     e.preventDefault();
     if (!name.trim()) return;
@@ -16,6 +47,11 @@
     inputEl?.focus();
   }
 
+  /**
+   * Allows `Enter` (without Shift) to submit the form from the input.
+   *
+   * @param {KeyboardEvent} e — keydown event on the text input
+   */
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
       handleSubmit(e);
@@ -23,7 +59,9 @@
   }
 </script>
 
+<!-- ═══ Task Creation Form ═══ -->
 <form class="task-form" onsubmit={handleSubmit}>
+  <!-- Text input — bound to `name` state -->
   <input
     bind:this={inputEl}
     bind:value={name}
@@ -32,6 +70,8 @@
     class="task-input"
     onkeydown={handleKeydown}
   />
+
+  <!-- Submit button — disabled when input is blank -->
   <button type="submit" class="add-btn" disabled={!name.trim()} aria-label="Add task">
     <svg
       width="18"
@@ -49,11 +89,15 @@
 </form>
 
 <style>
+  /* ═══ Form Layout ═══ */
+
   .task-form {
     display: flex;
     gap: 0.5rem;
     align-items: center;
   }
+
+  /* ═══ Text Input ═══ */
 
   .task-input {
     flex: 1;
@@ -71,12 +115,15 @@
     opacity: 0.6;
   }
 
+  /* Focus ring — purple glow to match Stellar theme */
   .task-input:focus {
     outline: none;
     border-color: var(--color-primary);
     box-shadow: 0 0 20px var(--color-primary-glow);
     background: rgba(20, 20, 40, 0.9);
   }
+
+  /* ═══ Add Button ═══ */
 
   .add-btn {
     width: 42px;

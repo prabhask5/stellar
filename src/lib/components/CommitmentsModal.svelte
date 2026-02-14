@@ -1,61 +1,143 @@
 <script lang="ts">
+  /**
+   * @fileoverview CommitmentsModal — modal for managing user commitments.
+   *
+   * Commitments are organised into three sections: **Career**, **Personal**,
+   * and **Projects**.  The first two are user-managed (add, edit, delete,
+   * reorder); the Projects section is auto-populated by active projects and
+   * cannot be edited from here.
+   *
+   * Key behaviours:
+   * - Inline add form with Enter / Escape keyboard shortcuts.
+   * - Double-click a commitment name to edit it inline.
+   * - Pointer-event based drag-and-drop reordering (works on touch + mouse).
+   * - Drop indicator lines animate above/below the target position.
+   * - Project-owned commitments display a star icon and are read-only.
+   * - `remoteChangeAnimation` highlights items updated by another device.
+   */
+
   import Modal from './Modal.svelte';
   import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
   import { calculateNewOrder } from '@prabhask5/stellar-engine/utils';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
   import type { Commitment, CommitmentSection } from '$lib/types';
 
+  // =============================================================================
+  //                                  Props
+  // =============================================================================
+
   interface Props {
+    /** Whether the modal is currently visible */
     open: boolean;
+    /** Full list of commitments across all sections */
     commitments: Commitment[];
+    /** Close the modal */
     onClose: () => void;
+    /** Create a new commitment with the given name in the specified section */
     onCreate: (name: string, section: CommitmentSection) => void;
+    /** Rename an existing commitment */
     onUpdate: (id: string, name: string) => void;
+    /** Delete a commitment by ID */
     onDelete: (id: string) => void;
+    /** Move a commitment to a new position via its `order` field */
     onReorder: (id: string, newOrder: number) => void;
   }
 
   let { open, commitments, onClose, onCreate, onUpdate, onDelete, onReorder }: Props = $props();
 
-  // Focus action for accessibility (skip on mobile to avoid keyboard popup)
+  // =============================================================================
+  //                          Utility Actions
+  // =============================================================================
+
+  /**
+   * Svelte action — auto-focuses on desktop; skipped on mobile to prevent
+   * keyboard popup.
+   * @param {HTMLElement} node - Element to focus
+   */
   function focus(node: HTMLElement) {
     if (window.innerWidth > 640) {
       node.focus();
     }
   }
 
+  // =============================================================================
+  //                              Constants
+  // =============================================================================
+
+  /** The three commitment sections rendered in order */
   const sections: { key: CommitmentSection; label: string }[] = [
     { key: 'career', label: 'CAREER' },
     { key: 'personal', label: 'PERSONAL' },
     { key: 'projects', label: 'PROJECTS' }
   ];
 
-  // Check if a commitment is project-owned (cannot be edited/deleted independently)
+  // =============================================================================
+  //                          Helper Functions
+  // =============================================================================
+
+  /**
+   * Check if a commitment is owned by a project (cannot be edited/deleted).
+   * @param {Commitment} commitment - The commitment to check
+   * @returns {boolean} `true` if project-owned
+   */
   function isProjectOwned(commitment: Commitment): boolean {
     return !!commitment.project_id;
   }
 
+  // =============================================================================
+  //                         Add / Edit State
+  // =============================================================================
+
+  /** Which section is currently showing the inline add form (`null` = none) */
   let addingTo = $state<CommitmentSection | null>(null);
+  /** Text value for the inline add input */
   let newName = $state('');
+  /** ID of the commitment currently being edited inline (`null` = none) */
   let editingId = $state<string | null>(null);
+  /** Text value for the inline edit input */
   let editingName = $state('');
 
-  // Drag state — pointer-event based (works on touch + mouse)
+  // =============================================================================
+  //                         Drag State
+  // =============================================================================
+
+  /** ID of the commitment currently being dragged (`null` = no drag) */
   let draggedId = $state<string | null>(null);
+  /** Section the dragged item belongs to */
   let draggedSection = $state<CommitmentSection | null>(null);
+  /** Original index of the dragged item within its section */
   let draggedIndex = $state<number>(-1);
+  /** Index where the item would be dropped (used for indicator rendering) */
   let dropTargetIndex = $state<number>(-1);
+  /** Refs to section list containers for hit-testing during drag */
   let sectionListEls: Record<string, HTMLDivElement> = {};
 
+  // =============================================================================
+  //                       Section / CRUD Helpers
+  // =============================================================================
+
+  /**
+   * Filter and sort commitments belonging to a given section by their `order`.
+   * @param {CommitmentSection} section - Section key
+   * @returns {Commitment[]} Sorted commitments for that section
+   */
   function getCommitmentsForSection(section: CommitmentSection): Commitment[] {
     return commitments.filter((c) => c.section === section).sort((a, b) => a.order - b.order);
   }
 
+  /**
+   * Show the inline add form for a section.
+   * @param {CommitmentSection} section - Target section
+   */
   function handleAddClick(section: CommitmentSection) {
     addingTo = section;
     newName = '';
   }
 
+  /**
+   * Submit the inline add form — creates a new commitment.
+   * @param {CommitmentSection} section - Target section
+   */
   function handleAddSubmit(section: CommitmentSection) {
     if (!newName.trim()) return;
     onCreate(newName.trim(), section);
@@ -63,6 +145,11 @@
     newName = '';
   }
 
+  /**
+   * Keyboard handler for the inline add input.
+   * @param {KeyboardEvent} e       - Key event
+   * @param {CommitmentSection} section - Target section
+   */
   function handleAddKeydown(e: KeyboardEvent, section: CommitmentSection) {
     if (e.key === 'Enter') {
       handleAddSubmit(section);
@@ -72,11 +159,16 @@
     }
   }
 
+  /**
+   * Begin inline editing of a commitment name.
+   * @param {Commitment} commitment - The commitment to edit
+   */
   function startEditing(commitment: Commitment) {
     editingId = commitment.id;
     editingName = commitment.name;
   }
 
+  /** Submit the inline edit — updates the commitment name. */
   function handleEditSubmit() {
     if (editingId && editingName.trim()) {
       onUpdate(editingId, editingName.trim());
@@ -85,6 +177,10 @@
     editingName = '';
   }
 
+  /**
+   * Keyboard handler for the inline edit input.
+   * @param {KeyboardEvent} e - Key event
+   */
   function handleEditKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter') {
       handleEditSubmit();
@@ -94,7 +190,18 @@
     }
   }
 
-  // Pointer-event based drag (works on both touch and mouse)
+  // =============================================================================
+  //                  Pointer-Event Drag-and-Drop Reordering
+  // =============================================================================
+
+  /**
+   * Begin dragging a commitment item.  Sets pointer capture so move/up events
+   * are tracked even if the pointer leaves the element.
+   * @param {PointerEvent} e            - Pointer down event
+   * @param {Commitment} commitment     - The item being dragged
+   * @param {CommitmentSection} section - Section it belongs to
+   * @param {number} index              - Current index within the section
+   */
   function handlePointerDown(
     e: PointerEvent,
     commitment: Commitment,
@@ -104,7 +211,7 @@
     if (isProjectOwned(commitment)) return;
     const sectionItems = getCommitmentsForSection(section);
     if (sectionItems.length <= 1) return;
-    if (e.button !== 0) return;
+    if (e.button !== 0) return; /* left-click only */
 
     e.preventDefault();
     draggedId = commitment.id;
@@ -119,6 +226,11 @@
     document.addEventListener('pointercancel', handlePointerUp);
   }
 
+  /**
+   * Track pointer movement to determine the drop target index by comparing
+   * the pointer Y-position against each item's vertical midpoint.
+   * @param {PointerEvent} e - Pointer move event
+   */
   function handlePointerMove(e: PointerEvent) {
     if (draggedId === null || !draggedSection) return;
 
@@ -142,6 +254,10 @@
     dropTargetIndex = newDropIndex;
   }
 
+  /**
+   * Finalise the drag — calculate the new order value and fire `onReorder`
+   * if the position actually changed.
+   */
   function handlePointerUp() {
     document.removeEventListener('pointermove', handlePointerMove);
     document.removeEventListener('pointerup', handlePointerUp);
@@ -165,6 +281,7 @@
     }
   }
 
+  /** Clear all drag-related state back to idle. */
   function resetDragState() {
     draggedId = null;
     draggedSection = null;
@@ -173,10 +290,15 @@
   }
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Template — Commitments Modal
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <Modal {open} title="Commitments" {onClose}>
   <div class="commitments-content">
     {#each sections as section (section.key)}
       <div class="section" class:projects-section={section.key === 'projects'}>
+        <!-- ═══ Section Header ═══ -->
         <div class="section-header">
           <h3 class="section-title">{section.label}</h3>
           {#if section.key !== 'projects'}
@@ -198,10 +320,12 @@
               </svg>
             </button>
           {:else}
+            <!-- Projects section is auto-populated from the Plans page -->
             <span class="section-hint">via Plans</span>
           {/if}
         </div>
 
+        <!-- ═══ Inline Add Form ═══ -->
         {#if addingTo === section.key}
           <div class="add-form">
             <input
@@ -254,6 +378,7 @@
           </div>
         {/if}
 
+        <!-- ═══ Commitment Items List ═══ -->
         <div class="items-list" bind:this={sectionListEls[section.key]}>
           {#each getCommitmentsForSection(section.key) as commitment, index (commitment.id)}
             <div
@@ -271,6 +396,7 @@
               data-commitment-item
               use:remoteChangeAnimation={{ entityId: commitment.id, entityType: 'commitments' }}
             >
+              <!-- Drag handle (user-owned) or project star icon -->
               {#if !isProjectOwned(commitment)}
                 <span
                   class="drag-handle-icon"
@@ -297,6 +423,7 @@
                 </span>
               {/if}
 
+              <!-- Inline edit input or clickable name -->
               {#if editingId === commitment.id && !isProjectOwned(commitment)}
                 <input
                   type="text"
@@ -318,6 +445,7 @@
                 </span>
               {/if}
 
+              <!-- Delete button (user-owned only) -->
               {#if !isProjectOwned(commitment)}
                 <button
                   class="delete-btn"
@@ -339,6 +467,7 @@
               {/if}
             </div>
           {:else}
+            <!-- Empty section placeholder -->
             <div class="empty-section">
               {#if section.key === 'projects'}
                 No projects yet
@@ -353,7 +482,13 @@
   </div>
 </Modal>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Styles
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <style>
+  /* ═══ Layout ═══ */
+
   .commitments-content {
     display: flex;
     flex-direction: column;
@@ -365,6 +500,8 @@
     flex-direction: column;
     gap: 0.75rem;
   }
+
+  /* ═══ Section Header ═══ */
 
   .section-header {
     display: flex;
@@ -388,10 +525,13 @@
     font-style: italic;
   }
 
+  /* Projects section separated with a top border */
   .projects-section {
     padding-top: 1rem;
     border-top: 1px solid rgba(108, 92, 231, 0.1);
   }
+
+  /* ═══ Add Button ═══ */
 
   .add-section-btn {
     width: 28px;
@@ -414,6 +554,8 @@
     transform: scale(1.1);
     box-shadow: 0 0 20px var(--color-primary-glow);
   }
+
+  /* ═══ Inline Add Form ═══ */
 
   .add-form {
     display: flex;
@@ -442,6 +584,8 @@
     border-color: var(--color-primary);
     box-shadow: 0 0 15px var(--color-primary-glow);
   }
+
+  /* ═══ Confirm / Cancel Buttons ═══ */
 
   .confirm-btn,
   .cancel-btn {
@@ -481,6 +625,8 @@
     transform: scale(1.1);
   }
 
+  /* ═══ Commitment Items ═══ */
+
   .items-list {
     display: flex;
     flex-direction: column;
@@ -504,6 +650,8 @@
     background: rgba(20, 20, 40, 0.9);
   }
 
+  /* ═══ Drag State Visuals ═══ */
+
   .commitment-item.dragging {
     opacity: 0.5;
     transform: scale(1.02);
@@ -511,7 +659,7 @@
     z-index: 10;
   }
 
-  /* Drop indicator line above */
+  /* Drop indicator line above the target item */
   .commitment-item.drop-above::before {
     content: '';
     position: absolute;
@@ -527,7 +675,7 @@
     animation: dropPulse 1s var(--ease-smooth) infinite;
   }
 
-  /* Drop indicator line below */
+  /* Drop indicator line below the target item */
   .commitment-item.drop-below::after {
     content: '';
     position: absolute;
@@ -558,6 +706,8 @@
         0 0 40px rgba(108, 92, 231, 0.4);
     }
   }
+
+  /* ═══ Drag Handle ═══ */
 
   .drag-handle-icon {
     opacity: 0.3;
@@ -591,6 +741,8 @@
     }
   }
 
+  /* ═══ Commitment Name ═══ */
+
   .commitment-name {
     flex: 1;
     min-width: 0;
@@ -607,6 +759,8 @@
     flex: 1;
     min-width: 0;
   }
+
+  /* ═══ Delete Button (hover-reveal) ═══ */
 
   .delete-btn {
     width: 24px;
@@ -633,6 +787,8 @@
     background: rgba(255, 107, 107, 0.2);
   }
 
+  /* ═══ Empty State ═══ */
+
   .empty-section {
     padding: 1rem;
     text-align: center;
@@ -641,6 +797,8 @@
     font-style: italic;
     opacity: 0.6;
   }
+
+  /* ═══ Project-Owned Items ═══ */
 
   .commitment-item.project-owned {
     cursor: default;

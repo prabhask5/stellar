@@ -1,35 +1,80 @@
 <script lang="ts" generics="T extends { id: string; order: number }">
+  /**
+   * @fileoverview DraggableList — generic pointer-based drag-and-drop reorderable list.
+   *
+   * Uses the PointerEvents API (works on both touch and mouse) with a movement
+   * threshold to distinguish intentional drags from accidental taps.  When the
+   * user drops an item at a new position, `calculateNewOrder` from the engine
+   * computes a fractional order value so only the moved item needs a DB write.
+   *
+   * Generic constraint: each item must have `id: string` and `order: number`.
+   *
+   * The component exposes a `renderItem` snippet that receives the item plus
+   * `dragHandleProps` — an object with `onpointerdown` that the consumer should
+   * spread onto their drag-handle element.
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import type { Snippet } from 'svelte';
   import { calculateNewOrder } from '@prabhask5/stellar-engine/utils';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** The ordered array of items to display */
     items: T[];
+    /** Callback invoked after a successful reorder — receives `(itemId, newOrder)` */
     onReorder: (itemId: string, newOrder: number) => Promise<void>;
+    /** Snippet that renders each item; receives the item and `dragHandleProps` */
     renderItem: Snippet<
       [{ item: T; dragHandleProps: { onpointerdown: (e: PointerEvent) => void } }]
     >;
+    /** When `true`, dragging is disabled (e.g. single-item lists) */
     disabled?: boolean;
   }
 
+  // =============================================================================
+  //  Component State
+  // =============================================================================
+
   let { items, onReorder, renderItem, disabled = false }: Props = $props();
 
+  /* ── Drag tracking state ──── */
   let draggedId = $state<string | null>(null);
   let draggedIndex = $state<number>(-1);
   let dropTargetIndex = $state<number>(-1);
   let isDragging = $state(false);
   let containerEl: HTMLDivElement;
 
-  // Track pointer start position for movement threshold
+  /* ── Pointer start position for movement threshold ──── */
   let startX = 0;
   let startY = 0;
   let pendingItem: T | null = null;
   let pendingIndex = -1;
 
-  const DRAG_THRESHOLD = 8; // px – tolerates touch jitter on mobile
+  /** Minimum pointer travel (px) before drag activates — tolerates touch jitter on mobile */
+  const DRAG_THRESHOLD = 8;
 
+  // =============================================================================
+  //  Pointer Event Handlers
+  // =============================================================================
+
+  /**
+   * Initiates a potential drag when the user presses on a drag handle.
+   * The actual drag is not activated until the pointer moves beyond `DRAG_THRESHOLD`.
+   *
+   * @param {PointerEvent} e     — the pointer-down event
+   * @param {T}            item  — the list item being touched
+   * @param {number}       index — the item's current position in the array
+   */
   function handlePointerDown(e: PointerEvent, item: T, index: number) {
     if (disabled || items.length <= 1) return;
-    if (e.button !== 0) return;
+    if (e.button !== 0) return; /* left click / primary touch only */
 
     e.preventDefault();
     startX = e.clientX;
@@ -37,7 +82,7 @@
     pendingItem = item;
     pendingIndex = index;
 
-    // Capture pointer for tracking outside the element
+    /* Capture pointer for tracking outside the element */
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
     document.addEventListener('pointermove', handlePointerMove);
@@ -45,14 +90,21 @@
     document.addEventListener('pointercancel', handlePointerUp);
   }
 
+  /**
+   * Tracks pointer movement. On first crossing `DRAG_THRESHOLD`, activates
+   * dragging. Then continuously updates `dropTargetIndex` based on which
+   * item the pointer is hovering over (using bounding-rect midpoint test).
+   *
+   * @param {PointerEvent} e — the pointer-move event
+   */
   function handlePointerMove(e: PointerEvent) {
-    // If we haven't crossed the threshold yet, check distance
+    /* If we haven't crossed the threshold yet, check Euclidean distance */
     if (!isDragging) {
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       if (dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return;
 
-      // Threshold crossed – activate drag
+      /* Threshold crossed — activate drag */
       if (pendingItem) {
         draggedId = pendingItem.id;
         draggedIndex = pendingIndex;
@@ -63,7 +115,7 @@
 
     if (draggedId === null || !containerEl) return;
 
-    // Find which item we're over
+    /* Determine which item the pointer is over via midpoint comparison */
     const itemElements = containerEl.querySelectorAll('[data-draggable-item]');
 
     let newDropIndex = items.length - 1;
@@ -82,6 +134,12 @@
     dropTargetIndex = newDropIndex;
   }
 
+  /**
+   * Finalizes a drag operation. If the item moved to a new position,
+   * computes a fractional order via `calculateNewOrder` and calls `onReorder`.
+   *
+   * @param {PointerEvent} _e — the pointer-up / pointer-cancel event (unused)
+   */
   async function handlePointerUp(_e: PointerEvent) {
     document.removeEventListener('pointermove', handlePointerMove);
     document.removeEventListener('pointerup', handlePointerUp);
@@ -89,10 +147,12 @@
 
     const wasDragging = isDragging;
 
-    // Suppress the click that the browser fires after pointerup.
-    // Use capturing phase so it runs before any card onclick handlers.
-    // Always suppress when the handle was touched – even without drag –
-    // to prevent accidental navigation from tapping the handle.
+    /*
+     * Suppress the click that the browser fires after pointerup.
+     * Use capturing phase so it runs before any card onclick handlers.
+     * Always suppress when the handle was touched — even without drag —
+     * to prevent accidental navigation from tapping the handle.
+     */
     suppressNextClick();
 
     if (!wasDragging || draggedId === null || draggedIndex === -1) {
@@ -112,6 +172,15 @@
     }
   }
 
+  // =============================================================================
+  //  Utility Functions
+  // =============================================================================
+
+  /**
+   * Temporarily attaches a capturing click handler to the container that
+   * stops propagation of the very next click. Prevents accidental card
+   * navigation after drag interactions.
+   */
   function suppressNextClick() {
     if (!containerEl) return;
     const handler = (e: Event) => {
@@ -120,10 +189,13 @@
       containerEl.removeEventListener('click', handler, true);
     };
     containerEl.addEventListener('click', handler, true);
-    // Safety: remove if click never fires (e.g. iOS sometimes doesn't)
+    /* Safety: remove if click never fires (e.g. iOS sometimes doesn't) */
     setTimeout(() => containerEl?.removeEventListener('click', handler, true), 300);
   }
 
+  /**
+   * Resets all drag-related state variables back to their defaults.
+   */
   function resetDragState() {
     draggedId = null;
     draggedIndex = -1;
@@ -133,6 +205,14 @@
     pendingIndex = -1;
   }
 
+  /**
+   * Builds the `dragHandleProps` object that the consumer spreads onto
+   * their drag handle element.
+   *
+   * @param {T}      item  — the list item
+   * @param {number} index — the item's current array index
+   * @returns {{ onpointerdown: (e: PointerEvent) => void }}
+   */
   function getDragHandleProps(item: T, index: number) {
     return {
       onpointerdown: (e: PointerEvent) => handlePointerDown(e, item, index)
@@ -140,6 +220,7 @@
   }
 </script>
 
+<!-- ═══ Draggable List Container ═══ -->
 <div class="draggable-list" bind:this={containerEl}>
   {#each items as item, index (item.id)}
     <div
@@ -155,11 +236,15 @@
 </div>
 
 <style>
+  /* ═══ List Layout ═══ */
+
   .draggable-list {
     display: flex;
     flex-direction: column;
     gap: 1rem;
   }
+
+  /* ═══ Item Wrapper ═══ */
 
   .draggable-item-wrapper {
     position: relative;
@@ -167,6 +252,7 @@
     animation: fadeInUp 0.4s var(--ease-out) backwards;
   }
 
+  /* Staggered entrance animation for first 6 items */
   .draggable-item-wrapper:nth-child(1) {
     animation-delay: 0s;
   }
@@ -186,6 +272,9 @@
     animation-delay: 0.3s;
   }
 
+  /* ═══ Dragging State ═══ */
+
+  /* Active drag — lifted card appearance with scale + glow */
   .draggable-item-wrapper.dragging {
     opacity: 0.7;
     z-index: 100;
@@ -196,6 +285,9 @@
       0 0 60px var(--color-primary-glow);
   }
 
+  /* ═══ Drop Indicators ═══ */
+
+  /* Glowing bar above the target when dragging downward → upward */
   .draggable-item-wrapper.drop-above::before {
     content: '';
     position: absolute;
@@ -211,6 +303,7 @@
     animation: dropIndicatorPulse 1s var(--ease-smooth) infinite;
   }
 
+  /* Glowing bar below the target when dragging upward → downward */
   .draggable-item-wrapper.drop-below::after {
     content: '';
     position: absolute;
@@ -242,9 +335,12 @@
     }
   }
 
+  /* ═══ Global Drag Handle Styles ═══ */
+
+  /* These use :global() because the handle lives inside the consumer's snippet */
   :global(.drag-handle) {
     cursor: grab;
-    touch-action: none;
+    touch-action: none; /* prevents scroll-hijack on mobile */
     padding: 0.75rem;
     display: flex;
     align-items: center;

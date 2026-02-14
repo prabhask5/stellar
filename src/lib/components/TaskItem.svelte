@@ -1,31 +1,72 @@
 <script lang="ts">
+  /**
+   * @fileoverview TaskItem — single daily task row with checkbox, name, category tag, and actions.
+   *
+   * Renders a horizontal card for one `DailyTask` with:
+   *   - An optional drag handle (when `dragHandleProps` is provided)
+   *   - A circular checkbox that toggles completion
+   *   - The task name (truncated with tooltip on overflow)
+   *   - An optional colored category tag badge
+   *   - An optional delete button (visible on hover)
+   *
+   * Integrates with `remoteChangeAnimation` to flash when realtime sync
+   * updates arrive, and `triggerLocalAnimation` for optimistic toggle feedback.
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import { remoteChangeAnimation, triggerLocalAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
   import type { DailyTask } from '$lib/types';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** The daily task data object */
     task: DailyTask;
+    /** Callback to toggle completion status */
     onToggle?: () => void;
+    /** Callback to delete this task */
     onDelete?: () => void;
+    /** Drag handle event props from `DraggableList` — enables reorder handle */
     dragHandleProps?: { onpointerdown: (e: PointerEvent) => void };
   }
 
+  // =============================================================================
+  //  Component State
+  // =============================================================================
+
   let { task, onToggle, onDelete, dragHandleProps }: Props = $props();
 
+  /** Reference to the root element — used for `triggerLocalAnimation` */
   let element: HTMLElement;
 
+  // =============================================================================
+  //  Event Handlers
+  // =============================================================================
+
+  /**
+   * Triggers a local animation on the card element and invokes the
+   * toggle callback to flip the task's completion state.
+   */
   function handleToggle() {
     triggerLocalAnimation(element, 'toggle');
     onToggle?.();
   }
 </script>
 
+<!-- ═══ Task Item Card ═══ -->
 <div
   bind:this={element}
   class="task-item"
   class:completed={task.completed}
   use:remoteChangeAnimation={{ entityId: task.id, entityType: 'daily_tasks' }}
 >
+  <!-- Optional drag handle for reorder mode -->
   {#if dragHandleProps}
     <button class="drag-handle" {...dragHandleProps} aria-label="Drag to reorder">
       <svg
@@ -46,6 +87,7 @@
     </button>
   {/if}
 
+  <!-- Circular checkbox — toggles completion on click -->
   <button
     class="checkbox"
     class:checked={task.completed}
@@ -57,6 +99,7 @@
     {/if}
   </button>
 
+  <!-- Task name area — includes the name and optional category tag -->
   <span class="task-name-area">
     <span class="task-name" use:truncateTooltip>{task.name}</span>
     {#if task.category}
@@ -66,12 +109,15 @@
     {/if}
   </span>
 
+  <!-- Delete button — appears on hover -->
   {#if onDelete}
     <button class="delete-btn" onclick={onDelete} aria-label="Delete task">×</button>
   {/if}
 </div>
 
 <style>
+  /* ═══ Task Card ═══ */
+
   .task-item {
     display: flex;
     align-items: center;
@@ -81,18 +127,20 @@
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(108, 92, 231, 0.15);
-    border-left: 4px solid var(--color-red);
+    border-left: 4px solid var(--color-red); /* red accent = incomplete */
     border-radius: var(--radius-lg);
     transition: all 0.3s var(--ease-out);
     position: relative;
     overflow: hidden;
   }
 
+  /* Green accent when completed + reduced opacity */
   .task-item.completed {
     border-left-color: var(--color-green);
     opacity: 0.7;
   }
 
+  /* Subtle top glow line */
   .task-item::before {
     content: '';
     position: absolute;
@@ -115,6 +163,8 @@
     border-color: rgba(108, 92, 231, 0.3);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
+
+  /* ═══ Drag Handle ═══ */
 
   .drag-handle {
     cursor: grab;
@@ -143,6 +193,8 @@
     cursor: grabbing;
   }
 
+  /* ═══ Checkbox ═══ */
+
   .checkbox {
     width: 24px;
     height: 24px;
@@ -157,6 +209,7 @@
     background: transparent;
   }
 
+  /* Filled green circle when checked */
   .checkbox.checked {
     border-color: var(--color-green);
     background: var(--color-green);
@@ -173,9 +226,11 @@
     font-weight: bold;
   }
 
+  /* ═══ Task Name Area ═══ */
+
   .task-name-area {
     flex: 1;
-    min-width: 0;
+    min-width: 0; /* allows text truncation in flex container */
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -191,11 +246,14 @@
     transition: all 0.3s;
   }
 
+  /* Completed task — strikethrough + italic + dimmed */
   .task-item.completed .task-name {
     text-decoration: line-through;
     opacity: 0.6;
     font-style: italic;
   }
+
+  /* ═══ Category Tag ═══ */
 
   .category-tag {
     font-size: 0.6875rem;
@@ -211,6 +269,9 @@
     text-overflow: ellipsis;
   }
 
+  /* ═══ Delete Button ═══ */
+
+  /* Hidden by default, fades in on row hover */
   .delete-btn {
     width: 40px;
     height: 40px;
@@ -239,6 +300,8 @@
     transform: scale(1.1);
   }
 
+  /* ═══ Mobile Responsive ═══ */
+
   @media (max-width: 480px) {
     .task-item {
       padding: 0.625rem 0.75rem;
@@ -259,6 +322,7 @@
       max-width: 80px;
     }
 
+    /* Always partially visible on mobile (no hover) */
     .delete-btn {
       width: 36px;
       height: 36px;

@@ -1,4 +1,23 @@
 <script lang="ts">
+  /**
+   * @fileoverview Collapsible manager panel for website block lists.
+   *
+   * Provides a high-level list view of all block lists belonging to a user.
+   * Each list item shows:
+   * - A toggle switch to enable/disable the list
+   * - The list name and active-days summary
+   * - A clickable area that navigates to the per-list editor page
+   * - A delete button with confirmation
+   *
+   * The panel is expandable — a top-level "Block Lists" button toggles the
+   * inner panel's visibility. A badge shows the count of lists active today.
+   *
+   * An "Extension Required" banner reminds users to install the Stellar Focus
+   * browser extension, which performs the actual website blocking.
+   *
+   * Creates new block lists via a modal containing `BlockListForm`.
+   */
+
   import { goto } from '$app/navigation';
   import type { DayOfWeek } from '$lib/types';
   import { blockListStore, blockedWebsitesStore } from '$lib/stores/focus';
@@ -7,15 +26,33 @@
   import { remoteChangeAnimation, triggerLocalAnimation } from '@prabhask5/stellar-engine/actions';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Authenticated user's ID — used to load block lists from the store */
     userId: string;
   }
 
   let { userId }: Props = $props();
 
+  // =============================================================================
+  //  DOM Element Tracking
+  // =============================================================================
+
+  /** Map of list-item DOM nodes keyed by block list ID — for local animations */
   // Track element references by list id for local animations
   let listElements: Record<string, HTMLElement> = {};
 
+  /**
+   * Svelte action that registers a list-item DOM node for animation targeting.
+   * Automatically cleans up when the element is destroyed.
+   *
+   * @param node - The DOM element to register
+   * @param id - Block list ID associated with this element
+   * @returns Svelte action lifecycle object with `destroy` callback
+   */
   function registerListElement(node: HTMLElement, id: string) {
     listElements[id] = node;
     return {
@@ -25,6 +62,11 @@
     };
   }
 
+  // =============================================================================
+  //  Constants
+  // =============================================================================
+
+  /** Day-of-week metadata for formatting active-days labels */
   // Day labels for display
   const dayLabels: { short: string; full: string; value: DayOfWeek }[] = [
     { short: 'S', full: 'Sun', value: 0 },
@@ -36,11 +78,23 @@
     { short: 'S', full: 'Sat', value: 6 }
   ];
 
+  // =============================================================================
+  //  Local State
+  // =============================================================================
+
+  /** Whether the block-lists panel is expanded */
   // Local state
   let isOpen = $state(false);
+  /** ID of the block list currently being edited — `null` when not editing */
   let editingListId = $state<string | null>(null);
+  /** Whether the "Create Block List" modal is visible */
   let showCreateModal = $state(false);
 
+  // =============================================================================
+  //  Data Loading Effects
+  // =============================================================================
+
+  /** Loads all block lists for the authenticated user whenever `userId` changes */
   // Load block lists on mount
   $effect(() => {
     if (userId) {
@@ -48,6 +102,7 @@
     }
   });
 
+  /** Loads blocked websites for the list being edited */
   // Load websites when editing a list
   $effect(() => {
     if (editingListId) {
@@ -55,6 +110,16 @@
     }
   });
 
+  // =============================================================================
+  //  Actions
+  // =============================================================================
+
+  /**
+   * Creates a new block list and optionally sets active days.
+   * Closes the create modal on success.
+   *
+   * @param data - Form data containing the list name and active days
+   */
   async function createList(data: { name: string; activeDays: DayOfWeek[] | null }) {
     const newList = await blockListStore.create(data.name);
     if (newList && data.activeDays !== null) {
@@ -64,6 +129,12 @@
     showCreateModal = false;
   }
 
+  /**
+   * Converts an `active_days` array to a human-readable label.
+   *
+   * @param activeDays - Array of day indices, or `null` for every day
+   * @returns Display string — "Every day", "Weekdays", "Weekends", or concatenated short labels
+   */
   function getActiveDaysLabel(activeDays: DayOfWeek[] | null): string {
     if (activeDays === null) return 'Every day';
     if (activeDays.length === 5 && !activeDays.includes(0) && !activeDays.includes(6)) {
@@ -75,6 +146,12 @@
     return activeDays.map((d) => dayLabels[d].short).join('');
   }
 
+  /**
+   * Deletes a block list after user confirmation.
+   * Clears `editingListId` if the deleted list was being edited.
+   *
+   * @param id - Block list ID to delete
+   */
   async function deleteList(id: string) {
     if (!confirm('Delete this block list? All blocked websites in it will be removed.')) return;
     await blockListStore.delete(id);
@@ -83,6 +160,12 @@
     }
   }
 
+  /**
+   * Toggles the enabled/disabled state of a block list.
+   * Also fires a local animation on the list-item element.
+   *
+   * @param id - Block list ID to toggle
+   */
   async function toggleList(id: string) {
     const element = listElements[id];
     if (element) {
@@ -91,10 +174,25 @@
     await blockListStore.toggle(id);
   }
 
+  /**
+   * Navigates to the dedicated block-list editor page.
+   *
+   * @param listId - Block list ID to open for editing
+   */
   function openEditor(listId: string) {
     goto(`/focus/block-lists/${listId}`);
   }
 
+  // =============================================================================
+  //  Derived State
+  // =============================================================================
+
+  /**
+   * Checks whether a block list is active on the current day of the week.
+   *
+   * @param list - Object with `is_enabled` and `active_days` fields
+   * @returns `true` if the list is enabled and covers today
+   */
   // Helper to check if a block list is active today
   function isBlockListActiveToday(list: {
     is_enabled: boolean;
@@ -106,11 +204,14 @@
     return list.active_days.includes(currentDay);
   }
 
+  /** Count of block lists that are enabled and active on today's day-of-week */
   // Derived count of active block lists
   const activeBlockListCount = $derived($blockListStore.filter(isBlockListActiveToday).length);
 </script>
 
+<!-- ═══ Block List Manager ═══ -->
 <div class="block-list-manager">
+  <!-- Collapsible toggle header — shows list icon, label, active count badge, chevron -->
   <button class="manager-toggle" onclick={() => (isOpen = !isOpen)}>
     <svg
       viewBox="0 0 24 24"
@@ -141,9 +242,10 @@
     </svg>
   </button>
 
+  <!-- ═══ Expandable Panel ═══ -->
   {#if isOpen}
     <div class="panel">
-      <!-- Extension Banner -->
+      <!-- Extension requirement banner — links to the Stellar Focus browser extension -->
       <div class="extension-banner">
         <div class="banner-icon">
           <svg
@@ -183,8 +285,9 @@
         </a>
       </div>
 
-      <!-- List of block lists -->
+      <!-- ═══ Block Lists ═══ -->
       <div class="list-view">
+        <!-- Create button — opens the modal form -->
         <button class="create-btn" onclick={() => (showCreateModal = true)}>
           <svg
             viewBox="0 0 24 24"
@@ -202,11 +305,13 @@
 
         <div class="lists">
           {#each $blockListStore as list (list.id)}
+            <!-- Individual block list row -->
             <div
               class="list-item"
               use:registerListElement={list.id}
               use:remoteChangeAnimation={{ entityId: list.id, entityType: 'block_lists' }}
             >
+              <!-- Enable / disable toggle switch -->
               <button
                 class="toggle-btn"
                 class:active={list.is_enabled}
@@ -218,6 +323,7 @@
                 <span class="toggle-knob"></span>
               </button>
 
+              <!-- Clickable info area — navigates to the editor page -->
               <button
                 class="list-info"
                 onclick={() => openEditor(list.id)}
@@ -242,6 +348,7 @@
                 </svg>
               </button>
 
+              <!-- Delete button -->
               <button
                 class="delete-btn"
                 onclick={() => deleteList(list.id)}
@@ -264,6 +371,7 @@
               </button>
             </div>
           {:else}
+            <!-- Empty state — no block lists created yet -->
             <p class="empty-text">
               No block lists yet. Create one to block distracting websites during focus sessions.
             </p>
@@ -274,15 +382,19 @@
   {/if}
 </div>
 
-<!-- Create Block List Modal -->
+<!-- ═══ Create Block List Modal ═══ -->
 <Modal open={showCreateModal} title="Create Block List" onClose={() => (showCreateModal = false)}>
   <BlockListForm onSubmit={createList} onCancel={() => (showCreateModal = false)} />
 </Modal>
 
 <style>
+  /* ═══ Manager Container ═══ */
+
   .block-list-manager {
     margin-top: 1.5rem;
   }
+
+  /* ═══ Toggle Header Button ═══ */
 
   .manager-toggle {
     display: flex;
@@ -305,6 +417,7 @@
     background: rgba(108, 92, 231, 0.1);
   }
 
+  /* Active-count badge — pushed to the right via margin-left: auto */
   .badge {
     margin-left: auto;
     padding: 0.125rem 0.5rem;
@@ -315,6 +428,7 @@
     color: white;
   }
 
+  /* Chevron icon — rotates 180deg when panel is open */
   .chevron {
     transition: transform 0.3s;
   }
@@ -322,6 +436,8 @@
   .chevron.open {
     transform: rotate(180deg);
   }
+
+  /* ═══ Expandable Panel ═══ */
 
   .panel {
     margin-top: 0.5rem;
@@ -343,7 +459,8 @@
     }
   }
 
-  /* Create button */
+  /* ═══ Create Button ═══ */
+
   .create-btn {
     display: flex;
     align-items: center;
@@ -352,7 +469,7 @@
     padding: 0.75rem 1rem;
     margin-bottom: 1rem;
     background: rgba(108, 92, 231, 0.15);
-    border: 1px dashed rgba(108, 92, 231, 0.3);
+    border: 1px dashed rgba(108, 92, 231, 0.3); /* dashed border signals "add new" */
     border-radius: var(--radius-lg);
     color: var(--color-primary-light);
     font-size: 0.875rem;
@@ -366,7 +483,8 @@
     border-color: rgba(108, 92, 231, 0.5);
   }
 
-  /* Lists */
+  /* ═══ List Items ═══ */
+
   .lists {
     display: flex;
     flex-direction: column;
@@ -381,6 +499,8 @@
     background: rgba(0, 0, 0, 0.2);
     border-radius: var(--radius-lg);
   }
+
+  /* ═══ Toggle Switch ═══ */
 
   .toggle-btn {
     position: relative;
@@ -411,9 +531,12 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
+  /* Slide knob to the right when active */
   .toggle-btn.active .toggle-knob {
     transform: translateX(16px);
   }
+
+  /* ═══ List Info (Clickable Area) ═══ */
 
   .list-info {
     flex: 1;
@@ -445,6 +568,8 @@
     font-weight: 500;
   }
 
+  /* ═══ Delete Button ═══ */
+
   .delete-btn {
     display: flex;
     align-items: center;
@@ -464,6 +589,8 @@
     color: var(--color-red);
   }
 
+  /* ═══ Empty State ═══ */
+
   .empty-text {
     font-size: 0.8125rem;
     color: var(--color-text-muted);
@@ -472,7 +599,8 @@
     margin: 0;
   }
 
-  /* Extension Banner */
+  /* ═══ Extension Banner ═══ */
+
   .extension-banner {
     display: flex;
     align-items: center;
@@ -514,7 +642,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    min-width: 0;
+    min-width: 0; /* allow text truncation */
   }
 
   .banner-title {
@@ -556,7 +684,8 @@
     transform: translateY(0);
   }
 
-  /* Tablet responsive toggles */
+  /* ═══ Responsive — Tablet ═══ */
+
   @media (min-width: 641px) and (max-width: 900px) {
     .toggle-btn {
       width: 36px;

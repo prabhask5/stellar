@@ -1,35 +1,87 @@
 <script lang="ts">
+  /**
+   * @fileoverview Modal — reusable dialog component with cinematic backdrop effects.
+   *
+   * Supports two presentation modes:
+   *   1. **Centered modal** (desktop/tablet) — flies in from below with a `backOut` easing.
+   *   2. **Bottom sheet** (mobile) — slides up from the screen bottom, iOS-style.
+   *
+   * Features:
+   *   - Prevents body scroll while open (critical for iOS Safari PWA)
+   *   - Keyboard dismissal via `Escape`
+   *   - Backdrop click dismissal
+   *   - ARIA `role="dialog"` + `aria-modal` for accessibility
+   *   - Parallax depth layers + nebula glow behind the dialog panel
+   *   - Animated top glow line and shimmer title
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import { fade, fly } from 'svelte/transition';
   import { cubicOut, backOut } from 'svelte/easing';
   import { truncateTooltip } from '$lib/actions/truncateTooltip';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Whether the modal is currently visible */
     open: boolean;
+    /** Dialog title rendered in the header */
     title: string;
+    /** Callback fired when the user requests dismissal (Escape, backdrop click, close button) */
     onClose: () => void;
+    /** Slot content rendered inside `.modal-content` */
     children?: import('svelte').Snippet;
     /** Use sheet-style on mobile (slides up from bottom) */
     mobileSheet?: boolean;
   }
 
+  // =============================================================================
+  //  Component State
+  // =============================================================================
+
   let { open, title, onClose, children, mobileSheet = true }: Props = $props();
 
+  // =============================================================================
+  //  Event Handlers
+  // =============================================================================
+
+  /**
+   * Handles global `keydown` — closes the modal on `Escape`.
+   * @param {KeyboardEvent} event — the keyboard event from `<svelte:window>`
+   */
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       onClose();
     }
   }
 
+  /**
+   * Closes the modal when the user clicks the backdrop (not the panel itself).
+   * @param {MouseEvent} event — click event from the backdrop `<div>`
+   */
   function handleBackdropClick(event: MouseEvent) {
     if (event.target === event.currentTarget) {
       onClose();
     }
   }
 
-  // Prevent body scroll when modal is open (especially important for iOS)
+  // =============================================================================
+  //  Effects — Body Scroll Lock
+  // =============================================================================
+
+  /**
+   * Prevents body scroll when the modal is open.
+   * On iOS Safari, simply setting `overflow: hidden` is insufficient —
+   * we pin the body with `position: fixed` and restore the scroll offset on cleanup.
+   */
   $effect(() => {
     if (open) {
-      // Save current scroll position and lock body
+      /* Save current scroll position and lock body */
       const scrollY = window.scrollY;
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
@@ -38,7 +90,7 @@
       document.body.style.overflow = 'hidden';
 
       return () => {
-        // Restore scroll position when modal closes
+        /* Restore scroll position when modal closes */
         document.body.style.position = '';
         document.body.style.top = '';
         document.body.style.left = '';
@@ -49,8 +101,17 @@
     }
   });
 
-  // Check if mobile
+  // =============================================================================
+  //  Effects — Mobile Detection
+  // =============================================================================
+
+  /** Tracks whether the viewport is mobile-width (≤640px) */
   let isMobile = $state(false);
+
+  /**
+   * Listens for resize events and updates `isMobile` accordingly.
+   * This determines whether the sheet-style presentation is used.
+   */
   $effect(() => {
     const checkMobile = () => {
       isMobile = window.innerWidth <= 640;
@@ -61,8 +122,10 @@
   });
 </script>
 
+<!-- Global keyboard listener for Escape key -->
 <svelte:window onkeydown={handleKeydown} />
 
+<!-- ═══ Modal Root ═══ -->
 {#if open}
   <div
     class="modal-backdrop"
@@ -76,18 +139,18 @@
     aria-labelledby="modal-title"
     tabindex="-1"
   >
-    <!-- Depth layers for cinematic effect -->
+    <!-- Depth layers for cinematic parallax effect -->
     <div class="modal-depth-layer modal-depth-1"></div>
     <div class="modal-depth-layer modal-depth-2"></div>
 
     {#if mobileSheet && isMobile}
-      <!-- Sheet-style modal for mobile -->
+      <!-- ═══ Mobile Sheet Presentation ═══ -->
       <div
         class="modal-sheet"
         in:fly={{ y: 300, duration: 350, easing: backOut }}
         out:fly={{ y: 300, duration: 250, easing: cubicOut }}
       >
-        <!-- Drag handle indicator -->
+        <!-- Drag handle indicator — visual affordance for sheet-style -->
         <div class="sheet-handle">
           <div class="sheet-handle-bar"></div>
         </div>
@@ -115,7 +178,7 @@
         </div>
       </div>
     {:else}
-      <!-- Centered modal for desktop/tablet -->
+      <!-- ═══ Desktop / Tablet Centered Modal ═══ -->
       <div
         class="modal"
         in:fly={{ y: 30, duration: 350, easing: backOut }}
@@ -148,6 +211,8 @@
 {/if}
 
 <style>
+  /* ═══ Backdrop ═══ */
+
   .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -166,14 +231,15 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Sheet-style backdrop on mobile */
+  /* Sheet-style backdrop on mobile — aligns content to bottom */
   .modal-backdrop.mobile-sheet {
     align-items: flex-end;
     padding: 0;
     background: rgba(0, 0, 0, 0.6);
   }
 
-  /* Depth layers for parallax/3D effect */
+  /* ═══ Depth Layers (parallax / cinematic glow) ═══ */
+
   .modal-depth-layer {
     position: fixed;
     inset: 0;
@@ -181,6 +247,7 @@
     z-index: -1;
   }
 
+  /* Upper purple glow */
   .modal-depth-1 {
     background: radial-gradient(
       ellipse 120% 60% at 50% 0%,
@@ -190,6 +257,7 @@
     animation: depthFloat1 8s ease-in-out infinite;
   }
 
+  /* Lower pink glow */
   .modal-depth-2 {
     background: radial-gradient(
       ellipse 80% 80% at 50% 100%,
@@ -254,7 +322,7 @@
     flex-shrink: 0;
   }
 
-  /* Top glow line */
+  /* Top glow line — animated gradient across the modal top edge */
   .modal::before {
     content: '';
     position: absolute;
@@ -284,7 +352,7 @@
     }
   }
 
-  /* Nebula background effect */
+  /* Nebula background effect — large slow-drifting gradient */
   .modal::after {
     content: '';
     position: absolute;
@@ -332,7 +400,7 @@
       0 0 100px rgba(108, 92, 231, 0.1),
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
     position: relative;
-    /* Account for home indicator */
+    /* Account for home indicator safe area */
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
@@ -355,7 +423,8 @@
     border-radius: var(--radius-full);
   }
 
-  /* Drag handle */
+  /* ═══ Sheet Drag Handle ═══ */
+
   .sheet-handle {
     display: flex;
     justify-content: center;
@@ -391,10 +460,12 @@
     z-index: 1;
   }
 
+  /* Tighter header padding for sheet mode */
   .modal-sheet .modal-header {
     padding: 0.5rem 1.25rem 0.625rem;
   }
 
+  /* Gradient-shimmer title text */
   .modal-header h2 {
     font-size: 1.25rem;
     font-weight: 700;
@@ -421,6 +492,8 @@
     }
   }
 
+  /* ═══ Close Button ═══ */
+
   .close-btn {
     width: 36px;
     height: 36px;
@@ -434,6 +507,7 @@
     background: rgba(108, 92, 231, 0.08);
   }
 
+  /* Rotates 90deg and turns red on hover */
   .close-btn:hover {
     background: linear-gradient(
       135deg,
@@ -465,9 +539,9 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Extra bottom padding on sheet for home indicator + comfortable spacing */
   .modal-sheet .modal-content {
     padding: 1rem 1.25rem;
-    /* Extra padding at bottom for home indicator + comfortable spacing */
     padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 24px));
   }
 
@@ -475,7 +549,7 @@
      RESPONSIVE ADJUSTMENTS
      ═══════════════════════════════════════════════════════════════════════════════ */
 
-  /* Tablet */
+  /* ── Tablet ──── */
   @media (min-width: 641px) and (max-width: 900px) {
     .modal-backdrop {
       padding: calc(64px + 1rem) 1rem 1rem 1rem;
@@ -486,7 +560,7 @@
     }
   }
 
-  /* Mobile - when not using sheet style */
+  /* ── Mobile (non-sheet fallback) ──── */
   @media (max-width: 640px) {
     .modal-backdrop:not(.mobile-sheet) {
       padding: calc(env(safe-area-inset-top, 20px) + 1rem) 0.75rem
@@ -516,7 +590,7 @@
     }
   }
 
-  /* Very short viewports */
+  /* ── Very short viewports ──── */
   @media (max-height: 600px) and (min-width: 641px) {
     .modal-backdrop {
       padding-top: calc(64px + 0.75rem);
@@ -536,7 +610,7 @@
     }
   }
 
-  /* Reduced motion */
+  /* ── Reduced Motion ──── */
   @media (prefers-reduced-motion: reduce) {
     .modal::after,
     .modal-depth-1,

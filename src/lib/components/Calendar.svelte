@@ -1,4 +1,21 @@
 <script lang="ts">
+  /**
+   * @fileoverview Calendar — monthly calendar grid for the routines/goals dashboard.
+   *
+   * Displays a 7-column grid of day cells colour-coded by daily completion
+   * percentage.  Supports cinematic slide transitions when navigating between
+   * months, a "today" quick-jump button, and a pulsing glow effect on today's
+   * cell.
+   *
+   * Key behaviours:
+   * - Each day cell shows a completion percentage badge when goals exist.
+   * - Cell background uses `getProgressColor` to map percentage → colour.
+   * - Month transitions use a two-phase setTimeout for a slide-out / slide-in
+   *   animation with `perspective` and `rotateY`.
+   * - Today's cell has a perpetual pulse animation.
+   * - Navigation is debounced via `isTransitioning` to prevent double-clicks.
+   */
+
   import {
     getDaysInMonth,
     getWeekdayNames,
@@ -12,23 +29,54 @@
   import { addMonths, subMonths } from 'date-fns';
   import type { DayProgress } from '$lib/types';
 
+  // =============================================================================
+  //                                  Props
+  // =============================================================================
+
   interface Props {
+    /** The Date object representing the currently viewed month */
     currentDate: Date;
+    /** Map of `YYYY-MM-DD` → progress data for each day */
     dayProgressMap: Map<string, DayProgress>;
+    /** Callback when a day cell is clicked */
     onDayClick: (date: Date) => void;
+    /** Callback when the user navigates to a different month */
     onMonthChange: (date: Date) => void;
   }
 
   let { currentDate, dayProgressMap, onDayClick, onMonthChange }: Props = $props();
 
+  // =============================================================================
+  //                          Derived Grid Data
+  // =============================================================================
+
+  /** Weekday header labels (Sun … Sat) */
   const weekdays = getWeekdayNames();
+
+  /** Array of Date objects for every day in the current month */
   const days = $derived(getDaysInMonth(currentDate));
+
+  /** Number of empty cells before the first day (0 = Sunday, 6 = Saturday) */
   const firstDayOffset = $derived(getFirstDayOfMonthWeekday(currentDate));
 
-  // Transition state for cinematic month changes
+  // =============================================================================
+  //                     Month Transition Animation State
+  // =============================================================================
+
+  /** Direction the grid slides out — `left` for next, `right` for previous */
   let transitionDirection = $state<'left' | 'right' | null>(null);
+
+  /** Locks navigation while the slide animation is in progress */
   let isTransitioning = $state(false);
 
+  // =============================================================================
+  //                        Navigation Handlers
+  // =============================================================================
+
+  /**
+   * Navigate to the previous month with a right-slide animation.
+   * No-op while a transition is already in progress.
+   */
   function goToPreviousMonth() {
     if (isTransitioning) return;
     transitionDirection = 'right';
@@ -42,6 +90,10 @@
     }, 300);
   }
 
+  /**
+   * Navigate to the next month with a left-slide animation.
+   * No-op while a transition is already in progress.
+   */
   function goToNextMonth() {
     if (isTransitioning) return;
     transitionDirection = 'left';
@@ -55,10 +107,19 @@
     }, 300);
   }
 
+  /**
+   * Look up the `DayProgress` entry for a specific date.
+   * @param {Date} date - The calendar day
+   * @returns {DayProgress | undefined} Progress data, if any goals exist
+   */
   function getDayProgress(date: Date): DayProgress | undefined {
     return dayProgressMap.get(formatDate(date));
   }
 
+  /**
+   * Jump to today's month.  Determines slide direction based on whether
+   * today is before or after the currently viewed month.
+   */
   function goToToday() {
     if (isTransitioning) return;
     const today = new Date();
@@ -81,6 +142,10 @@
     }, 300);
   }
 
+  /**
+   * Derived — checks whether the user is already viewing the current month
+   * (hides the "today" button when true).
+   */
   const isViewingCurrentMonth = $derived(() => {
     const today = new Date();
     return (
@@ -90,7 +155,12 @@
   });
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Template — Monthly Calendar
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <div class="calendar">
+  <!-- ═══ Header: Prev / Month Title / Next ═══ -->
   <div class="calendar-header">
     <button
       class="nav-btn"
@@ -142,22 +212,26 @@
     </button>
   </div>
 
+  <!-- ═══ Weekday Headers ═══ -->
   <div class="calendar-weekdays">
     {#each weekdays as day (day)}
       <div class="weekday">{day}</div>
     {/each}
   </div>
 
+  <!-- ═══ Day Grid ═══ -->
   <div
     class="calendar-grid"
     class:transitioning={isTransitioning}
     class:slide-left={transitionDirection === 'left'}
     class:slide-right={transitionDirection === 'right'}
   >
+    <!-- Empty offset cells before the 1st of the month -->
     {#each Array(firstDayOffset) as _, _i (_i)}
       <div class="day-cell empty" aria-hidden="true"></div>
     {/each}
 
+    <!-- Day cells with progress colouring -->
     {#each days as day (day.toISOString())}
       {@const dateStr = formatDate(day)}
       {@const progress = getDayProgress(day)}
@@ -186,7 +260,13 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Styles
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
 <style>
+  /* ═══ Calendar Container ═══ */
+
   .calendar {
     background: linear-gradient(
       165deg,
@@ -207,7 +287,7 @@
     perspective: 1000px;
   }
 
-  /* Top glow line */
+  /* Decorative top glow line */
   .calendar::before {
     content: '';
     position: absolute;
@@ -237,7 +317,7 @@
     }
   }
 
-  /* Nebula background effect */
+  /* Nebula background effect — decorative radial gradients */
   .calendar::after {
     content: '';
     position: absolute;
@@ -252,6 +332,8 @@
     z-index: 0;
   }
 
+  /* ═══ Header ═══ */
+
   .calendar-header {
     display: flex;
     align-items: center;
@@ -262,6 +344,8 @@
     position: relative;
     z-index: 1;
   }
+
+  /* ═══ Navigation Buttons ═══ */
 
   .nav-btn {
     width: 48px;
@@ -303,6 +387,8 @@
     color: var(--color-text-muted);
   }
 
+  /* ═══ Month Title ═══ */
+
   .month-title-wrapper {
     overflow: visible;
     position: relative;
@@ -312,6 +398,7 @@
     justify-content: center;
   }
 
+  /* Small pill button to jump to today — resets gradient text from parent */
   .today-btn {
     font-size: 0.5625rem;
     font-weight: 700;
@@ -349,6 +436,7 @@
     cursor: not-allowed;
   }
 
+  /* Gradient text shimmer on the month title */
   .month-title {
     font-size: 1.75rem;
     font-weight: 800;
@@ -366,6 +454,8 @@
     animation: textShimmer 8s linear infinite;
     transition: all 0.3s var(--ease-out);
   }
+
+  /* ═══ Month Slide-Out Animations ═══ */
 
   .month-title.slide-out-left {
     animation: slideOutLeft 0.3s var(--ease-out) forwards;
@@ -410,6 +500,8 @@
     }
   }
 
+  /* ═══ Weekday Header Row ═══ */
+
   .calendar-weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -430,6 +522,8 @@
     text-shadow: 0 0 20px var(--color-primary-glow);
   }
 
+  /* ═══ Day Grid ═══ */
+
   .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -441,10 +535,12 @@
     transition: all 0.3s var(--ease-out);
   }
 
+  /* Disable clicks during transition */
   .calendar-grid.transitioning {
     pointer-events: none;
   }
 
+  /* 3D slide animations for month transitions */
   .calendar-grid.transitioning.slide-left {
     animation: gridSlideLeft 0.3s var(--ease-out) forwards;
   }
@@ -483,6 +579,8 @@
     }
   }
 
+  /* ═══ Day Cells ═══ */
+
   .day-cell {
     aspect-ratio: 1;
     display: flex;
@@ -499,7 +597,7 @@
     border: 1px solid transparent;
   }
 
-  /* Subtle star effect on hover */
+  /* Subtle radial glow on hover */
   .day-cell::before {
     content: '';
     position: absolute;
@@ -527,7 +625,7 @@
     opacity: 1;
   }
 
-  /* Today - glowing star */
+  /* Today's cell — perpetual pulsing glow */
   .day-cell.today {
     border-color: var(--color-primary);
     box-shadow:
@@ -561,7 +659,9 @@
     opacity: 0.1;
   }
 
-  /* Past days and today with goals - ignited stars */
+  /* ═══ Progress-Coloured Day Cells ═══ */
+
+  /* Past days and today with goals — "ignited stars" coloured by completion % */
   .day-cell.past.has-goals,
   .day-cell.today.has-goals {
     background: linear-gradient(
@@ -574,6 +674,7 @@
     box-shadow: 0 0 20px color-mix(in srgb, var(--day-bg) 40%, transparent);
   }
 
+  /* Top-light gradient overlay for depth */
   .day-cell.past.has-goals::before,
   .day-cell.today.has-goals::before {
     background: linear-gradient(
@@ -591,6 +692,8 @@
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
     font-weight: 800;
   }
+
+  /* ═══ Day Number & Progress Label ═══ */
 
   .day-number {
     font-weight: 600;
@@ -613,6 +716,8 @@
     font-family: var(--font-mono);
     letter-spacing: 0.02em;
   }
+
+  /* ═══ Mobile Adjustments ═══ */
 
   @media (max-width: 640px) {
     .calendar {

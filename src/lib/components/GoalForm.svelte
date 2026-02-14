@@ -1,19 +1,54 @@
 <script lang="ts">
+  /**
+   * @fileoverview GoalForm — form component for creating or editing a goal.
+   *
+   * Supports two goal types:
+   *   - **Completion** — a simple done/not-done goal
+   *   - **Incremental** — a goal with a numeric target value
+   *
+   * When editing an existing goal (`entityId` is set), the form:
+   *   - Integrates `trackEditing` to mark the entity as being edited
+   *   - Renders a `DeferredChangesBanner` if remote changes arrive while editing
+   *   - Highlights fields that were just updated from remote data with a shimmer
+   *
+   * The `remoteData` derived value compares current props (DB state) against
+   * local form state to detect when the parent's data diverges from user edits.
+   */
+
+  // =============================================================================
+  //  Imports
+  // =============================================================================
+
   import type { GoalType } from '$lib/types';
   import { trackEditing } from '@prabhask5/stellar-engine/actions';
   import DeferredChangesBanner from './DeferredChangesBanner.svelte';
 
+  // =============================================================================
+  //  Props Interface
+  // =============================================================================
+
   interface Props {
+    /** Initial goal name — pre-filled when editing */
     name?: string;
+    /** Initial goal type — `'completion'` or `'incremental'` */
     type?: GoalType;
+    /** Initial target value for incremental goals */
     targetValue?: number | null;
+    /** Label for the submit button (e.g. "Create", "Save") */
     submitLabel?: string;
-    // For trackEditing - existing entity being edited
+    /** Entity ID when editing — `null` for new goals */
     entityId?: string | null;
+    /** Entity type string for `trackEditing` */
     entityType?: string;
+    /** Callback with the validated form data on submission */
     onSubmit: (data: { name: string; type: GoalType; targetValue: number | null }) => void;
+    /** Optional cancel callback — renders Cancel button when provided */
     onCancel?: () => void;
   }
+
+  // =============================================================================
+  //  Component State
+  // =============================================================================
 
   let {
     name: initialName = '',
@@ -26,6 +61,7 @@
     onCancel
   }: Props = $props();
 
+  /* ── Local form state (editable copies of initial props) ──── */
   // svelte-ignore state_referenced_locally
   let name = $state(initialName);
   // svelte-ignore state_referenced_locally
@@ -33,17 +69,26 @@
   // svelte-ignore state_referenced_locally
   let targetValue = $state(initialTargetValue ?? 10);
 
-  // Track which fields were recently animated for shimmer effect
+  /** Fields that were recently overwritten by remote data — triggers shimmer CSS */
   let highlightedFields = $state<Set<string>>(new Set());
 
+  /** Human-readable labels for diff display in `DeferredChangesBanner` */
   const fieldLabels: Record<string, string> = {
     name: 'Name',
     type: 'Type',
     target_value: 'Target'
   };
 
-  // Derive remote data by comparing reactive props (DB state) to local form state.
-  // Props update when realtime writes to IndexedDB; local state holds user edits.
+  // =============================================================================
+  //  Derived Values
+  // =============================================================================
+
+  /**
+   * Compares reactive props (latest DB state) against local form state.
+   * Returns a snapshot of the remote values when they differ, or `null`
+   * when everything matches. Props update when realtime writes to IndexedDB;
+   * local state holds user edits.
+   */
   const remoteData = $derived.by(() => {
     if (!entityId) return null;
     const propName = initialName;
@@ -55,6 +100,14 @@
     return null;
   });
 
+  // =============================================================================
+  //  Helper Functions
+  // =============================================================================
+
+  /**
+   * Overwrites local form state with the latest prop values (remote data)
+   * and temporarily highlights the changed fields with a shimmer animation.
+   */
   function loadRemoteData() {
     const fieldsToHighlight: string[] = [];
     if (name !== initialName) fieldsToHighlight.push('name');
@@ -65,12 +118,19 @@
     type = initialType;
     targetValue = initialTargetValue ?? 10;
 
+    /* Trigger shimmer CSS class, then clear after 1.4s */
     highlightedFields = new Set(fieldsToHighlight);
     setTimeout(() => {
       highlightedFields = new Set();
     }, 1400);
   }
 
+  /**
+   * Validates the form and calls `onSubmit` with structured data.
+   * Only includes `targetValue` for incremental goals.
+   *
+   * @param {Event} event — the form submit event
+   */
   function handleSubmit(event: Event) {
     event.preventDefault();
     if (!name.trim()) return;
@@ -83,11 +143,13 @@
   }
 </script>
 
+<!-- ═══ Goal Form ═══ -->
 <form
   class="goal-form"
   onsubmit={handleSubmit}
   use:trackEditing={{ entityId: entityId ?? 'new', entityType, formType: 'manual-save' }}
 >
+  <!-- Deferred changes banner — only shown when editing an existing goal -->
   {#if entityId}
     <DeferredChangesBanner
       {entityId}
@@ -100,6 +162,7 @@
     />
   {/if}
 
+  <!-- ═══ Name Field ═══ -->
   <div class="form-group">
     <label for="goal-name">Goal Name</label>
     <input
@@ -112,6 +175,7 @@
     />
   </div>
 
+  <!-- ═══ Goal Type Toggle ═══ -->
   <div class="form-group">
     <span id="goal-type-label" class="label">Goal Type</span>
     <div
@@ -120,6 +184,7 @@
       role="group"
       aria-labelledby="goal-type-label"
     >
+      <!-- Completion type button -->
       <button
         type="button"
         class="type-btn"
@@ -129,6 +194,7 @@
         <span class="type-icon">✓</span>
         <span>Completion</span>
       </button>
+      <!-- Incremental type button -->
       <button
         type="button"
         class="type-btn"
@@ -141,6 +207,7 @@
     </div>
   </div>
 
+  <!-- ═══ Target Value (incremental only) ═══ -->
   {#if type === 'incremental'}
     <div class="form-group">
       <label for="target-value">Target Value</label>
@@ -155,6 +222,7 @@
     </div>
   {/if}
 
+  <!-- ═══ Form Actions ═══ -->
   <div class="form-actions">
     {#if onCancel}
       <button type="button" class="btn btn-secondary" onclick={onCancel}> Cancel </button>
@@ -166,6 +234,8 @@
 </form>
 
 <style>
+  /* ═══ Form Layout ═══ */
+
   .goal-form {
     display: flex;
     flex-direction: column;
@@ -187,6 +257,8 @@
     letter-spacing: 0.1em;
   }
 
+  /* ═══ Goal Type Toggle ═══ */
+
   .type-toggle {
     display: flex;
     gap: 1rem;
@@ -207,6 +279,7 @@
     overflow: hidden;
   }
 
+  /* Radial glow overlay — fades in on hover/active */
   .type-btn::before {
     content: '';
     position: absolute;
@@ -228,6 +301,7 @@
     opacity: 0.5;
   }
 
+  /* Active state — selected goal type */
   .type-btn.active {
     border-color: var(--color-primary);
     background: linear-gradient(145deg, rgba(108, 92, 231, 0.2) 0%, rgba(15, 15, 32, 0.95) 100%);
@@ -240,6 +314,8 @@
   .type-btn.active::before {
     opacity: 0.3;
   }
+
+  /* ═══ Type Icon ═══ */
 
   .type-icon {
     font-size: 2rem;
@@ -274,6 +350,8 @@
     font-size: 0.9rem;
     letter-spacing: 0.02em;
   }
+
+  /* ═══ Form Actions ═══ */
 
   .form-actions {
     display: flex;
