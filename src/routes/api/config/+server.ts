@@ -1,48 +1,33 @@
-/**
- * @fileoverview Server Config API Endpoint — `/api/config`
- *
- * Reads Supabase environment variables at runtime via `process.env`.
- * On Vercel, `process.env` reads environment variables at **runtime** (not build time),
- * so this endpoint always reflects the latest configured values.
- *
- * Only serves the **public** anon key and URL — these are safe to expose
- * because Supabase Row-Level Security (RLS) enforces all access control.
- *
- * Used by the client-side setup flow to detect whether the app
- * has already been configured with valid Supabase credentials.
- */
-
 // =============================================================================
-//  IMPORTS
+//  Stellar — Config API Endpoint
+// =============================================================================
+//
+//  Returns the server-side Supabase configuration to the client.
+//
+//  The client calls this endpoint on initial load to discover whether
+//  Supabase has been configured (i.e., environment variables are present).
+//  If not, the client redirects to the `/setup` wizard.
+//
+//  Delegates entirely to `getServerConfig()` from stellar-engine, which
+//  reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` from
+//  `process.env` and returns them (or `null` values when unconfigured).
+//
 // =============================================================================
 
 import { json } from '@sveltejs/kit';
+import { getServerConfig } from '@prabhask5/stellar-engine/kit';
 import type { RequestHandler } from './$types';
 
-// =============================================================================
-//  GET HANDLER — Return Supabase Configuration Status
-// =============================================================================
-
 /**
- * Checks whether Supabase environment variables are present and returns them.
+ * **GET /api/config** — Retrieve the current Supabase configuration.
  *
- * @returns A JSON response with `{ configured: true, supabaseUrl, supabaseAnonKey }`
- *          when both env vars exist, or `{ configured: false }` otherwise.
+ * Reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` from the
+ * server environment and returns them as JSON. The client uses this to
+ * initialise the Supabase client or detect that setup is required.
+ *
+ * @returns JSON payload with `{ supabaseUrl, supabaseAnonKey }` (values
+ *          may be `null` if the environment is unconfigured).
  */
 export const GET: RequestHandler = async () => {
-  /* ── Read runtime env vars ──── */
-  const supabaseUrl = process.env.PUBLIC_SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || '';
-
-  /* ── Return credentials only when both are present ──── */
-  if (supabaseUrl && supabaseAnonKey) {
-    return json({
-      configured: true,
-      supabaseUrl,
-      supabaseAnonKey
-    });
-  }
-
-  /* Neither or only one var set → not configured */
-  return json({ configured: false });
+  return json(getServerConfig());
 };

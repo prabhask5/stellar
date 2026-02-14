@@ -15,8 +15,7 @@
 
 import { browser } from '$app/environment';
 import { redirect } from '@sveltejs/kit';
-import { getConfig } from '@prabhask5/stellar-engine/config';
-import { getValidSession, isAdmin } from '@prabhask5/stellar-engine/auth';
+import { resolveSetupAccess } from '@prabhask5/stellar-engine/kit';
 import type { PageLoad } from './$types';
 
 /**
@@ -26,31 +25,14 @@ import type { PageLoad } from './$types';
  *          no Supabase config yet, `false` for admin reconfiguration.
  */
 export const load: PageLoad = async () => {
-  /* ── SSR bail-out ──── */
   /* Config and session helpers rely on browser APIs (IndexedDB, etc.) */
   if (!browser) return {};
 
-  // =============================================================================
-  //  Unconfigured — first-time setup, publicly accessible
-  // =============================================================================
-  if (!getConfig()) {
-    return { isFirstSetup: true };
+  const { data, redirectUrl } = await resolveSetupAccess();
+
+  if (redirectUrl) {
+    redirect(307, redirectUrl);
   }
 
-  // =============================================================================
-  //  Configured — restrict to admins only
-  // =============================================================================
-  const session = await getValidSession();
-
-  /* No valid session → send to login */
-  if (!session?.user) {
-    redirect(307, '/login');
-  }
-
-  /* Authenticated but not admin → send home */
-  if (!isAdmin(session.user)) {
-    redirect(307, '/');
-  }
-
-  return { isFirstSetup: false };
+  return data;
 };

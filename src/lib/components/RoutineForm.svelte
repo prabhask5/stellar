@@ -18,7 +18,7 @@
   import type { GoalType, DayOfWeek } from '$lib/types';
   import { formatDate } from '$lib/utils/dates';
   import { trackEditing } from '@prabhask5/stellar-engine/actions';
-  import DeferredChangesBanner from './DeferredChangesBanner.svelte';
+  import DeferredChangesBanner from '@prabhask5/stellar-engine/components/DeferredChangesBanner';
 
   // =============================================================================
   //                                  Props

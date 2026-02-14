@@ -41,7 +41,7 @@
   import LongTermTaskList from '$lib/components/LongTermTaskList.svelte';
   import LongTermTaskModal from '$lib/components/LongTermTaskModal.svelte';
   import LongTermTaskForm from '$lib/components/LongTermTaskForm.svelte';
-  import { truncateTooltip } from '$lib/actions/truncateTooltip';
+  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
 
   // =============================================================================
   //                         COMPONENT STATE

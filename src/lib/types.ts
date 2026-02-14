@@ -224,23 +224,6 @@ export interface DailyGoalProgress {
   device_id?: string;
 }
 
-// =============================================================================
-//                          SYNC-RELATED TYPES
-// =============================================================================
-
-/** Re-export core sync operation types from the engine package. */
-export type { OperationType, SyncOperationItem } from '@prabhask5/stellar-engine/types';
-
-/** Re-export the synchronisation status enum from the engine package. */
-export type { SyncStatus } from '@prabhask5/stellar-engine/types';
-
-// =============================================================================
-//                       CONFLICT RESOLUTION TYPES
-// =============================================================================
-
-/** Re-export conflict history tracking type from the engine package. */
-export type { ConflictHistoryEntry } from '@prabhask5/stellar-engine/types';
-
 /**
  * Aggregated progress snapshot for a single calendar day.
  *
@@ -483,19 +466,6 @@ export interface LongTermTaskWithCategory extends LongTermTask {
   /** The resolved category object, if `category_id` is set. */
   category?: TaskCategory;
 }
-
-// =============================================================================
-//                    OFFLINE AUTHENTICATION TYPES
-// =============================================================================
-
-/** Re-export cached credential shape from the engine package. */
-export type { OfflineCredentials } from '@prabhask5/stellar-engine/types';
-
-/** Re-export offline session descriptor from the engine package. */
-export type { OfflineSession } from '@prabhask5/stellar-engine/types';
-
-/** Re-export authentication mode enum (`'online'` | `'offline'`). */
-export type { AuthMode } from '@prabhask5/stellar-engine/types';
 
 // =============================================================================
 //                          FOCUS FEATURE TYPES

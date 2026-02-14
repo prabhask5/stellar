@@ -11,36 +11,13 @@
  * cookies / local storage are available.
  */
 
-// =============================================================================
-//  IMPORTS
-// =============================================================================
-
 import { redirect } from '@sveltejs/kit';
 import { browser } from '$app/environment';
-import { resolveAuthState } from '@prabhask5/stellar-engine/auth';
-import type { AuthMode, OfflineCredentials, Session } from '@prabhask5/stellar-engine/types';
+import { resolveProtectedLayout } from '@prabhask5/stellar-engine/kit';
+import type { ProtectedLayoutData } from '@prabhask5/stellar-engine/kit';
 import type { LayoutLoad } from './$types';
 
-// =============================================================================
-//  TYPES
-// =============================================================================
-
-/**
- * Data shape returned by the protected layout's `load` function.
- *
- * @property session        — Active Supabase session, or `null` if offline / unauthenticated.
- * @property authMode       — Current auth mode: `'online'`, `'offline'`, or `'none'`.
- * @property offlineProfile — Cached offline credentials when in offline mode, otherwise `null`.
- */
-export interface ProtectedLayoutData {
-  session: Session | null;
-  authMode: AuthMode;
-  offlineProfile: OfflineCredentials | null;
-}
-
-// =============================================================================
-//  LOAD FUNCTION — Auth Guard
-// =============================================================================
+export type { ProtectedLayoutData };
 
 /**
  * SvelteKit universal `load` function for the `(protected)` layout.
@@ -53,20 +30,13 @@ export interface ProtectedLayoutData {
  */
 export const load: LayoutLoad = async ({ url }): Promise<ProtectedLayoutData> => {
   if (browser) {
-    /* ── Resolve authentication state from stellar-engine ──── */
-    const result = await resolveAuthState();
+    const { data, redirectUrl } = await resolveProtectedLayout(url);
 
-    if (result.authMode === 'none') {
-      /* Build login URL, preserving the user's intended destination */
-      const returnUrl = url.pathname + url.search;
-      const loginUrl =
-        returnUrl && returnUrl !== '/'
-          ? `/login?redirect=${encodeURIComponent(returnUrl)}`
-          : '/login';
-      throw redirect(302, loginUrl);
+    if (redirectUrl) {
+      throw redirect(302, redirectUrl);
     }
 
-    return result;
+    return data;
   }
 
   /* SSR fallback — no auth info available on the server */

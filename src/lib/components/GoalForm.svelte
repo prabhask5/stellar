@@ -21,7 +21,7 @@
 
   import type { GoalType } from '$lib/types';
   import { trackEditing } from '@prabhask5/stellar-engine/actions';
-  import DeferredChangesBanner from './DeferredChangesBanner.svelte';
+  import DeferredChangesBanner from '@prabhask5/stellar-engine/components/DeferredChangesBanner';
 
   // =============================================================================
   //  Props Interface

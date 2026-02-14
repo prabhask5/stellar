@@ -22,7 +22,7 @@
   import type { LongTermTaskWithCategory, TaskCategory } from '$lib/types';
   import { parseDateString } from '$lib/utils/dates';
   import { remoteChangeAnimation, trackEditing } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '$lib/actions/truncateTooltip';
+  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
 
   // =============================================================================
   //                                  Props

@@ -18,7 +18,7 @@
   import type { TaskCategory, AgendaItemType } from '$lib/types';
   import { getTodayDateString } from '$lib/utils/dates';
   import { trackEditing } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '$lib/actions/truncateTooltip';
+  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
 
   // =============================================================================
   //                                  Props

@@ -27,7 +27,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '$lib/actions/truncateTooltip';
+  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
 
   // =============================================================================
   //                         COMPONENT STATE

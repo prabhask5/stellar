@@ -41,12 +41,13 @@
   import { lockSingleUser, getUserProfile } from '@prabhask5/stellar-engine/auth';
   import { authState } from '@prabhask5/stellar-engine/stores';
   import { debug } from '@prabhask5/stellar-engine/utils';
+  import { hydrateAuthState } from '@prabhask5/stellar-engine/kit';
 
   /* ── Types ── */
   import type { LayoutData } from './+layout';
 
   /* ── Components ── */
-  import SyncStatus from '$lib/components/SyncStatus.svelte';
+  import SyncStatus from '@prabhask5/stellar-engine/components/SyncStatus';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
 
   // =============================================================================
@@ -99,13 +100,7 @@
    * - anything else → `setNoAuth`
    */
   $effect(() => {
-    if (data.authMode === 'supabase' && data.session) {
-      authState.setSupabaseAuth(data.session);
-    } else if (data.authMode === 'offline' && data.offlineProfile) {
-      authState.setOfflineAuth(data.offlineProfile);
-    } else {
-      authState.setNoAuth();
-    }
+    hydrateAuthState(data);
   });
 
   // =============================================================================

@@ -25,7 +25,7 @@
 
   import { getProgressColor, calculateGoalProgress, getOverflowColor } from '$lib/utils/colors';
   import { remoteChangeAnimation, triggerLocalAnimation } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '$lib/actions/truncateTooltip';
+  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
   import type { Goal, DailyRoutineGoal, DailyGoalProgress } from '$lib/types';
 
   // =============================================================================

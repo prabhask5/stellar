@@ -22,6 +22,7 @@
   import { page } from '$app/stores';
   import { setConfig } from '@prabhask5/stellar-engine/config';
   import { isOnline } from '@prabhask5/stellar-engine/stores';
+  import { pollForNewServiceWorker } from '@prabhask5/stellar-engine/kit';
 
   // =============================================================================
   //  Form State — Supabase + Vercel credentials
@@ -148,39 +149,22 @@
 
   /**
    * Poll for a new service-worker version to detect when the Vercel
-   * redeployment has finished. Checks `registration.update()` every
-   * 3 seconds for up to ~10 minutes.
+   * redeployment has finished. Uses the engine's `pollForNewServiceWorker`
+   * helper which checks `registration.update()` at regular intervals.
    *
-   * A new `installing` or `waiting` SW (different from any pre-existing
-   * one) signals the new build is live.
+   * Resolves a Promise when a new SW is detected in the waiting state.
    */
-  async function pollForDeployment() {
-    const maxAttempts = 200; /* 3s * 200 = 10 minutes max */
-    const registration = await navigator.serviceWorker?.getRegistration();
-
-    /* Note any already-waiting SW so we don't false-positive */
-    const existingWaiting = registration?.waiting;
-
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      try {
-        /* Force the browser to check for a new service worker version */
-        await registration?.update();
-
-        /* A new SW (different from any pre-existing one) → build is live */
-        if (
-          registration?.installing ||
-          (registration?.waiting && registration.waiting !== existingWaiting)
-        ) {
+  function pollForDeployment(): Promise<void> {
+    return new Promise((resolve) => {
+      pollForNewServiceWorker({
+        intervalMs: 3000,
+        maxAttempts: 200,
+        onFound: () => {
           deployStage = 'ready';
-          return;
+          resolve();
         }
-      } catch {
-        /* Network error during poll — keep trying */
-      }
-    }
-    /* Timed out but deployment was triggered — show ready anyway */
-    deployStage = 'ready';
+      });
+    });
   }
 
   // =============================================================================

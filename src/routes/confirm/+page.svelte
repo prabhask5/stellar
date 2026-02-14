@@ -20,6 +20,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { handleEmailConfirmation, broadcastAuthConfirmed } from '@prabhask5/stellar-engine/kit';
 
   // =============================================================================
   //  State
@@ -38,9 +39,6 @@
   /** BroadcastChannel name shared with the login page */
   const CHANNEL_NAME = 'stellar-auth-channel';
 
-  /** Delay (ms) before checking if `window.close()` succeeded */
-  const FOCUS_TIMEOUT_MS = 500;
-
   // =============================================================================
   //  Lifecycle — onMount verification flow
   // =============================================================================
@@ -52,51 +50,24 @@
 
     /* ── Token present → verify it ──── */
     if (tokenHash && type) {
-      try {
-        /* Dynamically import engine helpers (code-split) */
-        const { verifyOtp, trustPendingDevice } = await import('@prabhask5/stellar-engine');
-        const { error } = await verifyOtp(
-          tokenHash,
-          type as 'signup' | 'email' | 'email_change' | 'magiclink'
-        );
+      const result = await handleEmailConfirmation(
+        tokenHash,
+        type as 'signup' | 'email' | 'email_change' | 'magiclink'
+      );
 
-        /* For device-verification OTPs, trust the *originating* device */
-        if (!error && (type === 'email' || type === 'magiclink')) {
-          await trustPendingDevice();
-        }
-
-        if (error) {
-          status = 'error';
-
-          /* ── Translate common Supabase errors into friendly messages ──── */
-          const errorLower = error.toLowerCase();
-          if (
-            errorLower.includes('already') ||
-            errorLower.includes('confirmed') ||
-            errorLower.includes('used')
-          ) {
-            errorMessage =
-              'This email has already been confirmed. You can sign in to your account.';
-          } else if (errorLower.includes('expired') || errorLower.includes('invalid')) {
-            errorMessage =
-              'This confirmation link has expired. Please request a new one from the login page.';
-          } else {
-            errorMessage = error;
-          }
-          return;
-        }
-
-        status = 'success';
-
-        /* Brief pause so the user sees the success state */
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        /* Hand off to the login tab or navigate directly */
-        await focusOrRedirect();
-      } catch {
+      if (!result.success) {
         status = 'error';
-        errorMessage = 'An unexpected error occurred. Please try again.';
+        errorMessage = result.error || 'Verification failed';
+        return;
       }
+
+      status = 'success';
+
+      /* Brief pause so the user sees the success state */
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      /* Hand off to the login tab or navigate directly */
+      await focusOrRedirect();
     } else {
       /* No token in URL — nothing to verify; just redirect */
       await focusOrRedirect();
@@ -117,35 +88,16 @@
 
     const type = $page.url.searchParams.get('type') || 'signup';
 
-    /* ── BroadcastChannel path — notify the login tab ──── */
-    if ('BroadcastChannel' in window) {
-      const channel = new BroadcastChannel(CHANNEL_NAME);
+    const result = await broadcastAuthConfirmed(CHANNEL_NAME, type);
 
-      /* Tell every listening tab that confirmation succeeded */
-      channel.postMessage({
-        type: 'AUTH_CONFIRMED',
-        verificationType: type
-      });
-
-      /* Give the original tab time to process the message */
-      await new Promise((resolve) => setTimeout(resolve, FOCUS_TIMEOUT_MS));
-
-      channel.close();
-
-      /* ── Attempt to close this confirmation tab ──── */
-      try {
-        window.close();
-      } catch {
-        /* Browser policy may block window.close() */
-      }
-
-      /* If still here → close failed; show fallback message */
+    if (result === 'no_broadcast') {
+      /* BroadcastChannel unsupported — redirect to home directly */
+      goto('/', { replaceState: true });
+    } else {
+      /* 'can_close' — window.close() was blocked by browser */
       setTimeout(() => {
         status = 'can_close';
       }, 200);
-    } else {
-      /* BroadcastChannel unsupported — redirect to home directly */
-      goto('/', { replaceState: true });
     }
   }
 </script>

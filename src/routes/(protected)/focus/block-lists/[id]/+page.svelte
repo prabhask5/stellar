@@ -22,7 +22,7 @@
   import type { BlockList, BlockedWebsite, DayOfWeek } from '$lib/types';
   import BlockListForm from '$lib/components/focus/BlockListForm.svelte';
   import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '$lib/actions/truncateTooltip';
+  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
 
   // =============================================================================
   //                         COMPONENT STATE

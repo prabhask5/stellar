@@ -24,7 +24,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import BlockListForm from './BlockListForm.svelte';
   import { remoteChangeAnimation, triggerLocalAnimation } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '$lib/actions/truncateTooltip';
+  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
 
   // =============================================================================
   //  Props Interface

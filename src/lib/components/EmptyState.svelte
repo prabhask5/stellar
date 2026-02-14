@@ -32,7 +32,7 @@
   //  Imports
   // =============================================================================
 
-  import { truncateTooltip } from '$lib/actions/truncateTooltip';
+  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
 
   // =============================================================================
   //  Component State

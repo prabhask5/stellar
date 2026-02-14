@@ -23,9 +23,8 @@
   //  Imports
   // =============================================================================
 
-  import { browser } from '$app/environment';
-  import { onMount } from 'svelte';
-  import { debug } from '@prabhask5/stellar-engine/utils';
+  import { onMount, onDestroy } from 'svelte';
+  import { monitorSwLifecycle, handleSwUpdate } from '@prabhask5/stellar-engine/kit';
 
   // =============================================================================
   //  Component State
@@ -34,92 +33,23 @@
   /** Whether the update toast is visible */
   let showPrompt = $state(false);
 
+  /** Cleanup function returned by `monitorSwLifecycle` */
+  let cleanupMonitor: (() => void) | null = null;
+
   // =============================================================================
   //  Service Worker Monitoring (runs only in browser)
   // =============================================================================
 
   onMount(() => {
-    if (!browser || !navigator.serviceWorker) return;
-
-    /**
-     * Queries the SW registration for a waiting worker and shows
-     * the prompt if one is found.
-     */
-    function checkForWaitingWorker() {
-      navigator.serviceWorker.getRegistration().then((registration) => {
-        if (registration?.waiting) {
-          debug('log', '[UpdatePrompt] Found waiting service worker');
-          showPrompt = true;
-        }
-      });
-    }
-
-    /* Check immediately on mount */
-    checkForWaitingWorker();
-
-    /* Retry after delays — iOS PWA sometimes needs extra time */
-    setTimeout(checkForWaitingWorker, 1000);
-    setTimeout(checkForWaitingWorker, 3000);
-
-    /* Listen for messages from the service worker */
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data?.type === 'SW_INSTALLED') {
-        debug('log', '[UpdatePrompt] Received SW_INSTALLED message');
-        /* Small delay to ensure the worker is in waiting state */
-        setTimeout(checkForWaitingWorker, 500);
-      }
-    });
-
-    /* Listen for new service worker becoming available */
-    navigator.serviceWorker.ready.then((registration) => {
-      /* Check if there's already a waiting worker */
-      if (registration.waiting) {
-        debug('log', '[UpdatePrompt] Waiting worker found on ready');
+    cleanupMonitor = monitorSwLifecycle({
+      onUpdateAvailable: () => {
         showPrompt = true;
       }
-
-      /* Listen for update found → track new worker's state changes */
-      registration.addEventListener('updatefound', () => {
-        debug('log', '[UpdatePrompt] Update found');
-        const newWorker = registration.installing;
-        if (newWorker) {
-          newWorker.addEventListener('statechange', () => {
-            debug('log', '[UpdatePrompt] New worker state:', newWorker.state);
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              /* New service worker is ready but waiting to activate */
-              showPrompt = true;
-            }
-          });
-        }
-      });
     });
+  });
 
-    /* Re-check when app becomes visible — critical for iOS PWA resume */
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        debug('log', '[UpdatePrompt] App became visible, checking for updates');
-        navigator.serviceWorker.ready.then((registration) => {
-          registration.update();
-        });
-        /* Also check for waiting worker after a brief delay */
-        setTimeout(checkForWaitingWorker, 1000);
-      }
-    });
-
-    /* Periodic update check every 2 minutes */
-    setInterval(
-      () => {
-        navigator.serviceWorker.ready.then((registration) => {
-          registration.update();
-        });
-      },
-      2 * 60 * 1000
-    );
-
-    /* Force an update check on page load */
-    navigator.serviceWorker.ready.then((registration) => {
-      registration.update();
-    });
+  onDestroy(() => {
+    cleanupMonitor?.();
   });
 
   // =============================================================================
@@ -137,24 +67,7 @@
     if (reloading) return;
     reloading = true;
     showPrompt = false;
-
-    /* Tell the waiting service worker to take over */
-    const registration = await navigator.serviceWorker?.getRegistration();
-    if (registration?.waiting) {
-      /* Listen for the new SW to take control, then reload */
-      navigator.serviceWorker.addEventListener(
-        'controllerchange',
-        () => {
-          window.location.reload();
-        },
-        { once: true }
-      );
-
-      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-    } else {
-      /* No waiting worker found — just reload */
-      window.location.reload();
-    }
+    await handleSwUpdate();
   }
 
   /**

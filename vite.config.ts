@@ -1,13 +1,12 @@
 /**
  * @fileoverview Vite build configuration for the Stellar PWA.
  *
- * This config handles three key concerns:
- *   1. SvelteKit integration — via the official `sveltekit()` plugin
- *   2. Service-worker versioning — stamps a unique build ID into `static/sw.js`
- *      so browsers detect new deployments and trigger the update flow
- *   3. Asset-manifest generation — writes `asset-manifest.json` listing every
- *      immutable JS/CSS chunk so the service worker can intelligently precache
- *      only **new** files on each deploy
+ * This config handles two key concerns:
+ *   1. **SvelteKit integration** — via the official `sveltekit()` plugin
+ *   2. **PWA service worker + asset manifest** — via `stellarPWA()` from
+ *      stellar-engine, which generates `static/sw.js` (with a unique build
+ *      version) and `asset-manifest.json` (listing all immutable JS/CSS
+ *      chunks for background precaching)
  *
  * Chunk-splitting is tuned to isolate heavy vendor libs (`@supabase`, `date-fns`,
  * `dexie`) into their own bundles for long-term caching.
@@ -18,129 +17,18 @@
 // =============================================================================
 
 import { sveltekit } from '@sveltejs/kit/vite';
+import { stellarPWA } from '@prabhask5/stellar-engine/vite';
 import { defineConfig } from 'vite';
-import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'fs';
-import { resolve, join } from 'path';
-
-// =============================================================================
-//                            FILESYSTEM HELPERS
-// =============================================================================
-
-/**
- * Recursively collects every file path under `dir`.
- *
- * Used after the build to enumerate all immutable assets so they can be written
- * into the asset manifest consumed by the service worker.
- *
- * @param dir   — Absolute path to the directory to walk
- * @param files — Accumulator array (used internally during recursion)
- * @returns An array of absolute file paths found under `dir`
- */
-function getAllFiles(dir: string, files: string[] = []): string[] {
-  if (!existsSync(dir)) return files;
-  const entries = readdirSync(dir);
-  for (const entry of entries) {
-    const fullPath = join(dir, entry);
-    if (statSync(fullPath).isDirectory()) {
-      getAllFiles(fullPath, files);
-    } else {
-      files.push(fullPath);
-    }
-  }
-  return files;
-}
-
-// =============================================================================
-//                      SERVICE WORKER VERSION PLUGIN
-// =============================================================================
-
-/**
- * Custom Vite plugin that keeps the service worker in sync with each build.
- *
- * **`buildStart` hook** — generates a base-36 timestamp version string and
- * patches the `APP_VERSION` constant inside `static/sw.js`. This ensures that
- * every production build produces a unique service-worker file, which in turn
- * triggers the browser's "new SW available" lifecycle.
- *
- * **`closeBundle` hook** — after Rollup has finished writing chunks, scans the
- * immutable output directory and writes `asset-manifest.json` to both the
- * `static/` folder (for the dev server / future builds) and the build output
- * (for the current deploy). The manifest lists only `.js` and `.css` files so
- * the service worker knows exactly which chunks to precache.
- *
- * @returns A Vite plugin object with `buildStart` and `closeBundle` hooks
- */
-function serviceWorkerVersion() {
-  return {
-    name: 'service-worker-version',
-
-    /* ── buildStart — stamp the SW version ──────────────────────────── */
-    buildStart() {
-      /** Base-36 encoded timestamp → compact, unique per build */
-      const version = Date.now().toString(36);
-      const swPath = resolve('static/sw.js');
-
-      try {
-        let swContent = readFileSync(swPath, 'utf-8');
-        /* Replace the APP_VERSION constant via regex so the rest of sw.js is untouched */
-        swContent = swContent.replace(
-          /const APP_VERSION = ['"][^'"]*['"]/,
-          `const APP_VERSION = '${version}'`
-        );
-        writeFileSync(swPath, swContent);
-        console.log(`[SW] Updated service worker version to: ${version}`);
-      } catch (e) {
-        console.warn('[SW] Could not update service worker version:', e);
-      }
-    },
-
-    /* ── closeBundle — generate the asset manifest ──────────────────── */
-    closeBundle() {
-      /* After build, generate manifest of all immutable assets for precaching */
-      const buildDir = resolve('.svelte-kit/output/client/_app/immutable');
-      if (!existsSync(buildDir)) {
-        console.warn('[SW] Build directory not found, skipping manifest generation');
-        return;
-      }
-
-      try {
-        const allFiles = getAllFiles(buildDir);
-
-        /**
-         * Only JS and CSS are worth precaching — images/fonts are better
-         * served on-demand via the SW's cache-first strategy.
-         */
-        const assets = allFiles
-          .map(f => f.replace(resolve('.svelte-kit/output/client'), ''))
-          .filter(f => f.endsWith('.js') || f.endsWith('.css'));
-
-        const manifest = {
-          version: Date.now().toString(36),
-          assets
-        };
-        const manifestContent = JSON.stringify(manifest, null, 2);
-
-        /* Write to `static/` — available to the dev server and future builds */
-        writeFileSync(resolve('static/asset-manifest.json'), manifestContent);
-
-        /* Write to build output — static files are already copied before `closeBundle` runs */
-        const buildOutputPath = resolve('.svelte-kit/output/client/asset-manifest.json');
-        writeFileSync(buildOutputPath, manifestContent);
-
-        console.log(`[SW] Generated asset manifest with ${assets.length} files`);
-      } catch (e) {
-        console.warn('[SW] Could not generate asset manifest:', e);
-      }
-    }
-  };
-}
 
 // =============================================================================
 //                           VITE CONFIGURATION
 // =============================================================================
 
 export default defineConfig({
-  plugins: [sveltekit(), serviceWorkerVersion()],
+  plugins: [
+    sveltekit(),
+    stellarPWA({ prefix: 'stellar', name: 'Stellar Planner' })
+  ],
   build: {
     /**
      * Optimize chunk splitting for better long-term caching.

@@ -25,7 +25,7 @@
   } from '$lib/utils/dates';
   import { addMonths, subMonths } from 'date-fns';
   import type { LongTermTaskWithCategory } from '$lib/types';
-  import { truncateTooltip } from '$lib/actions/truncateTooltip';
+  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
 
   // =============================================================================
   //                                  Props
