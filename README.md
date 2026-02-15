@@ -2,7 +2,7 @@
 
 A self-hosted, offline-first productivity PWA for managing goals, tasks, routines, and focus sessions. Built with SvelteKit, Dexie.js, and Supabase, Stellar works entirely from your browser with full offline support, real-time multi-device sync, and a space-themed interface.
 
-Try it at [https://planner.prabhas.io/demo](https://planner.prabhas.io/demo)
+Try it at: [https://planner.prabhas.io/demo](https://planner.prabhas.io/demo)
 
 ---
 

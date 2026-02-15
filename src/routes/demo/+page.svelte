@@ -188,7 +188,7 @@
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
     padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
     padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
-    gap: 1.5rem;
+    gap: clamp(0.75rem, 2vh, 1.5rem);
     overflow: hidden;
     background: #050510;
     color: #e8e6f0;
@@ -1519,7 +1519,7 @@
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(108, 92, 231, 0.08);
     border-radius: 16px;
-    padding: 1.5rem 2rem;
+    padding: clamp(0.75rem, 2vh, 1.5rem) clamp(1rem, 3vw, 2rem);
     opacity: 0;
     animation: infoIn 1s 5.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
@@ -1718,7 +1718,7 @@
       padding: 1rem;
       padding-top: max(1rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
       padding-bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
-      gap: 1rem;
+      gap: clamp(0.5rem, 1.5vh, 1rem);
     }
 
     .title {
@@ -1847,7 +1847,7 @@
       padding: 0.75rem;
       padding-top: max(0.75rem, calc(env(safe-area-inset-top, 0px) + 0.25rem));
       padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.25rem));
-      gap: 0.75rem;
+      gap: clamp(0.5rem, 1.2vh, 0.75rem);
     }
 
     .title {
@@ -1931,6 +1931,76 @@
 
     .info {
       padding: 1rem;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     35. SHORT VIEWPORTS (landscape or compact devices)
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  @media (max-height: 600px) {
+    .page {
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+    }
+
+    .title {
+      font-size: clamp(1.8rem, 8vw, 3rem);
+    }
+
+    .track {
+      width: 180px;
+      height: 60px;
+      border-radius: 30px;
+    }
+
+    .knob {
+      width: 48px;
+      height: 48px;
+      top: 6px;
+      left: 6px;
+    }
+    .tog.on .knob {
+      transform: translateX(120px);
+    }
+
+    .glow-trail {
+      width: 48px;
+      height: 48px;
+      left: 6px;
+    }
+    .tog.on .glow-trail {
+      transform: translateY(-50%) translateX(120px);
+    }
+
+    @keyframes glowPulse {
+      0%,
+      100% {
+        transform: translateY(-50%) translateX(120px) scale(1);
+        opacity: 0.8;
+      }
+      50% {
+        transform: translateY(-50%) translateX(120px) scale(2.2);
+        opacity: 0.15;
+      }
+    }
+
+    .info {
+      flex-direction: row;
+      padding: 0.75rem 1rem;
+      gap: 1rem;
+    }
+
+    .col li {
+      font-size: 0.72rem;
+    }
+
+    .col h3 {
+      margin-bottom: 0.3rem;
+    }
+
+    .foot {
+      display: none;
     }
   }
 </style>
