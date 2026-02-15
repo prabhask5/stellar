@@ -19,6 +19,7 @@
   // =============================================================================
 
   import { page } from '$app/stores';
+  import { resolveUserId } from '@prabhask5/stellar-engine/auth';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import { goalListStore, longTermTasksStore, taskCategoriesStore } from '$lib/stores/data';
@@ -347,10 +348,9 @@
   //                  LONG-TERM TASK HANDLERS
   // =============================================================================
 
-  /** Extract the current user's ID from the session. */
+  /** Extract the current user's ID from the auth state. */
   function getUserId(): string {
-    const session = $page.data.session;
-    return session?.user?.id ?? '';
+    return resolveUserId($page.data.session, $page.data.offlineProfile);
   }
 
   /**

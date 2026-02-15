@@ -17,6 +17,7 @@
 
   import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
+  import { resolveUserId } from '@prabhask5/stellar-engine/auth';
   import { focusStore, blockListStore, focusTimeUpdated } from '$lib/stores/focus';
   import type { FocusSettings, FocusSession, BlockList, DayOfWeek } from '$lib/types';
   import { formatDuration } from '$lib/utils/focus';
@@ -60,16 +61,7 @@
    * @returns User UUID or empty string
    */
   function getUserId(): string {
-    const pageData = $page.data;
-    // Check for Supabase session
-    if (pageData.session?.user?.id) {
-      return pageData.session.user.id;
-    }
-    // Check for offline profile
-    if (pageData.offlineProfile?.id) {
-      return pageData.offlineProfile.id;
-    }
-    return '';
+    return resolveUserId($page.data.session, $page.data.offlineProfile);
   }
 
   // =============================================================================

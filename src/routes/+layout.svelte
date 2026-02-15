@@ -38,7 +38,11 @@
   import { browser } from '$app/environment';
 
   /* ── Stellar Engine — Auth & Stores ── */
-  import { lockSingleUser, getUserProfile } from '@prabhask5/stellar-engine/auth';
+  import {
+    lockSingleUser,
+    resolveFirstName,
+    resolveAvatarInitial
+  } from '@prabhask5/stellar-engine/auth';
   import { authState } from '@prabhask5/stellar-engine/stores';
   import { debug } from '@prabhask5/stellar-engine/utils';
   import { hydrateAuthState } from '@prabhask5/stellar-engine/kit';
@@ -219,35 +223,12 @@
 
   /**
    * Derives the user's first name for display in the greeting and avatar.
-   *
-   * Resolution order:
-   * 1. `firstName` from the Supabase session profile metadata
-   * 2. Email username (the part before `@`) from the Supabase session
-   * 3. `firstName` from the offline cached profile
-   * 4. Email username from the offline cached profile
-   * 5. Fallback → `'there'`
+   * Falls back through session profile → email username → offline profile → 'there'.
    */
-  const greeting = $derived(() => {
-    // Try firstName from session profile
-    if (data.session?.user) {
-      const profile = getUserProfile(data.session.user);
-      if (profile.firstName || profile.first_name) {
-        return (profile.firstName || profile.first_name) as string;
-      }
-      // Fallback to email username (before @)
-      if (data.session.user.email) {
-        return data.session.user.email.split('@')[0];
-      }
-    }
-    // Fallback to offline profile
-    if (data.offlineProfile?.profile?.firstName) {
-      return data.offlineProfile.profile.firstName as string;
-    }
-    if (data.offlineProfile?.email) {
-      return data.offlineProfile.email.split('@')[0];
-    }
-    return 'there';
-  });
+  const greeting = $derived(resolveFirstName(data.session, data.offlineProfile, 'there'));
+
+  /** Single uppercase initial for avatar circles. */
+  const avatarInitial = $derived(resolveAvatarInitial(data.session, data.offlineProfile, '?'));
 
   /**
    * Derived booleans for determining navigation visibility.
@@ -617,9 +598,9 @@
           <SyncStatus />
           <a href="/profile" class="user-menu user-menu-link">
             <span class="user-avatar">
-              {greeting().charAt(0).toUpperCase()}
+              {avatarInitial}
             </span>
-            <span class="user-greeting">Hey, {greeting()}!</span>
+            <span class="user-greeting">Hey, {greeting}!</span>
           </a>
           <button class="logout-btn" onclick={handleSignOut} aria-label="Logout">
             <svg
@@ -786,7 +767,7 @@
         <a href="/profile" class="tab-item tab-profile">
           <span class="tab-glow"></span>
           <span class="tab-icon">
-            <span class="mobile-avatar">{greeting().charAt(0).toUpperCase()}</span>
+            <span class="mobile-avatar">{avatarInitial}</span>
           </span>
           <span class="tab-label">Profile</span>
         </a>

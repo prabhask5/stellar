@@ -279,7 +279,7 @@ The engine is initialized in `src/routes/+layout.ts` with Stellar's 13 entity ta
 
 ## 5. Single-User Auth Mode
 
-Stellar operates in **single-user mode** with a 6-digit PIN code gate backed by real Supabase email/password auth. The user provides an email during first-time setup; the PIN is padded and used as the actual Supabase password via `signUp()`. Optional email confirmation blocks setup until the email is verified. Optional device verification requires OTP on untrusted devices. Email changes are supported via `changeSingleUserEmail()`. All engine-level details (PIN padding, email/password auth, device verification, email change flow, offline fallback) are documented in the [engine's Single-User Auth Mode section](https://github.com/prabhask5/stellar-engine/blob/main/ARCHITECTURE.md#2-single-user-auth-mode).
+Stellar uses a 6-digit PIN code gate backed by real Supabase email/password auth. The user provides an email during first-time setup; the PIN is padded and used as the actual Supabase password via `supabase.auth.signUp()`. Optional email confirmation blocks setup until the email is verified. Optional device verification requires OTP on untrusted devices. Email changes are supported via `changeSingleUserEmail()`. All engine-level details (PIN padding, email/password auth, device verification, email change flow, offline fallback) are documented in the [engine's Single-User Auth Mode section](https://github.com/prabhask5/stellar-engine/blob/main/ARCHITECTURE.md#2-single-user-auth-mode).
 
 ### 5.1 Configuration
 
@@ -312,7 +312,7 @@ The `singleUserConfig` system table in IndexedDB stores the PIN hash (for offlin
 
 ### 5.2 Supabase Requirement
 
-Single-user mode uses real Supabase email/password auth (`signUp()` / `signInWithPassword()`) with the PIN padded to meet the minimum password length. This gives the user a proper `auth.uid()` for RLS compliance.
+The auth system uses real Supabase email/password auth (`supabase.auth.signUp()` / `supabase.auth.signInWithPassword()`) with the PIN padded to meet the minimum password length. This gives the user a proper `auth.uid()` for RLS compliance.
 
 If `emailConfirmation` is enabled, Supabase email templates must be configured. See [EMAIL_TEMPLATES.md](https://github.com/prabhask5/stellar-engine/blob/main/EMAIL_TEMPLATES.md) for the full HTML templates for signup confirmation, email change confirmation, and device verification emails.
 
@@ -408,10 +408,6 @@ The page calls `verifyOtp({ token_hash, type })`, sends the result via Broadcast
 **File**: `src/routes/(protected)/profile/+page.svelte`
 
 The profile page includes an email change card that calls `changeSingleUserEmail(newEmail)`. On success, a confirmation modal appears with a resend button (30-second cooldown). A BroadcastChannel listener waits for `AUTH_CONFIRMED` with `verificationType === 'email_change'`, then calls `completeSingleUserEmailChange()` to update the local config and display.
-
-### 5.8 Admin Privileges
-
-In single-user mode, `isAdmin()` always returns `true`. The single user has full access to all admin-gated features without any additional configuration.
 
 ---
 

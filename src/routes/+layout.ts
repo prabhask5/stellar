@@ -485,9 +485,8 @@ if (browser) {
     supabase,
     prefix: 'stellar',
 
-    /* ── Auth Configuration — single-user mode with PIN gate ──────── */
+    /* ── Auth Configuration — single-user PIN gate ──────────────── */
     auth: {
-      mode: 'single-user',
       singleUser: {
         gateType: 'code',
         codeLength: 6

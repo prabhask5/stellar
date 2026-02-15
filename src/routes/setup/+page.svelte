@@ -16,7 +16,7 @@
    *
    * Access is controlled by the companion `+page.ts` load function:
    * - Unconfigured → anyone can reach this page (`isFirstSetup: true`).
-   * - Configured → only admin users (`isFirstSetup: false`).
+   * - Configured → only authenticated users (`isFirstSetup: false`).
    */
 
   import { page } from '$app/stores';
@@ -66,7 +66,7 @@
   //  Derived State
   // =============================================================================
 
-  /** Whether this is a first-time setup (public) or admin reconfiguration */
+  /** Whether this is a first-time setup (public) or reconfiguration */
   const isFirstSetup = $derived(($page.data as { isFirstSetup?: boolean }).isFirstSetup ?? false);
 
   /**
@@ -213,7 +213,7 @@
 </svelte:head>
 
 <!-- ═══ Cosmic Background ═══ -->
-<div class="setup-background" class:admin-mode={!isFirstSetup}>
+<div class="setup-background" class:reconfig-mode={!isFirstSetup}>
   <div class="stars stars-small"></div>
   <div class="stars stars-medium"></div>
   <div class="stars stars-large"></div>
@@ -235,7 +235,7 @@
 </div>
 
 <!-- ═══ Setup Overlay ═══ -->
-<div class="setup-overlay" class:admin-mode={!isFirstSetup}>
+<div class="setup-overlay" class:reconfig-mode={!isFirstSetup}>
   <div class="setup-container">
     <!-- ═══ Header — Logo + title ═══ -->
     <div class="setup-header">
@@ -322,8 +322,8 @@
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
           <div>
-            <strong>This page is publicly accessible</strong> until setup is complete. After your first
-            user signs up and is granted admin privileges, only admins can access this page.
+            <strong>This page is publicly accessible</strong> until setup is complete. After setup, only
+            authenticated users can access this page.
           </div>
         </div>
       {/if}
@@ -883,12 +883,12 @@
     padding: 2rem 1rem 4rem;
   }
 
-  /* Admin reconfiguration mode — sits under the navbar instead of overlaying */
-  .setup-background.admin-mode {
+  /* Reconfiguration mode — sits under the navbar instead of overlaying */
+  .setup-background.reconfig-mode {
     z-index: -1;
   }
 
-  .setup-overlay.admin-mode {
+  .setup-overlay.reconfig-mode {
     position: relative;
     z-index: 1;
     min-height: 100vh;

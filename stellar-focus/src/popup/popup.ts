@@ -97,7 +97,7 @@ async function init() {
   // Wire up common buttons
   document.getElementById('lockBtn')?.addEventListener('click', handleLock);
 
-  // Admin settings — always show in single-user mode
+  // Settings button — always visible
   const adminBtn = document.getElementById('adminSettingsBtn');
   if (adminBtn) {
     adminBtn.classList.remove('hidden');

@@ -656,7 +656,7 @@ The options page is where the user configures which Supabase instance to connect
 
 On save, the options page validates the connection by making a test query, stores the config in `browser.storage.local`, and notifies the service worker to re-initialize via `browser.runtime.sendMessage({ type: 'CONFIG_UPDATED' })`.
 
-Admin users also see a debug mode toggle on this page.
+The options page also includes a debug mode toggle.
 
 ### Manifest Files (V3 for Both Chrome and Firefox)
 
@@ -1139,7 +1139,7 @@ npm run package
 
 ### Debugging
 
-1. Enable debug mode in the options page (requires admin user)
+1. Enable debug mode in the options page
 2. Open the browser's extension debugging tools:
    - **Firefox:** `about:debugging` > Click "Inspect" on Stellar Focus
    - **Chrome:** `chrome://extensions` > Click "Inspect views: service worker"

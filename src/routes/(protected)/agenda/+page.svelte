@@ -19,6 +19,7 @@
 
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
+  import { resolveUserId } from '@prabhask5/stellar-engine/auth';
   import {
     taskCategoriesStore,
     commitmentsStore,
@@ -194,12 +195,11 @@
   // =============================================================================
 
   /**
-   * Extract the current user's ID from the SvelteKit page session.
+   * Extract the current user's ID from the auth state.
    * @returns The authenticated user's UUID, or empty string if unavailable
    */
   function getUserId(): string {
-    const session = $page.data.session;
-    return session?.user?.id ?? '';
+    return resolveUserId($page.data.session, $page.data.offlineProfile);
   }
 
   // =============================================================================

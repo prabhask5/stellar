@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * @fileoverview **Profile** — User profile & administration page.
+   * @fileoverview **Profile** — User profile & settings page.
    *
    * Allows the authenticated user to:
    * - Update personal information (first name, last name)
@@ -24,7 +24,9 @@
     updateSingleUserProfile,
     getSingleUserInfo,
     changeSingleUserEmail,
-    completeSingleUserEmailChange
+    completeSingleUserEmailChange,
+    resolveUserId,
+    resolveAvatarInitial
   } from '@prabhask5/stellar-engine/auth';
   import { authState } from '@prabhask5/stellar-engine/stores';
   import { isDebugMode, setDebugMode } from '@prabhask5/stellar-engine/utils';
@@ -114,9 +116,9 @@
     // Load trusted devices
     currentDeviceId = getCurrentDeviceId();
     try {
-      const session = $authState?.session;
-      if (session?.user?.id) {
-        trustedDevices = await getTrustedDevices(session.user.id);
+      const userId = resolveUserId($authState?.session, $authState?.offlineProfile);
+      if (userId) {
+        trustedDevices = await getTrustedDevices(userId);
       }
     } catch {
       // Ignore errors loading devices
@@ -670,7 +672,7 @@
     <div class="avatar-container">
       <div class="avatar-ring"></div>
       <div class="avatar">
-        {firstName.charAt(0).toUpperCase() || '?'}
+        {resolveAvatarInitial($authState?.session, $authState?.offlineProfile)}
       </div>
     </div>
     <div class="avatar-particles">
@@ -974,10 +976,10 @@
     {/if}
   </div>
 
-  <!-- ═══ Administration & Debug Tools Card ═══ -->
+  <!-- ═══ Settings & Debug Tools Card ═══ -->
   <div class="profile-card">
     <div class="card-header">
-      <h2 class="card-title">Administration</h2>
+      <h2 class="card-title">Settings</h2>
       <p class="card-subtitle">Manage your Stellar instance</p>
     </div>
 

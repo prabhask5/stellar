@@ -15,7 +15,7 @@ const appUrlInput = document.getElementById('appUrl') as HTMLInputElement;
 const messageEl = document.getElementById('message') as HTMLElement;
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
 
-// Admin elements
+// Settings elements
 const adminCard = document.getElementById('adminCard') as HTMLElement;
 const debugToggle = document.getElementById('debugToggle') as HTMLButtonElement;
 
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   form.addEventListener('submit', handleSubmit);
 
-  // Always show admin settings in single-user mode
+  // Always show settings
   adminCard.classList.remove('hidden');
 
   // Load current debug mode state

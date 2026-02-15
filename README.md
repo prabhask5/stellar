@@ -25,7 +25,7 @@ A self-hosted, offline-first productivity PWA for managing goals, tasks, routine
 2. [Features](#features)
 3. [Setup Guide](#setup-guide)
 4. [Configuration](#configuration)
-5. [Admin & Debug](#admin--debug)
+5. [Debug Mode](#debug-mode)
 6. [Mobile Installation](#mobile-installation)
 7. [Companion Extension](#companion-extension)
 
@@ -191,35 +191,13 @@ These are set in your Vercel project settings:
 
 ### Updating Configuration
 
-Admin users can update the Supabase configuration from the **Profile** page without redeploying. This triggers a redeploy with the new environment variables if a Vercel token is configured.
+You can update the Supabase configuration from the **Profile** page without redeploying. This triggers a redeploy with the new environment variables if a Vercel token is configured.
 
 ---
 
-## Admin & Debug
+## Debug Mode
 
-### Making a User Admin
-
-Admin status is set in Supabase's auth system via `app_metadata`:
-
-1. Go to your Supabase project's **SQL Editor**.
-2. Run the following SQL, replacing the email with your user's email:
-
-```sql
-UPDATE auth.users
-SET raw_app_meta_data = raw_app_meta_data || '{"is_admin": true}'::jsonb
-WHERE email = 'your-email@example.com';
-```
-
-3. The user needs to log out and log back in for the change to take effect.
-
-### What Admins Can Do
-
-- **Toggle Debug Mode**: On the Profile page, admins see a debug mode toggle that enables detailed console logging for all sync operations, conflict resolutions, and authentication events.
-- **Update Supabase Config**: Admins can update the Supabase URL and anon key directly from the Profile page.
-
-### Debug Mode
-
-When debug mode is enabled (admin-only), the following information is logged to the browser console:
+On the Profile page, you can toggle debug mode to enable detailed console logging. When enabled, the following information is logged to the browser console:
 
 - `[SYNC]` - Sync cycle details: trigger type, items pushed/pulled, data transfer size, duration
 - `[Auth]` - Authentication events, session management, offline/online transitions

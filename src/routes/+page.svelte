@@ -34,7 +34,7 @@
 
   /* ── Stellar Engine — Stores & Auth ── */
   import { onSyncComplete, authState } from '@prabhask5/stellar-engine/stores';
-  import { getUserProfile } from '@prabhask5/stellar-engine/auth';
+  import { resolveFirstName } from '@prabhask5/stellar-engine/auth';
 
   /* ── Actions ── */
   import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
@@ -172,32 +172,9 @@
 
   /**
    * Derives the user's first name for the greeting display.
-   *
-   * Resolution order:
-   * 1. `firstName` / `first_name` from the Supabase session profile
-   * 2. Email username (before `@`) from the Supabase session
-   * 3. `firstName` from the offline cached profile
-   * 4. Email username from the offline cached profile
-   * 5. Fallback → `'Explorer'`
+   * Falls back through session profile → email username → offline profile → 'Explorer'.
    */
-  const firstName = $derived.by(() => {
-    if ($authState.session?.user) {
-      const profile = getUserProfile($authState.session.user);
-      if (profile.firstName || profile.first_name) {
-        return (profile.firstName || profile.first_name) as string;
-      }
-      if ($authState.session.user.email) {
-        return $authState.session.user.email.split('@')[0];
-      }
-    }
-    if ($authState.offlineProfile?.profile?.firstName) {
-      return $authState.offlineProfile.profile.firstName as string;
-    }
-    if ($authState.offlineProfile?.email) {
-      return $authState.offlineProfile.email.split('@')[0];
-    }
-    return 'Explorer';
-  });
+  const firstName = $derived(resolveFirstName($authState.session, $authState.offlineProfile));
 
   // =============================================================================
   //  Lifecycle — Mount
