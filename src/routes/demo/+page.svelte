@@ -175,15 +175,22 @@
      ═══════════════════════════════════════════════════════════════════════════ */
 
   .page {
-    position: relative;
-    min-height: 100dvh;
+    /* Full-viewport overlay — ignores layout padding/nav entirely */
+    position: fixed;
+    inset: 0;
+    z-index: 200;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 3rem 1.25rem 2rem;
+    padding-top: max(3rem, env(safe-area-inset-top, 0px));
+    padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(1.25rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
     gap: 2.5rem;
     overflow: hidden;
+    overflow-y: auto;
     background: #050510;
     color: #e8e6f0;
     font-family: inherit;
@@ -1709,8 +1716,10 @@
 
   @media (max-width: 640px) {
     .page {
-      padding: 2rem 1rem 1.5rem;
-      gap: 2rem;
+      padding: 1.5rem 1rem;
+      padding-top: max(1.5rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
+      padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
+      gap: 1.5rem;
     }
 
     .title {
@@ -1835,6 +1844,13 @@
      ═══════════════════════════════════════════════════════════════════════════ */
 
   @media (max-width: 380px) {
+    .page {
+      padding: 1.25rem 0.75rem;
+      padding-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
+      padding-bottom: max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
+      gap: 1.25rem;
+    }
+
     .title {
       font-size: 2.2rem;
     }
