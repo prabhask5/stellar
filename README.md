@@ -2,10 +2,6 @@
 
 A self-hosted, offline-first productivity PWA for managing goals, tasks, routines, and focus sessions. Built with SvelteKit, Dexie.js, and Supabase, Stellar works entirely from your browser with full offline support, real-time multi-device sync, and a space-themed interface.
 
-**Demo:** [planner.prabhas.io](https://planner.prabhas.io)
-
-> **Install as an app:** Stellar is a PWA — add it to your home screen for quick access and an app-like experience. On **iOS**, tap Share → Add to Home Screen. On **Android**, tap the three-dot menu → Add to Home screen. On **Desktop** (Chrome/Edge), click the install icon in the address bar. See [Mobile Installation](#mobile-installation) for full details.
-
 ---
 
 ## Documentation
@@ -21,29 +17,13 @@ A self-hosted, offline-first productivity PWA for managing goals, tasks, routine
 
 ## Table of Contents
 
-1. [Tech Stack](#tech-stack)
-2. [Features](#features)
-3. [Setup Guide](#setup-guide)
+1. [Features](#features)
+2. [Setup Guide to Self-Host](#setup-guide-to-self-host)
+3. [Mobile Installation](#mobile-installation)
 4. [Configuration](#configuration)
-5. [Debug Mode](#debug-mode)
-6. [Mobile Installation](#mobile-installation)
+5. [Tech Stack](#tech-stack)
+6. [Debug Mode](#debug-mode)
 7. [Companion Extension](#companion-extension)
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| **Framework** | SvelteKit 2 with Svelte 5 |
-| **Language** | TypeScript (strict mode) |
-| **Local Database** | Dexie.js (IndexedDB wrapper) |
-| **Remote Database** | Supabase (PostgreSQL) |
-| **Authentication** | Supabase Auth + offline credential caching |
-| **Real-time** | Supabase Realtime (WebSocket subscriptions) |
-| **Sync Engine** | @stellar/sync-engine (custom) |
-| **Build Tool** | Vite |
-| **Deployment** | Vercel |
 
 ---
 
@@ -107,7 +87,7 @@ A self-hosted, offline-first productivity PWA for managing goals, tasks, routine
 
 ---
 
-## Setup Guide
+## Setup Guide to Self-Host
 
 ### Prerequisites
 - A GitHub account
@@ -170,6 +150,34 @@ Fork this repository to your own GitHub account. This gives you your own copy th
 
 ---
 
+## Mobile Installation
+
+Stellar is a PWA — add it to your home screen for quick access and an app-like experience after deploying.
+
+### iOS (Safari)
+
+1. Open your Stellar instance in Safari.
+2. Tap the **Share** button (square with arrow).
+3. Scroll down and tap **Add to Home Screen**.
+4. Tap **Add**. Stellar appears as a standalone app with its own icon.
+
+### Android (Chrome)
+
+1. Open your Stellar instance in Chrome.
+2. Tap the three-dot menu.
+3. Tap **Add to Home screen** (or **Install app** if Chrome shows it).
+4. Stellar installs as a standalone app.
+
+### Desktop (Chrome/Edge)
+
+1. Open your Stellar instance.
+2. Click the install icon in the address bar.
+3. Click **Install**.
+
+Once installed, Stellar runs as a standalone window with full offline support.
+
+---
+
 ## Configuration
 
 ### Runtime Configuration
@@ -192,6 +200,22 @@ These are set in your Vercel project settings:
 ### Updating Configuration
 
 You can update the Supabase configuration from the **Profile** page without redeploying. This triggers a redeploy with the new environment variables if a Vercel token is configured.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Framework** | SvelteKit 2 with Svelte 5 |
+| **Language** | TypeScript (strict mode) |
+| **Local Database** | Dexie.js (IndexedDB wrapper) |
+| **Remote Database** | Supabase (PostgreSQL) |
+| **Authentication** | Supabase Auth + offline credential caching |
+| **Real-time** | Supabase Realtime (WebSocket subscriptions) |
+| **Sync Engine** | @stellar/sync-engine (custom) |
+| **Build Tool** | Vite |
+| **Deployment** | Vercel |
 
 ---
 
@@ -233,32 +257,6 @@ navigator.serviceWorker.addEventListener('message', e => {
 });
 // Output: { cached: 78, total: 78, ready: true, version: "..." }
 ```
-
----
-
-## Mobile Installation
-
-### iOS (Safari)
-
-1. Open your Stellar instance in Safari.
-2. Tap the **Share** button (square with arrow).
-3. Scroll down and tap **Add to Home Screen**.
-4. Tap **Add**. Stellar appears as a standalone app with its own icon.
-
-### Android (Chrome)
-
-1. Open your Stellar instance in Chrome.
-2. Tap the three-dot menu.
-3. Tap **Add to Home screen** (or **Install app** if Chrome shows it).
-4. Stellar installs as a standalone app.
-
-### Desktop (Chrome/Edge)
-
-1. Open your Stellar instance.
-2. Click the install icon in the address bar.
-3. Click **Install**.
-
-Once installed, Stellar runs as a standalone window with full offline support.
 
 ---
 
