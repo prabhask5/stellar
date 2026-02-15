@@ -145,6 +145,115 @@
         lastName = config.mockProfile.lastName;
         currentEmail = config.mockProfile.email;
       }
+
+      // Mock trusted devices — show realistic but non-functional device list
+      currentDeviceId = 'demo-device';
+      trustedDevices = [
+        {
+          id: 'demo-td-1',
+          userId: 'demo-user',
+          deviceId: 'demo-device',
+          deviceLabel: 'Chrome on macOS',
+          trustedAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+          lastUsedAt: new Date().toISOString()
+        },
+        {
+          id: 'demo-td-2',
+          userId: 'demo-user',
+          deviceId: 'demo-device-2',
+          deviceLabel: 'Safari on iPhone',
+          trustedAt: new Date(Date.now() - 14 * 86400000).toISOString(),
+          lastUsedAt: new Date(Date.now() - 2 * 86400000).toISOString()
+        }
+      ] as TrustedDevice[];
+
+      // Mock diagnostics — reflect disconnected/unsynced state
+      diagnostics = {
+        timestamp: new Date().toISOString(),
+        prefix: 'stellar',
+        deviceId: 'demo-device',
+        sync: {
+          status: 'idle' as const,
+          totalCycles: 0,
+          lastSyncTime: null,
+          lastSuccessfulSyncTimestamp: null,
+          syncMessage: null,
+          recentCycles: [],
+          cyclesLastMinute: 0,
+          hasHydrated: false,
+          schemaValidated: false,
+          pendingCount: 0
+        },
+        egress: {
+          sessionStart: new Date().toISOString(),
+          totalBytes: 0,
+          totalFormatted: '0 B',
+          totalRecords: 0,
+          byTable: {}
+        },
+        queue: {
+          pendingOperations: 0,
+          pendingEntityIds: [],
+          byTable: {},
+          byOperationType: {},
+          oldestPendingTimestamp: null,
+          itemsInBackoff: 0
+        },
+        realtime: {
+          connectionState: 'disconnected' as const,
+          healthy: false,
+          reconnectAttempts: 0,
+          lastError: null,
+          userId: null,
+          deviceId: 'demo-device',
+          recentlyProcessedCount: 0,
+          operationInProgress: false,
+          reconnectScheduled: false
+        },
+        network: {
+          online: true
+        },
+        engine: {
+          isTabVisible: true,
+          tabHiddenAt: null,
+          lockHeld: false,
+          lockHeldForMs: null,
+          recentlyModifiedCount: 0,
+          wasOffline: false,
+          authValidatedAfterReconnect: false
+        },
+        conflicts: {
+          recentHistory: [],
+          totalCount: 0
+        },
+        errors: {
+          lastError: null,
+          lastErrorDetails: null,
+          recentErrors: []
+        },
+        config: {
+          tableCount: 13,
+          tableNames: [
+            'projects',
+            'goalLists',
+            'goals',
+            'dailyRoutineGoals',
+            'dailyGoalProgress',
+            'taskCategories',
+            'commitments',
+            'longTermAgenda',
+            'dailyTasks',
+            'focusSettings',
+            'focusSessions',
+            'blockLists',
+            'blockedWebsites'
+          ],
+          syncDebounceMs: 500,
+          syncIntervalMs: 30000,
+          tombstoneMaxAgeDays: 30
+        }
+      } as DiagnosticsSnapshot;
+
       devicesLoading = false;
       diagnosticsLoading = false;
       return;
@@ -252,6 +361,10 @@
    */
   async function handleProfileSubmit(e: Event) {
     e.preventDefault();
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
     profileLoading = true;
     profileError = null;
     profileSuccess = null;
@@ -714,7 +827,9 @@
     <div class="avatar-container">
       <div class="avatar-ring"></div>
       <div class="avatar">
-        {resolveAvatarInitial($authState?.session, $authState?.offlineProfile)}
+        {isDemo
+          ? (getDemoConfig()?.mockProfile.firstName?.[0]?.toUpperCase() ?? '?')
+          : resolveAvatarInitial($authState?.session, $authState?.offlineProfile)}
       </div>
     </div>
     <div class="avatar-particles">
@@ -2985,34 +3100,36 @@
 
   :global(.demo-toast) {
     position: fixed;
-    top: calc(env(safe-area-inset-top, 0px) + 1rem);
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     z-index: 9500;
-    padding: 0.75rem 1.25rem;
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.2) 0%, rgba(255, 121, 198, 0.15) 100%);
-    border: 1px solid rgba(108, 92, 231, 0.3);
-    border-radius: 9999px;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.85) 0%, rgba(255, 121, 198, 0.7) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-xl, 1rem);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    color: var(--color-text, #e8e6f0);
-    font-size: 0.875rem;
-    font-weight: 500;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
     white-space: nowrap;
+    text-align: center;
     box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.4),
-      0 0 40px rgba(108, 92, 231, 0.15);
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      0 0 60px rgba(108, 92, 231, 0.3);
     animation: demoToastIn 0.3s ease-out;
+    pointer-events: none;
   }
 
   @keyframes demoToastIn {
     from {
       opacity: 0;
-      transform: translateX(-50%) translateY(-12px);
+      transform: translate(-50%, -50%) scale(0.9);
     }
     to {
       opacity: 1;
-      transform: translateX(-50%) translateY(0);
+      transform: translate(-50%, -50%) scale(1);
     }
   }
 </style>

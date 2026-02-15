@@ -98,10 +98,10 @@ async function init() {
   document.getElementById('lockBtn')?.addEventListener('click', handleLock);
 
   // Settings button — always visible
-  const adminBtn = document.getElementById('adminSettingsBtn');
-  if (adminBtn) {
-    adminBtn.classList.remove('hidden');
-    adminBtn.addEventListener('click', () => {
+  const settingsBtn = document.getElementById('settingsBtn');
+  if (settingsBtn) {
+    settingsBtn.classList.remove('hidden');
+    settingsBtn.addEventListener('click', () => {
       browser.runtime.openOptionsPage();
     });
   }

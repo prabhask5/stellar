@@ -16,8 +16,8 @@
  * | dailyRoutineGoals  | 4       | completion, incremental, progressive     |
  * | dailyGoalProgress  | 9       | Today + yesterday + two days ago         |
  * | taskCategories     | 6       | 2 project tags + 4 user-created          |
- * | commitments        | 6       | 2 project-auto + 1 career + 1 proj + 2 personal |
- * | longTermAgenda     | 5       | task + reminder types, varied due dates  |
+ * | commitments        | 6       | 2 project-auto + 2 career + 2 personal |
+ * | longTermAgenda     | 6       | task + reminder types, varied due dates  |
  * | dailyTasks         | 6       | 3 linked to long-term tasks              |
  * | focusSettings      | 1       | 25/5/15 Pomodoro config                  |
  * | focusSessions      | 3       | stopped, running, stopped                |
@@ -293,8 +293,8 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       id: 'demo-commitment-4',
       user_id: userId,
       name: 'Contribute to open source monthly',
-      section: 'projects',
-      order: 2,
+      section: 'career',
+      order: 1,
       project_id: null,
       created_at: oneWeekAgo.toISOString(),
       updated_at: now.toISOString(),
@@ -681,7 +681,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       user_id: userId,
       name: 'Refactor sync engine error handling',
       due_date: toDateStr(yesterday), // ← past due, but completed
-      category_id: 'demo-category-1', // Development
+      category_id: 'demo-tag-1', // Stellar App project tag → task belongs to project 1
       type: 'task',
       completed: true, // ← must match linked daily-task-1
       created_at: oneWeekAgo.toISOString(),
@@ -693,7 +693,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       user_id: userId,
       name: 'Design new onboarding flow',
       due_date: toDateStr(nextWeek), // ← future
-      category_id: 'demo-category-2', // Design
+      category_id: 'demo-tag-1', // Stellar App project tag → task belongs to project 1
       type: 'task',
       completed: false, // ← must match linked daily-task-3
       created_at: oneWeekAgo.toISOString(),
@@ -705,7 +705,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       user_id: userId,
       name: 'Review competitor feature sets',
       due_date: toDateStr(twoDaysAgo), // ← past, completed
-      category_id: 'demo-category-3', // Research
+      category_id: 'demo-tag-2', // Side Quest project tag → task belongs to project 2
       type: 'task',
       completed: true,
       created_at: twoWeeksAgo.toISOString(),
@@ -734,6 +734,18 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       completed: false, // ← must match linked daily-task-6
       created_at: threeDaysAgo.toISOString(),
       updated_at: now.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-lt-task-6',
+      user_id: userId,
+      name: 'Write blog post about sync architecture',
+      due_date: toDateStr(threeDaysAgo), // ← LATE: past due and not completed
+      category_id: 'demo-tag-1', // Stellar App project tag
+      type: 'task',
+      completed: false, // ← overdue — this task is late
+      created_at: twoWeeksAgo.toISOString(),
+      updated_at: oneWeekAgo.toISOString(),
       ...common
     }
   ]);

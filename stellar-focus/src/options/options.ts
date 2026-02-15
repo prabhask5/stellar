@@ -16,7 +16,7 @@ const messageEl = document.getElementById('message') as HTMLElement;
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
 
 // Settings elements
-const adminCard = document.getElementById('adminCard') as HTMLElement;
+const settingsCard = document.getElementById('settingsCard') as HTMLElement;
 const debugToggle = document.getElementById('debugToggle') as HTMLButtonElement;
 
 // Privacy link
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   form.addEventListener('submit', handleSubmit);
 
   // Always show settings
-  adminCard.classList.remove('hidden');
+  settingsCard.classList.remove('hidden');
 
   // Load current debug mode state
   const result = await browser.storage.local.get('stellar_debug_mode');

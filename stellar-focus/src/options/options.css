@@ -324,7 +324,7 @@ input::placeholder {
    ADMIN SETTINGS
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
-.admin-header h2 {
+.settings-header h2 {
   font-size: 1.125rem;
   font-weight: 700;
   color: #e8e6f0;
@@ -400,7 +400,7 @@ input::placeholder {
    ADMIN SETTINGS
    ═══════════════════════════════════════════════════════════════════════════════════ */
 
-.admin-header h2 {
+.settings-header h2 {
   font-size: 1.125rem;
   font-weight: 600;
   color: #e8e6f0;

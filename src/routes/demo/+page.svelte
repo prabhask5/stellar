@@ -1,217 +1,152 @@
 <script lang="ts">
-  /**
-   * @fileoverview **Demo landing page** — cinematic entry point for Stellar's demo mode.
-   *
-   * This is a public (no-auth) page at `/demo` that lets prospective users
-   * explore Stellar without creating an account. The page explains what demo
-   * mode offers, what's limited, and provides a one-click launch/exit toggle.
-   *
-   * ## How it works
-   *
-   * - **Launch Demo**: calls `setDemoMode(true)` (persists a flag in
-   *   `localStorage`), then hard-navigates to `/` where `initEngine` detects
-   *   demo mode, opens a sandboxed Dexie database (`GoalPlannerDB_demo`),
-   *   seeds it with mock data, and resolves `authMode: 'demo'`.
-   *
-   * - **Exit Demo**: calls `setDemoMode(false)` to clear the flag, then
-   *   `cleanupDemoDatabase()` to delete the sandboxed IndexedDB, and
-   *   hard-navigates back to `/demo` to show the inactive state.
-   *
-   * ## Visual design
-   *
-   * Uses Stellar's cosmic design system:
-   * - Multi-layer CSS starfield parallax background
-   * - Glassmorphism cards with `backdrop-filter: blur`
-   * - Purple→pink gradient text and glow effects
-   * - Orbital ring animation around the hero section
-   * - Staggered `fadeInUp` entrance animations (via `--delay` CSS var)
-   * - Full `prefers-reduced-motion: reduce` support
-   *
-   * @see {@link $lib/demo/config.ts} — demo config wired into initEngine
-   * @see {@link $lib/demo/mockData.ts} — mock data seeder
-   */
-
-  // =============================================================================
-  //                               IMPORTS
-  // =============================================================================
-
   import { isDemoMode, setDemoMode, cleanupDemoDatabase } from '@prabhask5/stellar-engine';
 
-  // =============================================================================
-  //                            COMPONENT STATE
-  // =============================================================================
-
-  /** Whether demo mode is currently active (read from localStorage on mount). */
   let demoActive = $state(isDemoMode());
+  let toggling = $state(false);
 
-  // =============================================================================
-  //                              HANDLERS
-  // =============================================================================
+  function handleToggle() {
+    if (toggling) return;
+    toggling = true;
+    demoActive = !demoActive;
 
-  /**
-   * Activate demo mode and navigate to the home page.
-   *
-   * Sets the `stellar-demo-mode` localStorage flag, then performs a full page
-   * navigation (not SvelteKit client nav) so `initEngine` re-runs with demo
-   * mode enabled — opening the sandboxed DB and seeding mock data.
-   */
-  function launchDemo() {
-    setDemoMode(true);
-    window.location.href = '/';
-  }
-
-  /**
-   * Deactivate demo mode, clean up the sandboxed database, and reload.
-   *
-   * 1. Clears the localStorage flag → engine will no longer detect demo mode.
-   * 2. Deletes the `GoalPlannerDB_demo` IndexedDB database entirely.
-   * 3. Hard-navigates back to `/demo` to show the "Launch Demo" state.
-   */
-  function exitDemo() {
-    setDemoMode(false);
-    cleanupDemoDatabase('GoalPlannerDB_demo');
-    window.location.href = '/demo';
+    setTimeout(() => {
+      if (demoActive) {
+        setDemoMode(true);
+      } else {
+        setDemoMode(false);
+        cleanupDemoDatabase('GoalPlannerDB_demo');
+      }
+      window.location.href = '/';
+    }, 500);
   }
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     HEAD — page title for browser tab / SEO
-     ═══════════════════════════════════════════════════════════════════════════ -->
-
 <svelte:head>
-  <title>Try Stellar — Interactive Demo</title>
+  <title>Demo Mode — Stellar</title>
 </svelte:head>
 
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     PAGE LAYOUT
-     Three-layer starfield background sits behind all content sections.
-     Each section uses `z-index: 1` to float above the starfield.
-     ═══════════════════════════════════════════════════════════════════════════ -->
-
-<div class="demo-page">
-  <!-- Parallax starfield — 3 layers with different speeds and sizes -->
+<div class="demo-page" class:toggling>
+  <!-- Starfield parallax layers -->
   <div class="starfield"></div>
   <div class="starfield starfield-2"></div>
   <div class="starfield starfield-3"></div>
 
-  <!-- ═══════ Hero Section ═══════ -->
+  <!-- Floating particles -->
+  <div class="particles">
+    <span
+      class="particle"
+      style="--x: 12%; --y: 18%; --size: 3px; --dur: 7s; --delay: 0s; --color: rgba(108, 92, 231, 0.6)"
+    ></span>
+    <span
+      class="particle"
+      style="--x: 85%; --y: 25%; --size: 2px; --dur: 9s; --delay: 1.2s; --color: rgba(255, 121, 198, 0.5)"
+    ></span>
+    <span
+      class="particle"
+      style="--x: 30%; --y: 70%; --size: 4px; --dur: 11s; --delay: 0.5s; --color: rgba(108, 92, 231, 0.4)"
+    ></span>
+    <span
+      class="particle"
+      style="--x: 72%; --y: 60%; --size: 2px; --dur: 8s; --delay: 3s; --color: rgba(255, 121, 198, 0.4)"
+    ></span>
+    <span
+      class="particle"
+      style="--x: 50%; --y: 85%; --size: 3px; --dur: 10s; --delay: 2s; --color: rgba(108, 92, 231, 0.5)"
+    ></span>
+    <span
+      class="particle"
+      style="--x: 20%; --y: 45%; --size: 2px; --dur: 12s; --delay: 4s; --color: rgba(255, 121, 198, 0.35)"
+    ></span>
+    <span
+      class="particle"
+      style="--x: 90%; --y: 80%; --size: 3px; --dur: 7.5s; --delay: 1.8s; --color: rgba(108, 92, 231, 0.45)"
+    ></span>
+    <span
+      class="particle"
+      style="--x: 8%; --y: 65%; --size: 2px; --dur: 9.5s; --delay: 3.5s; --color: rgba(255, 121, 198, 0.3)"
+    ></span>
+    <span
+      class="particle"
+      style="--x: 60%; --y: 15%; --size: 3px; --dur: 8.5s; --delay: 0.8s; --color: rgba(108, 92, 231, 0.5)"
+    ></span>
+    <span
+      class="particle"
+      style="--x: 40%; --y: 40%; --size: 2px; --dur: 11.5s; --delay: 2.5s; --color: rgba(255, 121, 198, 0.4)"
+    ></span>
+  </div>
+
+  <!-- Hero -->
   <section class="hero">
-    <div class="orbital-ring"></div>
-    <h1 class="hero-title">
-      Experience <span class="gradient-text">Stellar</span>
+    <h1 class="hero-title anim-up">
+      <span class="gradient-text">Demo Mode</span>
     </h1>
-    <p class="hero-subtitle">No account needed. Fully interactive. Zero commitment.</p>
+    <p class="hero-subtitle anim-up" style="--delay: 0.1s">
+      Explore Stellar with sample data. No account required.
+    </p>
   </section>
 
-  <!-- ═══════ Feature Cards ═══════
-       Three glassmorphism cards highlighting key demo mode properties.
-       Staggered entrance animation via `- -delay` CSS custom property. -->
-  <section class="features">
-    <div class="card anim-up" style="--delay: 0.1s">
-      <div class="card-icon">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polygon
-            points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-          />
-        </svg>
-      </div>
-      <h3>Full Access</h3>
-      <p>Explore goals, tasks, focus timer, block lists — everything works.</p>
-    </div>
-
-    <div class="card anim-up" style="--delay: 0.25s">
-      <div class="card-icon">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-      </div>
-      <h3>Sandboxed Safety</h3>
-      <p>Isolated demo database. Your real data is never touched.</p>
-    </div>
-
-    <div class="card anim-up" style="--delay: 0.4s">
-      <div class="card-icon">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="23 4 23 10 17 10" />
-          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-        </svg>
-      </div>
-      <h3>Instant Reset</h3>
-      <p>Refresh the page to start fresh with sample data.</p>
-    </div>
-  </section>
-
-  <!-- ═══════ Capabilities — Can / Cannot ═══════
-       Two-column glassmorphism panel listing what users can and cannot
-       do in demo mode. Helps set expectations before launching. -->
-  <section class="capabilities anim-up" style="--delay: 0.5s">
-    <div class="cap-col cap-can">
-      <h3 class="gradient-text">What you can do</h3>
+  <!-- Info card -->
+  <section class="info-card anim-up" style="--delay: 0.2s">
+    <div class="info-col info-available">
+      <h3>Available</h3>
       <ul>
         <li>Browse all pages</li>
-        <li>Create, edit & delete items</li>
-        <li>Use focus timer</li>
-        <li>Manage block lists</li>
-        <li>Change settings</li>
+        <li>Create & edit items</li>
+        <li>Focus timer</li>
+        <li>Block lists</li>
+        <li>Settings</li>
       </ul>
     </div>
-    <div class="cap-divider"></div>
-    <div class="cap-col cap-limited">
-      <h3>What's limited</h3>
+    <div class="info-divider"></div>
+    <div class="info-col info-limited">
+      <h3>Limited</h3>
       <ul>
         <li>Cloud sync</li>
-        <li>Email / password changes</li>
+        <li>Account changes</li>
         <li>Device management</li>
         <li>Debug tools</li>
       </ul>
     </div>
   </section>
 
-  <!-- ═══════ Launch / Exit Controls ═══════
-       Conditionally renders either:
-       - "Launch Demo" button (inactive state) — activates demo mode
-       - "Exit Demo" button + "Back to Stellar" link (active state) -->
-  <section class="launch anim-up" style="--delay: 0.6s">
-    {#if demoActive}
-      <button class="btn-exit" onclick={exitDemo}>Exit Demo</button>
-      <a href="/" class="back-link">← Back to Stellar</a>
-    {:else}
-      <button class="btn-launch" onclick={launchDemo}>Launch Demo</button>
-    {/if}
+  <!-- Toggle centerpiece -->
+  <section class="toggle-section anim-up" style="--delay: 0.35s">
+    <button
+      class="toggle"
+      class:active={demoActive}
+      onclick={handleToggle}
+      disabled={toggling}
+      aria-label={demoActive ? 'Disable demo mode' : 'Enable demo mode'}
+    >
+      <span class="toggle-track">
+        <span class="toggle-glow"></span>
+        <span class="toggle-knob"></span>
+      </span>
+    </button>
+    <div class="toggle-label">
+      <span class="toggle-label-text">Demo Mode</span>
+      <span class="toggle-label-state" class:active={demoActive}>
+        {demoActive ? 'ON' : 'OFF'}
+      </span>
+    </div>
   </section>
+
+  <!-- Footer note -->
+  <p class="footer-note anim-up" style="--delay: 0.45s">Data resets on refresh</p>
 </div>
 
 <style>
-  /* ==========================================================================
-     DEMO PAGE STYLES
-     Cosmic-themed landing page using Stellar's design system. Key techniques:
-     - Multi-layer CSS starfield with `radial-gradient` dots + `drift` animation
-     - Glassmorphism cards: semi-transparent bg + `backdrop-filter: blur`
-     - CSS custom properties from the app theme (`--color-*`, `--radius-*`)
-     - Staggered entrance animations via `--delay` CSS variable
-     - Full `prefers-reduced-motion` support at the bottom
-     ========================================================================== */
+  /* ── CSS Custom properties ── */
+  .demo-page {
+    --color-void: #050510;
+    --color-text: #e8e6f0;
+    --color-text-muted: #a09bb5;
+    --color-accent: #ff79c6;
+    --color-primary-light: #6c5ce7;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
 
   /* ── Page container ── */
   .demo-page {
@@ -220,23 +155,28 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 3rem 1.25rem 4rem;
-    gap: 3.5rem;
+    justify-content: center;
+    padding: 3rem 1.25rem 2.5rem;
+    gap: 3rem;
     overflow: hidden;
     background: radial-gradient(
-      ellipse at 50% 20%,
-      rgba(108, 92, 231, 0.12) 0%,
-      var(--color-void, #050510) 70%
+      ellipse at 50% 30%,
+      rgba(108, 92, 231, 0.1) 0%,
+      var(--color-void) 70%
     );
-    color: var(--color-text, #e8e6f0);
+    color: var(--color-text);
     font-family: inherit;
+    transition:
+      opacity 0.4s,
+      filter 0.4s;
   }
 
-  /* ── Starfield layers ──
-     Three fixed-position layers of tiny radial-gradient dots that slowly
-     drift upward at different speeds, creating a parallax star effect.
-     Layer 1: 300px tile, normal speed | Layer 2: 400px, slower, reversed
-     Layer 3: 220px tile, fastest, most transparent ── */
+  .demo-page.toggling {
+    opacity: 0.6;
+    filter: blur(2px);
+  }
+
+  /* ── Starfield layers ── */
   .starfield {
     position: fixed;
     inset: 0;
@@ -274,29 +214,66 @@
     }
   }
 
+  /* ── Floating particles ── */
+  .particles {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .particle {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: var(--size);
+    height: var(--size);
+    border-radius: 50%;
+    background: var(--color);
+    animation: float var(--dur) var(--delay) ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translate(0, 0);
+      opacity: 0.4;
+    }
+    25% {
+      transform: translate(12px, -18px);
+      opacity: 0.8;
+    }
+    50% {
+      transform: translate(-8px, -30px);
+      opacity: 0.5;
+    }
+    75% {
+      transform: translate(15px, -12px);
+      opacity: 0.7;
+    }
+  }
+
   /* ── Hero ── */
   .hero {
     position: relative;
     z-index: 1;
     text-align: center;
-    padding-top: 2rem;
   }
 
   .hero-title {
-    font-size: clamp(2.6rem, 7vw, 5rem);
+    font-size: clamp(2.8rem, 8vw, 5.5rem);
     font-weight: 800;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
     line-height: 1.1;
-    margin: 0 0 1rem;
-    animation: fadeInUp 0.8s var(--ease-out, ease-out) both;
+    margin: 0 0 0.75rem;
   }
 
   .hero-subtitle {
-    font-size: clamp(1rem, 2.5vw, 1.35rem);
-    color: var(--color-text-muted, #a09bb5);
-    max-width: 480px;
+    font-size: clamp(0.95rem, 2.2vw, 1.2rem);
+    color: var(--color-text-muted);
+    max-width: 400px;
     margin: 0 auto;
-    animation: fadeInUp 0.8s 0.15s var(--ease-out, ease-out) both;
+    line-height: 1.5;
   }
 
   .gradient-text {
@@ -306,246 +283,263 @@
     background-clip: text;
   }
 
-  /* ── Orbital ring ──
-     Decorative spinning ring behind the hero text with a small glowing
-     dot (::after pseudo-element) that orbits around the title. ── */
-  .orbital-ring {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 420px;
-    height: 420px;
-    translate: -50% -50%;
-    border-radius: 50%;
-    border: 1px solid rgba(108, 92, 231, 0.15);
-    pointer-events: none;
-    animation: spin 25s linear infinite;
-  }
-
-  .orbital-ring::after {
-    content: '';
-    position: absolute;
-    top: -4px;
-    left: 50%;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--color-accent, #ff79c6);
-    box-shadow: 0 0 12px var(--color-accent, #ff79c6);
-  }
-
-  @keyframes spin {
-    to {
-      rotate: 360deg;
-    }
-  }
-
-  /* ── Feature Cards ──
-     Glassmorphism grid cards with icon, title, and description.
-     Auto-fit grid collapses to single column on mobile. ── */
-  .features {
-    position: relative;
-    z-index: 1;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem;
-    max-width: 860px;
-    width: 100%;
-  }
-
-  .card {
-    background: rgba(15, 15, 26, 0.6);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(108, 92, 231, 0.2);
-    border-radius: var(--radius-lg, 16px);
-    padding: 2rem 1.5rem;
-    text-align: center;
-    transition:
-      border-color 0.3s,
-      box-shadow 0.3s;
-  }
-
-  .card:hover {
-    border-color: rgba(108, 92, 231, 0.45);
-    box-shadow: 0 4px 30px rgba(108, 92, 231, 0.1);
-  }
-
-  .card-icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 1rem;
-    color: var(--color-accent, #ff79c6);
-  }
-
-  .card-icon svg {
-    width: 100%;
-    height: 100%;
-  }
-
-  .card h3 {
-    font-size: 1.15rem;
-    font-weight: 700;
-    margin: 0 0 0.5rem;
-  }
-
-  .card p {
-    font-size: 0.92rem;
-    color: var(--color-text-muted, #a09bb5);
-    margin: 0;
-    line-height: 1.5;
-  }
-
-  /* ── Capabilities (Can / Cannot) ──
-     Side-by-side panel with a vertical divider (horizontal on mobile).
-     "Can" items use green checkmarks; "Limited" items use muted dashes. ── */
-  .capabilities {
+  /* ── Info card ── */
+  .info-card {
     position: relative;
     z-index: 1;
     display: flex;
     gap: 2rem;
-    max-width: 680px;
+    max-width: 560px;
     width: 100%;
-    background: rgba(15, 15, 26, 0.6);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(108, 92, 231, 0.2);
-    border-radius: var(--radius-lg, 16px);
+    background: rgba(15, 15, 26, 0.55);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-lg);
     padding: 2rem 2.5rem;
+    transition: border-color 0.3s;
   }
 
-  .cap-col {
+  .info-card:hover {
+    border-color: rgba(108, 92, 231, 0.3);
+  }
+
+  .info-col {
     flex: 1;
   }
 
-  .cap-col h3 {
-    font-size: 1.05rem;
+  .info-col h3 {
+    font-size: 0.85rem;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
     margin: 0 0 0.75rem;
   }
 
-  .cap-limited h3 {
-    color: var(--color-text-muted, #a09bb5);
+  .info-available h3 {
+    color: var(--color-text);
   }
 
-  .cap-col ul {
+  .info-limited h3 {
+    color: var(--color-text-muted);
+  }
+
+  .info-col ul {
     list-style: none;
     padding: 0;
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
+    gap: 0.4rem;
   }
 
-  .cap-col li {
-    font-size: 0.9rem;
+  .info-col li {
+    font-size: 0.88rem;
     line-height: 1.5;
-    padding-left: 1.25rem;
+    padding-left: 1.4rem;
     position: relative;
+    color: var(--color-text-muted);
   }
 
-  .cap-can li::before {
-    content: '✓';
+  .info-available li::before {
+    content: '\2713';
     position: absolute;
     left: 0;
-    color: var(--color-success, #26de81);
+    color: #26de81;
     font-weight: 700;
+    font-size: 0.85rem;
   }
 
-  .cap-limited li::before {
-    content: '—';
+  .info-limited li::before {
+    content: '\2014';
     position: absolute;
     left: 0;
-    color: var(--color-text-muted, #a09bb5);
+    color: rgba(160, 155, 181, 0.5);
   }
 
-  .cap-divider {
+  .info-divider {
     width: 1px;
-    background: rgba(108, 92, 231, 0.2);
+    background: rgba(108, 92, 231, 0.15);
+    align-self: stretch;
   }
 
-  /* ── Launch / Exit buttons ──
-     Primary "Launch Demo" uses the app's gradient with cosmic glow.
-     "Exit Demo" uses a destructive red outline style. ── */
-  .launch {
+  /* ── Toggle section ── */
+  .toggle-section {
     position: relative;
     z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: 1.25rem;
   }
 
-  .btn-launch {
+  /* ── Toggle button ── */
+  .toggle {
     position: relative;
-    padding: 1rem 3rem;
-    font-size: 1.15rem;
-    font-weight: 700;
+    background: none;
     border: none;
-    border-radius: var(--radius-xl, 24px);
-    color: #fff;
-    background: var(--gradient-primary, linear-gradient(135deg, #6c5ce7, #ff79c6));
+    padding: 0;
     cursor: pointer;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .toggle:focus-visible .toggle-track {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 4px;
+  }
+
+  .toggle:disabled {
+    cursor: default;
+  }
+
+  .toggle-track {
+    position: relative;
+    display: block;
+    width: 200px;
+    height: 64px;
+    border-radius: 32px;
+    background: rgba(20, 18, 35, 0.8);
+    border: 1.5px solid rgba(108, 92, 231, 0.2);
     transition:
-      transform 0.2s var(--ease-out, ease-out),
-      box-shadow 0.3s;
+      background 0.4s ease,
+      border-color 0.4s ease,
+      box-shadow 0.4s ease;
+    overflow: visible;
+  }
+
+  .toggle:hover:not(:disabled) .toggle-track {
+    border-color: rgba(108, 92, 231, 0.4);
+    box-shadow: 0 0 20px rgba(108, 92, 231, 0.1);
+  }
+
+  .toggle.active .toggle-track {
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.4), rgba(255, 121, 198, 0.3));
+    border-color: rgba(108, 92, 231, 0.5);
     box-shadow:
-      0 0 30px rgba(108, 92, 231, 0.3),
-      0 0 60px rgba(108, 92, 231, 0.15);
+      0 0 30px rgba(108, 92, 231, 0.25),
+      0 0 60px rgba(255, 121, 198, 0.1);
   }
 
-  .btn-launch:hover {
-    transform: translateY(-2px) scale(1.03);
+  .toggle.active:hover:not(:disabled) .toggle-track {
     box-shadow:
-      0 0 40px rgba(108, 92, 231, 0.5),
-      0 0 80px rgba(255, 121, 198, 0.2);
+      0 0 40px rgba(108, 92, 231, 0.35),
+      0 0 80px rgba(255, 121, 198, 0.15);
   }
 
-  .btn-launch:active {
-    transform: translateY(0) scale(0.98);
+  /* ── Toggle glow (pulsing background behind knob when active) ── */
+  .toggle-glow {
+    position: absolute;
+    top: 50%;
+    left: 6px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    transition: transform 0.4s cubic-bezier(0.68, -0.15, 0.27, 1.15);
+    pointer-events: none;
   }
 
-  .btn-exit {
-    padding: 0.85rem 2.5rem;
-    font-size: 1.05rem;
+  .toggle.active .toggle-glow {
+    transform: translateY(-50%) translateX(136px);
+    background: radial-gradient(circle, rgba(108, 92, 231, 0.4) 0%, transparent 70%);
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes glowPulse {
+    0%,
+    100% {
+      transform: translateY(-50%) translateX(136px) scale(1);
+      opacity: 0.6;
+    }
+    50% {
+      transform: translateY(-50%) translateX(136px) scale(1.6);
+      opacity: 0.3;
+    }
+  }
+
+  /* ── Toggle knob ── */
+  .toggle-knob {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(60, 56, 85, 0.9);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition:
+      transform 0.4s cubic-bezier(0.68, -0.15, 0.27, 1.15),
+      background 0.4s ease,
+      box-shadow 0.4s ease;
+  }
+
+  .toggle:hover:not(:disabled) .toggle-knob {
+    background: rgba(75, 70, 105, 0.9);
+  }
+
+  .toggle:active:not(:disabled) .toggle-knob {
+    transform: scale(0.95);
+  }
+
+  .toggle.active .toggle-knob {
+    transform: translateX(136px);
+    background: linear-gradient(135deg, #6c5ce7, #ff79c6);
+    box-shadow:
+      0 0 20px rgba(108, 92, 231, 0.6),
+      0 0 40px rgba(255, 121, 198, 0.3),
+      0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .toggle.active:active:not(:disabled) .toggle-knob {
+    transform: translateX(136px) scale(0.95);
+  }
+
+  /* ── Toggle label ── */
+  .toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 1rem;
     font-weight: 600;
-    border: 2px solid rgba(255, 100, 100, 0.5);
-    border-radius: var(--radius-xl, 24px);
-    color: #ff6464;
-    background: rgba(255, 100, 100, 0.08);
-    cursor: pointer;
-    transition:
-      background 0.2s,
-      border-color 0.2s;
+    color: var(--color-text-muted);
+    user-select: none;
   }
 
-  .btn-exit:hover {
-    background: rgba(255, 100, 100, 0.15);
-    border-color: rgba(255, 100, 100, 0.7);
+  .toggle-label-state {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: rgba(160, 155, 181, 0.6);
+    transition: color 0.4s ease;
+    min-width: 2rem;
   }
 
-  .back-link {
-    font-size: 0.9rem;
-    color: var(--color-text-muted, #a09bb5);
-    text-decoration: none;
-    transition: color 0.2s;
+  .toggle-label-state.active {
+    color: var(--color-accent);
   }
 
-  .back-link:hover {
-    color: var(--color-text, #e8e6f0);
+  /* ── Footer note ── */
+  .footer-note {
+    position: relative;
+    z-index: 1;
+    font-size: 0.8rem;
+    color: rgba(160, 155, 181, 0.4);
+    margin: 0;
+    letter-spacing: 0.02em;
   }
 
-  /* ── Entrance animation ──
-     Shared `fadeInUp` keyframe used by `.anim-up` elements. Each element
-     sets a `--delay` CSS var for staggered appearance. ── */
+  /* ── Entrance animation ── */
   .anim-up {
-    animation: fadeInUp 0.7s var(--delay, 0s) var(--ease-out, ease-out) both;
+    animation: fadeInUp 0.7s var(--delay, 0s) var(--ease-out) both;
   }
 
   @keyframes fadeInUp {
     from {
       opacity: 0;
-      transform: translateY(28px);
+      transform: translateY(24px);
     }
     to {
       opacity: 1;
@@ -553,10 +547,7 @@
     }
   }
 
-  /* ── Reduced motion ──
-     Disables all animations (starfield drift, orbital spin, entrance
-     fade-ins) when the user prefers reduced motion. Elements are shown
-     at their final state (opacity: 1, no transform). ── */
+  /* ── Reduced motion ── */
   @media (prefers-reduced-motion: reduce) {
     .starfield,
     .starfield-2,
@@ -564,8 +555,9 @@
       animation: none;
     }
 
-    .orbital-ring {
+    .particle {
       animation: none;
+      opacity: 0.4;
     }
 
     .anim-up {
@@ -578,34 +570,108 @@
       animation: none;
       opacity: 1;
     }
+
+    .toggle-knob {
+      transition:
+        transform 0.15s ease,
+        background 0.15s ease,
+        box-shadow 0.15s ease;
+    }
+
+    .toggle-glow {
+      transition: transform 0.15s ease;
+      animation: none;
+    }
+
+    .toggle.active .toggle-glow {
+      animation: none;
+      opacity: 0.4;
+    }
+
+    .toggle-track {
+      transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+    }
+
+    .demo-page {
+      transition:
+        opacity 0.15s,
+        filter 0.15s;
+    }
   }
 
-  /* ── Mobile (≤640px) ──
-     Cards stack vertically, capabilities panel switches to column layout,
-     orbital ring shrinks to fit smaller viewports. ── */
+  /* ── Mobile (max 640px) ── */
   @media (max-width: 640px) {
     .demo-page {
-      padding: 2rem 1rem 3rem;
+      padding: 2.5rem 1rem 2rem;
       gap: 2.5rem;
     }
 
-    .features {
-      grid-template-columns: 1fr;
-    }
-
-    .capabilities {
+    .info-card {
       flex-direction: column;
       padding: 1.5rem;
+      gap: 1.25rem;
     }
 
-    .cap-divider {
+    .info-divider {
       width: 100%;
       height: 1px;
     }
 
-    .orbital-ring {
-      width: 300px;
-      height: 300px;
+    .toggle-track {
+      width: 160px;
+      height: 52px;
+      border-radius: 26px;
+    }
+
+    .toggle-knob {
+      width: 42px;
+      height: 42px;
+      top: 5px;
+      left: 5px;
+    }
+
+    .toggle.active .toggle-knob {
+      transform: translateX(108px);
+    }
+
+    .toggle.active:active:not(:disabled) .toggle-knob {
+      transform: translateX(108px) scale(0.95);
+    }
+
+    .toggle-glow {
+      width: 42px;
+      height: 42px;
+      left: 5px;
+    }
+
+    .toggle.active .toggle-glow {
+      transform: translateY(-50%) translateX(108px);
+    }
+
+    @keyframes glowPulse {
+      0%,
+      100% {
+        transform: translateY(-50%) translateX(108px) scale(1);
+        opacity: 0.6;
+      }
+      50% {
+        transform: translateY(-50%) translateX(108px) scale(1.6);
+        opacity: 0.3;
+      }
+    }
+  }
+
+  /* ── Small mobile (max 380px) ── */
+  @media (max-width: 380px) {
+    .hero-title {
+      font-size: 2.4rem;
+    }
+
+    .info-card {
+      padding: 1.25rem;
     }
   }
 </style>
