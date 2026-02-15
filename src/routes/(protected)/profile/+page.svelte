@@ -7,6 +7,7 @@
    * - Change their 6-digit access code (gate)
    * - Change their email address (with confirmation modal)
    * - Manage trusted devices
+   * - View live diagnostics dashboard (sync, realtime, egress, queue, engine)
    * - Toggle debug mode and access sync/database debug tools
    * - Reset the local IndexedDB database
    * - Sign out on mobile (desktop uses navbar)
@@ -29,15 +30,15 @@
     resolveAvatarInitial
   } from '@prabhask5/stellar-engine/auth';
   import { authState } from '@prabhask5/stellar-engine/stores';
-  import { isDebugMode, setDebugMode } from '@prabhask5/stellar-engine/utils';
+  import { isDebugMode, setDebugMode, getDiagnostics } from '@prabhask5/stellar-engine/utils';
   import {
     resetDatabase,
     getTrustedDevices,
     removeTrustedDevice,
     getCurrentDeviceId
   } from '@prabhask5/stellar-engine';
-  import type { TrustedDevice } from '@prabhask5/stellar-engine';
-  import { onMount } from 'svelte';
+  import type { TrustedDevice, DiagnosticsSnapshot } from '@prabhask5/stellar-engine';
+  import { onMount, onDestroy } from 'svelte';
 
   // =============================================================================
   //                         COMPONENT STATE
@@ -89,7 +90,6 @@
   let forceSyncing = $state(false);
   let triggeringSyncManual = $state(false);
   let resettingCursor = $state(false);
-  let checkingConnection = $state(false);
   let viewingTombstones = $state(false);
   let cleaningTombstones = $state(false);
 
@@ -100,9 +100,24 @@
   /** ID of the device currently being removed — shows spinner on that row */
   let removingDeviceId = $state<string | null>(null);
 
+  /* ── Diagnostics ──── */
+  let diagnostics = $state<DiagnosticsSnapshot | null>(null);
+  let diagnosticsLoading = $state(true);
+  let diagnosticsInterval: ReturnType<typeof setInterval> | null = null;
+
   // =============================================================================
   //                           LIFECYCLE
   // =============================================================================
+
+  /** Poll diagnostics and update state. */
+  async function pollDiagnostics() {
+    try {
+      diagnostics = await getDiagnostics();
+    } catch {
+      // Ignore polling errors — stale data is fine
+    }
+    diagnosticsLoading = false;
+  }
 
   /** Populate form fields from the engine and load trusted devices on mount. */
   onMount(async () => {
@@ -124,6 +139,17 @@
       // Ignore errors loading devices
     }
     devicesLoading = false;
+
+    // Start diagnostics polling
+    pollDiagnostics();
+    diagnosticsInterval = setInterval(pollDiagnostics, 3000);
+  });
+
+  onDestroy(() => {
+    if (diagnosticsInterval) {
+      clearInterval(diagnosticsInterval);
+      diagnosticsInterval = null;
+    }
   });
 
   // =============================================================================
@@ -133,10 +159,6 @@
   /**
    * Handle single-digit input in a code field.
    * Auto-advances focus to the next input when a digit is entered.
-   * @param digits  - Reactive digit array to mutate
-   * @param index   - Position in the 6-digit code (0–5)
-   * @param event   - Native input event
-   * @param inputs  - Array of `<input>` refs for focus management
    */
   function handleDigitInput(
     digits: string[],
@@ -160,10 +182,6 @@
   /**
    * Handle Backspace in a digit field — moves focus backward when the current
    * digit is already empty.
-   * @param digits  - Reactive digit array to mutate
-   * @param index   - Position in the 6-digit code (0–5)
-   * @param event   - Native keyboard event
-   * @param inputs  - Array of `<input>` refs for focus management
    */
   function handleDigitKeydown(
     digits: string[],
@@ -183,9 +201,6 @@
 
   /**
    * Handle paste into a digit field — distributes pasted digits across all 6 inputs.
-   * @param digits  - Reactive digit array to mutate
-   * @param event   - Native clipboard event
-   * @param inputs  - Array of `<input>` refs for focus management
    */
   function handleDigitPaste(digits: string[], event: ClipboardEvent, inputs: HTMLInputElement[]) {
     event.preventDefault();
@@ -205,7 +220,6 @@
   /**
    * Submit profile name changes to the engine and update the auth store
    * so the navbar reflects changes immediately.
-   * @param e - Form submit event
    */
   async function handleProfileSubmit(e: Event) {
     e.preventDefault();
@@ -218,7 +232,6 @@
         firstName: firstName.trim(),
         lastName: lastName.trim()
       });
-      // Update auth state to immediately reflect changes in navbar
       authState.updateUserProfile({ first_name: firstName.trim(), last_name: lastName.trim() });
       profileSuccess = 'Profile updated successfully';
       setTimeout(() => (profileSuccess = null), 3000);
@@ -232,7 +245,6 @@
   /**
    * Validate and submit a 6-digit gate code change.
    * Resets all digit arrays on success.
-   * @param e - Form submit event
    */
   async function handleCodeSubmit(e: Event) {
     e.preventDefault();
@@ -278,7 +290,6 @@
    * Initiate an email change — sends a confirmation link to the new address.
    * Opens the confirmation modal and starts listening for the cross-tab
    * `BroadcastChannel` auth event.
-   * @param e - Form submit event
    */
   async function handleEmailSubmit(e: Event) {
     e.preventDefault();
@@ -335,8 +346,7 @@
 
   /**
    * Listen on a `BroadcastChannel` for the confirmation tab to signal
-   * that the user clicked the email-change link. Once received, complete
-   * the email change server-side and update local state.
+   * that the user clicked the email-change link.
    */
   function listenForEmailConfirmation() {
     if (!('BroadcastChannel' in window)) return;
@@ -346,7 +356,6 @@
         event.data?.type === 'AUTH_CONFIRMED' &&
         event.data?.verificationType === 'email_change'
       ) {
-        // Bring this tab to the foreground before the confirm tab closes
         window.focus();
         const result = await completeSingleUserEmailChange();
         if (!result.error && result.newEmail) {
@@ -398,8 +407,6 @@
     resetting = true;
     try {
       await resetDatabase();
-      // Reload the page — session is preserved in localStorage, so the app
-      // will re-create the DB, fetch config from Supabase, and re-hydrate.
       window.location.reload();
     } catch (err) {
       alert('Reset failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
@@ -409,7 +416,6 @@
 
   /**
    * Remove a trusted device by ID and update the local list.
-   * @param id - Database ID of the trusted device row
    */
   async function handleRemoveDevice(id: string) {
     removingDeviceId = id;
@@ -428,8 +434,7 @@
 
   /**
    * Cast `window` to an untyped record for accessing runtime-injected
-   * debug helpers (e.g., `__stellarSync`, `__stellarSyncStats`).
-   * @returns The global `window` as a loose `Record`
+   * debug helpers (e.g., `__stellarSync`, `__stellarTombstones`).
    */
   function getDebugWindow(): Record<string, unknown> {
     return window as unknown as Record<string, unknown>;
@@ -496,99 +501,6 @@
     resettingCursor = false;
   }
 
-  /** Test connectivity to Supabase and show the result in an alert. */
-  async function handleCheckConnection() {
-    checkingConnection = true;
-    try {
-      const fn = getDebugWindow().__stellarSync as
-        | {
-            checkConnection: () => Promise<{
-              connected: boolean;
-              error?: string;
-              records?: number;
-            }>;
-          }
-        | undefined;
-      if (fn?.checkConnection) {
-        const result = await fn.checkConnection();
-        if (result.connected) {
-          alert('Connection OK. Supabase is reachable.');
-        } else {
-          alert('Connection failed: ' + (result.error || 'Unknown error'));
-        }
-      } else {
-        alert('Debug mode must be enabled and the page refreshed to use this tool.');
-      }
-    } catch (err) {
-      alert('Connection check failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
-    }
-    checkingConnection = false;
-  }
-
-  /** Display current sync cursor and pending operations count in an alert. */
-  function handleGetSyncStatus() {
-    const fn = getDebugWindow().__stellarSync as
-      | { getStatus: () => { cursor: unknown; pendingOps: Promise<number> } }
-      | undefined;
-    if (fn?.getStatus) {
-      const status = fn.getStatus();
-      const cursorDisplay =
-        typeof status.cursor === 'object'
-          ? JSON.stringify(status.cursor)
-          : String(status.cursor || 'None');
-      status.pendingOps.then((count: number) => {
-        alert(`Sync Status:\n\nCursor: ${cursorDisplay}\nPending operations: ${count}`);
-      });
-    } else {
-      alert('Debug mode must be enabled and the page refreshed to use this tool.');
-    }
-  }
-
-  /** Show the realtime WebSocket connection state and health. */
-  function handleRealtimeStatus() {
-    const fn = getDebugWindow().__stellarSync as
-      | { realtimeStatus: () => { state: string; healthy: boolean } }
-      | undefined;
-    if (fn?.realtimeStatus) {
-      const status = fn.realtimeStatus();
-      alert(
-        `Realtime Status:\n\nState: ${status.state}\nHealthy: ${status.healthy ? 'Yes' : 'No'}`
-      );
-    } else {
-      alert('Debug mode must be enabled and the page refreshed to use this tool.');
-    }
-  }
-
-  /** Display sync cycle stats in an alert; full details logged to console. */
-  function handleViewSyncStats() {
-    const fn = getDebugWindow().__stellarSyncStats as
-      | (() => { totalSyncCycles: number; recentMinute: number; recent: unknown[] })
-      | undefined;
-    if (fn) {
-      const stats = fn();
-      alert(
-        `Sync Stats:\n\nTotal cycles: ${stats.totalSyncCycles}\nCycles in last minute: ${stats.recentMinute}\nRecent cycles logged to console.`
-      );
-    } else {
-      alert('Debug mode must be enabled and the page refreshed to use this tool.');
-    }
-  }
-
-  /** Display data-transfer / egress stats; per-table breakdown in console. */
-  function handleViewEgress() {
-    const fn = getDebugWindow().__stellarEgress as
-      | (() => { totalFormatted: string; totalRecords: number; sessionStart: string })
-      | undefined;
-    if (fn) {
-      const stats = fn();
-      alert(
-        `Egress Stats:\n\nTotal data transferred: ${stats.totalFormatted}\nTotal records: ${stats.totalRecords}\nSession started: ${new Date(stats.sessionStart).toLocaleString()}\n\nFull breakdown logged to console.`
-      );
-    } else {
-      alert('Debug mode must be enabled and the page refreshed to use this tool.');
-    }
-  }
-
   /** Log soft-deleted record counts per table to the browser console. */
   async function handleViewTombstones() {
     viewingTombstones = true;
@@ -636,6 +548,60 @@
   /** Dispatch a custom event that the app shell listens for to sign out on mobile. */
   function handleMobileSignOut() {
     window.dispatchEvent(new CustomEvent('stellar:signout'));
+  }
+
+  // =============================================================================
+  //                     DIAGNOSTICS HELPERS
+  // =============================================================================
+
+  /** Map sync status to a human-readable label. */
+  function formatSyncStatus(status: string): string {
+    switch (status) {
+      case 'idle':
+        return 'Idle';
+      case 'syncing':
+        return 'Syncing';
+      case 'error':
+        return 'Error';
+      case 'offline':
+        return 'Offline';
+      default:
+        return status;
+    }
+  }
+
+  /** Map sync status to a CSS color class suffix. */
+  function getStatusColor(status: string): string {
+    switch (status) {
+      case 'idle':
+        return 'green';
+      case 'syncing':
+        return 'purple';
+      case 'error':
+        return 'red';
+      case 'offline':
+        return 'yellow';
+      default:
+        return 'yellow';
+    }
+  }
+
+  /** Format an ISO timestamp to a relative "X ago" string. */
+  function formatTimestamp(iso: string | null): string {
+    if (!iso) return '-';
+    const diff = Date.now() - new Date(iso).getTime();
+    if (diff < 1000) return 'just now';
+    if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`;
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+    return `${Math.floor(diff / 86_400_000)}d ago`;
+  }
+
+  /** Format milliseconds to a compact duration string. */
+  function formatDuration(ms: number | null | undefined): string {
+    if (ms == null) return '-';
+    if (ms < 1000) return `${Math.round(ms)}ms`;
+    return `${(ms / 1000).toFixed(1)}s`;
   }
 </script>
 
@@ -976,31 +942,11 @@
     {/if}
   </div>
 
-  <!-- ═══ Settings & Debug Tools Card ═══ -->
+  <!-- ═══ Card 1: Settings ═══ -->
   <div class="profile-card">
     <div class="card-header">
       <h2 class="card-title">Settings</h2>
-      <p class="card-subtitle">Manage your Stellar instance</p>
-    </div>
-
-    <div class="setting-row">
-      <div class="setting-info">
-        <span class="setting-label">Debug Mode</span>
-        <span class="setting-hint"
-          >Enable console logging for troubleshooting (you'll need to refresh for the changes to
-          take effect)</span
-        >
-      </div>
-      <button
-        class="toggle-btn"
-        class:active={debugMode}
-        onclick={toggleDebugMode}
-        role="switch"
-        aria-checked={debugMode}
-        aria-label="Toggle debug mode"
-      >
-        <span class="toggle-knob"></span>
-      </button>
+      <p class="card-subtitle">Configure your Stellar instance</p>
     </div>
 
     <button class="btn btn-secondary" onclick={() => goto('/setup')}>
@@ -1021,10 +967,259 @@
       </svg>
       Update Supabase Configuration
     </button>
+  </div>
 
-    <!-- Debug Tools Section -->
-    <div class="debug-section-divider">
-      <span class="debug-section-label">Debug Tools</span>
+  <!-- ═══ Card 2: Diagnostics ═══ -->
+  <div class="profile-card">
+    <div class="card-header">
+      <h2 class="card-title">Diagnostics</h2>
+      <p class="card-subtitle">Live sync engine health dashboard</p>
+    </div>
+
+    {#if diagnosticsLoading}
+      <div class="devices-loading">
+        <span class="loading-spinner"></span>
+      </div>
+    {:else if diagnostics}
+      <!-- 1. Status Banner -->
+      <div class="diag-status-banner">
+        <span class="diag-status-dot diag-status-dot--{getStatusColor(diagnostics.sync.status)}"
+        ></span>
+        <div class="diag-status-info">
+          <span class="diag-status-label">{formatSyncStatus(diagnostics.sync.status)}</span>
+          <span class="diag-status-meta">
+            {diagnostics.network.online ? 'Online' : 'Offline'} &middot; {diagnostics.deviceId.slice(
+              0,
+              8
+            )}
+          </span>
+        </div>
+      </div>
+
+      <!-- 2. Sync Engine -->
+      <div class="diag-section-title">Sync Engine</div>
+      <div class="diag-grid">
+        <div class="diag-stat">
+          <span class="diag-stat-value">{diagnostics.sync.totalCycles}</span>
+          <span class="diag-stat-label">Total Cycles</span>
+        </div>
+        <div class="diag-stat">
+          <span class="diag-stat-value">{diagnostics.sync.cyclesLastMinute}</span>
+          <span class="diag-stat-label">Last Minute</span>
+        </div>
+        <div class="diag-stat">
+          <span class="diag-stat-value">{diagnostics.sync.pendingCount}</span>
+          <span class="diag-stat-label">Pending Ops</span>
+        </div>
+        <div class="diag-stat">
+          <span class="diag-stat-value">{formatTimestamp(diagnostics.sync.lastSyncTime)}</span>
+          <span class="diag-stat-label">Last Sync</span>
+        </div>
+      </div>
+      <div class="diag-badges">
+        <span class="diag-badge-{diagnostics.sync.hasHydrated ? 'ok' : 'warn'}">
+          {diagnostics.sync.hasHydrated ? 'Hydrated' : 'Not Hydrated'}
+        </span>
+        <span class="diag-badge-{diagnostics.sync.schemaValidated ? 'ok' : 'warn'}">
+          {diagnostics.sync.schemaValidated ? 'Schema OK' : 'Schema Pending'}
+        </span>
+      </div>
+
+      <!-- 3. Realtime -->
+      <div class="diag-section-title">Realtime</div>
+      <div class="diag-row">
+        <span class="diag-row-label">Connection</span>
+        <span class="diag-row-value">
+          <span
+            class="diag-inline-dot diag-inline-dot--{diagnostics.realtime.connectionState ===
+            'connected'
+              ? 'green'
+              : diagnostics.realtime.connectionState === 'connecting'
+                ? 'yellow'
+                : 'red'}"
+          ></span>
+          {diagnostics.realtime.connectionState}
+        </span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-row-label">Healthy</span>
+        <span class="diag-row-value">{diagnostics.realtime.healthy ? 'Yes' : 'No'}</span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-row-label">Reconnects</span>
+        <span class="diag-row-value">{diagnostics.realtime.reconnectAttempts}</span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-row-label">Events Processed</span>
+        <span class="diag-row-value">{diagnostics.realtime.recentlyProcessedCount}</span>
+      </div>
+
+      <!-- 4. Data Transfer -->
+      <div class="diag-section-title">Data Transfer</div>
+      <div class="diag-grid-2">
+        <div class="diag-stat">
+          <span class="diag-stat-value">{diagnostics.egress.totalFormatted}</span>
+          <span class="diag-stat-label">Total Egress</span>
+        </div>
+        <div class="diag-stat">
+          <span class="diag-stat-value">{diagnostics.egress.totalRecords.toLocaleString()}</span>
+          <span class="diag-stat-label">Records</span>
+        </div>
+      </div>
+      {#if Object.keys(diagnostics.egress.byTable).length > 0}
+        <div class="diag-table-bars">
+          {#each Object.entries(diagnostics.egress.byTable) as [table, data] (table)}
+            <div class="diag-table-row">
+              <div class="diag-table-header">
+                <span class="diag-table-name">{table}</span>
+                <span class="diag-table-pct">{data.percentage}</span>
+              </div>
+              <div class="diag-progress-bar">
+                <div class="diag-progress-fill" style="width: {data.percentage}"></div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
+      <!-- 5. Sync Queue -->
+      <div class="diag-section-title">Sync Queue</div>
+      <div class="diag-grid-2">
+        <div class="diag-stat">
+          <span class="diag-stat-value">{diagnostics.queue.pendingOperations}</span>
+          <span class="diag-stat-label">Pending</span>
+        </div>
+        <div class="diag-stat">
+          <span class="diag-stat-value">{diagnostics.queue.itemsInBackoff}</span>
+          <span class="diag-stat-label">In Backoff</span>
+        </div>
+      </div>
+      {#if diagnostics.queue.oldestPendingTimestamp}
+        <div class="diag-row">
+          <span class="diag-row-label">Oldest Pending</span>
+          <span class="diag-row-value"
+            >{formatTimestamp(diagnostics.queue.oldestPendingTimestamp)}</span
+          >
+        </div>
+      {/if}
+
+      <!-- 6. Engine -->
+      <div class="diag-section-title">Engine</div>
+      <div class="diag-row">
+        <span class="diag-row-label">Tab Visible</span>
+        <span class="diag-row-value">{diagnostics.engine.isTabVisible ? 'Yes' : 'No'}</span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-row-label">Lock Held</span>
+        <span class="diag-row-value">
+          {diagnostics.engine.lockHeld ? 'Yes' : 'No'}
+          {#if diagnostics.engine.lockHeld && diagnostics.engine.lockHeldForMs}
+            <span class="diag-lock-duration"
+              >({formatDuration(diagnostics.engine.lockHeldForMs)})</span
+            >
+          {/if}
+        </span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-row-label">Recently Modified</span>
+        <span class="diag-row-value">{diagnostics.engine.recentlyModifiedCount}</span>
+      </div>
+
+      <!-- 7. Recent Cycles -->
+      {#if diagnostics.sync.recentCycles.length > 0}
+        <div class="diag-section-title">Recent Cycles</div>
+        <div class="diag-cycles">
+          {#each diagnostics.sync.recentCycles.slice(0, 5) as cycle (cycle.timestamp)}
+            <div class="diag-cycle-item">
+              <div class="diag-cycle-header">
+                <span class="diag-cycle-trigger">{cycle.trigger}</span>
+                <span class="diag-cycle-time">{formatTimestamp(cycle.timestamp)}</span>
+              </div>
+              <div class="diag-cycle-stats">
+                <span>{cycle.pushedItems} pushed</span>
+                <span>{cycle.pulledRecords} pulled</span>
+                <span>{formatDuration(cycle.durationMs)}</span>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
+      <!-- 8. Conflicts -->
+      {#if diagnostics.conflicts.totalCount > 0}
+        <div class="diag-section-title">Conflicts</div>
+        <div class="diag-row">
+          <span class="diag-row-label">Total</span>
+          <span class="diag-row-value">{diagnostics.conflicts.totalCount}</span>
+        </div>
+      {/if}
+
+      <!-- 9. Errors -->
+      {#if diagnostics.errors.lastError || diagnostics.errors.recentErrors.length > 0}
+        <div class="diag-section-title">Errors</div>
+        {#if diagnostics.errors.lastError}
+          <div class="diag-error-banner">
+            {diagnostics.errors.lastError}
+          </div>
+        {/if}
+        {#each diagnostics.errors.recentErrors.slice(0, 3) as err (err.entityId)}
+          <div class="diag-error-item">
+            <span class="diag-error-table">{err.table}.{err.operation}</span>
+            <span class="diag-error-msg">{err.message}</span>
+          </div>
+        {/each}
+      {/if}
+
+      <!-- 10. Configuration -->
+      <div class="diag-section-title">Configuration</div>
+      <div class="diag-row">
+        <span class="diag-row-label">Tables</span>
+        <span class="diag-row-value"
+          >{diagnostics.config.tableCount} ({diagnostics.config.tableNames.join(', ')})</span
+        >
+      </div>
+      <div class="diag-row">
+        <span class="diag-row-label">Sync Interval</span>
+        <span class="diag-row-value">{formatDuration(diagnostics.config.syncIntervalMs)}</span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-row-label">Debounce</span>
+        <span class="diag-row-value">{formatDuration(diagnostics.config.syncDebounceMs)}</span>
+      </div>
+
+      <!-- 11. Footer -->
+      <div class="diag-footer">
+        <span class="diag-footer-dot"></span>
+        Updated {formatTimestamp(diagnostics.timestamp)}
+      </div>
+    {/if}
+  </div>
+
+  <!-- ═══ Card 3: Debug Tools ═══ -->
+  <div class="profile-card">
+    <div class="card-header">
+      <h2 class="card-title">Debug Tools</h2>
+      <p class="card-subtitle">Debug your Stellar instance</p>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <span class="setting-label">Debug Mode</span>
+        <span class="setting-hint"
+          >Enable console logging for troubleshooting (you'll need to refresh for the changes to
+          take effect)</span
+        >
+      </div>
+      <button
+        class="toggle-btn"
+        class:active={debugMode}
+        onclick={toggleDebugMode}
+        role="switch"
+        aria-checked={debugMode}
+        aria-label="Toggle debug mode"
+      >
+        <span class="toggle-knob"></span>
+      </button>
     </div>
 
     <button class="btn btn-secondary" onclick={handleForceFullSync} disabled={forceSyncing}>
@@ -1051,9 +1246,8 @@
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
       Clears local table data, resets the sync cursor, and re-downloads everything from the server
-      without reloading the page. Use when data appears out of sync.<br /><span
-        class="console-label">Run in console:</span
-      > <code class="console-cmd">__stellarSync.forceFullSync()</code>
+      without reloading the page.<br /><span class="console-label">Run in console:</span>
+      <code class="console-cmd">__stellarSync.forceFullSync()</code>
     </p>
 
     <button class="btn btn-secondary" onclick={handleTriggerSync} disabled={triggeringSyncManual}>
@@ -1080,8 +1274,9 @@
       {/if}
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
-      Manually triggers a sync cycle to push local changes and pull remote changes. Use when changes
-      aren't appearing.<br /><span class="console-label">Run in console:</span>
+      Manually triggers a sync cycle to push local changes and pull remote changes.<br /><span
+        class="console-label">Run in console:</span
+      >
       <code class="console-cmd">__stellarSync.sync()</code>
     </p>
 
@@ -1110,133 +1305,9 @@
       {/if}
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
-      Resets the sync cursor so the next sync cycle pulls all data instead of only new changes. Use
-      before triggering a sync to do a full re-pull.<br /><span class="console-label"
-        >Run in console:</span
-      > <code class="console-cmd">__stellarSync.resetSyncCursor()</code>
-    </p>
-
-    <button class="btn btn-secondary" onclick={handleCheckConnection} disabled={checkingConnection}>
-      {#if checkingConnection}
-        <span class="loading-spinner"></span>
-        Checking...
-      {:else}
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M1 1l22 22" />
-          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
-          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
-          <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
-          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
-          <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-          <line x1="12" y1="20" x2="12.01" y2="20" />
-        </svg>
-        Check Connection
-      {/if}
-    </button>
-    <p class="setting-hint" style="margin-top: 0.5rem;">
-      Tests the connection to Supabase and displays the result in a popup. Use to diagnose
-      connectivity issues.<br /><span class="console-label">Run in console:</span>
-      <code class="console-cmd">__stellarSync.checkConnection()</code>
-    </p>
-
-    <button class="btn btn-secondary" onclick={handleGetSyncStatus}>
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
-      </svg>
-      View Sync Status
-    </button>
-    <p class="setting-hint" style="margin-top: 0.5rem;">
-      Displays the current sync cursor and number of pending operations in a popup. Use to check if
-      changes are queued.<br /><span class="console-label">Run in console:</span>
-      <code class="console-cmd">__stellarSync.getStatus()</code>
-    </p>
-
-    <button class="btn btn-secondary" onclick={handleRealtimeStatus}>
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-      </svg>
-      Realtime Status
-    </button>
-    <p class="setting-hint" style="margin-top: 0.5rem;">
-      Displays the current realtime WebSocket connection state and health in a popup. Use to check
-      if live updates are working.<br /><span class="console-label">Run in console:</span>
-      <code class="console-cmd">__stellarSync.realtimeStatus()</code>
-    </p>
-
-    <button class="btn btn-secondary" onclick={handleViewSyncStats}>
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <line x1="18" y1="20" x2="18" y2="10" />
-        <line x1="12" y1="20" x2="12" y2="4" />
-        <line x1="6" y1="20" x2="6" y2="14" />
-      </svg>
-      View Sync Stats
-    </button>
-    <p class="setting-hint" style="margin-top: 0.5rem;">
-      Displays a summary of sync cycles in a popup and logs the full details to the browser console.
-      Use to monitor sync performance.<br /><span class="console-label">Run in console:</span>
-      <code class="console-cmd">__stellarSyncStats()</code>
-    </p>
-
-    <button class="btn btn-secondary" onclick={handleViewEgress}>
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-        <polyline points="17 8 12 3 7 8" />
-        <line x1="12" y1="3" x2="12" y2="15" />
-      </svg>
-      View Egress Stats
-    </button>
-    <p class="setting-hint" style="margin-top: 0.5rem;">
-      Displays a summary of data transfer in a popup and logs the per-table breakdown to the browser
-      console. Use to monitor bandwidth usage.<br /><span class="console-label"
-        >Run in console:</span
-      >
-      <code class="console-cmd">__stellarEgress()</code>
+      Resets the sync cursor so the next sync cycle pulls all data instead of only new changes.<br
+      /><span class="console-label">Run in console:</span>
+      <code class="console-cmd">__stellarSync.resetSyncCursor()</code>
     </p>
 
     <button class="btn btn-secondary" onclick={handleViewTombstones} disabled={viewingTombstones}>
@@ -1262,8 +1333,9 @@
       {/if}
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
-      Logs soft-deleted record counts per table to the browser console. Use to inspect pending
-      deletions before cleanup.<br /><span class="console-label">Run in console:</span>
+      Logs soft-deleted record counts per table to the browser console.<br /><span
+        class="console-label">Run in console:</span
+      >
       <code class="console-cmd">__stellarTombstones()</code>
     </p>
 
@@ -1294,8 +1366,8 @@
       {/if}
     </button>
     <p class="setting-hint" style="margin-top: 0.5rem;">
-      Permanently removes old soft-deleted records from local IndexedDB and remote Supabase. Results
-      are logged to the browser console.<br /><span class="console-label">Run in console:</span>
+      Permanently removes old soft-deleted records from local IndexedDB and remote Supabase.<br
+      /><span class="console-label">Run in console:</span>
       <code class="console-cmd">__stellarTombstones({'{'} cleanup: true })</code>
     </p>
 
@@ -1726,10 +1798,6 @@
      RESPONSIVE
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     MOBILE RESPONSIVE — iPhone 16 Pro Optimized
-     ═══════════════════════════════════════════════════════════════════════════════════ */
-
   @media (max-width: 640px) {
     .profile-page {
       padding: 0 0.25rem 2rem;
@@ -1975,38 +2043,6 @@
       display: block;
       font-size: 0.625rem;
     }
-  }
-
-  .debug-section-divider ~ .btn {
-    margin-top: 1.25rem;
-  }
-
-  .debug-section-divider ~ .btn:first-of-type {
-    margin-top: 0;
-  }
-
-  .debug-section-divider {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin: 1.5rem 0 1rem;
-  }
-
-  .debug-section-divider::before,
-  .debug-section-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: rgba(108, 92, 231, 0.2);
-  }
-
-  .debug-section-label {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--color-text-muted);
-    white-space: nowrap;
   }
 
   .toggle-btn {
@@ -2276,8 +2312,14 @@
   @media (prefers-reduced-motion: reduce) {
     .avatar-ring,
     .avatar-particles .particle,
-    .loading-spinner {
+    .loading-spinner,
+    .diag-status-dot,
+    .diag-footer-dot {
       animation: none;
+    }
+
+    .diag-progress-fill {
+      transition: none;
     }
   }
 
@@ -2369,5 +2411,386 @@
   .loading-spinner.small {
     width: 14px;
     height: 14px;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     DIAGNOSTICS PANEL
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  /* ── Status Banner ──── */
+  .diag-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1rem 1.25rem;
+    background: rgba(10, 10, 18, 0.6);
+    border: 1px solid rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1.25rem;
+  }
+
+  .diag-status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .diag-status-dot--green {
+    background: #26de81;
+    box-shadow: 0 0 12px rgba(38, 222, 129, 0.5);
+    animation: statusPulse 3s ease-in-out infinite;
+  }
+
+  .diag-status-dot--purple {
+    background: #6c5ce7;
+    box-shadow: 0 0 12px rgba(108, 92, 231, 0.5);
+    animation: statusPulse 1s ease-in-out infinite;
+  }
+
+  .diag-status-dot--yellow {
+    background: #ffd43b;
+    box-shadow: 0 0 12px rgba(255, 212, 59, 0.5);
+    animation: statusPulse 2s ease-in-out infinite;
+  }
+
+  .diag-status-dot--red {
+    background: #ff6b6b;
+    box-shadow: 0 0 12px rgba(255, 107, 107, 0.5);
+    animation: statusPulse 0.8s ease-in-out infinite;
+  }
+
+  @keyframes statusPulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(0.85);
+    }
+  }
+
+  .diag-status-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
+  .diag-status-label {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .diag-status-meta {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  /* ── Section Titles ──── */
+  .diag-section-title {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-text-muted);
+    margin: 1.25rem 0 0.625rem;
+  }
+
+  /* ── Stat Grids ──── */
+  .diag-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.625rem;
+  }
+
+  .diag-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.625rem;
+  }
+
+  .diag-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.75rem 0.5rem;
+    background: rgba(10, 10, 18, 0.4);
+    border: 1px solid rgba(108, 92, 231, 0.1);
+    border-radius: var(--radius-md, 8px);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .diag-stat-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .diag-stat-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 640px) {
+    .diag-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* ── Badges ──── */
+  .diag-badges {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.625rem;
+    flex-wrap: wrap;
+  }
+
+  .diag-badge-ok {
+    display: inline-flex;
+    padding: 0.2rem 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: var(--radius-sm, 4px);
+    color: #26de81;
+    background: rgba(38, 222, 129, 0.12);
+    border: 1px solid rgba(38, 222, 129, 0.25);
+  }
+
+  .diag-badge-warn {
+    display: inline-flex;
+    padding: 0.2rem 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: var(--radius-sm, 4px);
+    color: #ffd43b;
+    background: rgba(255, 212, 59, 0.12);
+    border: 1px solid rgba(255, 212, 59, 0.25);
+  }
+
+  /* ── Key-Value Rows ──── */
+  .diag-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(108, 92, 231, 0.08);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .diag-row:last-of-type {
+    border-bottom: none;
+  }
+
+  .diag-row-label {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+  }
+
+  .diag-row-value {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .diag-lock-duration {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--color-text-muted);
+  }
+
+  /* ── Inline Status Dot ──── */
+  .diag-inline-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .diag-inline-dot--green {
+    background: #26de81;
+    box-shadow: 0 0 6px rgba(38, 222, 129, 0.4);
+  }
+
+  .diag-inline-dot--yellow {
+    background: #ffd43b;
+    box-shadow: 0 0 6px rgba(255, 212, 59, 0.4);
+  }
+
+  .diag-inline-dot--red {
+    background: #ff6b6b;
+    box-shadow: 0 0 6px rgba(255, 107, 107, 0.4);
+  }
+
+  /* ── Progress Bars ──── */
+  .diag-table-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-top: 0.75rem;
+  }
+
+  .diag-table-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .diag-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .diag-table-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .diag-table-pct {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .diag-progress-bar {
+    height: 6px;
+    background: rgba(108, 92, 231, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .diag-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6c5ce7, #a29bfe);
+    border-radius: 3px;
+    transition: width 600ms var(--ease-orbital, ease-out);
+  }
+
+  /* ── Recent Cycles Timeline ──── */
+  .diag-cycles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .diag-cycle-item {
+    padding: 0.625rem 0.875rem;
+    background: rgba(10, 10, 18, 0.3);
+    border-left: 3px solid rgba(108, 92, 231, 0.4);
+    border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) 0;
+  }
+
+  .diag-cycle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+  }
+
+  .diag-cycle-trigger {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-primary-light);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .diag-cycle-time {
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .diag-cycle-stats {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Errors ──── */
+  .diag-error-banner {
+    padding: 0.75rem 1rem;
+    background: rgba(255, 107, 107, 0.08);
+    border: 1px solid rgba(255, 107, 107, 0.2);
+    border-radius: var(--radius-md, 8px);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-red, #ff6b6b);
+    margin-bottom: 0.5rem;
+  }
+
+  .diag-error-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255, 107, 107, 0.1);
+  }
+
+  .diag-error-item:last-child {
+    border-bottom: none;
+  }
+
+  .diag-error-table {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--color-red, #ff6b6b);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .diag-error-msg {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  /* ── Footer ──── */
+  .diag-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(108, 92, 231, 0.1);
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .diag-footer-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(108, 92, 231, 0.5);
+    animation: footerTick 2.5s ease-in-out infinite;
+  }
+
+  @keyframes footerTick {
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 1;
+    }
   }
 </style>
