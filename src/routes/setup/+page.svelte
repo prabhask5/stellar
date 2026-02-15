@@ -209,7 +209,7 @@
 </script>
 
 <svelte:head>
-  <title>Set Up Stellar Planner</title>
+  <title>Set Up - Stellar Planner</title>
 </svelte:head>
 
 <!-- ═══ Cosmic Background ═══ -->

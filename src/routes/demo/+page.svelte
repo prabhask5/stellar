@@ -37,7 +37,7 @@
 </script>
 
 <svelte:head>
-  <title>Demo Mode — Stellar</title>
+  <title>Demo Mode - Stellar Planner</title>
 </svelte:head>
 
 <div class="page" class:active={demoActive} class:exploding class:imploding class:fading>
