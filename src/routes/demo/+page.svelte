@@ -183,14 +183,13 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 3rem 1.25rem 2rem;
-    padding-top: max(3rem, env(safe-area-inset-top, 0px));
-    padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
-    padding-left: max(1.25rem, env(safe-area-inset-left, 0px));
-    padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
-    gap: 2.5rem;
+    padding: 1.5rem;
+    padding-top: max(1.5rem, env(safe-area-inset-top, 0px));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+    gap: 1.5rem;
     overflow: hidden;
-    overflow-y: auto;
     background: #050510;
     color: #e8e6f0;
     font-family: inherit;
@@ -680,7 +679,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1rem;
     opacity: 0;
     animation: toggleBirth 2s 2.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
@@ -1716,10 +1715,10 @@
 
   @media (max-width: 640px) {
     .page {
-      padding: 1.5rem 1rem;
-      padding-top: max(1.5rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
-      padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
-      gap: 1.5rem;
+      padding: 1rem;
+      padding-top: max(1rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
+      padding-bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
+      gap: 1rem;
     }
 
     .title {
@@ -1845,10 +1844,10 @@
 
   @media (max-width: 380px) {
     .page {
-      padding: 1.25rem 0.75rem;
-      padding-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
-      padding-bottom: max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
-      gap: 1.25rem;
+      padding: 0.75rem;
+      padding-top: max(0.75rem, calc(env(safe-area-inset-top, 0px) + 0.25rem));
+      padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.25rem));
+      gap: 0.75rem;
     }
 
     .title {
