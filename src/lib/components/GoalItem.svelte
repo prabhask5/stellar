@@ -19,8 +19,8 @@
    *   arbitrary value (clamped to >= 0, overflow above target is allowed).
    * - `triggerLocalAnimation` provides immediate feedback on toggle / increment.
    * - `remoteChangeAnimation` highlights rows updated by another device.
-   * - On mobile, the delete button moves from row 1 to the name row for
-   *   better touch ergonomics.
+   * - On mobile, the edit and delete buttons move from row 1 to the name row
+   *   for better touch ergonomics.
    */
 
   import { getProgressColor, calculateGoalProgress, getOverflowColor } from '$lib/utils/colors';
@@ -268,22 +268,20 @@
         </div>
       {/if}
 
-      <!-- Edit / Delete action buttons -->
+      <!-- Edit / Delete action buttons (desktop only) -->
       <div class="goal-actions">
         {#if onEdit}
-          <button class="action-btn" onclick={onEdit} aria-label="Edit goal">✎</button>
+          <button class="action-btn desktop-only" onclick={onEdit} aria-label="Edit goal">✎</button>
         {/if}
         {#if onDelete}
-          <button
-            class="action-btn delete desktop-delete"
-            onclick={onDelete}
-            aria-label="Delete goal">×</button
+          <button class="action-btn delete desktop-only" onclick={onDelete} aria-label="Delete goal"
+            >×</button
           >
         {/if}
       </div>
     </div>
 
-    <!-- ═══ Row 2: Goal Name (+ mobile delete) ═══ -->
+    <!-- ═══ Row 2: Goal Name (+ mobile edit/delete) ═══ -->
     <div class="name-row">
       <span
         class="goal-name"
@@ -292,11 +290,16 @@
       >
         {goal.name}
       </span>
-      {#if onDelete}
-        <button class="action-btn delete mobile-delete" onclick={onDelete} aria-label="Delete goal"
-          >×</button
-        >
-      {/if}
+      <div class="mobile-actions">
+        {#if onEdit}
+          <button class="action-btn mobile-only" onclick={onEdit} aria-label="Edit goal">✎</button>
+        {/if}
+        {#if onDelete}
+          <button class="action-btn delete mobile-only" onclick={onDelete} aria-label="Delete goal"
+            >×</button
+          >
+        {/if}
+      </div>
     </div>
 
     <!-- ═══ Row 3: Progress Bar + Celebration Effects (incremental / progressive only) ═══ -->
@@ -678,8 +681,12 @@
     min-width: 0;
   }
 
-  /* Mobile-only delete button — hidden on desktop, shown at ≤480px */
-  .mobile-delete {
+  /* Mobile-only buttons — hidden on desktop, shown at ≤480px */
+  .mobile-only {
+    display: none;
+  }
+
+  .mobile-actions {
     display: none;
   }
 
@@ -1140,13 +1147,19 @@
       inset: -4px;
     }
 
-    /* Mobile: move delete to name row so it doesn't get clipped */
-    .desktop-delete {
+    /* Mobile: move edit + delete to name row */
+    .desktop-only {
       display: none;
     }
 
-    .mobile-delete {
+    .mobile-only {
       display: flex;
+    }
+
+    .mobile-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
       flex-shrink: 0;
     }
 
