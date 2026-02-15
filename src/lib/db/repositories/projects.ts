@@ -25,10 +25,11 @@
 
 import { generateId, now } from '@prabhask5/stellar-engine/utils';
 import {
-  engineUpdate,
   engineQuery,
   engineGet,
-  engineBatchWrite
+  engineBatchWrite,
+  reorderEntity,
+  prependOrder
 } from '@prabhask5/stellar-engine/data';
 import type { BatchOperation } from '@prabhask5/stellar-engine/types';
 import type { Project, TaskCategory, Commitment, GoalList, Goal } from '$lib/types';
@@ -78,10 +79,7 @@ function getRandomColor(): string {
  * @returns The order value to assign to the new project
  */
 async function getNextProjectOrder(userId: string): Promise<number> {
-  const existing = (await engineQuery('projects', 'user_id', userId)) as unknown as Project[];
-  const active = existing.filter((p) => !p.deleted);
-  if (active.length === 0) return 0;
-  return Math.min(...active.map((p) => p.order)) - 1;
+  return prependOrder('projects', 'user_id', userId);
 }
 
 // =============================================================================
@@ -360,6 +358,5 @@ export async function clearCurrentProject(userId: string): Promise<void> {
  * @returns The updated {@link Project}, or `undefined` if not found
  */
 export async function reorderProject(id: string, newOrder: number): Promise<Project | undefined> {
-  const result = await engineUpdate('projects', id, { order: newOrder });
-  return result as unknown as Project | undefined;
+  return reorderEntity('projects', id, newOrder) as Promise<Project | undefined>;
 }

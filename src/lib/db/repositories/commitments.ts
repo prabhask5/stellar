@@ -18,7 +18,8 @@ import {
   engineCreate,
   engineUpdate,
   engineDelete,
-  engineQuery
+  engineQuery,
+  reorderEntity
 } from '@prabhask5/stellar-engine/data';
 import type { Commitment, CommitmentSection } from '$lib/types';
 
@@ -102,6 +103,5 @@ export async function reorderCommitment(
   id: string,
   newOrder: number
 ): Promise<Commitment | undefined> {
-  const result = await engineUpdate('commitments', id, { order: newOrder });
-  return result as unknown as Commitment | undefined;
+  return reorderEntity('commitments', id, newOrder) as Promise<Commitment | undefined>;
 }

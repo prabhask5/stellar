@@ -187,11 +187,8 @@
   <!-- ═══ Stats & Progress ═══ -->
   {#if totalGoals > 0 || totalTasks > 0}
     <div class="project-stats">
-      <span class="stat-text">
-        {#if totalGoals > 0}{completedGoals} / {totalGoals} goals{/if}{#if totalGoals > 0 && totalTasks > 0}
-          &middot;
-        {/if}{#if totalTasks > 0}{completedTasks} / {totalTasks} tasks{/if}
-      </span>
+      <!-- prettier-ignore -->
+      <span class="stat-text">{#if totalGoals > 0}{completedGoals} / {totalGoals} goals{/if}{#if totalGoals > 0 && totalTasks > 0}&nbsp;&middot;&nbsp;{/if}{#if totalTasks > 0}{completedTasks} / {totalTasks} tasks{/if}</span>
     </div>
     <ProgressBar percentage={completionPercentage} />
   {/if}

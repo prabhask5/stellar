@@ -21,7 +21,10 @@ import {
   engineUpdate,
   engineQuery,
   engineGet,
-  engineBatchWrite
+  engineBatchWrite,
+  reorderEntity,
+  prependOrder,
+  queryOne
 } from '@prabhask5/stellar-engine/data';
 import type { BlockList, DayOfWeek } from '$lib/types';
 
@@ -48,9 +51,10 @@ export async function getBlockLists(userId: string): Promise<BlockList[]> {
  * @returns The {@link BlockList}, or `null` if not found / deleted
  */
 export async function getBlockList(id: string): Promise<BlockList | null> {
-  const list = (await engineGet('block_lists', id)) as unknown as BlockList | null;
-  if (!list || list.deleted) return null;
-  return list;
+  return queryOne<BlockList & Record<string, unknown>>(
+    'block_lists',
+    id
+  ) as Promise<BlockList | null>;
 }
 
 // =============================================================================
@@ -77,15 +81,7 @@ export async function createBlockList(
   const timestamp = now();
 
   /* ── Compute prepend order (min - 1) ──── */
-  const existingLists = (await engineQuery(
-    'block_lists',
-    'user_id',
-    userId
-  )) as unknown as BlockList[];
-
-  const activeLists = existingLists.filter((l) => !l.deleted);
-  const minOrder = activeLists.length > 0 ? Math.min(...activeLists.map((l) => l.order)) : 0;
-  const nextOrder = minOrder - 1;
+  const nextOrder = await prependOrder('block_lists', 'user_id', userId);
 
   const newList: BlockList = {
     id: generateId(),
@@ -177,6 +173,5 @@ export async function reorderBlockList(
   id: string,
   newOrder: number
 ): Promise<BlockList | undefined> {
-  const result = await engineUpdate('block_lists', id, { order: newOrder });
-  return result as unknown as BlockList | undefined;
+  return reorderEntity('block_lists', id, newOrder) as Promise<BlockList | undefined>;
 }

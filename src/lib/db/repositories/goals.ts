@@ -20,9 +20,10 @@ import {
   engineCreate,
   engineUpdate,
   engineDelete,
-  engineQuery,
   engineGet,
-  engineIncrement
+  engineIncrement,
+  reorderEntity,
+  prependOrder
 } from '@prabhask5/stellar-engine/data';
 import type { Goal, GoalType } from '$lib/types';
 
@@ -55,15 +56,7 @@ export async function createGoal(
   const timestamp = now();
 
   /* ── Compute prepend order ──── */
-  const existingGoals = (await engineQuery(
-    'goals',
-    'goal_list_id',
-    goalListId
-  )) as unknown as Goal[];
-
-  const activeGoals = existingGoals.filter((g) => !g.deleted);
-  const minOrder = activeGoals.length > 0 ? Math.min(...activeGoals.map((g) => g.order)) : 0;
-  const nextOrder = minOrder - 1;
+  const nextOrder = await prependOrder('goals', 'goal_list_id', goalListId);
 
   const newGoal: Goal = {
     id: generateId(),
@@ -141,6 +134,5 @@ export async function incrementGoal(id: string, amount: number = 1): Promise<Goa
  * @returns The updated {@link Goal}, or `undefined` if not found
  */
 export async function reorderGoal(id: string, newOrder: number): Promise<Goal | undefined> {
-  const result = await engineUpdate('goals', id, { order: newOrder });
-  return result as unknown as Goal | undefined;
+  return reorderEntity('goals', id, newOrder) as Promise<Goal | undefined>;
 }

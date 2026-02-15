@@ -21,7 +21,9 @@ import {
   engineCreate,
   engineUpdate,
   engineQuery,
-  engineBatchWrite
+  engineBatchWrite,
+  reorderEntity,
+  prependOrder
 } from '@prabhask5/stellar-engine/data';
 import type { BatchOperation } from '@prabhask5/stellar-engine/types';
 import type { TaskCategory } from '$lib/types';
@@ -49,12 +51,7 @@ export async function createTaskCategory(
   const timestamp = now();
 
   /* ── Compute prepend order ──── */
-  const existing = (await engineQuery(
-    'task_categories',
-    'user_id',
-    userId
-  )) as unknown as TaskCategory[];
-  const minOrder = existing.length > 0 ? Math.min(...existing.map((c) => c.order)) - 1 : 0;
+  const minOrder = await prependOrder('task_categories', 'user_id', userId);
 
   const newCategory: TaskCategory = {
     id: generateId(),
@@ -138,6 +135,5 @@ export async function reorderTaskCategory(
   id: string,
   newOrder: number
 ): Promise<TaskCategory | undefined> {
-  const result = await engineUpdate('task_categories', id, { order: newOrder });
-  return result as unknown as TaskCategory | undefined;
+  return reorderEntity('task_categories', id, newOrder) as Promise<TaskCategory | undefined>;
 }

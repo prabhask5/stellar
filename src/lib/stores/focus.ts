@@ -35,6 +35,8 @@ import * as repo from '$lib/db/repositories';
 import { browser } from '$app/environment';
 import { calculateRemainingMs, getNextPhase } from '$lib/utils/focus';
 import {
+  createCollectionStore,
+  createDetailStore,
   onSyncComplete,
   onRealtimeDataUpdate,
   remoteChangesStore
@@ -830,20 +832,15 @@ export const focusTimeUpdated: Readable<number> = { subscribe: focusTimeUpdatedS
  *          `delete`, `reorder`, `refresh`, and `getEnabledCount` methods.
  */
 function createBlockListStore() {
-  const { subscribe, set, update }: Writable<BlockList[]> = writable([]);
-
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
   /** ID of the user whose block lists we're tracking. */
   let currentUserId: string | null = null;
 
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
+  const store = createCollectionStore<BlockList>({
+    load: () => (currentUserId ? repo.getBlockLists(currentUserId) : Promise.resolve([]))
+  });
 
   return {
-    subscribe,
-    loading: { subscribe: loading.subscribe },
+    ...store,
 
     /**
      * Load all block lists for a user from the local database.
@@ -851,24 +848,8 @@ function createBlockListStore() {
      * @param userId - The authenticated user's ID.
      */
     load: async (userId: string) => {
-      loading.set(true);
       currentUserId = userId;
-
-      try {
-        const lists = await repo.getBlockLists(userId);
-        set(lists);
-
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            if (currentUserId) {
-              const refreshed = await repo.getBlockLists(currentUserId);
-              set(refreshed);
-            }
-          });
-        }
-      } finally {
-        loading.set(false);
-      }
+      await store.load();
     },
 
     /**
@@ -882,7 +863,7 @@ function createBlockListStore() {
       const newList = await repo.createBlockList(name, currentUserId);
       /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newList.id, 'block_lists', 'create');
-      update((lists) => [newList, ...lists]);
+      store.mutate((lists) => [newList, ...lists]);
       return newList;
     },
 
@@ -899,7 +880,7 @@ function createBlockListStore() {
     ) => {
       const updated = await repo.updateBlockList(id, updates);
       if (updated) {
-        update((lists) => lists.map((l) => (l.id === id ? updated : l)));
+        store.mutate((lists) => lists.map((l) => (l.id === id ? updated : l)));
       }
       return updated;
     },
@@ -913,7 +894,7 @@ function createBlockListStore() {
     toggle: async (id: string) => {
       const updated = await repo.toggleBlockList(id);
       if (updated) {
-        update((lists) => lists.map((l) => (l.id === id ? updated : l)));
+        store.mutate((lists) => lists.map((l) => (l.id === id ? updated : l)));
       }
       return updated;
     },
@@ -925,7 +906,7 @@ function createBlockListStore() {
      */
     delete: async (id: string) => {
       await repo.deleteBlockList(id);
-      update((lists) => lists.filter((l) => l.id !== id));
+      store.mutate((lists) => lists.filter((l) => l.id !== id));
     },
 
     /**
@@ -938,7 +919,7 @@ function createBlockListStore() {
     reorder: async (id: string, newOrder: number) => {
       const updated = await repo.reorderBlockList(id, newOrder);
       if (updated) {
-        update((lists) => {
+        store.mutate((lists) => {
           const updatedLists = lists.map((l) => (l.id === id ? updated : l));
           updatedLists.sort((a, b) => a.order - b.order);
           return updatedLists;
@@ -952,8 +933,7 @@ function createBlockListStore() {
      */
     refresh: async () => {
       if (currentUserId) {
-        const lists = await repo.getBlockLists(currentUserId);
-        set(lists);
+        await store.refresh();
       }
     },
 
@@ -964,7 +944,10 @@ function createBlockListStore() {
      * @returns A read-only {@link Readable} store of the enabled count.
      */
     getEnabledCount: (): Readable<number> => {
-      return derived({ subscribe }, ($lists) => $lists.filter((l) => l.is_enabled).length);
+      return derived(
+        { subscribe: store.subscribe },
+        ($lists) => $lists.filter((l) => l.is_enabled).length
+      );
     }
   };
 }
@@ -988,20 +971,16 @@ export const blockListStore = createBlockListStore();
  *          and `clear` methods.
  */
 function createBlockedWebsitesStore() {
-  const { subscribe, set, update }: Writable<BlockedWebsite[]> = writable([]);
-
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
   /** ID of the block list whose websites we're displaying. */
   let currentBlockListId: string | null = null;
 
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
+  const store = createCollectionStore<BlockedWebsite>({
+    load: () =>
+      currentBlockListId ? repo.getBlockedWebsites(currentBlockListId) : Promise.resolve([])
+  });
 
   return {
-    subscribe,
-    loading: { subscribe: loading.subscribe },
+    ...store,
 
     /**
      * Load all blocked websites for a specific block list.
@@ -1009,24 +988,8 @@ function createBlockedWebsitesStore() {
      * @param blockListId - The parent block list's ID.
      */
     load: async (blockListId: string) => {
-      loading.set(true);
       currentBlockListId = blockListId;
-
-      try {
-        const websites = await repo.getBlockedWebsites(blockListId);
-        set(websites);
-
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            if (currentBlockListId) {
-              const refreshed = await repo.getBlockedWebsites(currentBlockListId);
-              set(refreshed);
-            }
-          });
-        }
-      } finally {
-        loading.set(false);
-      }
+      await store.load();
     },
 
     /**
@@ -1041,7 +1004,7 @@ function createBlockedWebsitesStore() {
       /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newWebsite.id, 'blocked_websites', 'create');
       /* Prepend to top */
-      update((websites) => [newWebsite, ...websites]);
+      store.mutate((websites) => [newWebsite, ...websites]);
       return newWebsite;
     },
 
@@ -1055,7 +1018,7 @@ function createBlockedWebsitesStore() {
     update: async (id: string, domain: string) => {
       const updated = await repo.updateBlockedWebsite(id, domain);
       if (updated) {
-        update((websites) => websites.map((w) => (w.id === id ? updated : w)));
+        store.mutate((websites) => websites.map((w) => (w.id === id ? updated : w)));
       }
       return updated;
     },
@@ -1067,7 +1030,7 @@ function createBlockedWebsitesStore() {
      */
     delete: async (id: string) => {
       await repo.deleteBlockedWebsite(id);
-      update((websites) => websites.filter((w) => w.id !== id));
+      store.mutate((websites) => websites.filter((w) => w.id !== id));
     },
 
     /**
@@ -1076,7 +1039,7 @@ function createBlockedWebsitesStore() {
      */
     clear: () => {
       currentBlockListId = null;
-      set([]);
+      store.set([]);
     }
   };
 }
@@ -1100,47 +1063,12 @@ export const blockedWebsitesStore = createBlockedWebsitesStore();
  * @returns A custom Svelte store with `load`, `update`, and `clear` methods.
  */
 function createSingleBlockListStore() {
-  const { subscribe, set }: Writable<BlockList | null> = writable(null);
-
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
-  /** ID of the currently loaded block list (for sync refresh). */
-  let currentId: string | null = null;
-
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
+  const store = createDetailStore<BlockList>({
+    load: repo.getBlockList
+  });
 
   return {
-    subscribe,
-    loading: { subscribe: loading.subscribe },
-
-    /**
-     * Load a single block list by ID.
-     *
-     * @param id - Block list ID to fetch.
-     */
-    load: async (id: string) => {
-      loading.set(true);
-      currentId = id;
-
-      try {
-        const list = await repo.getBlockList(id);
-        set(list);
-
-        /* ── Register sync listener (once) ── */
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            if (currentId) {
-              const refreshed = await repo.getBlockList(currentId);
-              set(refreshed);
-            }
-          });
-        }
-      } finally {
-        loading.set(false);
-      }
-    },
+    ...store,
 
     /**
      * Update the block list's name, active days, or enabled state.
@@ -1158,20 +1086,11 @@ function createSingleBlockListStore() {
     ) => {
       const updated = await repo.updateBlockList(id, updates);
       if (updated) {
-        set(updated);
+        store.set(updated);
         /* Also refresh the main block list store so counts update */
         blockListStore.refresh();
       }
       return updated;
-    },
-
-    /**
-     * Reset the store to `null` — used when navigating away from
-     * the block-list edit page.
-     */
-    clear: () => {
-      currentId = null;
-      set(null);
     }
   };
 }

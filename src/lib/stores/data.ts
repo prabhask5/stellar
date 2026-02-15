@@ -44,12 +44,17 @@ import type {
   ProjectWithDetails
 } from '$lib/types';
 import { engineGetAll } from '@prabhask5/stellar-engine/data';
+import {
+  createCollectionStore,
+  createDetailStore,
+  onSyncComplete,
+  remoteChangesStore
+} from '@prabhask5/stellar-engine/stores';
 import * as repo from '$lib/db/repositories';
 import * as queries from '$lib/db/queries';
 import { calculateGoalProgressCapped } from '$lib/utils/colors';
 import { isRoutineActiveOnDate, getProgressiveTargetForDate } from '$lib/utils/dates';
 import { browser } from '$app/environment';
-import { onSyncComplete, remoteChangesStore } from '@prabhask5/stellar-engine/stores';
 
 // =============================================================================
 //  LOCAL-FIRST STORES — ARCHITECTURE OVERVIEW
@@ -78,42 +83,12 @@ import { onSyncComplete, remoteChangesStore } from '@prabhask5/stellar-engine/st
  *          `reorder`, and `refresh` methods.
  */
 function createGoalListsStore() {
-  const { subscribe, set, update }: Writable<GoalListWithProgress[]> = writable([]);
-
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
+  const store = createCollectionStore<GoalListWithProgress>({
+    load: queries.getGoalLists
+  });
 
   return {
-    subscribe,
-
-    /** Expose `loading` as a read-only subscribable. */
-    loading: { subscribe: loading.subscribe },
-
-    /**
-     * Load all goal lists from the local database and register for
-     * sync-driven auto-refresh.
-     */
-    load: async () => {
-      loading.set(true);
-      try {
-        /* ── Read from local DB ── */
-        const lists = await queries.getGoalLists();
-        set(lists);
-
-        /* ── Register sync listener (once) ── */
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            const refreshed = await queries.getGoalLists();
-            set(refreshed);
-          });
-        }
-      } finally {
-        loading.set(false);
-      }
-    },
+    ...store,
 
     /**
      * Create a new goal list and optimistically prepend it to the store.
@@ -123,11 +98,9 @@ function createGoalListsStore() {
      * @returns The newly created {@link GoalList}.
      */
     create: async (name: string, userId: string) => {
-      /* ── Write to local DB immediately ── */
       const newList = await repo.createGoalList(name, userId);
-      /* Record for animation before updating store (so element mounts with animation) */
       remoteChangesStore.recordLocalChange(newList.id, 'goal_lists', 'create');
-      update((lists) => [
+      store.mutate((lists) => [
         { ...newList, totalGoals: 0, completedGoals: 0, completionPercentage: 0 },
         ...lists
       ]);
@@ -144,7 +117,7 @@ function createGoalListsStore() {
     update: async (id: string, name: string) => {
       const updated = await repo.updateGoalList(id, name);
       if (updated) {
-        update((lists) => lists.map((l) => (l.id === id ? { ...l, name } : l)));
+        store.mutate((lists) => lists.map((l) => (l.id === id ? { ...l, name } : l)));
       }
       return updated;
     },
@@ -156,7 +129,7 @@ function createGoalListsStore() {
      */
     delete: async (id: string) => {
       await repo.deleteGoalList(id);
-      update((lists) => lists.filter((l) => l.id !== id));
+      store.mutate((lists) => lists.filter((l) => l.id !== id));
     },
 
     /**
@@ -169,22 +142,13 @@ function createGoalListsStore() {
     reorder: async (id: string, newOrder: number) => {
       const updated = await repo.reorderGoalList(id, newOrder);
       if (updated) {
-        update((lists) => {
+        store.mutate((lists) => {
           const updatedLists = lists.map((l) => (l.id === id ? { ...l, order: newOrder } : l));
           updatedLists.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
           return updatedLists;
         });
       }
       return updated;
-    },
-
-    /**
-     * Force-refresh from local DB without touching the loading flag.
-     * Useful after external mutations (e.g., project store changes).
-     */
-    refresh: async () => {
-      const lists = await queries.getGoalLists();
-      set(lists);
     }
   };
 }
@@ -204,48 +168,12 @@ export const goalListsStore = createGoalListsStore();
  * @returns A custom Svelte store with goal-level CRUD methods.
  */
 function createGoalListStore() {
-  const { subscribe, set, update }: Writable<(GoalList & { goals: Goal[] }) | null> =
-    writable(null);
-
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
-  /** ID of the currently loaded goal list (for sync refresh). */
-  let currentId: string | null = null;
-
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
+  const store = createDetailStore<GoalList & { goals: Goal[] }>({
+    load: queries.getGoalList
+  });
 
   return {
-    subscribe,
-    loading: { subscribe: loading.subscribe },
-
-    /**
-     * Load a single goal list (with goals) by ID.
-     *
-     * @param id - Goal list ID to fetch.
-     */
-    load: async (id: string) => {
-      loading.set(true);
-      currentId = id;
-      try {
-        /* ── Read from local DB ── */
-        const list = await queries.getGoalList(id);
-        set(list);
-
-        /* ── Register sync listener (once) ── */
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            if (currentId) {
-              const refreshed = await queries.getGoalList(currentId);
-              set(refreshed);
-            }
-          });
-        }
-      } finally {
-        loading.set(false);
-      }
-    },
+    ...store,
 
     /**
      * Rename the currently loaded goal list.
@@ -255,7 +183,7 @@ function createGoalListStore() {
      */
     updateName: async (id: string, name: string) => {
       await repo.updateGoalList(id, name);
-      update((list) => (list ? { ...list, name } : null));
+      store.mutate((list) => (list ? { ...list, name } : null));
     },
 
     /**
@@ -274,10 +202,8 @@ function createGoalListStore() {
       targetValue: number | null
     ) => {
       const newGoal = await repo.createGoal(goalListId, name, type, targetValue);
-      /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newGoal.id, 'goals', 'create');
-      /* Prepend to top (new items have lower order values) */
-      update((list) => (list ? { ...list, goals: [newGoal, ...list.goals] } : null));
+      store.mutate((list) => (list ? { ...list, goals: [newGoal, ...list.goals] } : null));
       return newGoal;
     },
 
@@ -294,7 +220,7 @@ function createGoalListStore() {
     ) => {
       const updated = await repo.updateGoal(goalId, updates);
       if (updated) {
-        update((list) =>
+        store.mutate((list) =>
           list
             ? {
                 ...list,
@@ -313,7 +239,7 @@ function createGoalListStore() {
      */
     deleteGoal: async (goalId: string) => {
       await repo.deleteGoal(goalId);
-      update((list) =>
+      store.mutate((list) =>
         list
           ? {
               ...list,
@@ -333,7 +259,7 @@ function createGoalListStore() {
     incrementGoal: async (goalId: string, amount: number = 1) => {
       const updated = await repo.incrementGoal(goalId, amount);
       if (updated) {
-        update((list) =>
+        store.mutate((list) =>
           list
             ? {
                 ...list,
@@ -355,24 +281,14 @@ function createGoalListStore() {
     reorderGoal: async (goalId: string, newOrder: number) => {
       const updated = await repo.reorderGoal(goalId, newOrder);
       if (updated) {
-        update((list) => {
+        store.mutate((list) => {
           if (!list) return null;
           const updatedGoals = list.goals.map((g) => (g.id === goalId ? updated : g));
-          /* Re-sort by order */
           updatedGoals.sort((a, b) => a.order - b.order);
           return { ...list, goals: updatedGoals };
         });
       }
       return updated;
-    },
-
-    /**
-     * Reset the store to `null` — used when navigating away from the
-     * goal list detail page.
-     */
-    clear: () => {
-      currentId = null;
-      set(null);
     }
   };
 }
@@ -398,58 +314,15 @@ export const goalListStore = createGoalListStore();
  *          `reorder`, and `refresh` methods.
  */
 function createDailyRoutinesStore() {
-  const { subscribe, set, update }: Writable<DailyRoutineGoal[]> = writable([]);
-
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
+  const store = createCollectionStore<DailyRoutineGoal>({
+    load: queries.getDailyRoutineGoals
+  });
 
   return {
-    subscribe,
-    loading: { subscribe: loading.subscribe },
-
-    /**
-     * Load all daily routine goals from the local database.
-     */
-    load: async () => {
-      loading.set(true);
-      try {
-        /* ── Read from local DB ── */
-        const routines = await queries.getDailyRoutineGoals();
-        set(routines);
-
-        /* ── Register sync listener (once) ── */
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            const refreshed = await queries.getDailyRoutineGoals();
-            set(refreshed);
-          });
-        }
-      } finally {
-        loading.set(false);
-      }
-    },
+    ...store,
 
     /**
      * Create a new daily routine goal with full configuration.
-     *
-     * Progressive routines accept additional parameters for start/end
-     * target values and a progression schedule that linearly ramps the
-     * daily target over the routine's lifespan.
-     *
-     * @param name                - Display name.
-     * @param type                - `'completion'` | `'incremental'` | `'progressive'`.
-     * @param targetValue         - Fixed target (for incremental).
-     * @param startDate           - ISO date when the routine becomes active.
-     * @param endDate             - ISO date when the routine expires (nullable).
-     * @param userId              - Owner user ID.
-     * @param activeDays          - Day-of-week mask (nullable → every day).
-     * @param startTargetValue    - Starting target for progressive routines.
-     * @param endTargetValue      - Ending target for progressive routines.
-     * @param progressionSchedule - Number of days between target increases.
-     * @returns The newly created {@link DailyRoutineGoal}.
      */
     create: async (
       name: string,
@@ -475,18 +348,13 @@ function createDailyRoutinesStore() {
         endTargetValue,
         progressionSchedule
       );
-      /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newRoutine.id, 'daily_routine_goals', 'create');
-      update((routines) => [newRoutine, ...routines]);
+      store.mutate((routines) => [newRoutine, ...routines]);
       return newRoutine;
     },
 
     /**
      * Partially update a daily routine goal's configuration.
-     *
-     * @param id      - Routine ID.
-     * @param updates - Partial field updates.
-     * @returns The updated {@link DailyRoutineGoal}, or `null`.
      */
     update: async (
       id: string,
@@ -507,47 +375,32 @@ function createDailyRoutinesStore() {
     ) => {
       const updated = await repo.updateDailyRoutineGoal(id, updates);
       if (updated) {
-        update((routines) => routines.map((r) => (r.id === id ? updated : r)));
+        store.mutate((routines) => routines.map((r) => (r.id === id ? updated : r)));
       }
       return updated;
     },
 
     /**
      * Delete a daily routine goal and remove it from the store.
-     *
-     * @param id - Routine ID to delete.
      */
     delete: async (id: string) => {
       await repo.deleteDailyRoutineGoal(id);
-      update((routines) => routines.filter((r) => r.id !== id));
+      store.mutate((routines) => routines.filter((r) => r.id !== id));
     },
 
     /**
      * Move a routine to a new sort position and re-sort the store.
-     *
-     * @param id       - Routine ID.
-     * @param newOrder - Target sort-order value.
-     * @returns The updated record, or `null`.
      */
     reorder: async (id: string, newOrder: number) => {
       const updated = await repo.reorderDailyRoutineGoal(id, newOrder);
       if (updated) {
-        update((routines) => {
+        store.mutate((routines) => {
           const updatedRoutines = routines.map((r) => (r.id === id ? updated : r));
-          /* Re-sort by order */
           updatedRoutines.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
           return updatedRoutines;
         });
       }
       return updated;
-    },
-
-    /**
-     * Force-refresh from local DB without touching the loading flag.
-     */
-    refresh: async () => {
-      const routines = await queries.getDailyRoutineGoals();
-      set(routines);
     }
   };
 }
@@ -566,47 +419,12 @@ export const dailyRoutinesStore = createDailyRoutinesStore();
  * @returns A custom Svelte store with `load`, `update`, and `clear` methods.
  */
 function createRoutineStore() {
-  const { subscribe, set }: Writable<DailyRoutineGoal | null> = writable(null);
-
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
-  /** ID of the currently loaded routine (for sync refresh). */
-  let currentId: string | null = null;
-
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
+  const store = createDetailStore<DailyRoutineGoal>({
+    load: queries.getDailyRoutineGoal
+  });
 
   return {
-    subscribe,
-    loading: { subscribe: loading.subscribe },
-
-    /**
-     * Load a single daily routine goal by ID.
-     *
-     * @param id - Routine ID to fetch.
-     */
-    load: async (id: string) => {
-      loading.set(true);
-      currentId = id;
-      try {
-        /* ── Read from local DB ── */
-        const routine = await queries.getDailyRoutineGoal(id);
-        set(routine);
-
-        /* ── Register sync listener (once) ── */
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            if (currentId) {
-              const refreshed = await queries.getDailyRoutineGoal(currentId);
-              set(refreshed);
-            }
-          });
-        }
-      } finally {
-        loading.set(false);
-      }
-    },
+    ...store,
 
     /**
      * Partially update the currently loaded routine's configuration.
@@ -634,17 +452,9 @@ function createRoutineStore() {
     ) => {
       const updated = await repo.updateDailyRoutineGoal(id, updates);
       if (updated) {
-        set(updated);
+        store.set(updated);
       }
       return updated;
-    },
-
-    /**
-     * Reset the store to `null` — used when navigating away.
-     */
-    clear: () => {
-      currentId = null;
-      set(null);
     }
   };
 }
@@ -1055,104 +865,43 @@ export const monthProgressStore = createMonthProgressStore();
  *          `reorder`, and `refresh` methods.
  */
 function createTaskCategoriesStore() {
-  const { subscribe, set, update }: Writable<TaskCategory[]> = writable([]);
-
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
+  const store = createCollectionStore<TaskCategory>({
+    load: queries.getTaskCategories
+  });
 
   return {
-    subscribe,
-    loading: { subscribe: loading.subscribe },
+    ...store,
 
-    /**
-     * Load all task categories from the local database.
-     */
-    load: async () => {
-      loading.set(true);
-      try {
-        const categories = await queries.getTaskCategories();
-        set(categories);
-
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            const refreshed = await queries.getTaskCategories();
-            set(refreshed);
-          });
-        }
-      } finally {
-        loading.set(false);
-      }
-    },
-
-    /**
-     * Create a new task category.
-     *
-     * @param name   - Display name (e.g., "Work", "Health").
-     * @param color  - Hex color string (e.g., `"#3b82f6"`).
-     * @param userId - Owner user ID.
-     * @returns The newly created {@link TaskCategory}.
-     */
     create: async (name: string, color: string, userId: string) => {
       const newCategory = await repo.createTaskCategory(name, color, userId);
-      /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newCategory.id, 'task_categories', 'create');
-      update((categories) => [newCategory, ...categories]);
+      store.mutate((categories) => [newCategory, ...categories]);
       return newCategory;
     },
 
-    /**
-     * Partially update a task category's name or color.
-     *
-     * @param id      - Category ID.
-     * @param updates - Partial field updates.
-     * @returns The updated {@link TaskCategory}, or `null`.
-     */
     update: async (id: string, updates: Partial<Pick<TaskCategory, 'name' | 'color'>>) => {
       const updated = await repo.updateTaskCategory(id, updates);
       if (updated) {
-        update((categories) => categories.map((c) => (c.id === id ? updated : c)));
+        store.mutate((categories) => categories.map((c) => (c.id === id ? updated : c)));
       }
       return updated;
     },
 
-    /**
-     * Delete a task category and remove it from the store.
-     *
-     * @param id - Category ID to delete.
-     */
     delete: async (id: string) => {
       await repo.deleteTaskCategory(id);
-      update((categories) => categories.filter((c) => c.id !== id));
+      store.mutate((categories) => categories.filter((c) => c.id !== id));
     },
 
-    /**
-     * Move a category to a new sort position and re-sort the store.
-     *
-     * @param id       - Category ID.
-     * @param newOrder - Target sort-order value.
-     * @returns The updated record, or `null`.
-     */
     reorder: async (id: string, newOrder: number) => {
       const updated = await repo.reorderTaskCategory(id, newOrder);
       if (updated) {
-        update((categories) => {
+        store.mutate((categories) => {
           const updatedCategories = categories.map((c) => (c.id === id ? updated : c));
           updatedCategories.sort((a, b) => a.order - b.order);
           return updatedCategories;
         });
       }
       return updated;
-    },
-
-    /**
-     * Force-refresh from local DB without touching the loading flag.
-     */
-    refresh: async () => {
-      const categories = await queries.getTaskCategories();
-      set(categories);
     }
   };
 }
@@ -1173,104 +922,43 @@ export const taskCategoriesStore = createTaskCategoriesStore();
  *          `reorder`, and `refresh` methods.
  */
 function createCommitmentsStore() {
-  const { subscribe, set, update }: Writable<Commitment[]> = writable([]);
-
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
+  const store = createCollectionStore<Commitment>({
+    load: queries.getCommitments
+  });
 
   return {
-    subscribe,
-    loading: { subscribe: loading.subscribe },
+    ...store,
 
-    /**
-     * Load all commitments from the local database.
-     */
-    load: async () => {
-      loading.set(true);
-      try {
-        const commitments = await queries.getCommitments();
-        set(commitments);
-
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            const refreshed = await queries.getCommitments();
-            set(refreshed);
-          });
-        }
-      } finally {
-        loading.set(false);
-      }
-    },
-
-    /**
-     * Create a new commitment in a given section.
-     *
-     * @param name    - Commitment text.
-     * @param section - Section grouping (e.g., `'personal'`).
-     * @param userId  - Owner user ID.
-     * @returns The newly created {@link Commitment}.
-     */
     create: async (name: string, section: CommitmentSection, userId: string) => {
       const newCommitment = await repo.createCommitment(name, section, userId);
-      /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newCommitment.id, 'commitments', 'create');
-      update((commitments) => [newCommitment, ...commitments]);
+      store.mutate((commitments) => [newCommitment, ...commitments]);
       return newCommitment;
     },
 
-    /**
-     * Partially update a commitment's name or section.
-     *
-     * @param id      - Commitment ID.
-     * @param updates - Partial field updates.
-     * @returns The updated {@link Commitment}, or `null`.
-     */
     update: async (id: string, updates: Partial<Pick<Commitment, 'name' | 'section'>>) => {
       const updated = await repo.updateCommitment(id, updates);
       if (updated) {
-        update((commitments) => commitments.map((c) => (c.id === id ? updated : c)));
+        store.mutate((commitments) => commitments.map((c) => (c.id === id ? updated : c)));
       }
       return updated;
     },
 
-    /**
-     * Delete a commitment and remove it from the store.
-     *
-     * @param id - Commitment ID to delete.
-     */
     delete: async (id: string) => {
       await repo.deleteCommitment(id);
-      update((commitments) => commitments.filter((c) => c.id !== id));
+      store.mutate((commitments) => commitments.filter((c) => c.id !== id));
     },
 
-    /**
-     * Move a commitment to a new sort position and re-sort the store.
-     *
-     * @param id       - Commitment ID.
-     * @param newOrder - Target sort-order value.
-     * @returns The updated record, or `null`.
-     */
     reorder: async (id: string, newOrder: number) => {
       const updated = await repo.reorderCommitment(id, newOrder);
       if (updated) {
-        update((commitments) => {
+        store.mutate((commitments) => {
           const updatedCommitments = commitments.map((c) => (c.id === id ? updated : c));
           updatedCommitments.sort((a, b) => a.order - b.order);
           return updatedCommitments;
         });
       }
       return updated;
-    },
-
-    /**
-     * Force-refresh from local DB without touching the loading flag.
-     */
-    refresh: async () => {
-      const commitments = await queries.getCommitments();
-      set(commitments);
     }
   };
 }
@@ -1298,65 +986,33 @@ export const commitmentsStore = createCommitmentsStore();
  *          `delete`, `reorder`, `clearCompleted`, and `refresh` methods.
  */
 function createDailyTasksStore() {
-  const { subscribe, set, update }: Writable<DailyTask[]> = writable([]);
+  const store = createCollectionStore<DailyTask>({
+    load: queries.getDailyTasks
+  });
 
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
+  /**
+   * Internal writable for read-snapshot access (e.g. toggle/delete checks).
+   * Kept in sync by subscribing to the collection store.
+   */
+  let currentTasks: DailyTask[] = [];
+  store.subscribe((tasks) => {
+    currentTasks = tasks;
+  });
 
   return {
-    subscribe,
-    loading: { subscribe: loading.subscribe },
+    ...store,
 
-    /**
-     * Load all daily tasks from the local database.
-     */
-    load: async () => {
-      loading.set(true);
-      try {
-        const tasks = await queries.getDailyTasks();
-        set(tasks);
-
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            const refreshed = await queries.getDailyTasks();
-            set(refreshed);
-          });
-        }
-      } finally {
-        loading.set(false);
-      }
-    },
-
-    /**
-     * Create a new standalone daily task.
-     *
-     * @param name   - Task description.
-     * @param userId - Owner user ID.
-     * @returns The newly created {@link DailyTask}.
-     */
     create: async (name: string, userId: string) => {
       const newTask = await repo.createDailyTask(name, userId);
-      /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newTask.id, 'daily_tasks', 'create');
-      /* Prepend to top (new items have lower order values) */
-      update((tasks) => [newTask, ...tasks]);
+      store.mutate((tasks) => [newTask, ...tasks]);
       return newTask;
     },
 
-    /**
-     * Partially update a daily task's name or completed status.
-     *
-     * @param id      - Task ID.
-     * @param updates - Partial field updates.
-     * @returns The updated {@link DailyTask}, or `null`.
-     */
     update: async (id: string, updates: Partial<Pick<DailyTask, 'name' | 'completed'>>) => {
       const updated = await repo.updateDailyTask(id, updates);
       if (updated) {
-        update((tasks) => tasks.map((t) => (t.id === id ? updated : t)));
+        store.mutate((tasks) => tasks.map((t) => (t.id === id ? updated : t)));
       }
       return updated;
     },
@@ -1368,26 +1024,17 @@ function createDailyTasksStore() {
      * and is not returned by the raw repo toggle).  If the task is
      * **spawned** from a long-term task, also refreshes
      * {@link longTermTasksStore} to reflect bi-directional completion.
-     *
-     * @param id - Task ID.
-     * @returns The updated {@link DailyTask}, or `null`.
      */
     toggle: async (id: string) => {
-      /* ── Preserve runtime category before toggle ── */
-      let taskCategory: DailyTask['category'] | undefined;
-      let wasSpawned = false;
-      update((tasks) => {
-        const task = tasks.find((t) => t.id === id);
-        taskCategory = task?.category;
-        wasSpawned = !!task?.long_term_task_id;
-        return tasks;
-      });
+      const task = currentTasks.find((t) => t.id === id);
+      const taskCategory = task?.category;
+      const wasSpawned = !!task?.long_term_task_id;
+
       const updated = await repo.toggleDailyTaskComplete(id);
       if (updated) {
-        update((tasks) =>
+        store.mutate((tasks) =>
           tasks.map((t) => (t.id === id ? { ...updated, category: taskCategory } : t))
         );
-        /* If spawned task, refresh long-term tasks to reflect bi-directional completion */
         if (wasSpawned) {
           await longTermTasksStore.refresh();
         }
@@ -1395,40 +1042,21 @@ function createDailyTasksStore() {
       return updated;
     },
 
-    /**
-     * Delete a daily task and remove it from the store.
-     *
-     * If the task was **spawned** from a long-term task, the linked
-     * long-term task is also deleted, so we refresh that store too.
-     *
-     * @param id - Task ID to delete.
-     */
     delete: async (id: string) => {
-      let wasSpawned = false;
-      update((tasks) => {
-        const task = tasks.find((t) => t.id === id);
-        wasSpawned = !!task?.long_term_task_id;
-        return tasks;
-      });
+      const task = currentTasks.find((t) => t.id === id);
+      const wasSpawned = !!task?.long_term_task_id;
+
       await repo.deleteDailyTask(id);
-      update((tasks) => tasks.filter((t) => t.id !== id));
-      /* If spawned task, the linked long-term task was also deleted */
+      store.mutate((tasks) => tasks.filter((t) => t.id !== id));
       if (wasSpawned) {
         await longTermTasksStore.refresh();
       }
     },
 
-    /**
-     * Move a task to a new sort position and re-sort the store.
-     *
-     * @param id       - Task ID.
-     * @param newOrder - Target sort-order value.
-     * @returns The updated record, or `null`.
-     */
     reorder: async (id: string, newOrder: number) => {
       const updated = await repo.reorderDailyTask(id, newOrder);
       if (updated) {
-        update((tasks) => {
+        store.mutate((tasks) => {
           const updatedTasks = tasks.map((t) => (t.id === id ? updated : t));
           updatedTasks.sort((a, b) => a.order - b.order);
           return updatedTasks;
@@ -1437,33 +1065,13 @@ function createDailyTasksStore() {
       return updated;
     },
 
-    /**
-     * Bulk-delete all completed daily tasks for the user.
-     *
-     * If any completed tasks were spawned from long-term tasks, refreshes
-     * {@link longTermTasksStore} afterwards.
-     *
-     * @param userId - Owner user ID.
-     */
     clearCompleted: async (userId: string) => {
-      let hadSpawned = false;
-      update((tasks) => {
-        hadSpawned = tasks.some((t) => t.completed && t.long_term_task_id);
-        return tasks;
-      });
+      const hadSpawned = currentTasks.some((t) => t.completed && t.long_term_task_id);
       await repo.clearCompletedDailyTasks(userId);
-      update((tasks) => tasks.filter((t) => !t.completed));
+      store.mutate((tasks) => tasks.filter((t) => !t.completed));
       if (hadSpawned) {
         await longTermTasksStore.refresh();
       }
-    },
-
-    /**
-     * Force-refresh from local DB without touching the loading flag.
-     */
-    refresh: async () => {
-      const tasks = await queries.getDailyTasks();
-      set(tasks);
     }
   };
 }
@@ -1487,51 +1095,18 @@ export const dailyTasksStore = createDailyTasksStore();
  *          `delete`, and `refresh` methods.
  */
 function createLongTermTasksStore() {
-  const { subscribe, set, update }: Writable<LongTermTaskWithCategory[]> = writable([]);
+  const store = createCollectionStore<LongTermTaskWithCategory>({
+    load: queries.getLongTermTasks
+  });
 
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
+  let currentTasks: LongTermTaskWithCategory[] = [];
+  store.subscribe((tasks) => {
+    currentTasks = tasks;
+  });
 
   return {
-    subscribe,
-    loading: { subscribe: loading.subscribe },
+    ...store,
 
-    /**
-     * Load all long-term tasks (with joined category) from the local database.
-     */
-    load: async () => {
-      loading.set(true);
-      try {
-        const tasks = await queries.getLongTermTasks();
-        set(tasks);
-
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            const refreshed = await queries.getLongTermTasks();
-            set(refreshed);
-          });
-        }
-      } finally {
-        loading.set(false);
-      }
-    },
-
-    /**
-     * Create a new long-term task/reminder.
-     *
-     * If the task is a `'task'` type and due today or earlier, a linked
-     * daily task is automatically spawned so it appears on the Today page.
-     *
-     * @param name       - Task description.
-     * @param dueDate    - ISO date string for the due date.
-     * @param categoryId - Optional tag / category ID.
-     * @param userId     - Owner user ID.
-     * @param type       - `'task'` (default) or `'reminder'`.
-     * @returns The newly created {@link LongTermTask}.
-     */
     create: async (
       name: string,
       dueDate: string,
@@ -1540,15 +1115,12 @@ function createLongTermTasksStore() {
       type: AgendaItemType = 'task'
     ) => {
       const newTask = await repo.createLongTermTask(name, dueDate, categoryId, userId, type);
-      /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newTask.id, 'long_term_agenda', 'create');
-      /* Fetch the task with category for the store */
       const taskWithCategory = await queries.getLongTermTask(newTask.id);
       if (taskWithCategory) {
-        update((tasks) => [...tasks, taskWithCategory]);
+        store.mutate((tasks) => [...tasks, taskWithCategory]);
       }
 
-      /* ── Auto-spawn daily task if due today or earlier ── */
       const today = new Date().toISOString().split('T')[0];
       if (dueDate <= today && type === 'task') {
         const spawnedTask = await repo.createDailyTask(name, userId, newTask.id);
@@ -1559,28 +1131,16 @@ function createLongTermTasksStore() {
       return newTask;
     },
 
-    /**
-     * Partially update a long-term task's properties.
-     *
-     * If `due_date` or `name` changes, daily tasks are refreshed because
-     * a linked spawned task may need updating or spawning.
-     *
-     * @param id      - Task ID.
-     * @param updates - Partial field updates.
-     * @returns The updated {@link LongTermTask}, or `null`.
-     */
     update: async (
       id: string,
       updates: Partial<Pick<LongTermTask, 'name' | 'due_date' | 'category_id' | 'completed'>>
     ) => {
       const updated = await repo.updateLongTermTask(id, updates);
       if (updated) {
-        /* Fetch the updated task with category */
         const taskWithCategory = await queries.getLongTermTask(updated.id);
         if (taskWithCategory) {
-          update((tasks) => tasks.map((t) => (t.id === id ? taskWithCategory : t)));
+          store.mutate((tasks) => tasks.map((t) => (t.id === id ? taskWithCategory : t)));
         }
-        /* Refresh daily tasks: due_date/name change may spawn or update linked daily tasks */
         if (updates.due_date !== undefined || updates.name !== undefined) {
           await dailyTasksStore.refresh();
         }
@@ -1588,58 +1148,25 @@ function createLongTermTasksStore() {
       return updated;
     },
 
-    /**
-     * Toggle a long-term task's `completed` flag.
-     *
-     * Reminders (`type === 'reminder'`) cannot be toggled — the method
-     * returns early.  After toggling, refreshes the daily tasks store
-     * to reflect bi-directional completion sync.
-     *
-     * @param id - Task ID.
-     * @returns The updated task, or the unchanged reminder.
-     */
     toggle: async (id: string) => {
-      /* ── Guard: reminders can't be toggled ── */
-      let currentTask: LongTermTaskWithCategory | undefined;
-      update((tasks) => {
-        currentTask = tasks.find((t) => t.id === id);
-        return tasks;
-      });
+      const currentTask = currentTasks.find((t) => t.id === id);
       if (currentTask?.type === 'reminder') return currentTask;
 
       const updated = await repo.toggleLongTermTaskComplete(id);
       if (updated) {
         const taskWithCategory = await queries.getLongTermTask(updated.id);
         if (taskWithCategory) {
-          update((tasks) => tasks.map((t) => (t.id === id ? taskWithCategory : t)));
+          store.mutate((tasks) => tasks.map((t) => (t.id === id ? taskWithCategory : t)));
         }
-        /* Refresh daily tasks to reflect bi-directional completion sync */
         await dailyTasksStore.refresh();
       }
       return updated;
     },
 
-    /**
-     * Delete a long-term task and remove it from the store.
-     *
-     * Also refreshes daily tasks since a linked spawned task may have
-     * been cascade-deleted.
-     *
-     * @param id - Task ID to delete.
-     */
     delete: async (id: string) => {
       await repo.deleteLongTermTask(id);
-      update((tasks) => tasks.filter((t) => t.id !== id));
-      /* Refresh daily tasks since a linked spawned task may have been deleted */
+      store.mutate((tasks) => tasks.filter((t) => t.id !== id));
       await dailyTasksStore.refresh();
-    },
-
-    /**
-     * Force-refresh from local DB without touching the loading flag.
-     */
-    refresh: async () => {
-      const tasks = await queries.getLongTermTasks();
-      set(tasks);
     }
   };
 }
@@ -1676,25 +1203,11 @@ export const longTermTasksStore = createLongTermTasksStore();
  *          `setCurrent`, `clearCurrent`, `reorder`, and `refresh` methods.
  */
 function createProjectsStore() {
-  const { subscribe, set, update }: Writable<ProjectWithDetails[]> = writable([]);
-
-  /** Whether the initial load is still in flight. */
-  const loading = writable(true);
-
-  /** Teardown handle for the `onSyncComplete` listener. */
-  let unsubscribe: (() => void) | null = null;
-
   /**
    * Internal helper — fetches all projects and joins them with their
    * related goal lists, tags, task stats, and combined progress.
-   *
-   * The join is done in-memory by fetching all related entities in
-   * parallel and mapping them onto each project.
-   *
-   * @returns Fully enriched {@link ProjectWithDetails} array.
    */
   async function loadProjectsWithDetails(): Promise<ProjectWithDetails[]> {
-    /* ── Parallel fetch: projects + all related entities ── */
     const [projects, goalLists, categories, longTermTasks, allGoals] = await Promise.all([
       queries.getProjects(),
       queries.getGoalLists(),
@@ -1705,14 +1218,12 @@ function createProjectsStore() {
       )
     ]);
 
-    /* ── Join projects with their goal lists, tags, task stats, and combined progress ── */
     return projects.map((project) => {
       const goalList = project.goal_list_id
         ? goalLists.find((gl) => gl.id === project.goal_list_id) || null
         : null;
       const tag = project.tag_id ? categories.find((c) => c.id === project.tag_id) || null : null;
 
-      /* ── Compute task stats for projects with a tag ── */
       let taskStats: { totalTasks: number; completedTasks: number } | null = null;
       let combinedProgress: number | undefined;
 
@@ -1722,7 +1233,6 @@ function createProjectsStore() {
         const completedTaskCount = projectTasks.filter((t) => t.completed).length;
         taskStats = { totalTasks, completedTasks: completedTaskCount };
 
-        /* ── Compute combined progress averaging goals + tasks evenly ── */
         const projectGoals = project.goal_list_id
           ? allGoals.filter((g) => g.goal_list_id === project.goal_list_id)
           : [];
@@ -1747,19 +1257,16 @@ function createProjectsStore() {
         }
       }
 
-      return {
-        ...project,
-        goalList,
-        tag,
-        taskStats,
-        combinedProgress
-      };
+      return { ...project, goalList, tag, taskStats, combinedProgress };
     });
   }
 
+  const store = createCollectionStore<ProjectWithDetails>({
+    load: loadProjectsWithDetails
+  });
+
   return {
-    subscribe,
-    loading: { subscribe: loading.subscribe },
+    ...store,
 
     /**
      * Load all projects with enriched details.
@@ -1768,124 +1275,63 @@ function createProjectsStore() {
      * tag/commitment sort orders to match project order.
      */
     load: async () => {
-      loading.set(true);
-      try {
-        const projectsWithDetails = await loadProjectsWithDetails();
-        set(projectsWithDetails);
+      await store.load();
 
-        /* ── One-time migration: sync linked tag/commitment order to match project order ── */
-        if (browser && !localStorage.getItem('project-order-sync-v1')) {
-          const commitments = await queries.getCommitments();
-          for (const project of projectsWithDetails) {
-            if (project.tag_id && project.tag && project.tag.order !== project.order) {
-              await repo.reorderTaskCategory(project.tag_id, project.order);
-            }
-            if (project.commitment_id) {
-              const commitment = commitments.find((c) => c.id === project.commitment_id);
-              if (commitment && commitment.order !== project.order) {
-                await repo.reorderCommitment(project.commitment_id, project.order);
-              }
+      /* ── One-time migration: sync linked tag/commitment order to match project order ── */
+      if (browser && !localStorage.getItem('project-order-sync-v1')) {
+        let projectsData: ProjectWithDetails[] = [];
+        store.subscribe((p) => {
+          projectsData = p;
+        })();
+        const commitments = await queries.getCommitments();
+        for (const project of projectsData) {
+          if (project.tag_id && project.tag && project.tag.order !== project.order) {
+            await repo.reorderTaskCategory(project.tag_id, project.order);
+          }
+          if (project.commitment_id) {
+            const commitment = commitments.find((c) => c.id === project.commitment_id);
+            if (commitment && commitment.order !== project.order) {
+              await repo.reorderCommitment(project.commitment_id, project.order);
             }
           }
-          localStorage.setItem('project-order-sync-v1', '1');
         }
-
-        if (browser && !unsubscribe) {
-          unsubscribe = onSyncComplete(async () => {
-            const refreshed = await loadProjectsWithDetails();
-            set(refreshed);
-          });
-        }
-      } finally {
-        loading.set(false);
+        localStorage.setItem('project-order-sync-v1', '1');
       }
     },
 
-    /**
-     * Create a new project and refresh the full details list.
-     *
-     * @param name   - Project display name.
-     * @param userId - Owner user ID.
-     * @returns The newly created project record.
-     */
     create: async (name: string, userId: string) => {
       const newProject = await repo.createProject(name, userId);
-      /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newProject.id, 'projects', 'create');
-      /* Refresh to get full details */
-      const projectsWithDetails = await loadProjectsWithDetails();
-      set(projectsWithDetails);
+      await store.refresh();
       return newProject;
     },
 
-    /**
-     * Rename a project and refresh the full details list.
-     *
-     * @param id   - Project ID.
-     * @param name - New display name.
-     * @returns The updated project record, or `null`.
-     */
     update: async (id: string, name: string) => {
       const updated = await repo.updateProject(id, name);
       if (updated) {
-        /* Refresh to get updated related entities */
-        const projectsWithDetails = await loadProjectsWithDetails();
-        set(projectsWithDetails);
+        await store.refresh();
       }
       return updated;
     },
 
-    /**
-     * Delete a project and remove it from the store.
-     *
-     * @param id - Project ID to delete.
-     */
     delete: async (id: string) => {
       await repo.deleteProject(id);
-      update((projects) => projects.filter((p) => p.id !== id));
+      store.mutate((projects) => projects.filter((p) => p.id !== id));
     },
 
-    /**
-     * Mark a project as the "current" (active) project.
-     *
-     * Only one project can be current at a time — the repository
-     * handles clearing the previous current project.
-     *
-     * @param id - Project ID to set as current.
-     */
     setCurrent: async (id: string) => {
       await repo.setCurrentProject(id);
-      /* Refresh to reflect is_current changes */
-      const projectsWithDetails = await loadProjectsWithDetails();
-      set(projectsWithDetails);
+      await store.refresh();
     },
 
-    /**
-     * Clear the "current" flag from all projects for a user.
-     *
-     * @param userId - Owner user ID.
-     */
     clearCurrent: async (userId: string) => {
       await repo.clearCurrentProject(userId);
-      /* Refresh to reflect is_current changes */
-      const projectsWithDetails = await loadProjectsWithDetails();
-      set(projectsWithDetails);
+      await store.refresh();
     },
 
-    /**
-     * Move a project to a new sort position.
-     *
-     * Also propagates the new order to linked tag and commitment so
-     * they stay in sync across all views (tasks page, commitments page).
-     *
-     * @param id       - Project ID.
-     * @param newOrder - Target sort-order value.
-     * @returns The updated project record, or `null`.
-     */
     reorder: async (id: string, newOrder: number) => {
       const updated = await repo.reorderProject(id, newOrder);
       if (updated) {
-        /* ── Sync order to linked tag and commitment ── */
         if (updated.tag_id) {
           await repo.reorderTaskCategory(updated.tag_id, newOrder);
         }
@@ -1893,7 +1339,7 @@ function createProjectsStore() {
           await repo.reorderCommitment(updated.commitment_id, newOrder);
         }
 
-        update((projects) => {
+        store.mutate((projects) => {
           const updatedProjects = projects.map((p) =>
             p.id === id ? { ...p, order: newOrder } : p
           );
@@ -1902,14 +1348,6 @@ function createProjectsStore() {
         });
       }
       return updated;
-    },
-
-    /**
-     * Force-refresh from local DB without touching the loading flag.
-     */
-    refresh: async () => {
-      const projectsWithDetails = await loadProjectsWithDetails();
-      set(projectsWithDetails);
     }
   };
 }

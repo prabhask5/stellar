@@ -20,7 +20,9 @@ import {
   engineGetAll,
   engineGet,
   engineQuery,
-  engineQueryRange
+  engineQueryRange,
+  queryAll,
+  queryOne
 } from '@prabhask5/stellar-engine/data';
 import { calculateGoalProgressCapped } from '$lib/utils/colors';
 import { isRoutineActiveOnDate } from '$lib/utils/dates';
@@ -158,11 +160,9 @@ export async function getGoalList(id: string): Promise<(GoalList & { goals: Goal
  * @returns An array of {@link DailyRoutineGoal} items
  */
 export async function getDailyRoutineGoals(): Promise<DailyRoutineGoal[]> {
-  const routines = (await engineGetAll('daily_routine_goals', {
+  return queryAll<DailyRoutineGoal & Record<string, unknown>>('daily_routine_goals', {
     remoteFallback: !hasHydrated
-  })) as unknown as DailyRoutineGoal[];
-
-  return routines.filter((r) => !r.deleted).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }) as Promise<DailyRoutineGoal[]>;
 }
 
 /**
@@ -172,12 +172,9 @@ export async function getDailyRoutineGoals(): Promise<DailyRoutineGoal[]> {
  * @returns The {@link DailyRoutineGoal}, or `null` if not found / deleted
  */
 export async function getDailyRoutineGoal(id: string): Promise<DailyRoutineGoal | null> {
-  const routine = (await engineGet('daily_routine_goals', id, {
+  return queryOne<DailyRoutineGoal & Record<string, unknown>>('daily_routine_goals', id, {
     remoteFallback: true
-  })) as unknown as DailyRoutineGoal | null;
-
-  if (!routine || routine.deleted) return null;
-  return routine;
+  }) as Promise<DailyRoutineGoal | null>;
 }
 
 /**
@@ -256,11 +253,9 @@ export async function getMonthProgress(year: number, month: number): Promise<Dai
  * @returns Non-deleted {@link TaskCategory} items sorted ascending
  */
 export async function getTaskCategories(): Promise<TaskCategory[]> {
-  const categories = (await engineGetAll('task_categories', {
+  return queryAll<TaskCategory & Record<string, unknown>>('task_categories', {
     remoteFallback: !hasHydrated
-  })) as unknown as TaskCategory[];
-
-  return categories.filter((c) => !c.deleted).sort((a, b) => a.order - b.order);
+  }) as Promise<TaskCategory[]>;
 }
 
 // =============================================================================
@@ -273,11 +268,9 @@ export async function getTaskCategories(): Promise<TaskCategory[]> {
  * @returns Non-deleted {@link Commitment} items sorted ascending
  */
 export async function getCommitments(): Promise<Commitment[]> {
-  const commitments = (await engineGetAll('commitments', {
+  return queryAll<Commitment & Record<string, unknown>>('commitments', {
     remoteFallback: !hasHydrated
-  })) as unknown as Commitment[];
-
-  return commitments.filter((c) => !c.deleted).sort((a, b) => a.order - b.order);
+  }) as Promise<Commitment[]>;
 }
 
 // =============================================================================
@@ -405,8 +398,7 @@ export async function getLongTermTask(id: string): Promise<LongTermTaskWithCateg
  * @returns Non-deleted {@link Project} items sorted ascending by `order`
  */
 export async function getProjects(): Promise<Project[]> {
-  const projects = (await engineGetAll('projects')) as unknown as Project[];
-  return projects.filter((p) => !p.deleted).sort((a, b) => a.order - b.order);
+  return queryAll<Project & Record<string, unknown>>('projects') as Promise<Project[]>;
 }
 
 /**
@@ -416,6 +408,5 @@ export async function getProjects(): Promise<Project[]> {
  * @returns The {@link Project}, or `null` if not found / deleted
  */
 export async function getProject(id: string): Promise<Project | null> {
-  const project = (await engineGet('projects', id)) as unknown as Project | null;
-  return project && !project.deleted ? project : null;
+  return queryOne<Project & Record<string, unknown>>('projects', id) as Promise<Project | null>;
 }

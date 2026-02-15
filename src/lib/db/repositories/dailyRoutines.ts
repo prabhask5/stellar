@@ -20,7 +20,9 @@ import {
   engineCreate,
   engineUpdate,
   engineQuery,
-  engineBatchWrite
+  engineBatchWrite,
+  reorderEntity,
+  prependOrder
 } from '@prabhask5/stellar-engine/data';
 import type { BatchOperation } from '@prabhask5/stellar-engine/types';
 import type { DailyRoutineGoal, GoalType, DayOfWeek } from '$lib/types';
@@ -68,16 +70,7 @@ export async function createDailyRoutineGoal(
   const timestamp = now();
 
   /* ── Compute prepend order ──── */
-  const existingRoutines = (await engineQuery(
-    'daily_routine_goals',
-    'user_id',
-    userId
-  )) as unknown as DailyRoutineGoal[];
-
-  const activeRoutines = existingRoutines.filter((r) => !r.deleted);
-  const minOrder =
-    activeRoutines.length > 0 ? Math.min(...activeRoutines.map((r) => r.order ?? 0)) : 0;
-  const nextOrder = minOrder - 1;
+  const nextOrder = await prependOrder('daily_routine_goals', 'user_id', userId);
 
   const result = await engineCreate('daily_routine_goals', {
     id: generateId(),
@@ -170,6 +163,7 @@ export async function reorderDailyRoutineGoal(
   id: string,
   newOrder: number
 ): Promise<DailyRoutineGoal | undefined> {
-  const result = await engineUpdate('daily_routine_goals', id, { order: newOrder });
-  return result as unknown as DailyRoutineGoal | undefined;
+  return reorderEntity('daily_routine_goals', id, newOrder) as Promise<
+    DailyRoutineGoal | undefined
+  >;
 }

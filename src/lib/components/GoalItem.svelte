@@ -274,8 +274,10 @@
           <button class="action-btn" onclick={onEdit} aria-label="Edit goal">✎</button>
         {/if}
         {#if onDelete}
-          <button class="action-btn delete row1-delete" onclick={onDelete} aria-label="Delete goal"
-            >×</button
+          <button
+            class="action-btn delete desktop-delete"
+            onclick={onDelete}
+            aria-label="Delete goal">×</button
           >
         {/if}
       </div>
@@ -290,12 +292,9 @@
       >
         {goal.name}
       </span>
-      <!-- Delete button duplicated here for mobile layout -->
       {#if onDelete}
-        <button
-          class="action-btn delete name-row-delete"
-          onclick={onDelete}
-          aria-label="Delete goal">×</button
+        <button class="action-btn delete mobile-delete" onclick={onDelete} aria-label="Delete goal"
+          >×</button
         >
       {/if}
     </div>
@@ -679,8 +678,8 @@
     min-width: 0;
   }
 
-  /* Desktop: delete lives in row 1 — hidden beside name */
-  .name-row-delete {
+  /* Mobile-only delete button — hidden on desktop, shown at ≤480px */
+  .mobile-delete {
     display: none;
   }
 
@@ -1141,12 +1140,12 @@
       inset: -4px;
     }
 
-    /* Mobile: move delete to name row, hide from row 1 */
-    .row1-delete {
+    /* Mobile: move delete to name row so it doesn't get clipped */
+    .desktop-delete {
       display: none;
     }
 
-    .name-row-delete {
+    .mobile-delete {
       display: flex;
       flex-shrink: 0;
     }

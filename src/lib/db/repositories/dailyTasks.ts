@@ -27,7 +27,9 @@ import {
   engineDelete,
   engineQuery,
   engineGet,
-  engineBatchWrite
+  engineBatchWrite,
+  reorderEntity,
+  prependOrder
 } from '@prabhask5/stellar-engine/data';
 import type { BatchOperation } from '@prabhask5/stellar-engine/types';
 import type { DailyTask, LongTermTask } from '$lib/types';
@@ -55,10 +57,7 @@ export async function createDailyTask(
   const timestamp = now();
 
   /* ── Compute prepend order (min - 1) ──── */
-  const existing = (await engineQuery('daily_tasks', 'user_id', userId)) as unknown as DailyTask[];
-  const activeItems = existing.filter((t) => !t.deleted);
-  const minOrder = activeItems.length > 0 ? Math.min(...activeItems.map((t) => t.order)) : 0;
-  const nextOrder = minOrder - 1;
+  const nextOrder = await prependOrder('daily_tasks', 'user_id', userId);
 
   const result = await engineCreate('daily_tasks', {
     id: generateId(),
@@ -157,8 +156,7 @@ export async function reorderDailyTask(
   id: string,
   newOrder: number
 ): Promise<DailyTask | undefined> {
-  const result = await engineUpdate('daily_tasks', id, { order: newOrder });
-  return result as unknown as DailyTask | undefined;
+  return reorderEntity('daily_tasks', id, newOrder) as Promise<DailyTask | undefined>;
 }
 
 // =============================================================================
