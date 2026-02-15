@@ -20,7 +20,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { resolveUserId } from '@prabhask5/stellar-engine/auth';
-  import { isDemoMode } from '@prabhask5/stellar-engine';
+
   import {
     taskCategoriesStore,
     commitmentsStore,
@@ -200,7 +200,6 @@
    * @returns The authenticated user's UUID, or empty string if unavailable
    */
   function getUserId(): string {
-    if (isDemoMode()) return 'demo-user';
     return resolveUserId($page.data.session, $page.data.offlineProfile);
   }
 

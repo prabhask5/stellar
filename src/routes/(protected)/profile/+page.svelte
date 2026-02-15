@@ -827,9 +827,7 @@
     <div class="avatar-container">
       <div class="avatar-ring"></div>
       <div class="avatar">
-        {isDemo
-          ? (getDemoConfig()?.mockProfile.firstName?.[0]?.toUpperCase() ?? '?')
-          : resolveAvatarInitial($authState?.session, $authState?.offlineProfile)}
+        {resolveAvatarInitial($authState?.session, $authState?.offlineProfile)}
       </div>
     </div>
     <div class="avatar-particles">

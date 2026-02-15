@@ -18,7 +18,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { resolveUserId } from '@prabhask5/stellar-engine/auth';
-  import { isDemoMode } from '@prabhask5/stellar-engine';
+
   import { focusStore, blockListStore, focusTimeUpdated } from '$lib/stores/focus';
   import type { FocusSettings, FocusSession, BlockList, DayOfWeek } from '$lib/types';
   import { formatDuration } from '$lib/utils/focus';
@@ -62,7 +62,6 @@
    * @returns User UUID or empty string
    */
   function getUserId(): string {
-    if (isDemoMode()) return 'demo-user';
     return resolveUserId($page.data.session, $page.data.offlineProfile);
   }
 

@@ -20,7 +20,7 @@
 
   import { page } from '$app/stores';
   import { resolveUserId } from '@prabhask5/stellar-engine/auth';
-  import { isDemoMode } from '@prabhask5/stellar-engine';
+
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import { goalListStore, longTermTasksStore, taskCategoriesStore } from '$lib/stores/data';
@@ -349,9 +349,8 @@
   //                  LONG-TERM TASK HANDLERS
   // =============================================================================
 
-  /** Extract the current user's ID from the auth state (or demo user in demo mode). */
+  /** Extract the current user's ID from the auth state. */
   function getUserId(): string {
-    if (isDemoMode()) return 'demo-user';
     return resolveUserId($page.data.session, $page.data.offlineProfile);
   }
 

@@ -46,7 +46,7 @@
   import { authState } from '@prabhask5/stellar-engine/stores';
   import { debug } from '@prabhask5/stellar-engine/utils';
   import { hydrateAuthState } from '@prabhask5/stellar-engine/kit';
-  import { isDemoMode, getDemoConfig } from '@prabhask5/stellar-engine';
+  import { isDemoMode } from '@prabhask5/stellar-engine';
 
   /* ── Types ── */
   import type { LayoutData } from './+layout';
@@ -227,18 +227,10 @@
    * Derives the user's first name for display in the greeting and avatar.
    * Falls back through session profile → email username → offline profile → 'there'.
    */
-  const greeting = $derived(
-    isDemoMode()
-      ? (getDemoConfig()?.mockProfile.firstName ?? 'there')
-      : resolveFirstName(data.session, data.offlineProfile, 'there')
-  );
+  const greeting = $derived(resolveFirstName(data.session, data.offlineProfile, 'there'));
 
   /** Single uppercase initial for avatar circles. */
-  const avatarInitial = $derived(
-    isDemoMode()
-      ? (getDemoConfig()?.mockProfile.firstName?.[0]?.toUpperCase() ?? '?')
-      : resolveAvatarInitial(data.session, data.offlineProfile, '?')
-  );
+  const avatarInitial = $derived(resolveAvatarInitial(data.session, data.offlineProfile, '?'));
 
   /**
    * Derived booleans for determining navigation visibility.
