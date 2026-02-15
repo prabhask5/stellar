@@ -238,14 +238,15 @@
    * - `isOnLoginPage` — true when on `/login` or any sub-route
    * - `isOnSetupPage` — true when on `/setup` or any sub-route
    * - `isSetupNoAuth` — true when on setup AND no auth (first-time user)
-   * - `isAuthPage` — true when on login OR setup-without-auth (hide nav)
+   * - `isAuthPage` — true when on login, setup-without-auth, or demo (hide nav)
    * - `isAuthenticated` — true when the user has a valid session AND we're
    *   not on an auth page AND the auth store has finished loading
    */
   const isOnLoginPage = $derived($page.url.pathname.startsWith('/login'));
   const isOnSetupPage = $derived($page.url.pathname.startsWith('/setup'));
+  const isOnDemoPage = $derived($page.url.pathname === '/demo');
   const isSetupNoAuth = $derived(isOnSetupPage && data.authMode === 'none');
-  const isAuthPage = $derived(isOnLoginPage || isSetupNoAuth);
+  const isAuthPage = $derived(isOnLoginPage || isSetupNoAuth || isOnDemoPage);
   const isAuthenticated = $derived(
     data.authMode !== 'none' && !isAuthPage && !$authState.isLoading
   );
