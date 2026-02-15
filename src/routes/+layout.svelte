@@ -46,12 +46,14 @@
   import { authState } from '@prabhask5/stellar-engine/stores';
   import { debug } from '@prabhask5/stellar-engine/utils';
   import { hydrateAuthState } from '@prabhask5/stellar-engine/kit';
+  import { isDemoMode } from '@prabhask5/stellar-engine';
 
   /* ── Types ── */
   import type { LayoutData } from './+layout';
 
   /* ── Components ── */
   import SyncStatus from '@prabhask5/stellar-engine/components/SyncStatus';
+  import DemoBanner from '@prabhask5/stellar-engine/components/DemoBanner';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
 
   // =============================================================================
@@ -277,6 +279,14 @@
    * 4. Hard-navigates to `/login` (full page reload to reset all state).
    */
   async function handleSignOut() {
+    if (isDemoMode()) {
+      toastMessage = 'Not available in demo mode';
+      toastType = 'info';
+      showToast = true;
+      setTimeout(() => (showToast = false), 3000);
+      return;
+    }
+
     // Show full-screen overlay immediately
     isSigningOut = true;
 
@@ -777,6 +787,9 @@
 
   <!-- ── Global Update Prompt — shown when a new service worker is available ── -->
   <UpdatePrompt />
+
+  <!-- ── Demo Mode Banner — shown when demo mode is active ── -->
+  <DemoBanner />
 </div>
 
 <style>

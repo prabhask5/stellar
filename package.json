@@ -37,7 +37,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
-    "@prabhask5/stellar-engine": "^1.1.13",
+    "@prabhask5/stellar-engine": "^1.1.15",
     "date-fns": "^4.1.0"
   },
   "type": "module"

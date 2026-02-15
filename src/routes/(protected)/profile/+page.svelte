@@ -35,7 +35,9 @@
     resetDatabase,
     getTrustedDevices,
     removeTrustedDevice,
-    getCurrentDeviceId
+    getCurrentDeviceId,
+    isDemoMode,
+    getDemoConfig
   } from '@prabhask5/stellar-engine';
   import type { TrustedDevice, DiagnosticsSnapshot } from '@prabhask5/stellar-engine';
   import { onMount, onDestroy } from 'svelte';
@@ -43,6 +45,9 @@
   // =============================================================================
   //                         COMPONENT STATE
   // =============================================================================
+
+  /* ── Demo mode ──── */
+  const isDemo = isDemoMode();
 
   /* ── Profile form fields ──── */
   let firstName = $state('');
@@ -86,6 +91,17 @@
   let debugMode = $state(isDebugMode());
   let resetting = $state(false);
 
+  /* ── Demo mode toast ──── */
+  let demoToast = $state('');
+  let demoToastTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Show a temporary toast for blocked demo operations. */
+  function showDemoToast(msg: string) {
+    demoToast = msg;
+    if (demoToastTimer) clearTimeout(demoToastTimer);
+    demoToastTimer = setTimeout(() => (demoToast = ''), 3000);
+  }
+
   /* ── Debug tools loading flags ──── */
   let forceSyncing = $state(false);
   let triggeringSyncManual = $state(false);
@@ -121,6 +137,19 @@
 
   /** Populate form fields from the engine and load trusted devices on mount. */
   onMount(async () => {
+    if (isDemo) {
+      // In demo mode, populate from mock profile config
+      const config = getDemoConfig();
+      if (config) {
+        firstName = config.mockProfile.firstName;
+        lastName = config.mockProfile.lastName;
+        currentEmail = config.mockProfile.email;
+      }
+      devicesLoading = false;
+      diagnosticsLoading = false;
+      return;
+    }
+
     const info = await getSingleUserInfo();
     if (info) {
       firstName = (info.profile.firstName as string) || '';
@@ -248,6 +277,10 @@
    */
   async function handleCodeSubmit(e: Event) {
     e.preventDefault();
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
 
     if (oldCode.length !== 6) {
       codeError = 'Please enter your current 6-digit code';
@@ -293,6 +326,10 @@
    */
   async function handleEmailSubmit(e: Event) {
     e.preventDefault();
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
     emailError = null;
     emailSuccess = null;
 
@@ -397,6 +434,10 @@
    * Session is preserved in localStorage so the app will re-hydrate.
    */
   async function handleResetDatabase() {
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
     if (
       !confirm(
         'This will delete all local data and reload. Your data will be re-synced from the server. Continue?'
@@ -418,6 +459,10 @@
    * Remove a trusted device by ID and update the local list.
    */
   async function handleRemoveDevice(id: string) {
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
     removingDeviceId = id;
     try {
       await removeTrustedDevice(id);
@@ -442,6 +487,10 @@
 
   /** Resets the sync cursor and re-downloads all data from Supabase. */
   async function handleForceFullSync() {
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
     if (
       !confirm(
         'This will reset the sync cursor and re-download all data from the server. Continue?'
@@ -467,6 +516,10 @@
 
   /** Manually trigger a single push/pull sync cycle. */
   async function handleTriggerSync() {
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
     triggeringSyncManual = true;
     try {
       const fn = getDebugWindow().__stellarSync as { sync: () => Promise<void> } | undefined;
@@ -484,6 +537,10 @@
 
   /** Reset the sync cursor so the next cycle pulls all remote data. */
   async function handleResetSyncCursor() {
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
     resettingCursor = true;
     try {
       const fn = getDebugWindow().__stellarSync as
@@ -503,6 +560,10 @@
 
   /** Log soft-deleted record counts per table to the browser console. */
   async function handleViewTombstones() {
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
     viewingTombstones = true;
     try {
       const fn = getDebugWindow().__stellarTombstones as
@@ -522,6 +583,10 @@
 
   /** Permanently remove old soft-deleted records from local + remote DBs. */
   async function handleCleanupTombstones() {
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
     if (
       !confirm(
         'This will permanently remove old soft-deleted records from local and server databases. Continue?'
@@ -547,6 +612,10 @@
 
   /** Dispatch a custom event that the app shell listens for to sign out on mobile. */
   function handleMobileSignOut() {
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
     window.dispatchEvent(new CustomEvent('stellar:signout'));
   }
 
@@ -608,6 +677,13 @@
 <svelte:head>
   <title>Profile - Stellar Planner</title>
 </svelte:head>
+
+<!-- ═══ Demo Toast ═══ -->
+{#if demoToast}
+  <div class="demo-toast" role="status" aria-live="polite">
+    <span>{demoToast}</span>
+  </div>
+{/if}
 
 <!-- ═══ Page Container ═══ -->
 <div class="profile-page">
@@ -2902,6 +2978,41 @@
     }
     50% {
       opacity: 1;
+    }
+  }
+
+  /* ═══ Demo Toast ═══ */
+
+  :global(.demo-toast) {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 1rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9500;
+    padding: 0.75rem 1.25rem;
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.2) 0%, rgba(255, 121, 198, 0.15) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.3);
+    border-radius: 9999px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: var(--color-text, #e8e6f0);
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.4),
+      0 0 40px rgba(108, 92, 231, 0.15);
+    animation: demoToastIn 0.3s ease-out;
+  }
+
+  @keyframes demoToastIn {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
   }
 </style>

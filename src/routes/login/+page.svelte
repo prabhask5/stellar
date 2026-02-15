@@ -38,7 +38,7 @@
     fetchRemoteGateConfig,
     linkSingleUserDevice
   } from '@prabhask5/stellar-engine/auth';
-  import { sendDeviceVerification } from '@prabhask5/stellar-engine';
+  import { sendDeviceVerification, isDemoMode } from '@prabhask5/stellar-engine';
 
   // =============================================================================
   //  Layout / Page Data
@@ -201,6 +201,12 @@
 
   onMount(async () => {
     mounted = true;
+
+    /* ── Demo mode → redirect to home (demo users shouldn't see PIN entry) ── */
+    if (isDemoMode()) {
+      goto('/', { replaceState: true });
+      return;
+    }
 
     /* ── Existing local account → fetch user info for the welcome card ──── */
     if (singleUserSetUp) {

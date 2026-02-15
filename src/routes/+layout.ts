@@ -30,6 +30,7 @@ import { goto } from '$app/navigation';
 import { initEngine, supabase } from '@prabhask5/stellar-engine';
 import { lockSingleUser } from '@prabhask5/stellar-engine/auth';
 import { resolveRootLayout } from '@prabhask5/stellar-engine/kit';
+import { demoConfig } from '$lib/demo/config';
 import type { RootLayoutData } from '@prabhask5/stellar-engine/kit';
 import type { LayoutLoad } from './$types';
 
@@ -484,6 +485,9 @@ if (browser) {
     /* ── Engine Configuration ──────────────────────────────────────────── */
     supabase,
     prefix: 'stellar',
+
+    /* ── Demo Mode — sandboxed database with mock data ────────────────── */
+    demo: demoConfig,
 
     /* ── Auth Configuration — single-user PIN gate ──────────────── */
     auth: {

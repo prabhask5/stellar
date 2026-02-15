@@ -2,6 +2,8 @@
 
 A self-hosted, offline-first productivity PWA for managing goals, tasks, routines, and focus sessions. Built with SvelteKit, Dexie.js, and Supabase, Stellar works entirely from your browser with full offline support, real-time multi-device sync, and a space-themed interface.
 
+Try it at [https://planner.prabhas.io/demo](https://planner.prabhas.io/demo)
+
 ---
 
 ## Documentation
@@ -20,10 +22,11 @@ A self-hosted, offline-first productivity PWA for managing goals, tasks, routine
 1. [Features](#features)
 2. [Setup Guide to Self-Host](#setup-guide-to-self-host)
 3. [Mobile Installation](#mobile-installation)
-4. [Configuration](#configuration)
-5. [Tech Stack](#tech-stack)
-6. [Debug Mode](#debug-mode)
-7. [Companion Extension](#companion-extension)
+4. [Demo Mode](#demo-mode)
+5. [Configuration](#configuration)
+6. [Tech Stack](#tech-stack)
+7. [Debug Mode](#debug-mode)
+8. [Companion Extension](#companion-extension)
 
 ---
 
@@ -175,6 +178,26 @@ Stellar is a PWA — add it to your home screen for quick access and an app-like
 3. Click **Install**.
 
 Once installed, Stellar runs as a standalone window with full offline support.
+
+---
+
+## Demo Mode
+
+Try Stellar without creating an account or setting up Supabase. Visit `/demo` in any deployed instance to launch an interactive sandbox.
+
+**How it works:**
+- A separate IndexedDB database (`GoalPlannerDB_demo`) is created — your real data is never touched.
+- All 13 entity types are pre-seeded with sample data (projects, goals, tasks, routines, focus sessions, block lists, and more).
+- Every feature works: browse pages, create/edit/delete items, use the focus timer, manage block lists, change settings.
+- Changes persist within the session but reset on page refresh.
+
+**What's limited in demo mode:**
+- Cloud sync (no Supabase connection)
+- Email and PIN changes
+- Device management
+- Debug/sync tools
+
+**For developers:** Demo mode is powered by `@prabhask5/stellar-engine`'s demo infrastructure. Configuration lives in `src/lib/demo/config.ts` and mock data in `src/lib/demo/mockData.ts`. Pass a `DemoConfig` to `initEngine({ demo: ... })` to enable it.
 
 ---
 
