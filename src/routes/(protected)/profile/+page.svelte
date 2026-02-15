@@ -1172,11 +1172,16 @@
 
       <!-- 10. Configuration -->
       <div class="diag-section-title">Configuration</div>
-      <div class="diag-row">
-        <span class="diag-row-label">Tables</span>
-        <span class="diag-row-value"
-          >{diagnostics.config.tableCount} ({diagnostics.config.tableNames.join(', ')})</span
-        >
+      <div class="diag-config-tables">
+        <div class="diag-config-tables-header">
+          <span class="diag-row-label">Tables</span>
+          <span class="diag-row-value">{diagnostics.config.tableCount}</span>
+        </div>
+        <div class="diag-config-table-names">
+          {#each diagnostics.config.tableNames as name (name)}
+            <span class="diag-table-tag">{name}</span>
+          {/each}
+        </div>
       </div>
       <div class="diag-row">
         <span class="diag-row-label">Sync Interval</span>
@@ -1856,6 +1861,59 @@
       padding: 0.875rem 1.25rem;
       font-size: 0.9375rem;
     }
+
+    /* ── Diagnostics mobile ──── */
+    .diag-status-banner {
+      padding: 0.75rem 1rem;
+      gap: 0.625rem;
+    }
+
+    .diag-status-label {
+      font-size: 0.875rem;
+    }
+
+    .diag-stat {
+      padding: 0.625rem 0.375rem;
+    }
+
+    .diag-stat-value {
+      font-size: 0.9375rem;
+    }
+
+    .diag-stat-label {
+      font-size: 0.5625rem;
+    }
+
+    .diag-row {
+      padding: 0.4375rem 0;
+    }
+
+    .diag-row-label {
+      font-size: 0.75rem;
+    }
+
+    .diag-row-value {
+      font-size: 0.75rem;
+    }
+
+    .diag-cycle-stats {
+      flex-wrap: wrap;
+      gap: 0.375rem 0.625rem;
+    }
+
+    .diag-cycle-item {
+      padding: 0.5rem 0.625rem;
+    }
+
+    .diag-table-tag {
+      font-size: 0.625rem;
+      padding: 0.125rem 0.375rem;
+    }
+
+    .diag-error-banner {
+      font-size: 0.75rem;
+      padding: 0.625rem 0.75rem;
+    }
   }
 
   /* iPhone SE */
@@ -1885,6 +1943,22 @@
       to {
         transform: rotate(calc(var(--angle) + 360deg)) translateX(48px);
       }
+    }
+
+    .diag-stat-value {
+      font-size: 0.875rem;
+    }
+
+    .diag-grid-2 {
+      gap: 0.5rem;
+    }
+
+    .diag-cycle-stats {
+      font-size: 0.625rem;
+    }
+
+    .diag-table-tag {
+      font-size: 0.5625rem;
     }
   }
 
@@ -1993,12 +2067,14 @@
     justify-content: space-between;
     padding: 1rem 0;
     margin-bottom: 0.5rem;
+    gap: 1.5rem;
   }
 
   .setting-info {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    max-width: 75%;
   }
 
   .setting-label {
@@ -2587,6 +2663,7 @@
     padding: 0.5rem 0;
     border-bottom: 1px solid rgba(108, 92, 231, 0.08);
     font-variant-numeric: tabular-nums;
+    gap: 0.75rem;
   }
 
   .diag-row:last-of-type {
@@ -2596,6 +2673,7 @@
   .diag-row-label {
     font-size: 0.8125rem;
     color: var(--color-text-muted);
+    flex-shrink: 0;
   }
 
   .diag-row-value {
@@ -2605,12 +2683,45 @@
     display: flex;
     align-items: center;
     gap: 0.375rem;
+    min-width: 0;
+    text-align: right;
   }
 
   .diag-lock-duration {
     font-size: 0.75rem;
     font-weight: 400;
     color: var(--color-text-muted);
+  }
+
+  /* ── Configuration Tables ──── */
+  .diag-config-tables {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(108, 92, 231, 0.08);
+  }
+
+  .diag-config-tables-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .diag-config-table-names {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .diag-table-tag {
+    display: inline-flex;
+    padding: 0.1875rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    color: var(--color-primary-light);
+    background: rgba(108, 92, 231, 0.1);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-radius: var(--radius-sm, 4px);
   }
 
   /* ── Inline Status Dot ──── */
