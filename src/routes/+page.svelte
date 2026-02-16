@@ -285,6 +285,7 @@
     <!-- ── Central Content — greeting and compliment ── -->
     <div class="content">
       <div class="greeting-wrapper">
+        <div class="greeting-glow"></div>
         <h1 class="greeting">
           <span class="greeting-hello" class:greeting-transitioning={isGreetingTransitioning}
             >{timeGreeting},</span
@@ -1059,7 +1060,7 @@
       nameShimmer 8s linear infinite,
       fadeSlideIn 0.8s ease-out 0.5s forwards;
     opacity: 0;
-    text-shadow: 0 0 80px rgba(108, 92, 231, 0.5);
+    filter: drop-shadow(0 0 80px rgba(108, 92, 231, 0.5));
   }
 
   @keyframes nameShimmer {
