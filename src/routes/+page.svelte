@@ -285,7 +285,6 @@
     <!-- ── Central Content — greeting and compliment ── -->
     <div class="content">
       <div class="greeting-wrapper">
-        <div class="greeting-glow"></div>
         <h1 class="greeting">
           <span class="greeting-hello" class:greeting-transitioning={isGreetingTransitioning}
             >{timeGreeting},</span
