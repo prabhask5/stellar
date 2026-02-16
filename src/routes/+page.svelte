@@ -33,11 +33,11 @@
   import { onMount, onDestroy } from 'svelte';
 
   /* ── Stellar Engine — Stores & Auth ── */
-  import { onSyncComplete, authState } from '@prabhask5/stellar-engine/stores';
-  import { resolveFirstName } from '@prabhask5/stellar-engine/auth';
+  import { onSyncComplete, authState } from 'stellar-drive/stores';
+  import { resolveFirstName } from 'stellar-drive/auth';
 
   /* ── Actions ── */
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //  Component State

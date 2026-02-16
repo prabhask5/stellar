@@ -23,8 +23,8 @@
  * - {@link onSyncComplete} provides a polling-style refresh after sync.
  * - {@link onRealtimeDataUpdate} provides instant push updates for
  *   focus sessions and settings from other devices.
- * - Concurrency guards (`isHandlingPhaseComplete`, `isHandlingRemoteChange`)
- *   prevent duplicate state mutations from overlapping async operations.
+ * - Concurrency guards via `createAsyncGuard` from stellar-drive prevent
+ *   duplicate state mutations from overlapping async operations.
  *
  * @module stores/focus
  */
@@ -40,7 +40,8 @@ import {
   onSyncComplete,
   onRealtimeDataUpdate,
   remoteChangesStore
-} from '@prabhask5/stellar-engine/stores';
+} from 'stellar-drive/stores';
+import { createAsyncGuard } from 'stellar-drive/utils';
 
 // =============================================================================
 //  FOCUS TIMER STORE
@@ -127,11 +128,11 @@ function createFocusStore() {
   /** Teardown for the {@link onRealtimeDataUpdate} primary listener. */
   let unsubscribeRealtime: (() => void) | null = null;
 
-  /** Guard: prevents concurrent phase-completion handlers. */
-  let isHandlingPhaseComplete = false;
+  /** Guarded phase-completion handler — prevents overlapping async calls. */
+  const guardedHandlePhaseComplete = createAsyncGuard(handlePhaseComplete);
 
-  /** Guard: prevents recursive handling of remote state changes. */
-  let isHandlingRemoteChange = false;
+  /** Guarded realtime update handler — prevents recursive handling. */
+  const guardedHandleRealtimeUpdate = createAsyncGuard(handleRealtimeUpdate);
 
   // ── Internal Helpers ────────────────────────────────────────────────────
 
@@ -159,11 +160,8 @@ function createFocusStore() {
       const remaining = calculateRemainingMs(state.session);
 
       /* ── Phase expired — hand off to async completion handler ── */
-      if (remaining <= 0 && !isHandlingPhaseComplete) {
-        isHandlingPhaseComplete = true;
-        handlePhaseComplete().finally(() => {
-          isHandlingPhaseComplete = false;
-        });
+      if (remaining <= 0) {
+        guardedHandlePhaseComplete();
         return state; /* State will be updated by handlePhaseComplete */
       }
 
@@ -294,87 +292,81 @@ function createFocusStore() {
    * @param _entityId - The specific row ID (unused — we re-fetch active session).
    */
   async function handleRealtimeUpdate(table: string, _entityId: string) {
-    if (table !== 'focus_sessions' || !currentUserId || isHandlingRemoteChange) {
+    if (table !== 'focus_sessions' || !currentUserId) {
       return;
     }
 
-    isHandlingRemoteChange = true;
+    /* ── Get current state for comparison ── */
+    let currentState: FocusState = {
+      settings: null,
+      session: null,
+      remainingMs: 0,
+      isRunning: false,
+      stateTransition: null
+    };
+    update((s) => {
+      currentState = s;
+      return s;
+    });
 
-    try {
-      /* ── Get current state for comparison ── */
-      let currentState: FocusState = {
-        settings: null,
-        session: null,
-        remainingMs: 0,
-        isRunning: false,
-        stateTransition: null
-      };
-      update((s) => {
-        currentState = s;
-        return s;
-      });
+    /* ── Fetch updated session (already written to local DB by realtime handler) ── */
+    const updatedSession = await repo.getActiveSession(currentUserId);
 
-      /* ── Fetch updated session (already written to local DB by realtime handler) ── */
-      const updatedSession = await repo.getActiveSession(currentUserId);
+    /* ── Determine transition type for UI animation ── */
+    let transition: FocusState['stateTransition'] = null;
 
-      /* ── Determine transition type for UI animation ── */
-      let transition: FocusState['stateTransition'] = null;
+    const prevSession = currentState.session;
+    const prevStatus = prevSession?.status;
+    const newStatus = updatedSession?.status;
 
-      const prevSession = currentState.session;
-      const prevStatus = prevSession?.status;
-      const newStatus = updatedSession?.status;
-
-      if (!prevSession && updatedSession) {
-        transition = 'starting';
-      } else if (prevSession && !updatedSession) {
+    if (!prevSession && updatedSession) {
+      transition = 'starting';
+    } else if (prevSession && !updatedSession) {
+      transition = 'stopping';
+    } else if (prevStatus !== newStatus) {
+      if (newStatus === 'running' && prevStatus === 'paused') {
+        transition = 'resuming';
+      } else if (newStatus === 'paused' && prevStatus === 'running') {
+        transition = 'pausing';
+      } else if (newStatus === 'stopped') {
         transition = 'stopping';
-      } else if (prevStatus !== newStatus) {
-        if (newStatus === 'running' && prevStatus === 'paused') {
-          transition = 'resuming';
-        } else if (newStatus === 'paused' && prevStatus === 'running') {
-          transition = 'pausing';
-        } else if (newStatus === 'stopped') {
-          transition = 'stopping';
-        }
       }
+    }
 
-      /* ── Calculate remaining time from the server-synced session ── */
-      let remainingMs = 0;
-      let isRunning = false;
+    /* ── Calculate remaining time from the server-synced session ── */
+    let remainingMs = 0;
+    let isRunning = false;
 
-      if (updatedSession) {
-        /* Use the server's `phase_remaining_ms` for accuracy */
-        remainingMs = calculateRemainingMs(updatedSession);
-        isRunning = updatedSession.status === 'running';
-      }
+    if (updatedSession) {
+      /* Use the server's `phase_remaining_ms` for accuracy */
+      remainingMs = calculateRemainingMs(updatedSession);
+      isRunning = updatedSession.status === 'running';
+    }
 
-      /* ── Update state with transition hint ── */
-      update((s) => ({
-        ...s,
-        session: updatedSession,
-        remainingMs,
-        isRunning,
-        stateTransition: transition
-      }));
+    /* ── Update state with transition hint ── */
+    update((s) => ({
+      ...s,
+      session: updatedSession,
+      remainingMs,
+      isRunning,
+      stateTransition: transition
+    }));
 
-      /* ── Start or stop ticker based on running state ── */
-      if (isRunning) {
-        startTicker();
-      } else {
-        stopTicker();
-      }
+    /* ── Start or stop ticker based on running state ── */
+    if (isRunning) {
+      startTicker();
+    } else {
+      stopTicker();
+    }
 
-      /* ── Clear transition hint after animation duration (600 ms) ── */
-      if (transition) {
-        setTimeout(() => {
-          update((s) => ({
-            ...s,
-            stateTransition: null
-          }));
-        }, 600);
-      }
-    } finally {
-      isHandlingRemoteChange = false;
+    /* ── Clear transition hint after animation duration (600 ms) ── */
+    if (transition) {
+      setTimeout(() => {
+        update((s) => ({
+          ...s,
+          stateTransition: null
+        }));
+      }, 600);
     }
   }
 
@@ -462,7 +454,7 @@ function createFocusStore() {
         /* ── Register sync-complete listener (fallback for when realtime is unavailable) ── */
         if (browser && !unsubscribeSyncComplete) {
           unsubscribeSyncComplete = onSyncComplete(async () => {
-            if (currentUserId && !isHandlingRemoteChange) {
+            if (currentUserId) {
               const refreshedSettings = await repo.getFocusSettings(currentUserId);
               const refreshedSession = await repo.getActiveSession(currentUserId);
 
@@ -496,7 +488,7 @@ function createFocusStore() {
         if (browser && !unsubscribeRealtime) {
           unsubscribeRealtime = onRealtimeDataUpdate((table, entityId) => {
             if (table === 'focus_sessions') {
-              handleRealtimeUpdate(table, entityId);
+              guardedHandleRealtimeUpdate(table, entityId);
             } else if (table === 'focus_settings') {
               handleSettingsRealtimeUpdate(table, entityId);
             }

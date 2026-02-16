@@ -2,7 +2,7 @@
  * @fileoverview Protected Layout Load Function — Auth Guard
  *
  * Runs on every navigation into the `(protected)` route group.
- * Resolves the current authentication state via `stellar-engine` and
+ * Resolves the current authentication state via `stellar-drive` and
  * redirects unauthenticated users to `/login` (preserving the intended
  * destination as a `?redirect=` query parameter).
  *
@@ -13,8 +13,8 @@
 
 import { redirect } from '@sveltejs/kit';
 import { browser } from '$app/environment';
-import { resolveProtectedLayout } from '@prabhask5/stellar-engine/kit';
-import type { ProtectedLayoutData } from '@prabhask5/stellar-engine/kit';
+import { resolveProtectedLayout } from 'stellar-drive/kit';
+import type { ProtectedLayoutData } from 'stellar-drive/kit';
 import type { LayoutLoad } from './$types';
 
 export type { ProtectedLayoutData };

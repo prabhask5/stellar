@@ -23,15 +23,15 @@
  * @module repositories/projects
  */
 
-import { generateId, now } from '@prabhask5/stellar-engine/utils';
+import { generateId, now } from 'stellar-drive/utils';
 import {
   engineQuery,
   engineGet,
   engineBatchWrite,
   reorderEntity,
   prependOrder
-} from '@prabhask5/stellar-engine/data';
-import type { BatchOperation } from '@prabhask5/stellar-engine/types';
+} from 'stellar-drive/data';
+import type { BatchOperation } from 'stellar-drive/types';
 import type { Project, TaskCategory, Commitment, GoalList, Goal, DailyTask } from '$lib/types';
 
 // =============================================================================

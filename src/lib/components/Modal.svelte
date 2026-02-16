@@ -21,7 +21,7 @@
 
   import { fade, fly } from 'svelte/transition';
   import { cubicOut, backOut } from 'svelte/easing';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //  Props Interface

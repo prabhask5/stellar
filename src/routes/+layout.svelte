@@ -38,22 +38,18 @@
   import { browser } from '$app/environment';
 
   /* ── Stellar Engine — Auth & Stores ── */
-  import {
-    lockSingleUser,
-    resolveFirstName,
-    resolveAvatarInitial
-  } from '@prabhask5/stellar-engine/auth';
-  import { authState } from '@prabhask5/stellar-engine/stores';
-  import { debug } from '@prabhask5/stellar-engine/utils';
-  import { hydrateAuthState } from '@prabhask5/stellar-engine/kit';
-  import { isDemoMode } from '@prabhask5/stellar-engine';
+  import { lockSingleUser, resolveFirstName, resolveAvatarInitial } from 'stellar-drive/auth';
+  import { authState, hasHydrated, wasDbReset } from 'stellar-drive/stores';
+  import { debug } from 'stellar-drive/utils';
+  import { hydrateAuthState } from 'stellar-drive/kit';
+  import { isDemoMode } from 'stellar-drive';
 
   /* ── Types ── */
   import type { LayoutData } from './+layout';
 
   /* ── Components ── */
-  import SyncStatus from '@prabhask5/stellar-engine/components/SyncStatus';
-  import DemoBanner from '@prabhask5/stellar-engine/components/DemoBanner';
+  import SyncStatus from 'stellar-drive/components/SyncStatus';
+  import DemoBanner from 'stellar-drive/components/DemoBanner';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
 
   // =============================================================================
@@ -325,7 +321,7 @@
      ═══════════════════════════════════════════════════════════════════════════ -->
 <div class="app" class:authenticated={isAuthenticated} class:loading={$authState.isLoading}>
   <!-- ── Auth Loading Overlay — prevents flash during initial auth check ── -->
-  {#if $authState.isLoading && !isAuthPage}
+  {#if ($authState.isLoading || (wasDbReset() && !hasHydrated())) && !isAuthPage}
     <div class="auth-loading-overlay">
       <div class="stellar-loader">
         <div class="loader-ring loader-ring-1"></div>

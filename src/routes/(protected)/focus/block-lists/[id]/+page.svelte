@@ -21,8 +21,8 @@
   import { singleBlockListStore, blockedWebsitesStore } from '$lib/stores/focus';
   import type { BlockList, BlockedWebsite, DayOfWeek } from '$lib/types';
   import BlockListForm from '$lib/components/focus/BlockListForm.svelte';
-  import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { remoteChangeAnimation } from 'stellar-drive/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //                         COMPONENT STATE

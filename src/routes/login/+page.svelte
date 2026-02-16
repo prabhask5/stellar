@@ -37,8 +37,8 @@
     pollDeviceVerification,
     fetchRemoteGateConfig,
     linkSingleUserDevice
-  } from '@prabhask5/stellar-engine/auth';
-  import { sendDeviceVerification, isDemoMode } from '@prabhask5/stellar-engine';
+  } from 'stellar-drive/auth';
+  import { sendDeviceVerification, isDemoMode } from 'stellar-drive';
 
   // =============================================================================
   //  Layout / Page Data
@@ -383,7 +383,7 @@
     startResendCooldown();
     /* For setup confirmation → resend the signup email */
     if (showConfirmationModal) {
-      const { resendConfirmationEmail } = await import('@prabhask5/stellar-engine');
+      const { resendConfirmationEmail } = await import('stellar-drive');
       await resendConfirmationEmail(email);
     }
     /* For device verification → resend the OTP email */

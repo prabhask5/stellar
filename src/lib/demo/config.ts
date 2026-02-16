@@ -2,7 +2,7 @@
  * @fileoverview **Demo config** — Stellar demo-mode wiring.
  *
  * Exports a single `demoConfig` object that satisfies the `DemoConfig`
- * contract from `@prabhask5/stellar-engine`. This config is passed into
+ * contract from `stellar-drive`. This config is passed into
  * `initEngine({ demo: demoConfig })` in the root `+layout.ts` loader.
  *
  * The config provides two things to the engine:
@@ -20,7 +20,7 @@
  * @see {@link ../../routes/+layout.ts} — where this config is consumed
  */
 
-import type { DemoConfig } from '@prabhask5/stellar-engine';
+import type { DemoConfig } from 'stellar-drive';
 import { seedDemoData } from './mockData';
 
 /**

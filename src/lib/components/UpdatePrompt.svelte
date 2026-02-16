@@ -24,7 +24,7 @@
   // =============================================================================
 
   import { onMount, onDestroy } from 'svelte';
-  import { monitorSwLifecycle, handleSwUpdate } from '@prabhask5/stellar-engine/kit';
+  import { monitorSwLifecycle, handleSwUpdate } from 'stellar-drive/kit';
 
   // =============================================================================
   //  Component State

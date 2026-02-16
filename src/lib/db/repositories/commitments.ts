@@ -13,14 +13,14 @@
  * @module repositories/commitments
  */
 
-import { generateId, now } from '@prabhask5/stellar-engine/utils';
+import { generateId, now } from 'stellar-drive/utils';
 import {
   engineCreate,
   engineUpdate,
   engineDelete,
   engineQuery,
   reorderEntity
-} from '@prabhask5/stellar-engine/data';
+} from 'stellar-drive/data';
 import type { Commitment, CommitmentSection } from '$lib/types';
 
 // =============================================================================

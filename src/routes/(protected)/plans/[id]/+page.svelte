@@ -19,7 +19,7 @@
   // =============================================================================
 
   import { page } from '$app/stores';
-  import { resolveUserId } from '@prabhask5/stellar-engine/auth';
+  import { resolveUserId } from 'stellar-drive/auth';
 
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
@@ -43,7 +43,7 @@
   import LongTermTaskList from '$lib/components/LongTermTaskList.svelte';
   import LongTermTaskModal from '$lib/components/LongTermTaskModal.svelte';
   import LongTermTaskForm from '$lib/components/LongTermTaskForm.svelte';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //                         COMPONENT STATE

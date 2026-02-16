@@ -15,9 +15,9 @@
  * @module repositories/dailyProgress
  */
 
-import { generateId, now } from '@prabhask5/stellar-engine/utils';
-import { getDb } from '@prabhask5/stellar-engine';
-import { engineCreate, engineUpdate, engineIncrement } from '@prabhask5/stellar-engine/data';
+import { generateId, now } from 'stellar-drive/utils';
+import { getDb } from 'stellar-drive';
+import { engineCreate, engineUpdate, engineIncrement } from 'stellar-drive/data';
 import type { DailyGoalProgress } from '$lib/types';
 
 // =============================================================================
@@ -97,6 +97,7 @@ export async function upsertDailyProgress(
     date,
     current_value: currentValue,
     completed,
+    created_at: timestamp,
     updated_at: timestamp
   });
 
@@ -160,6 +161,7 @@ export async function incrementDailyProgress(
     date,
     current_value: newValue,
     completed,
+    created_at: timestamp,
     updated_at: timestamp
   });
 

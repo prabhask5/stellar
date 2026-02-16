@@ -12,13 +12,8 @@
  * @module repositories/blockedWebsites
  */
 
-import { generateId, now } from '@prabhask5/stellar-engine/utils';
-import {
-  engineCreate,
-  engineUpdate,
-  engineDelete,
-  engineQuery
-} from '@prabhask5/stellar-engine/data';
+import { generateId, now } from 'stellar-drive/utils';
+import { engineCreate, engineUpdate, engineDelete, queryByIndex } from 'stellar-drive/data';
 import type { BlockedWebsite } from '$lib/types';
 
 // =============================================================================
@@ -32,13 +27,11 @@ import type { BlockedWebsite } from '$lib/types';
  * @returns An array of active {@link BlockedWebsite} entries
  */
 export async function getBlockedWebsites(blockListId: string): Promise<BlockedWebsite[]> {
-  const websites = (await engineQuery(
+  return queryByIndex<BlockedWebsite & Record<string, unknown>>(
     'blocked_websites',
     'block_list_id',
     blockListId
-  )) as unknown as BlockedWebsite[];
-
-  return websites.filter((w) => !w.deleted);
+  ) as Promise<BlockedWebsite[]>;
 }
 
 // =============================================================================

@@ -43,13 +43,13 @@ import type {
   AgendaItemType,
   ProjectWithDetails
 } from '$lib/types';
-import { engineGetAll } from '@prabhask5/stellar-engine/data';
+import { queryAll } from 'stellar-drive/data';
 import {
   createCollectionStore,
   createDetailStore,
   onSyncComplete,
   remoteChangesStore
-} from '@prabhask5/stellar-engine/stores';
+} from 'stellar-drive/stores';
 import * as repo from '$lib/db/repositories';
 import * as queries from '$lib/db/queries';
 import { calculateGoalProgressCapped } from '$lib/utils/colors';
@@ -1213,9 +1213,7 @@ function createProjectsStore() {
       queries.getGoalLists(),
       queries.getTaskCategories(),
       queries.getLongTermTasks(),
-      (engineGetAll('goals') as Promise<unknown>).then((g) =>
-        (g as Goal[]).filter((goal) => !goal.deleted)
-      )
+      queryAll<Goal & Record<string, unknown>>('goals') as Promise<Goal[]>
     ]);
 
     return projects.map((project) => {

@@ -21,8 +21,8 @@
 
   import type { ProjectWithDetails } from '$lib/types';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
-  import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { remoteChangeAnimation } from 'stellar-drive/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //  Props Interface

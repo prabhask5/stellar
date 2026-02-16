@@ -17,9 +17,9 @@
    */
 
   import Modal from './Modal.svelte';
-  import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
-  import { calculateNewOrder } from '@prabhask5/stellar-engine/utils';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { remoteChangeAnimation } from 'stellar-drive/actions';
+  import { calculateNewOrder } from 'stellar-drive/utils';
+  import { truncateTooltip } from 'stellar-drive/actions';
   import type { Commitment, CommitmentSection } from '$lib/types';
 
   // =============================================================================

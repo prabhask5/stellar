@@ -15,7 +15,7 @@
  * @module repositories/blockLists
  */
 
-import { generateId, now } from '@prabhask5/stellar-engine/utils';
+import { generateId, now } from 'stellar-drive/utils';
 import {
   engineCreate,
   engineUpdate,
@@ -24,8 +24,9 @@ import {
   engineBatchWrite,
   reorderEntity,
   prependOrder,
-  queryOne
-} from '@prabhask5/stellar-engine/data';
+  queryOne,
+  queryByIndex
+} from 'stellar-drive/data';
 import type { BlockList, DayOfWeek } from '$lib/types';
 
 // =============================================================================
@@ -39,9 +40,9 @@ import type { BlockList, DayOfWeek } from '$lib/types';
  * @returns An array of active {@link BlockList} entries sorted ascending
  */
 export async function getBlockLists(userId: string): Promise<BlockList[]> {
-  const lists = (await engineQuery('block_lists', 'user_id', userId)) as unknown as BlockList[];
-
-  return lists.filter((l) => !l.deleted).sort((a, b) => a.order - b.order);
+  return queryByIndex<BlockList & Record<string, unknown>>('block_lists', 'user_id', userId, {
+    sortByOrder: true
+  }) as Promise<BlockList[]>;
 }
 
 /**

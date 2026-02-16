@@ -3,7 +3,7 @@
  *
  * This module exports a single async function, `seedDemoData`, that bulk-
  * inserts realistic sample records across all 13 Dexie tables used by the
- * Stellar app. The function is called by stellar-engine's demo mode infra
+ * Stellar app. The function is called by stellar-drive's demo mode infra
  * every time the app loads in demo mode (data resets on refresh).
  *
  * ## Tables seeded (13 total)
@@ -563,7 +563,6 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
   //  Unique constraint: (daily_routine_goal_id, date) — one record per
   //  routine per day.
   //
-  //  NOTE: This entity has NO `created_at` field — only `updated_at`.
   //  NOTE: This entity has NO `user_id` — ownership via parent routine.
   //
   //  We seed 3 days of history (today, yesterday, two days ago) to give
@@ -578,6 +577,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       date: toDateStr(today),
       current_value: 1,
       completed: true,
+      created_at: now.toISOString(),
       updated_at: now.toISOString(),
       ...common
     },
@@ -587,6 +587,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       date: toDateStr(today),
       current_value: 18,
       completed: false,
+      created_at: now.toISOString(),
       updated_at: now.toISOString(),
       ...common
     },
@@ -596,6 +597,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       date: toDateStr(today),
       current_value: 5,
       completed: false,
+      created_at: now.toISOString(),
       updated_at: now.toISOString(),
       ...common
     },
@@ -606,6 +608,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       date: toDateStr(yesterday),
       current_value: 1,
       completed: true,
+      created_at: yesterday.toISOString(),
       updated_at: yesterday.toISOString(),
       ...common
     },
@@ -615,6 +618,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       date: toDateStr(yesterday),
       current_value: 30,
       completed: true,
+      created_at: yesterday.toISOString(),
       updated_at: yesterday.toISOString(),
       ...common
     },
@@ -624,6 +628,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       date: toDateStr(yesterday),
       current_value: 3,
       completed: true,
+      created_at: yesterday.toISOString(),
       updated_at: yesterday.toISOString(),
       ...common
     },
@@ -633,6 +638,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       date: toDateStr(yesterday),
       current_value: 8,
       completed: true,
+      created_at: yesterday.toISOString(),
       updated_at: yesterday.toISOString(),
       ...common
     },
@@ -643,6 +649,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       date: toDateStr(twoDaysAgo),
       current_value: 0,
       completed: false,
+      created_at: twoDaysAgo.toISOString(),
       updated_at: twoDaysAgo.toISOString(),
       ...common
     },
@@ -652,6 +659,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       date: toDateStr(twoDaysAgo),
       current_value: 30,
       completed: true,
+      created_at: twoDaysAgo.toISOString(),
       updated_at: twoDaysAgo.toISOString(),
       ...common
     }

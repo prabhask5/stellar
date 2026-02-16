@@ -15,7 +15,7 @@
 
 import { browser } from '$app/environment';
 import { redirect } from '@sveltejs/kit';
-import { resolveSetupAccess } from '@prabhask5/stellar-engine/kit';
+import { resolveSetupAccess } from 'stellar-drive/kit';
 import type { PageLoad } from './$types';
 
 /**

@@ -11,7 +11,7 @@
  * @module repositories/focusSettings
  */
 
-import { engineUpdate, engineQuery, engineGetOrCreate } from '@prabhask5/stellar-engine/data';
+import { engineUpdate, engineQuery, engineGetOrCreate } from 'stellar-drive/data';
 import type { FocusSettings } from '$lib/types';
 
 // =============================================================================

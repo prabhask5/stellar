@@ -17,8 +17,8 @@
   import Modal from './Modal.svelte';
   import type { TaskCategory, AgendaItemType } from '$lib/types';
   import { getTodayDateString } from '$lib/utils/dates';
-  import { trackEditing } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { trackEditing } from 'stellar-drive/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //                                  Props

@@ -15,7 +15,7 @@
  * @module repositories/dailyRoutines
  */
 
-import { generateId, now } from '@prabhask5/stellar-engine/utils';
+import { generateId, now } from 'stellar-drive/utils';
 import {
   engineCreate,
   engineUpdate,
@@ -23,8 +23,8 @@ import {
   engineBatchWrite,
   reorderEntity,
   prependOrder
-} from '@prabhask5/stellar-engine/data';
-import type { BatchOperation } from '@prabhask5/stellar-engine/types';
+} from 'stellar-drive/data';
+import type { BatchOperation } from 'stellar-drive/types';
 import type { DailyRoutineGoal, GoalType, DayOfWeek } from '$lib/types';
 
 // =============================================================================

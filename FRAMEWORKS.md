@@ -358,7 +358,7 @@ Supabase serves as the cloud sync layer. While Stellar works fully offline using
 3. **Security** -- Row Level Security ensures that even if someone has the Supabase URL and anon key, they can only access their own data.
 4. **Real-time updates** -- WebSocket subscriptions instantly notify other open tabs/devices of changes.
 
-> **Note:** Supabase client initialization, authentication flows (including offline credential caching and PKCE), and runtime configuration management are handled by the `@stellar/sync-engine` package. See the [engine FRAMEWORKS.md](https://github.com/prabhask5/stellar-engine/blob/main/FRAMEWORKS.md) for implementation details.
+> **Note:** Supabase client initialization, authentication flows (including offline credential caching and PKCE), and runtime configuration management are handled by the `@stellar/sync-engine` package. See the [engine FRAMEWORKS.md](https://github.com/prabhask5/stellar-drive/blob/main/FRAMEWORKS.md) for implementation details.
 
 ### Runtime Configuration
 
@@ -372,7 +372,7 @@ Stellar uses runtime configuration instead of build-time environment variables. 
 
 ## 5. Sync System (@stellar/sync-engine)
 
-Stellar's sync system is provided by the `@stellar/sync-engine` package, an external dependency hosted at [github.com/prabhask5/stellar-engine](https://github.com/prabhask5/stellar-engine). See the [engine FRAMEWORKS.md](https://github.com/prabhask5/stellar-engine/blob/main/FRAMEWORKS.md) for complete documentation of the sync architecture, Supabase integration, and offline capabilities.
+Stellar's sync system is provided by the `@stellar/sync-engine` package, an external dependency hosted at [github.com/prabhask5/stellar-drive](https://github.com/prabhask5/stellar-drive). See the [engine FRAMEWORKS.md](https://github.com/prabhask5/stellar-drive/blob/main/FRAMEWORKS.md) for complete documentation of the sync architecture, Supabase integration, and offline capabilities.
 
 Stellar has zero direct dependencies on `@supabase/supabase-js` or `dexie`. All infrastructure is encapsulated by `@stellar/sync-engine` via its subpath exports (`/data`, `/auth`, `/stores`, `/utils`, `/actions`, `/config`, `/types`).
 

@@ -17,8 +17,8 @@
  * @module repositories/focusSessions
  */
 
-import { generateId, now } from '@prabhask5/stellar-engine/utils';
-import { engineCreate, engineUpdate, engineQuery, engineGet } from '@prabhask5/stellar-engine/data';
+import { generateId, now } from 'stellar-drive/utils';
+import { engineCreate, engineUpdate, engineQuery, engineGet } from 'stellar-drive/data';
 import type { FocusSession, FocusPhase } from '$lib/types';
 
 // =============================================================================

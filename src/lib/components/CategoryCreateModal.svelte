@@ -17,7 +17,7 @@
   // =============================================================================
 
   import Modal from './Modal.svelte';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //  Props Interface

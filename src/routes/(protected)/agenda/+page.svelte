@@ -19,7 +19,7 @@
 
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { resolveUserId } from '@prabhask5/stellar-engine/auth';
+  import { resolveUserId } from 'stellar-drive/auth';
 
   import {
     taskCategoriesStore,

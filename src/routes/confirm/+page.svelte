@@ -20,7 +20,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { handleEmailConfirmation, broadcastAuthConfirmed } from '@prabhask5/stellar-engine/kit';
+  import { handleEmailConfirmation, broadcastAuthConfirmed } from 'stellar-drive/kit';
 
   // =============================================================================
   //  State

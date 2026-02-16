@@ -4,7 +4,7 @@
  * This config handles two key concerns:
  *   1. **SvelteKit integration** — via the official `sveltekit()` plugin
  *   2. **PWA service worker + asset manifest** — via `stellarPWA()` from
- *      stellar-engine, which generates `static/sw.js` (with a unique build
+ *      stellar-drive, which generates `static/sw.js` (with a unique build
  *      version) and `asset-manifest.json` (listing all immutable JS/CSS
  *      chunks for background precaching)
  *
@@ -17,7 +17,7 @@
 // =============================================================================
 
 import { sveltekit } from '@sveltejs/kit/vite';
-import { stellarPWA } from '@prabhask5/stellar-engine/vite';
+import { stellarPWA } from 'stellar-drive/vite';
 import { defineConfig } from 'vite';
 
 // =============================================================================
@@ -27,7 +27,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [
     sveltekit(),
-    stellarPWA({ prefix: 'stellar', name: 'Stellar Planner' })
+    stellarPWA({ prefix: 'stellar', name: 'Stellar Planner', schema: true })
   ],
   build: {
     /**

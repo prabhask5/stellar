@@ -20,9 +20,9 @@
    */
 
   import { page } from '$app/stores';
-  import { setConfig } from '@prabhask5/stellar-engine/config';
-  import { isOnline } from '@prabhask5/stellar-engine/stores';
-  import { pollForNewServiceWorker } from '@prabhask5/stellar-engine/kit';
+  import { setConfig } from 'stellar-drive/config';
+  import { isOnline } from 'stellar-drive/stores';
+  import { pollForNewServiceWorker } from 'stellar-drive/kit';
 
   // =============================================================================
   //  Form State — Supabase + Vercel credentials

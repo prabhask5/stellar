@@ -15,7 +15,7 @@
  * @module repositories/goals
  */
 
-import { generateId, now } from '@prabhask5/stellar-engine/utils';
+import { generateId, now } from 'stellar-drive/utils';
 import {
   engineCreate,
   engineUpdate,
@@ -24,7 +24,7 @@ import {
   engineIncrement,
   reorderEntity,
   prependOrder
-} from '@prabhask5/stellar-engine/data';
+} from 'stellar-drive/data';
 import type { Goal, GoalType } from '$lib/types';
 
 // =============================================================================

@@ -23,8 +23,8 @@
   import { blockListStore, blockedWebsitesStore } from '$lib/stores/focus';
   import Modal from '$lib/components/Modal.svelte';
   import BlockListForm from './BlockListForm.svelte';
-  import { remoteChangeAnimation, triggerLocalAnimation } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { remoteChangeAnimation, triggerLocalAnimation } from 'stellar-drive/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //  Props Interface

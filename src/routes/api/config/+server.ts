@@ -8,14 +8,14 @@
 //  Supabase has been configured (i.e., environment variables are present).
 //  If not, the client redirects to the `/setup` wizard.
 //
-//  Delegates entirely to `getServerConfig()` from stellar-engine, which
+//  Delegates entirely to `getServerConfig()` from stellar-drive, which
 //  reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` from
 //  `process.env` and returns them (or `null` values when unconfigured).
 //
 // =============================================================================
 
 import { json } from '@sveltejs/kit';
-import { getServerConfig } from '@prabhask5/stellar-engine/kit';
+import { getServerConfig } from 'stellar-drive/kit';
 import type { RequestHandler } from './$types';
 
 /**

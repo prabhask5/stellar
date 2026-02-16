@@ -12,7 +12,7 @@
    * - Reset the local IndexedDB database
    * - Sign out on mobile (desktop uses navbar)
    *
-   * All engine API calls are imported from `@prabhask5/stellar-engine`.
+   * All engine API calls are imported from `stellar-drive`.
    */
 
   // =============================================================================
@@ -28,9 +28,9 @@
     completeSingleUserEmailChange,
     resolveUserId,
     resolveAvatarInitial
-  } from '@prabhask5/stellar-engine/auth';
-  import { authState } from '@prabhask5/stellar-engine/stores';
-  import { isDebugMode, setDebugMode, getDiagnostics } from '@prabhask5/stellar-engine/utils';
+  } from 'stellar-drive/auth';
+  import { authState } from 'stellar-drive/stores';
+  import { isDebugMode, setDebugMode, getDiagnostics } from 'stellar-drive/utils';
   import {
     resetDatabase,
     getTrustedDevices,
@@ -38,8 +38,8 @@
     getCurrentDeviceId,
     isDemoMode,
     getDemoConfig
-  } from '@prabhask5/stellar-engine';
-  import type { TrustedDevice, DiagnosticsSnapshot } from '@prabhask5/stellar-engine';
+  } from 'stellar-drive';
+  import type { TrustedDevice, DiagnosticsSnapshot } from 'stellar-drive';
   import { onMount, onDestroy } from 'svelte';
 
   // =============================================================================
@@ -230,6 +230,21 @@
           lastError: null,
           lastErrorDetails: null,
           recentErrors: []
+        },
+        crdt: {
+          enabled: false,
+          config: null,
+          activeDocuments: [],
+          activeDocumentCount: 0,
+          offline: {
+            documentCount: 0,
+            maxDocuments: 0,
+            totalSizeBytes: 0,
+            totalSizeFormatted: '0 B',
+            documents: []
+          },
+          pendingUpdates: [],
+          totalPendingUpdates: 0
         },
         config: {
           tableCount: 13,

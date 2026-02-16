@@ -17,8 +17,8 @@
   //  Imports
   // =============================================================================
 
-  import { remoteChangeAnimation, triggerLocalAnimation } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { remoteChangeAnimation, triggerLocalAnimation } from 'stellar-drive/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
   import type { DailyTask } from '$lib/types';
 
   // =============================================================================

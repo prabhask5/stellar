@@ -21,8 +21,8 @@
   import { scale } from 'svelte/transition';
   import type { TaskCategory, LongTermTaskWithCategory } from '$lib/types';
   import { parseDateString } from '$lib/utils/dates';
-  import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { remoteChangeAnimation } from 'stellar-drive/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //                               Constants

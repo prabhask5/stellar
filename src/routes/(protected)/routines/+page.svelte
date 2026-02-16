@@ -31,8 +31,8 @@
   import RoutineForm from '$lib/components/RoutineForm.svelte';
   import DraggableList from '$lib/components/DraggableList.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
-  import { remoteChangeAnimation } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { remoteChangeAnimation } from 'stellar-drive/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //                         COMPONENT STATE

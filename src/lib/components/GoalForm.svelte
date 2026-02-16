@@ -20,8 +20,8 @@
   // =============================================================================
 
   import type { GoalType } from '$lib/types';
-  import { trackEditing } from '@prabhask5/stellar-engine/actions';
-  import DeferredChangesBanner from '@prabhask5/stellar-engine/components/DeferredChangesBanner';
+  import { trackEditing } from 'stellar-drive/actions';
+  import DeferredChangesBanner from 'stellar-drive/components/DeferredChangesBanner';
 
   // =============================================================================
   //  Props Interface

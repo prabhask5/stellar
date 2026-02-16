@@ -7,14 +7,14 @@
 //
 //  Called by the setup wizard's "Validate" step before persisting the
 //  credentials. Delegates entirely to `createValidateHandler()` from
-//  stellar-engine, which:
+//  stellar-drive, which:
 //    1. Reads `supabaseUrl` and `supabaseAnonKey` from the JSON body.
 //    2. Attempts a Supabase client connection.
 //    3. Returns `{ valid: true }` or `{ valid: false, error: string }`.
 //
 // =============================================================================
 
-import { createValidateHandler } from '@prabhask5/stellar-engine/kit';
+import { createValidateHandler } from 'stellar-drive/kit';
 import type { RequestHandler } from './$types';
 
 /**

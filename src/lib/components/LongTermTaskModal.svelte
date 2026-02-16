@@ -21,8 +21,8 @@
   import Modal from './Modal.svelte';
   import type { LongTermTaskWithCategory, TaskCategory } from '$lib/types';
   import { parseDateString } from '$lib/utils/dates';
-  import { remoteChangeAnimation, trackEditing } from '@prabhask5/stellar-engine/actions';
-  import { truncateTooltip } from '@prabhask5/stellar-engine/actions';
+  import { remoteChangeAnimation, trackEditing } from 'stellar-drive/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //                                  Props

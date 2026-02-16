@@ -12,7 +12,7 @@ Try it at: [https://planner.prabhas.io/demo](https://planner.prabhas.io/demo)
 |----------|-------------|
 | [FRAMEWORKS.md](./FRAMEWORKS.md) | Complete guide to all frameworks and architectural patterns |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, sync engine, conflict resolution, auth flows |
-| [@stellar/sync-engine](https://github.com/prabhask5/stellar-engine) | Sync engine, auth, conflict resolution, realtime |
+| [@stellar/sync-engine](https://github.com/prabhask5/stellar-drive) | Sync engine, auth, conflict resolution, realtime |
 | [stellar-focus/](./stellar-focus/README.md) | Companion browser extension for website blocking |
 
 ---
@@ -130,7 +130,7 @@ Fork this repository to your own GitHub account. This gives you your own copy th
 | Variable | Value |
 |----------|-------|
 | `PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | Your Supabase anon key |
+| `PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon key |
 
 4. Deploy. Vercel will build and host your instance automatically.
 
@@ -197,7 +197,7 @@ Try Stellar without creating an account or setting up Supabase. Visit `/demo` in
 - Device management
 - Debug/sync tools
 
-**For developers:** Demo mode is powered by `@prabhask5/stellar-engine`'s demo infrastructure. Configuration lives in `src/lib/demo/config.ts` and mock data in `src/lib/demo/mockData.ts`. Pass a `DemoConfig` to `initEngine({ demo: ... })` to enable it.
+**For developers:** Demo mode is powered by `stellar-drive`'s demo infrastructure. Configuration lives in `src/lib/demo/config.ts` and mock data in `src/lib/demo/mockData.ts`. Pass a `DemoConfig` to `initEngine({ demo: ... })` to enable it.
 
 ---
 
@@ -218,7 +218,7 @@ These are set in your Vercel project settings:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL |
-| `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | Yes | Your Supabase anon/public key |
+| `PUBLIC_SUPABASE_ANON_KEY` | Yes | Your Supabase anon/public key |
 
 ### Updating Configuration
 

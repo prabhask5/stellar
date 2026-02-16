@@ -19,7 +19,7 @@
   // =============================================================================
 
   import type { Snippet } from 'svelte';
-  import { calculateNewOrder } from '@prabhask5/stellar-engine/utils';
+  import { calculateNewOrder } from 'stellar-drive/utils';
 
   // =============================================================================
   //  Props Interface

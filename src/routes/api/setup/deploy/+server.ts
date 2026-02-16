@@ -10,13 +10,13 @@
 //    1. Validates that all required fields are present.
 //    2. Ensures `VERCEL_PROJECT_ID` exists (this endpoint only works
 //       when the app is hosted on Vercel).
-//    3. Delegates to `deployToVercel()` from stellar-engine, which
+//    3. Delegates to `deployToVercel()` from stellar-drive, which
 //       sets the env vars via the Vercel API and creates a new deployment.
 //
 // =============================================================================
 
 import { json } from '@sveltejs/kit';
-import { deployToVercel } from '@prabhask5/stellar-engine/kit';
+import { deployToVercel } from 'stellar-drive/kit';
 import type { RequestHandler } from './$types';
 
 /**
