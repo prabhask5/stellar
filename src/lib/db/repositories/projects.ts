@@ -13,8 +13,8 @@
  * Cascade behaviour:
  * - **Create** — atomically creates project + tag + commitment + goal list
  * - **Rename** — batch-updates project + tag + commitment + goal list names
- * - **Delete** — soft-deletes all goals, goal list, tag (unlinking tasks),
- *   commitment, and the project itself
+ * - **Delete** — cascade-deletes all goals, goal list, tagged long-term tasks
+ *   (and their linked daily tasks), tag, commitment, and the project itself
  *
  * Table: `projects`
  * Children: `task_categories`, `commitments`, `goal_lists` (all via `project_id`)
@@ -32,7 +32,7 @@ import {
   prependOrder
 } from '@prabhask5/stellar-engine/data';
 import type { BatchOperation } from '@prabhask5/stellar-engine/types';
-import type { Project, TaskCategory, Commitment, GoalList, Goal } from '$lib/types';
+import type { Project, TaskCategory, Commitment, GoalList, Goal, DailyTask } from '$lib/types';
 
 // =============================================================================
 //                              Constants
@@ -242,12 +242,25 @@ export async function deleteProject(id: string): Promise<void> {
     ? ((await engineQuery('goals', 'goal_list_id', project.goal_list_id)) as unknown as Goal[])
     : [];
 
-  /* ── Find tasks that reference the project's tag (to unlink, not delete) ──── */
+  /* ── Find long-term tasks tagged with the project's tag ──── */
   const tasksWithTag = project.tag_id
     ? ((await engineQuery('long_term_agenda', 'category_id', project.tag_id)) as unknown as Array<{
         id: string;
       }>)
     : [];
+
+  /* ── Find linked daily tasks for each long-term task (for cascade delete) ──── */
+  const linkedDailyTasks: DailyTask[] = [];
+  for (const task of tasksWithTag) {
+    const dailyTasks = (await engineQuery(
+      'daily_tasks',
+      'long_term_task_id',
+      task.id
+    )) as unknown as DailyTask[];
+    for (const dt of dailyTasks) {
+      if (!dt.deleted) linkedDailyTasks.push(dt);
+    }
+  }
 
   const ops: BatchOperation[] = [];
 
@@ -261,14 +274,14 @@ export async function deleteProject(id: string): Promise<void> {
     ops.push({ type: 'delete', table: 'goal_lists', id: project.goal_list_id });
   }
 
-  /* ── Unlink tasks from the tag before deleting it ──── */
+  /* ── Delete linked daily tasks ──── */
+  for (const dt of linkedDailyTasks) {
+    ops.push({ type: 'delete', table: 'daily_tasks', id: dt.id });
+  }
+
+  /* ── Delete long-term tasks tagged with the project ──── */
   for (const task of tasksWithTag) {
-    ops.push({
-      type: 'update',
-      table: 'long_term_agenda',
-      id: task.id,
-      fields: { category_id: null }
-    });
+    ops.push({ type: 'delete', table: 'long_term_agenda', id: task.id });
   }
 
   /* ── Delete the tag ──── */

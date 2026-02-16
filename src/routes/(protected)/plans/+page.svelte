@@ -186,12 +186,13 @@
     }
   }
 
-  /** Delete a project and its associated goal list, tag, and commitment. */
+  /** Delete a project and all associated entities. */
   async function handleDeleteProject(id: string) {
     const confirmed = confirm(
       'Are you sure you want to delete this project? This will also delete:\n\n' +
         "- The project's goal list and all its goals\n" +
-        "- The project's tag (tasks using this tag will become untagged)\n" +
+        '- All tasks tagged with the project (and their linked daily tasks)\n' +
+        "- The project's tag\n" +
         "- The project's commitment"
     );
     if (!confirmed) return;
