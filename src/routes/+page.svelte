@@ -986,15 +986,17 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 300px;
-    height: 150px;
+    width: 500px;
+    height: 300px;
     background: radial-gradient(
       ellipse,
-      rgba(108, 92, 231, 0.3) 0%,
-      rgba(255, 121, 198, 0.1) 50%,
-      transparent 70%
+      rgba(108, 92, 231, 0.35) 0%,
+      rgba(255, 121, 198, 0.12) 30%,
+      rgba(108, 92, 231, 0.05) 50%,
+      transparent 65%
     );
-    filter: blur(40px);
+    filter: blur(60px);
+    border-radius: 50%;
     animation: greetingGlow 4s ease-in-out infinite;
   }
 
@@ -1288,8 +1290,8 @@
     }
 
     .greeting-glow {
-      width: 200px;
-      height: 100px;
+      width: 320px;
+      height: 200px;
     }
   }
 
