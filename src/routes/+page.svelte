@@ -285,7 +285,6 @@
     <!-- ── Central Content — greeting and compliment ── -->
     <div class="content">
       <div class="greeting-wrapper">
-        <div class="greeting-glow"></div>
         <h1 class="greeting">
           <span class="greeting-hello" class:greeting-transitioning={isGreetingTransitioning}
             >{timeGreeting},</span
@@ -978,37 +977,24 @@
     position: relative;
     display: inline-block;
     margin-bottom: 1.5rem;
-  }
-
-  /* Blurred glow behind the greeting text */
-  .greeting-glow {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 500px;
-    height: 300px;
-    background: radial-gradient(
-      ellipse,
-      rgba(108, 92, 231, 0.35) 0%,
-      rgba(255, 121, 198, 0.12) 30%,
-      rgba(108, 92, 231, 0.05) 50%,
-      transparent 65%
-    );
-    filter: blur(60px);
     border-radius: 50%;
-    animation: greetingGlow 4s ease-in-out infinite;
+    box-shadow:
+      0 0 60px 30px rgba(108, 92, 231, 0.15),
+      0 0 120px 60px rgba(255, 121, 198, 0.06);
+    animation: greetingWrapperGlow 4s ease-in-out infinite;
   }
 
-  @keyframes greetingGlow {
+  @keyframes greetingWrapperGlow {
     0%,
     100% {
-      opacity: 0.6;
-      transform: translate(-50%, -50%) scale(1);
+      box-shadow:
+        0 0 60px 30px rgba(108, 92, 231, 0.15),
+        0 0 120px 60px rgba(255, 121, 198, 0.06);
     }
     50% {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1.2);
+      box-shadow:
+        0 0 80px 40px rgba(108, 92, 231, 0.22),
+        0 0 150px 80px rgba(255, 121, 198, 0.09);
     }
   }
 
@@ -1289,9 +1275,10 @@
       width: 60px;
     }
 
-    .greeting-glow {
-      width: 320px;
-      height: 200px;
+    .greeting-wrapper {
+      box-shadow:
+        0 0 40px 20px rgba(108, 92, 231, 0.12),
+        0 0 80px 40px rgba(255, 121, 198, 0.05);
     }
   }
 
@@ -1304,7 +1291,7 @@
     .shooting-star,
     .particle,
     .star,
-    .greeting-glow {
+    .greeting-wrapper {
       animation: none;
     }
 
