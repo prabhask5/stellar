@@ -44,8 +44,8 @@
   //  Layout / Page Data
   // =============================================================================
 
-  /** Whether the single-user account has already been set up on this device */
-  const singleUserSetUp = $derived($page.data.singleUserSetUp);
+  /** Whether this device has a linked single-user account (derived from IndexedDB, not layout data) */
+  let deviceLinked = $state(false);
 
   /** Post-login redirect URL extracted from `?redirect=` query param */
   const redirectUrl = $derived($page.url.searchParams.get('redirect') || '/');
@@ -208,15 +208,14 @@
       return;
     }
 
-    /* ── Existing local account → fetch user info for the welcome card ──── */
-    if (singleUserSetUp) {
-      const info = await getSingleUserInfo();
-      if (info) {
-        userInfo = {
-          firstName: (info.profile.firstName as string) || '',
-          lastName: (info.profile.lastName as string) || ''
-        };
-      }
+    /* ── Check if this device has a local account ──── */
+    const info = await getSingleUserInfo();
+    if (info) {
+      userInfo = {
+        firstName: (info.profile.firstName as string) || '',
+        lastName: (info.profile.lastName as string) || ''
+      };
+      deviceLinked = true;
     } else {
       /* ── No local setup → check for a remote user to link to ──── */
       const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
@@ -753,7 +752,7 @@
 </script>
 
 <svelte:head>
-  <title>{singleUserSetUp ? 'Unlock' : 'Welcome'} - Stellar Planner</title>
+  <title>{deviceLinked ? 'Unlock' : 'Welcome'} - Stellar Planner</title>
 </svelte:head>
 
 <!-- ═══ Page Root — cosmic-themed full-viewport login ═══ -->
@@ -844,7 +843,7 @@
     </div>
 
     <!-- ═══ Mode: Unlock (returning user) ═══ -->
-    {#if singleUserSetUp}
+    {#if deviceLinked}
       <div class="login-card" class:shake={shaking}>
         <div class="card-glow"></div>
         <div class="card-inner">

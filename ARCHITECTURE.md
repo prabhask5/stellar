@@ -322,10 +322,10 @@ If `deviceVerification` is enabled, a `trusted_devices` table is required in Sup
 
 **File**: `src/routes/login/+page.svelte`
 
-The login page has two modes, determined by the `singleUserSetUp` flag from `resolveAuthState()`:
+The login page has two modes, determined by a `deviceLinked` local state derived from `getSingleUserInfo()` (checked in `onMount`):
 
-| `singleUserSetUp` | Mode | UI |
-|-------------------|------|-----|
+| `deviceLinked` | Mode | UI |
+|----------------|------|-----|
 | `false` | **Setup** | First name, last name, email, create 6-digit code + confirm code |
 | `true` | **Unlock** | Shows user avatar/name, enter 6-digit code |
 

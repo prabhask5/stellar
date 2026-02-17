@@ -39,26 +39,45 @@
     <div class="content" id="content">
       <div class="content-glow"></div>
       <h1 class="title">Privacy</h1>
-      <p class="policy-text">
-        This is a self-hosted app, so your goals, tasks, routines, and focus sessions data are only
-        managed by you and never sold. Who would want that anyway?
-      </p>
-      <a href="#" class="back-link" id="backLink">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="19" y1="12" x2="5" y2="12" />
-          <polyline points="12 19 5 12 12 5" />
-        </svg>
-        Back to Stellar Focus
-      </a>
+
+      <div class="policy-sections">
+        <section class="policy-section">
+          <h2 class="section-title">Stellar Focus — Browser Extension</h2>
+          <p class="policy-text">
+            Stellar Focus is a companion browser extension for
+            <a href="https://github.com/prabhask5/stellar" target="_blank" rel="noopener noreferrer" class="policy-link">Stellar</a>,
+            an open-source, self-hosted personal planning application. The extension integrates with your
+            self-hosted Stellar instance to enforce website blocking during focus sessions. All data is
+            completely self-hosted — you own and control everything.
+          </p>
+
+          <h3 class="subsection-title">Extension Permissions</h3>
+          <ul class="permissions-list">
+            <li><span class="perm-label">storage</span> — Stores extension configuration (Supabase connection URL, sync preferences, block list settings) locally in the browser's extension storage area. No data is sent externally.</li>
+            <li><span class="perm-label">tabs</span> — Reads the URL of the active tab to check whether it matches a site on your personal block list during active focus sessions. Used solely for blocking — no browsing history is recorded or transmitted.</li>
+            <li><span class="perm-label">webNavigation</span> — Detects in-page navigations to enforce blocking on sites that load content dynamically without full page reloads. No navigation data is stored or sent externally.</li>
+            <li><span class="perm-label">alarms</span> — Schedules background timers for periodic sync checks with your Supabase instance and focus session countdown events. Alarms run locally.</li>
+            <li><span class="perm-label">host_permissions (<code>&lt;all_urls&gt;</code>)</span> — Required to intercept and redirect navigation to any URL that appears on your custom block list during focus sessions. Without this permission, the extension cannot block arbitrary sites.</li>
+          </ul>
+
+          <h3 class="subsection-title">Firefox Data Collection Disclosure</h3>
+          <ul class="permissions-list">
+            <li><span class="perm-label">authenticationInfo</span> — Supabase connection credentials (URL + publishable key) are stored locally in the browser extension storage to authenticate with your self-hosted database. These never leave your browser.</li>
+            <li><span class="perm-label">personallyIdentifyingInfo</span> — Your email address is used for Supabase authentication and is stored in your own self-hosted database. No personal information is collected by the extension developer.</li>
+          </ul>
+
+          <h3 class="subsection-title">Data Handling</h3>
+          <p class="policy-text">
+            All data synced between Stellar Focus and Stellar is transmitted directly to your self-hosted
+            Supabase instance. No data passes through any intermediary server. No data is sold, shared,
+            or accessible to anyone other than you.
+          </p>
+
+          <p class="policy-text source-text">
+            Open-source at <a href="https://github.com/prabhask5/stellar" target="_blank" rel="noopener noreferrer" class="policy-link">github.com/prabhask5/stellar</a>
+          </p>
+        </section>
+      </div>
     </div>
   </div>
 

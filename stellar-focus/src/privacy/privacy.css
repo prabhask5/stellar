@@ -366,7 +366,9 @@ body {
   z-index: 10;
   text-align: center;
   padding: 2rem;
-  max-width: 500px;
+  max-width: 700px;
+  overflow-y: auto;
+  max-height: calc(100vh - 64px);
   opacity: 0;
   transform: translateY(30px) scale(0.95);
   transition:
@@ -447,27 +449,98 @@ body {
   margin: 0 0 2rem;
 }
 
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9375rem;
+/* Policy sections */
+.policy-sections {
+  text-align: left;
+}
+
+.policy-section {
+  margin-top: 1rem;
+}
+
+.section-title {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 1rem;
+  background: linear-gradient(135deg, var(--color-text) 0%, var(--color-primary-light) 50%, var(--color-text) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subsection-title {
+  font-size: clamp(1rem, 3vw, 1.25rem);
   font-weight: 600;
+  color: var(--color-primary-light);
+  margin: 1.5rem 0 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+.permissions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.permissions-list li {
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
   color: var(--color-text-muted);
+  line-height: 1.7;
+  padding-left: 1rem;
+  border-left: 2px solid rgba(108, 92, 231, 0.3);
+}
+
+.perm-label {
+  color: var(--color-primary-light);
+  font-weight: 600;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.9em;
+}
+
+.perm-label code {
+  color: var(--color-accent);
+  font-size: 0.9em;
+}
+
+.policy-link {
+  color: var(--color-primary-light);
   text-decoration: none;
+  border-bottom: 1px solid rgba(108, 92, 231, 0.3);
   transition: all 0.3s ease;
 }
 
-.back-link:hover {
-  color: var(--color-primary-light);
+.policy-link:hover {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
 }
 
-.back-link:hover svg {
-  transform: translateX(-4px);
+.source-text {
+  margin-top: 1.5rem;
+  font-style: italic;
+  opacity: 0.8;
 }
 
-.back-link svg {
-  transition: transform 0.3s ease;
+/* Scrollbar styling */
+.content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: rgba(108, 92, 231, 0.3);
+  border-radius: 2px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: rgba(108, 92, 231, 0.5);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════

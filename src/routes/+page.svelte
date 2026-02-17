@@ -28,8 +28,7 @@
   //  Imports
   // =============================================================================
 
-  /* ── SvelteKit Utilities ── */
-  import { goto } from '$app/navigation';
+  /* ── Svelte Lifecycle ── */
   import { onMount, onDestroy } from 'svelte';
 
   /* ── Stellar Engine — Stores & Auth ── */
@@ -201,19 +200,8 @@
   //  Reactive Effects
   // =============================================================================
 
-  /**
-   * Effect: auth redirect guard.
-   *
-   * Once the auth store finishes loading and resolves to `'none'` (no session),
-   * redirect to `/login` with a `redirect` query param so the login page knows
-   * this was an automatic redirect rather than direct navigation.
-   */
-  $effect(() => {
-    if (!$authState.isLoading && $authState.mode === 'none') {
-      // Include redirect param so login page knows this was a redirect, not direct navigation
-      goto('/login?redirect=%2F', { replaceState: true });
-    }
-  });
+  /* Auth redirect is now handled by the root layout (+layout.ts) via
+     PUBLIC_ROUTES — no inline guard needed here. */
 
   // =============================================================================
   //  Lifecycle — Destroy

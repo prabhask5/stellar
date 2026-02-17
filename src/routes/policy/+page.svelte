@@ -5,8 +5,8 @@
 
   A visually immersive privacy policy page with a full cosmic background —
   animated starfields, nebula clouds, orbital rings, shooting stars, and
-  floating particles. The actual policy content is minimal (self-hosted app,
-  no data sold) but the presentation matches Stellar's space theme.
+  floating particles. Contains structured privacy policy content for both
+  the Stellar app and the Stellar Focus browser extension.
 
   Layout:
     - Fixed full-screen container with deep-space gradient background
@@ -15,7 +15,7 @@
     - Three concentric orbital rings with orbiting particles
     - Three shooting stars on staggered timers
     - 15 randomly-positioned floating particles
-    - Centered content card with fade-in entrance animation
+    - Centered scrollable content card with fade-in entrance animation
 
   Accessibility:
     - All animations disabled under `prefers-reduced-motion: reduce`
@@ -102,26 +102,73 @@
     <!-- Ambient glow behind the text — pulsing purple/pink radial gradient -->
     <div class="content-glow"></div>
     <h1 class="title">Privacy</h1>
-    <p class="policy-text">
-      This is a self-hosted app, so your goals, tasks, routines, and focus sessions data are only
-      managed by you and never sold. Who would want that anyway?
-    </p>
-    <a href="/" class="back-link">
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <line x1="19" y1="12" x2="5" y2="12" />
-        <polyline points="12 19 5 12 12 5" />
-      </svg>
-      Back to Stellar
-    </a>
+
+    <div class="content-scroll">
+      <!-- Section 1: Stellar Privacy Policy -->
+      <section class="policy-section">
+        <h2 class="section-heading">Stellar Privacy Policy</h2>
+        <p class="policy-text">
+          Stellar is a fully self-hosted personal planning application. You deploy it to your own
+          Vercel account and configure your own Supabase database. All data — goals, tasks,
+          routines, and focus sessions — is stored exclusively in your own database instance. No
+          data is collected, transmitted to, or accessible by the developer or any third party. No
+          telemetry, no analytics, no tracking. You are the sole owner and manager of your data.
+        </p>
+      </section>
+
+      <div class="section-divider"></div>
+
+      <!-- Section 2: Stellar Focus — Browser Extension -->
+      <section class="policy-section">
+        <h2 class="section-heading">Stellar Focus — Browser Extension</h2>
+        <p class="policy-text">
+          Stellar Focus is a companion browser extension that integrates with your self-hosted
+          Stellar instance to enforce website blocking during focus sessions.
+        </p>
+
+        <ul class="permissions-list">
+          <li>
+            <span class="permission-label">storage</span>: Stores extension configuration (Supabase
+            connection URL, sync preferences, block list settings) locally in the browser's
+            extension storage area. No data is sent externally.
+          </li>
+          <li>
+            <span class="permission-label">tabs</span>: Reads the URL of the active tab to check
+            whether it matches a site on your personal block list during active focus sessions. Used
+            solely for blocking — no browsing history is recorded or transmitted.
+          </li>
+          <li>
+            <span class="permission-label">webNavigation</span>: Detects in-page navigations to
+            enforce blocking on sites that load content dynamically without full page reloads. No
+            navigation data is stored or sent externally.
+          </li>
+          <li>
+            <span class="permission-label">alarms</span>: Schedules background timers for periodic
+            sync checks with your Supabase instance and focus session countdown events. Alarms run
+            locally.
+          </li>
+          <li>
+            <span class="permission-label">host_permissions (<code>&lt;all_urls&gt;</code>)</span>:
+            Required to intercept and redirect navigation to any URL that appears on your custom
+            block list during focus sessions. Without this permission, the extension cannot block
+            arbitrary sites.
+          </li>
+        </ul>
+
+        <p class="policy-text">
+          All data synced between Stellar Focus and Stellar is transmitted directly to your
+          self-hosted Supabase instance. No data passes through any intermediary server. No data is
+          sold, shared, or accessible to anyone other than you.
+        </p>
+
+        <p class="policy-text source-text">
+          Open-source at
+          <a href="https://github.com/prabhask5/stellar" target="_blank" rel="noopener noreferrer">
+            github.com/prabhask5/stellar
+          </a>
+        </p>
+      </section>
+    </div>
   </div>
 </div>
 
@@ -534,7 +581,8 @@
     z-index: 10;
     text-align: center;
     padding: 2rem;
-    max-width: 500px;
+    max-width: 700px;
+    width: 100%;
     /* Start hidden and offset — `.visible` class triggers the transition */
     opacity: 0;
     transform: translateY(30px) scale(0.95);
@@ -546,6 +594,32 @@
   .content.visible {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+
+  /* Scrollable content area for longer policy text */
+  .content-scroll {
+    overflow-y: auto;
+    max-height: calc(100vh - 128px);
+    padding: 0 0.5rem;
+    text-align: left;
+  }
+
+  /* Subtle scrollbar styling */
+  .content-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .content-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .content-scroll::-webkit-scrollbar-thumb {
+    background: rgba(108, 92, 231, 0.3);
+    border-radius: 4px;
+  }
+
+  .content-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(108, 92, 231, 0.5);
   }
 
   /* Ambient purple/pink glow behind the text — pulsing radial gradient */
@@ -610,38 +684,98 @@
     }
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     POLICY SECTIONS — Structured content areas with gradient headings
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .policy-section {
+    padding: 1rem 0;
+  }
+
+  /* Section headings — gradient text like the title but smaller */
+  .section-heading {
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 1rem;
+    background: linear-gradient(
+      135deg,
+      var(--color-text) 0%,
+      var(--color-primary-light) 25%,
+      var(--color-accent) 50%,
+      var(--color-primary-light) 75%,
+      var(--color-text) 100%
+    );
+    background-size: 300% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: titleShimmer 8s linear infinite;
+  }
+
+  /* Subtle gradient divider between sections */
+  .section-divider {
+    height: 1px;
+    margin: 2rem 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(108, 92, 231, 0.4) 20%,
+      rgba(255, 121, 198, 0.4) 50%,
+      rgba(108, 92, 231, 0.4) 80%,
+      transparent 100%
+    );
+  }
+
   /* Policy body text — muted color, fluid font size */
   .policy-text {
-    font-size: clamp(1rem, 3vw, 1.25rem);
+    font-size: clamp(1rem, 3vw, 1.125rem);
     color: var(--color-text-muted);
     font-weight: 500;
-    line-height: 1.6;
-    margin: 0 0 2rem;
+    line-height: 1.7;
+    margin: 0 0 1.25rem;
   }
 
-  /* "Back to Stellar" navigation link with arrow icon hover animation */
-  .back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
+  /* Permissions list styling */
+  .permissions-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .permissions-list li {
+    font-size: clamp(0.9375rem, 2.5vw, 1.0625rem);
     color: var(--color-text-muted);
-    text-decoration: none;
-    transition: all 0.3s ease;
+    line-height: 1.7;
+    padding-left: 1rem;
+    border-left: 2px solid rgba(108, 92, 231, 0.2);
   }
 
-  .back-link:hover {
+  .permission-label {
     color: var(--color-primary-light);
+    font-weight: 600;
   }
 
-  /* Arrow slides left on hover for a "go back" visual cue */
-  .back-link:hover svg {
-    transform: translateX(-4px);
+  .permissions-list code {
+    font-family: inherit;
+    font-size: 0.9em;
+    color: var(--color-primary-light);
+    opacity: 0.8;
   }
 
-  .back-link svg {
-    transition: transform 0.3s ease;
+  /* Source link styling */
+  .source-text a {
+    color: var(--color-primary-light);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+  }
+
+  .source-text a:hover {
+    color: var(--color-accent);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
@@ -740,7 +874,8 @@
     .shooting-star,
     .particle,
     .content-glow,
-    .title {
+    .title,
+    .section-heading {
       animation: none;
     }
 

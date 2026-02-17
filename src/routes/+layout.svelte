@@ -51,6 +51,7 @@
   import SyncStatus from 'stellar-drive/components/SyncStatus';
   import DemoBanner from 'stellar-drive/components/DemoBanner';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
+  import PageStarfield from '$lib/components/PageStarfield.svelte';
 
   // =============================================================================
   //  Props
@@ -245,6 +246,17 @@
   const isAuthPage = $derived(isOnLoginPage || isSetupNoAuth || isOnDemoPage);
   const isAuthenticated = $derived(
     data.authMode !== 'none' && !isAuthPage && !$authState.isLoading
+  );
+
+  /** Pages that provide their own background (home has starfield, auth pages have their own). */
+  const NON_STARFIELD_PATHS = ['/', '/login', '/setup', '/policy', '/demo', '/confirm'];
+
+  /**
+   * Whether to show the ambient page starfield background.
+   * Disabled on the home page (has its own elaborate starfield) and auth/public pages.
+   */
+  const showStarfield = $derived(
+    !NON_STARFIELD_PATHS.includes($page.url.pathname) && !$page.url.pathname.startsWith('/confirm')
   );
 
   // =============================================================================
@@ -671,6 +683,13 @@
         </div>
       </div>
     </nav>
+  {/if}
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       Ambient Starfield Background (from former protected layout)
+       ═══════════════════════════════════════════════════════════════════════ -->
+  {#if showStarfield}
+    <PageStarfield />
   {/if}
 
   <!-- ═══════════════════════════════════════════════════════════════════════

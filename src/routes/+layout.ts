@@ -52,6 +52,13 @@ export const prerender = false;
 export type { RootLayoutData as LayoutData };
 
 // =============================================================================
+//  Public Routes
+// =============================================================================
+
+/** Routes accessible without authentication. */
+const PUBLIC_ROUTES = ['/policy', '/login', '/demo', '/confirm', '/setup'];
+
+// =============================================================================
 //  Engine Bootstrap (Browser Only — Runs Once at Module Scope)
 // =============================================================================
 
@@ -103,26 +110,34 @@ if (browser) {
  * **Universal (client + server) load function** for the root layout.
  *
  * - **Browser**: Delegates to `resolveRootLayout()` which initialises config,
- *   resolves the current auth state, and starts the sync engine. If no Supabase
- *   config exists (first-time setup), redirects to `/setup`.
+ *   resolves the current auth state, and starts the sync engine. Auth guarding
+ *   redirects to `/setup` (if server unconfigured) or `/login` (if locked).
  * - **Server (SSR)**: Returns a neutral "no auth" payload since all auth
  *   resolution happens exclusively in the browser (cookies / IndexedDB).
  *
- * @param url - The current page URL (used by `resolveRootLayout` to determine
- *              whether to start the sync engine on the current route).
  * @returns Resolved `RootLayoutData` with session, auth mode, offline profile,
- *          and single-user setup status.
+ *          and server configuration status.
  */
 export const load: LayoutLoad = async ({ url }): Promise<RootLayoutData> => {
   if (browser) {
-    const result = await resolveRootLayout(url);
+    const result = await resolveRootLayout();
 
-    if (!result.singleUserSetUp && result.authMode === 'none' && url.pathname !== '/setup') {
-      redirect(307, '/setup');
+    const isPublicRoute = PUBLIC_ROUTES.some((r) => url.pathname.startsWith(r));
+    if (result.authMode === 'none' && !isPublicRoute) {
+      if (!result.serverConfigured) {
+        redirect(307, '/setup');
+      } else {
+        const returnUrl = url.pathname + url.search;
+        const loginUrl =
+          returnUrl && returnUrl !== '/'
+            ? `/login?redirect=${encodeURIComponent(returnUrl)}`
+            : '/login';
+        redirect(307, loginUrl);
+      }
     }
 
     return result;
   }
 
-  return { session: null, authMode: 'none', offlineProfile: null, singleUserSetUp: false };
+  return { session: null, authMode: 'none', offlineProfile: null, serverConfigured: false };
 };
