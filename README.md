@@ -20,13 +20,13 @@ Try it at: [https://planner.prabhas.io/demo](https://planner.prabhas.io/demo)
 ## Table of Contents
 
 1. [Features](#features)
-2. [Setup Guide to Self-Host](#setup-guide-to-self-host)
-3. [Mobile Installation](#mobile-installation)
-4. [Demo Mode](#demo-mode)
-5. [Configuration](#configuration)
-6. [Tech Stack](#tech-stack)
-7. [Debug Mode](#debug-mode)
-8. [Companion Extension](#companion-extension)
+2. [Companion Extension](#companion-extension)
+3. [Setup Guide to Self-Host](#setup-guide-to-self-host)
+4. [Mobile Installation](#mobile-installation)
+5. [Demo Mode](#demo-mode)
+6. [Configuration](#configuration)
+7. [Tech Stack](#tech-stack)
+8. [Debug Mode](#debug-mode)
 
 ---
 
@@ -87,6 +87,25 @@ Try it at: [https://planner.prabhas.io/demo](https://planner.prabhas.io/demo)
 - **Responsive Design**: Optimized layouts for iPhone (including Dynamic Island), Android, tablet, and desktop.
 - **Drag-and-Drop**: All lists support drag-to-reorder with smooth animations.
 - **Sync Indicator**: Real-time visual feedback showing sync status (synced, syncing, pending, offline, error) with detailed error tooltips.
+
+---
+
+## Companion Extension
+
+**Stellar Focus** is a browser extension that blocks distracting websites during focus sessions managed in Stellar.
+
+- Blocks sites only during active focus phases (breaks and pauses allow full access)
+- Real-time sync via Supabase Realtime WebSockets
+- Day-of-week scheduling for block lists
+- Subdomain matching
+- Fail-safe design: never blocks when offline or uncertain
+- Beautiful space-themed blocking page with animated spiral galaxy
+
+**Install:**
+- [Chrome Web Store](https://chromewebstore.google.com/detail/stellar-focus/eppioehchokbecpepjkkcedffakhepfo)
+- [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/stellar-focus/)
+
+See [stellar-focus/README.md](./stellar-focus/README.md) for full documentation.
 
 ---
 
@@ -280,25 +299,6 @@ navigator.serviceWorker.addEventListener('message', e => {
 });
 // Output: { cached: 78, total: 78, ready: true, version: "..." }
 ```
-
----
-
-## Companion Extension
-
-**Stellar Focus** is a browser extension that blocks distracting websites during focus sessions managed in Stellar.
-
-- Blocks sites only during active focus phases (breaks and pauses allow full access)
-- Real-time sync via Supabase Realtime WebSockets
-- Day-of-week scheduling for block lists
-- Subdomain matching
-- Fail-safe design: never blocks when offline or uncertain
-- Beautiful space-themed blocking page with animated spiral galaxy
-
-**Install:**
-- [Chrome Web Store](https://chromewebstore.google.com/detail/stellar-focus/eppioehchokbecpepjkkcedffakhepfo)
-- [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/stellar-focus/)
-
-See [stellar-focus/README.md](./stellar-focus/README.md) for full documentation.
 
 ---
 
