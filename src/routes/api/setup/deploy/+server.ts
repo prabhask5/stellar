@@ -27,7 +27,7 @@ import type { RequestHandler } from './$types';
  * - `supabaseAnonKey` — The project's Supabase anonymous/public key
  * - `vercelToken` — A Vercel personal access token with deploy permissions
  *
- * Writes `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` as Vercel
+ * Writes `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` as Vercel
  * env vars, then triggers a production redeployment.
  *
  * @returns JSON `{ success: true }` on success, or

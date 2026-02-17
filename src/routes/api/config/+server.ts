@@ -9,7 +9,7 @@
 //  If not, the client redirects to the `/setup` wizard.
 //
 //  Delegates entirely to `getServerConfig()` from stellar-drive, which
-//  reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` from
+//  reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` from
 //  `process.env` and returns them (or `null` values when unconfigured).
 //
 // =============================================================================
@@ -21,7 +21,7 @@ import type { RequestHandler } from './$types';
 /**
  * **GET /api/config** — Retrieve the current Supabase configuration.
  *
- * Reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` from the
+ * Reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` from the
  * server environment and returns them as JSON. The client uses this to
  * initialise the Supabase client or detect that setup is required.
  *

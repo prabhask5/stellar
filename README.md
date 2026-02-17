@@ -130,7 +130,7 @@ Fork this repository to your own GitHub account. This gives you your own copy th
 | Variable | Value |
 |----------|-------|
 | `PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `PUBLIC_SUPABASE_ANON_KEY` | Your Supabase anon key |
+| `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | Your Supabase anon key |
 
 4. Deploy. Vercel will build and host your instance automatically.
 
@@ -218,7 +218,7 @@ These are set in your Vercel project settings:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL |
-| `PUBLIC_SUPABASE_ANON_KEY` | Yes | Your Supabase anon/public key |
+| `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | Yes | Your Supabase anon/public key |
 
 ### Updating Configuration
 
