@@ -66,6 +66,9 @@
   /** Set to `true` after the component mounts — enables entrance animation */
   let mounted = $state(false);
 
+  /** `true` while the initial auth state is being resolved (prevents card flash) */
+  let resolving = $state(true);
+
   // =============================================================================
   //  Setup Mode State (step 1 → email/name, step 2 → PIN creation)
   // =============================================================================
@@ -233,6 +236,9 @@
         }
       }
     }
+
+    /* ── Initial resolution complete — show the appropriate card ──── */
+    resolving = false;
 
     /* ── Listen for auth confirmation from the `/confirm` page ──── */
     try {
@@ -602,9 +608,10 @@
         startResendCooldown();
         return;
       }
-      /* No confirmation needed → go straight to the app */
+      /* No confirmation needed → go straight to the app (keep loading=true to avoid flash) */
       await invalidateAll();
       goto('/');
+      return;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Setup failed. Please try again.';
       shaking = true;
@@ -614,9 +621,8 @@
       codeDigits = ['', '', '', '', '', ''];
       confirmDigits = ['', '', '', '', '', ''];
       if (codeInputs[0]) codeInputs[0].focus();
-    } finally {
-      loading = false;
     }
+    loading = false;
   }
 
   // =============================================================================
@@ -662,9 +668,10 @@
         startVerificationPolling();
         return;
       }
-      /* Success → navigate to the redirect target */
+      /* Success → navigate to the redirect target (keep loading=true to avoid PIN flash) */
       await invalidateAll();
       goto(redirectUrl);
+      return;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Incorrect code';
       shaking = true;
@@ -672,12 +679,11 @@
         shaking = false;
       }, 500);
       unlockDigits = ['', '', '', '', '', ''];
-    } finally {
-      loading = false;
-      if (error) {
-        await tick();
-        if (unlockInputs[0]) unlockInputs[0].focus();
-      }
+    }
+    loading = false;
+    if (error) {
+      await tick();
+      if (unlockInputs[0]) unlockInputs[0].focus();
     }
   }
 
@@ -731,9 +737,10 @@
         startVerificationPolling();
         return;
       }
-      /* Success → navigate to the redirect target */
+      /* Success → navigate to the redirect target (keep linkLoading=true to avoid flash) */
       await invalidateAll();
       goto(redirectUrl);
+      return;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Incorrect code';
       shaking = true;
@@ -741,12 +748,11 @@
         shaking = false;
       }, 500);
       linkDigits = Array(remoteUser.codeLength).fill('');
-    } finally {
-      linkLoading = false;
-      if (error) {
-        await tick();
-        if (linkInputs[0]) linkInputs[0].focus();
-      }
+    }
+    linkLoading = false;
+    if (error) {
+      await tick();
+      if (linkInputs[0]) linkInputs[0].focus();
     }
   }
 </script>
@@ -842,8 +848,23 @@
       <p class="brand-tagline">Your universe of productivity awaits</p>
     </div>
 
-    <!-- ═══ Mode: Unlock (returning user) ═══ -->
-    {#if deviceLinked}
+    <!-- ═══ Mode cards (hidden while resolving initial auth state) ═══ -->
+    {#if resolving}
+      <div class="login-card resolving-card">
+        <div class="card-glow"></div>
+        <div class="card-inner">
+          <div class="resolving-loader">
+            <div class="resolving-orb">
+              <div class="resolving-orb-core"></div>
+              <div class="resolving-orb-ring"></div>
+              <div class="resolving-orb-ring resolving-orb-ring-2"></div>
+            </div>
+            <div class="resolving-shimmer-line"></div>
+            <div class="resolving-shimmer-line resolving-shimmer-short"></div>
+          </div>
+        </div>
+      </div>
+    {:else if deviceLinked}
       <div class="login-card" class:shake={shaking}>
         <div class="card-glow"></div>
         <div class="card-inner">
@@ -2355,6 +2376,115 @@
   @keyframes spin {
     to {
       transform: rotate(360deg);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     RESOLVING STATE — Cosmic loader while initial auth state resolves
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .resolving-card {
+    animation:
+      borderGlow 6s ease-in-out infinite,
+      resolvingFadeIn 0.6s ease-out;
+  }
+
+  .resolving-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem 0;
+  }
+
+  .resolving-orb {
+    position: relative;
+    width: 56px;
+    height: 56px;
+  }
+
+  .resolving-orb-core {
+    position: absolute;
+    inset: 16px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(108, 92, 231, 0.9), rgba(255, 121, 198, 0.5));
+    box-shadow:
+      0 0 20px rgba(108, 92, 231, 0.6),
+      0 0 40px rgba(108, 92, 231, 0.3);
+    animation: resolvingOrbPulse 2s ease-in-out infinite;
+  }
+
+  .resolving-orb-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: rgba(108, 92, 231, 0.8);
+    border-right-color: rgba(255, 121, 198, 0.4);
+    animation: spin 1.5s linear infinite;
+  }
+
+  .resolving-orb-ring-2 {
+    inset: 4px;
+    border-top-color: rgba(0, 212, 255, 0.6);
+    border-right-color: rgba(38, 222, 129, 0.3);
+    animation-direction: reverse;
+    animation-duration: 2s;
+  }
+
+  .resolving-shimmer-line {
+    width: 140px;
+    height: 10px;
+    border-radius: 5px;
+    background: linear-gradient(
+      90deg,
+      rgba(108, 92, 231, 0.1) 0%,
+      rgba(108, 92, 231, 0.3) 50%,
+      rgba(108, 92, 231, 0.1) 100%
+    );
+    background-size: 200% 100%;
+    animation: resolvingShimmer 1.5s ease-in-out infinite;
+  }
+
+  .resolving-shimmer-short {
+    width: 90px;
+    height: 8px;
+    animation-delay: 0.3s;
+  }
+
+  @keyframes resolvingFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes resolvingOrbPulse {
+    0%,
+    100% {
+      transform: scale(1);
+      box-shadow:
+        0 0 20px rgba(108, 92, 231, 0.6),
+        0 0 40px rgba(108, 92, 231, 0.3);
+    }
+    50% {
+      transform: scale(1.15);
+      box-shadow:
+        0 0 30px rgba(108, 92, 231, 0.8),
+        0 0 60px rgba(255, 121, 198, 0.4);
+    }
+  }
+
+  @keyframes resolvingShimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
     }
   }
 
