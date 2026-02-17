@@ -25,7 +25,7 @@ import type { RequestHandler } from './$types';
  * server environment and returns them as JSON. The client uses this to
  * initialise the Supabase client or detect that setup is required.
  *
- * @returns JSON payload with `{ supabaseUrl, supabaseAnonKey }` (values
+ * @returns JSON payload with `{ supabaseUrl, supabasePublishableKey }` (values
  *          may be `null` if the environment is unconfigured).
  */
 export const GET: RequestHandler = async () => {

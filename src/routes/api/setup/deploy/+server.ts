@@ -24,7 +24,7 @@ import type { RequestHandler } from './$types';
  *
  * Expects a JSON body with:
  * - `supabaseUrl` — The project's Supabase REST URL
- * - `supabaseAnonKey` — The project's Supabase anonymous/public key
+ * - `supabasePublishableKey` — The project's Supabase publishable key
  * - `vercelToken` — A Vercel personal access token with deploy permissions
  *
  * Writes `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` as Vercel
@@ -35,11 +35,11 @@ import type { RequestHandler } from './$types';
  */
 export const POST: RequestHandler = async ({ request }) => {
   /* ── Parse and validate request body ──── */
-  const { supabaseUrl, supabaseAnonKey, vercelToken } = await request.json();
+  const { supabaseUrl, supabasePublishableKey, vercelToken } = await request.json();
 
-  if (!supabaseUrl || !supabaseAnonKey || !vercelToken) {
+  if (!supabaseUrl || !supabasePublishableKey || !vercelToken) {
     return json(
-      { success: false, error: 'Supabase URL, Anon Key, and Vercel Token are required' },
+      { success: false, error: 'Supabase URL, Publishable Key, and Vercel Token are required' },
       { status: 400 }
     );
   }
@@ -57,6 +57,11 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 
   /* ── Delegate to engine — sets env vars + redeploys ──── */
-  const result = await deployToVercel({ vercelToken, projectId, supabaseUrl, supabaseAnonKey });
+  const result = await deployToVercel({
+    vercelToken,
+    projectId,
+    supabaseUrl,
+    supabasePublishableKey
+  });
   return json(result);
 };

@@ -8,7 +8,7 @@
    * 1. Create a Supabase project (instructions only).
    * 2. Configure authentication (enable anonymous sign-ins).
    * 3. Initialize the database by running the schema SQL.
-   * 4. Enter and validate Supabase credentials (URL + anon key).
+   * 4. Enter and validate Supabase credentials (URL + publishable key).
    * 5. Persist configuration via Vercel API (set env vars + redeploy).
    *
    * After a successful deploy the page polls for a new service-worker
@@ -31,8 +31,8 @@
   /** Supabase project URL entered by the user */
   let supabaseUrl = $state('');
 
-  /** Supabase public anon key entered by the user */
-  let supabaseAnonKey = $state('');
+  /** Supabase publishable key entered by the user */
+  let supabasePublishableKey = $state('');
 
   /** One-time Vercel API token for setting env vars */
   let vercelToken = $state('');
@@ -81,7 +81,7 @@
    * validation — the "Continue" button should be re-disabled.
    */
   const credentialsChanged = $derived(
-    validateSuccess && (supabaseUrl !== validatedUrl || supabaseAnonKey !== validatedKey)
+    validateSuccess && (supabaseUrl !== validatedUrl || supabasePublishableKey !== validatedKey)
   );
 
   // =============================================================================
@@ -118,7 +118,7 @@
       const res = await fetch('/api/setup/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supabaseUrl, supabaseAnonKey })
+        body: JSON.stringify({ supabaseUrl, supabasePublishableKey })
       });
 
       const data = await res.json();
@@ -126,11 +126,11 @@
       if (data.valid) {
         validateSuccess = true;
         validatedUrl = supabaseUrl;
-        validatedKey = supabaseAnonKey;
+        validatedKey = supabasePublishableKey;
         /* Cache config locally so the app works immediately after deploy */
         setConfig({
           supabaseUrl,
-          supabaseAnonKey,
+          supabasePublishableKey,
           configured: true
         });
       } else {
@@ -185,7 +185,7 @@
       const res = await fetch('/api/setup/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supabaseUrl, supabaseAnonKey, vercelToken })
+        body: JSON.stringify({ supabaseUrl, supabasePublishableKey, vercelToken })
       });
 
       const data = await res.json();
@@ -447,18 +447,18 @@
             />
           </div>
 
-          <!-- Supabase anon key input -->
+          <!-- Supabase publishable key input -->
           <div class="form-group">
-            <label for="supabaseAnonKey">Supabase Anon Key</label>
+            <label for="supabasePublishableKey">Supabase Publishable Key</label>
             <input
               type="text"
-              id="supabaseAnonKey"
-              bind:value={supabaseAnonKey}
+              id="supabasePublishableKey"
+              bind:value={supabasePublishableKey}
               placeholder="eyJhbGciOiJIUzI1NiIs..."
               disabled={deploying || deployStage === 'ready'}
             />
             <span class="input-hint"
-              >This is your public anon key, safe to use in the browser. RLS policies enforce
+              >This is your public publishable key, safe to use in the browser. RLS policies enforce
               security.</span
             >
           </div>
@@ -477,7 +477,7 @@
             class="btn btn-secondary"
             onclick={handleValidate}
             disabled={!supabaseUrl ||
-              !supabaseAnonKey ||
+              !supabasePublishableKey ||
               validating ||
               deploying ||
               deployStage === 'ready'}

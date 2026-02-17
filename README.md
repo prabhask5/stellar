@@ -107,7 +107,7 @@ Fork this repository to your own GitHub account. This gives you your own copy th
 2. Choose a region close to you and set a database password.
 3. Once the project is created, go to **Settings > API** and note your:
    - **Project URL** (e.g., `https://abcdefg.supabase.co`)
-   - **Anon/Public Key** (starts with `eyJ...`)
+   - **Publishable Key** (starts with `eyJ...`)
 
 ### Step 3: Set Up the Database Schema
 
@@ -130,7 +130,7 @@ Fork this repository to your own GitHub account. This gives you your own copy th
 | Variable | Value |
 |----------|-------|
 | `PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | Your Supabase anon key |
+| `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | Your Supabase publishable key |
 
 4. Deploy. Vercel will build and host your instance automatically.
 
@@ -138,7 +138,7 @@ Fork this repository to your own GitHub account. This gives you your own copy th
 
 1. Visit your deployed app URL (e.g., `https://your-app.vercel.app`).
 2. On first visit, you'll be redirected to the setup page (`/setup`).
-3. Enter your Supabase URL and Anon Key.
+3. Enter your Supabase URL and Publishable Key.
 4. Click **Validate** to test the connection.
 5. Optionally enter a Vercel token to auto-deploy environment variables.
 6. Once validated, the app caches the config locally and you're ready to go.
@@ -218,7 +218,7 @@ These are set in your Vercel project settings:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL |
-| `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | Yes | Your Supabase anon/public key |
+| `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | Yes | Your Supabase publishable key |
 
 ### Updating Configuration
 
