@@ -385,13 +385,17 @@
     profileSuccess = null;
 
     try {
-      await updateSingleUserProfile({
+      const result = await updateSingleUserProfile({
         firstName: firstName.trim(),
         lastName: lastName.trim()
       });
-      authState.updateUserProfile({ first_name: firstName.trim(), last_name: lastName.trim() });
-      profileSuccess = 'Profile updated successfully';
-      setTimeout(() => (profileSuccess = null), 3000);
+      if (result.error) {
+        profileError = result.error;
+      } else {
+        authState.updateUserProfile({ first_name: firstName.trim(), last_name: lastName.trim() });
+        profileSuccess = 'Profile updated successfully';
+        setTimeout(() => (profileSuccess = null), 3000);
+      }
     } catch (err: unknown) {
       profileError = err instanceof Error ? err.message : 'Failed to update profile';
     }
@@ -430,12 +434,16 @@
     codeSuccess = null;
 
     try {
-      await changeSingleUserGate(oldCode, newCode);
-      codeSuccess = 'Code changed successfully';
-      oldCodeDigits = ['', '', '', '', '', ''];
-      newCodeDigits = ['', '', '', '', '', ''];
-      confirmCodeDigits = ['', '', '', '', '', ''];
-      setTimeout(() => (codeSuccess = null), 3000);
+      const result = await changeSingleUserGate(oldCode, newCode);
+      if (result.error) {
+        codeError = result.error;
+      } else {
+        codeSuccess = 'Code changed successfully';
+        oldCodeDigits = ['', '', '', '', '', ''];
+        newCodeDigits = ['', '', '', '', '', ''];
+        confirmCodeDigits = ['', '', '', '', '', ''];
+        setTimeout(() => (codeSuccess = null), 3000);
+      }
     } catch (err: unknown) {
       codeError = err instanceof Error ? err.message : 'Failed to change code';
     }
@@ -552,9 +560,9 @@
     setDebugMode(debugMode);
   }
 
-  /** Navigate back to the main tasks view. */
+  /** Navigate back to the home view. */
   function goBack() {
-    goto('/tasks');
+    goto('/');
   }
 
   /**
