@@ -316,6 +316,8 @@ The auth system uses real Supabase email/password auth (`supabase.auth.signUp()`
 
 If `emailConfirmation` is enabled, Supabase email templates must be configured. See [EMAIL_TEMPLATES.md](https://github.com/prabhask5/stellar-drive/blob/main/EMAIL_TEMPLATES.md) for the full HTML templates for signup confirmation, email change confirmation, and device verification emails.
 
+The engine's `name` and `domain` fields (set in `initEngine()`) are written to Supabase `user_metadata` as `app_name` and `app_domain`. Email templates use `{{ .Data.app_domain }}` for confirmation links and `{{ .Data.app_name }}` for the app name. The `domain` is always `window.location.origin` at runtime, so no environment variable is needed. This allows multiple stellar-drive apps to share one Supabase project while each app's emails link to the correct domain.
+
 If `deviceVerification` is enabled, a `trusted_devices` table is required in Supabase (see [engine README](https://github.com/prabhask5/stellar-drive/blob/main/README.md) for the SQL schema).
 
 ### 5.3 Login Page: Setup & Unlock Modes

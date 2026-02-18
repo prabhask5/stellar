@@ -7,7 +7,7 @@
   <meta name="x-apple-disable-message-reformatting">
   <meta name="color-scheme" content="dark">
   <meta name="supported-color-schemes" content="dark">
-  <title>Verify Your Device - Stellar Planner</title>
+  <title>Verify Your Device</title>
   <!--[if mso]>
   <noscript>
     <xml>
@@ -39,7 +39,7 @@
           <!-- Logo -->
           <tr>
             <td align="center" style="padding-bottom: 32px; font-size: 28px; font-weight: 800; color: #8b7cf0; letter-spacing: -0.5px;">
-              Stellar
+              {{ .Data.app_name }}
             </td>
           </tr>
 
@@ -89,7 +89,7 @@
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td align="center" style="padding-bottom: 32px;">
-                          <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #c8c8e0;">A sign-in attempt was made from a new device. Click the button below to verify this device and grant it access to your Stellar account.</p>
+                          <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #c8c8e0;">A sign-in attempt was made from a new device. Click the button below to verify this device and grant it access to your {{ .Data.app_name }} account.</p>
                         </td>
                       </tr>
                     </table>
@@ -99,7 +99,7 @@
                       <tr>
                         <td align="center" style="padding-bottom: 32px;">
                           <!--[if mso]>
-                          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{ .SiteURL }}/confirm?token_hash={{ .TokenHash }}&type=email" style="height:52px;v-text-anchor:middle;width:260px;" arcsize="23%" fillcolor="#26de81" strokecolor="#26de81">
+                          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{ .Data.app_domain }}/confirm?token_hash={{ .TokenHash }}&type=email" style="height:52px;v-text-anchor:middle;width:260px;" arcsize="23%" fillcolor="#26de81" strokecolor="#26de81">
                           <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">Verify This Device</center>
                           </v:roundrect>
                           <![endif]-->
@@ -107,7 +107,7 @@
                           <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                             <tr>
                               <td class="btn-td" align="center" valign="middle" style="border-radius: 12px; background-color: #26de81;">
-                                <a href="{{ .SiteURL }}/confirm?token_hash={{ .TokenHash }}&type=email" target="_blank" style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 12px; mso-hide: all;">Verify This Device</a>
+                                <a href="{{ .Data.app_domain }}/confirm?token_hash={{ .TokenHash }}&type=email" target="_blank" style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 12px; mso-hide: all;">Verify This Device</a>
                               </td>
                             </tr>
                           </table>
@@ -134,7 +134,7 @@
                       <tr>
                         <td align="center">
                           <p style="margin: 0 0 12px 0; font-size: 13px; color: #7878a0;">Or copy and paste this link into your browser:</p>
-                          <p style="margin: 0; font-size: 12px; word-break: break-all;"><a href="{{ .SiteURL }}/confirm?token_hash={{ .TokenHash }}&type=email" style="color: #8b7cf0; text-decoration: underline;">{{ .SiteURL }}/confirm?token_hash={{ .TokenHash }}&amp;type=email</a></p>
+                          <p style="margin: 0; font-size: 12px; word-break: break-all;"><a href="{{ .Data.app_domain }}/confirm?token_hash={{ .TokenHash }}&type=email" style="color: #8b7cf0; text-decoration: underline;">{{ .Data.app_domain }}/confirm?token_hash={{ .TokenHash }}&amp;type=email</a></p>
                         </td>
                       </tr>
                     </table>
@@ -154,7 +154,7 @@
                   <td align="center">
                     <p style="margin: 0 0 8px 0; font-size: 13px; color: #7878a0;">This link will expire in 24 hours.</p>
                     <p style="margin: 0 0 16px 0; font-size: 13px; color: #7878a0;">If you didn't attempt to sign in, someone may have your code. Consider changing it immediately.</p>
-                    <p style="margin: 0; font-size: 12px; color: #5a5a80;">&copy; Stellar</p>
+                    <p style="margin: 0; font-size: 12px; color: #5a5a80;">&copy; {{ .Data.app_name }}</p>
                   </td>
                 </tr>
               </table>

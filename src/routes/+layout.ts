@@ -71,6 +71,8 @@ if (browser) {
     /* ── Engine Configuration ──────────────────────────────────────────── */
     supabase,
     prefix: 'stellar',
+    name: 'Stellar Planner',
+    domain: window.location.origin,
 
     /* ── Demo Mode — sandboxed database with mock data ────────────────── */
     demo: demoConfig,
