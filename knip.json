@@ -14,9 +14,5 @@
   ],
   "sveltekit": {
     "config": "svelte.config.js"
-  },
-  "ignoreDependencies": [
-    "stellar-drive",
-    "postgres"
-  ]
+  }
 }
