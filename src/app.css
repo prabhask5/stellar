@@ -241,7 +241,6 @@ html {
   height: 100%;
   height: 100dvh; /* `dvh` = dynamic viewport height — accounts for mobile browser chrome */
   width: 100%;
-  width: 100dvw; /* `dvw` = dynamic viewport width */
   -webkit-font-smoothing: antialiased; /* Smoother text on macOS/iOS */
   -moz-osx-font-smoothing: grayscale; /* Smoother text on Firefox macOS */
   text-rendering: optimizeLegibility; /* Better kerning and ligatures */
@@ -254,7 +253,6 @@ body {
   height: 100%;
   height: 100dvh;
   width: 100%;
-  width: 100dvw;
 }
 
 /* `<body>` element — sets global font, color, and background */
@@ -262,7 +260,6 @@ body {
   min-height: 100%;
   min-height: 100dvh;
   width: 100%;
-  width: 100dvw;
   font-family: var(--font-body);
   font-size: 16px; /* Base size — all `rem` values are relative to this */
   line-height: 1.6; /* Comfortable reading line height */
