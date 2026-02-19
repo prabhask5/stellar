@@ -265,9 +265,11 @@
           />
           <path d="M2 12h20" />
         </svg>
-        <h1 class="setup-title">Set Up Your Instance</h1>
+        <h1 class="setup-title">Set Up Stellar Planner</h1>
       </div>
-      <p class="setup-subtitle">Configure Stellar to connect to your own Supabase backend</p>
+      <p class="setup-subtitle">
+        Configure Stellar Planner to connect to your own Supabase backend
+      </p>
     </div>
 
     <!-- ═══ Step Indicator ═══ -->
@@ -340,8 +342,8 @@
         </div>
         <div class="section-content">
           <p class="section-description">
-            Stellar stores data in your own Supabase project. Create one if you don't have one
-            already &mdash; the free tier is more than enough.
+            Stellar Planner stores data in your own Supabase project. Create one if you don't have
+            one already &mdash; the free tier is more than enough.
           </p>
           <ol class="instruction-list">
             <li>
@@ -466,170 +468,163 @@
           <h2 class="section-title">Deploy to Vercel</h2>
         </div>
         <div class="section-content">
-          {#if isFirstSetup}
-            <p class="section-description">
-              To persist your Supabase credentials across deployments, Stellar needs a one-time
-              Vercel API token to set environment variables and trigger a redeploy.
-            </p>
+          <p class="section-description">
+            To persist your Supabase credentials across deployments, Stellar needs a one-time Vercel
+            API token to set environment variables and trigger a redeploy.
+          </p>
 
-            <ol class="instruction-list">
-              <li>
-                Go to <a
-                  href="https://vercel.com/account/tokens"
-                  target="_blank"
-                  rel="noopener noreferrer">Vercel Settings &gt; Tokens</a
-                >
-              </li>
-              <li>Create a token with a descriptive name (e.g., "Stellar Setup")</li>
-              <li>Copy and paste below</li>
-            </ol>
-
-            <!-- Token usage note — not stored after use -->
-            <div class="info-note">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+          <ol class="instruction-list">
+            <li>
+              Go to <a
+                href="https://vercel.com/account/tokens"
+                target="_blank"
+                rel="noopener noreferrer">Vercel Settings &gt; Tokens</a
               >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="16" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12.01" y2="8" />
-              </svg>
-              <span
-                >This token is used once to set environment variables and trigger a redeployment. It
-                is not stored.</span
+            </li>
+            <li>Create a token with a descriptive name (e.g., "Stellar Setup")</li>
+            <li>Copy and paste below</li>
+          </ol>
+
+          <!-- Token usage note — not stored after use -->
+          <div class="info-note">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <span
+              >This token is used once to set environment variables and trigger a redeployment. It
+              is not stored.</span
+            >
+          </div>
+
+          <!-- Vercel token input -->
+          <div class="form-group">
+            <label for="vercelToken">Vercel API Token</label>
+            <input
+              type="password"
+              id="vercelToken"
+              bind:value={vercelToken}
+              placeholder="Enter your Vercel token"
+              disabled={deploying || deployStage === 'ready'}
+            />
+          </div>
+
+          <!-- Deploy error feedback -->
+          {#if deployError}
+            <div class="message error">{deployError}</div>
+          {/if}
+
+          <!-- Deploy button -->
+          {#if deployStage === 'idle'}
+            <button
+              class="btn btn-primary"
+              onclick={handleDeploy}
+              disabled={!validateSuccess || credentialsChanged || !vercelToken || deploying}
+            >
+              Deploy
+            </button>
+          {/if}
+
+          <!-- Deployment progress stages -->
+          {#if deployStage !== 'idle'}
+            <div class="deploy-steps">
+              <!-- Step A: Setting environment variables -->
+              <div
+                class="deploy-step"
+                class:active={deployStage === 'setting-env'}
+                class:complete={deployStage === 'deploying' || deployStage === 'ready'}
               >
-            </div>
-
-            <!-- Vercel token input -->
-            <div class="form-group">
-              <label for="vercelToken">Vercel API Token</label>
-              <input
-                type="password"
-                id="vercelToken"
-                bind:value={vercelToken}
-                placeholder="Enter your Vercel token"
-                disabled={deploying || deployStage === 'ready'}
-              />
-            </div>
-
-            <!-- Deploy error feedback -->
-            {#if deployError}
-              <div class="message error">{deployError}</div>
-            {/if}
-
-            <!-- Deploy button -->
-            {#if deployStage === 'idle'}
-              <button
-                class="btn btn-primary"
-                onclick={handleDeploy}
-                disabled={!validateSuccess || credentialsChanged || !vercelToken || deploying}
-              >
-                Deploy
-              </button>
-            {/if}
-
-            <!-- Deployment progress stages -->
-            {#if deployStage !== 'idle'}
-              <div class="deploy-steps">
-                <!-- Step A: Setting environment variables -->
-                <div
-                  class="deploy-step"
-                  class:active={deployStage === 'setting-env'}
-                  class:complete={deployStage === 'deploying' || deployStage === 'ready'}
-                >
-                  <div class="deploy-step-indicator">
-                    {#if deployStage === 'setting-env'}
-                      <span class="loading-spinner small"></span>
-                    {:else}
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    {/if}
-                  </div>
-                  <span>Setting environment variables...</span>
+                <div class="deploy-step-indicator">
+                  {#if deployStage === 'setting-env'}
+                    <span class="loading-spinner small"></span>
+                  {:else}
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  {/if}
                 </div>
-
-                <!-- Step B: Deploying (waiting for new build) -->
-                <div
-                  class="deploy-step"
-                  class:active={deployStage === 'deploying'}
-                  class:complete={deployStage === 'ready'}
-                >
-                  <div class="deploy-step-indicator">
-                    {#if deployStage === 'deploying'}
-                      <span class="loading-spinner small"></span>
-                    {:else if deployStage === 'ready'}
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    {:else}
-                      <div class="deploy-dot"></div>
-                    {/if}
-                  </div>
-                  <span>Deploying... (might take a bit)</span>
-                </div>
-
-                <!-- Step C: Ready -->
-                <div class="deploy-step" class:active={deployStage === 'ready'}>
-                  <div class="deploy-step-indicator">
-                    {#if deployStage === 'ready'}
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    {:else}
-                      <div class="deploy-dot"></div>
-                    {/if}
-                  </div>
-                  <span>Ready</span>
-                </div>
+                <span>Setting environment variables...</span>
               </div>
 
-              <!-- Success message when deployment is live -->
-              {#if deployStage === 'ready'}
-                <div class="message success">
-                  Your Stellar instance is configured and the new deployment is live. Use the
-                  notification at the bottom of the page to refresh and load the updated version.
+              <!-- Step B: Deploying (waiting for new build) -->
+              <div
+                class="deploy-step"
+                class:active={deployStage === 'deploying'}
+                class:complete={deployStage === 'ready'}
+              >
+                <div class="deploy-step-indicator">
+                  {#if deployStage === 'deploying'}
+                    <span class="loading-spinner small"></span>
+                  {:else if deployStage === 'ready'}
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  {:else}
+                    <div class="deploy-dot"></div>
+                  {/if}
                 </div>
-              {/if}
+                <span>Deploying... (might take a bit)</span>
+              </div>
+
+              <!-- Step C: Ready -->
+              <div class="deploy-step" class:active={deployStage === 'ready'}>
+                <div class="deploy-step-indicator">
+                  {#if deployStage === 'ready'}
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  {:else}
+                    <div class="deploy-dot"></div>
+                  {/if}
+                </div>
+                <span>Ready</span>
+              </div>
+            </div>
+
+            <!-- Success message when deployment is live -->
+            {#if deployStage === 'ready'}
+              <div class="message success">
+                Your Stellar instance is configured and the new deployment is live. Use the
+                notification at the bottom of the page to refresh and load the updated version.
+              </div>
             {/if}
-          {:else}
-            <!-- Reconfiguration mode (not first setup) -->
-            <p class="section-description">Your Supabase credentials have been saved locally.</p>
-            <div class="message success">Configuration saved successfully.</div>
-            <a href="/" class="btn btn-primary done-link">Done</a>
           {/if}
         </div>
       {/if}
@@ -881,8 +876,8 @@
     overflow-y: auto;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    padding: 2rem 1rem 4rem;
+    align-items: center;
+    padding: 2rem 1rem;
   }
 
   /* Reconfiguration mode — sits under the navbar instead of overlaying */
@@ -893,7 +888,11 @@
   .setup-overlay.reconfig-mode {
     position: relative;
     z-index: 1;
-    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100dvh - 64px);
+    padding: 2rem 1rem;
   }
 
   .setup-container {
@@ -1433,7 +1432,7 @@
 
   @media (max-width: 640px) {
     .setup-overlay {
-      padding: 1rem 0.75rem 3rem;
+      padding: 1rem 0.75rem;
     }
 
     .setup-title {
@@ -1470,7 +1469,7 @@
   /* iPhone SE — extra compact layout */
   @media (max-width: 375px) {
     .setup-overlay {
-      padding: 0.75rem 0.5rem 2rem;
+      padding: 0.75rem 0.5rem;
     }
 
     .setup-title {
@@ -1504,14 +1503,14 @@
   /* iPhone 16 Pro (~402px) */
   @media (min-width: 400px) and (max-width: 430px) {
     .setup-overlay {
-      padding: 1.25rem 1rem 3rem;
+      padding: 1.25rem 1rem;
     }
   }
 
   /* iPhone Pro Max (430px+) */
   @media (min-width: 430px) and (max-width: 640px) {
     .setup-overlay {
-      padding: 1.5rem 1rem 3rem;
+      padding: 1.5rem 1rem;
     }
 
     .section-content {
