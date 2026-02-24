@@ -22,6 +22,7 @@
   import { setConfig } from 'stellar-drive/config';
   import { isOnline } from 'stellar-drive/stores';
   import { pollForNewServiceWorker } from 'stellar-drive/kit';
+  import Reconfigure from './Reconfigure.svelte';
 
   // =============================================================================
   //  Form State — Supabase + Vercel credentials
@@ -214,100 +215,505 @@
   <title>Set Up - Stellar Planner</title>
 </svelte:head>
 
-<!-- ═══ Cosmic Background ═══ -->
-<div class="setup-background" class:reconfig-mode={!isFirstSetup}>
-  <div class="stars stars-small"></div>
-  <div class="stars stars-medium"></div>
-  <div class="stars stars-large"></div>
-  <div class="nebula nebula-1"></div>
-  <div class="nebula nebula-2"></div>
-  <div class="nebula nebula-3"></div>
-  <!-- Orbital System — decorative rotating rings -->
-  <div class="orbital-system">
-    <div class="orbit orbit-1">
-      <div class="orbit-particle"></div>
-    </div>
-    <div class="orbit orbit-2">
-      <div class="orbit-particle"></div>
-    </div>
-    <div class="orbit orbit-3">
-      <div class="orbit-particle"></div>
+{#if !isFirstSetup}
+  <!-- ═══ Reconfigure Mode ═══ -->
+  <div class="setup-background reconfig-mode">
+    <div class="stars stars-small"></div>
+    <div class="stars stars-medium"></div>
+    <div class="stars stars-large"></div>
+    <div class="nebula nebula-1"></div>
+    <div class="nebula nebula-2"></div>
+    <div class="nebula nebula-3"></div>
+    <div class="orbital-system">
+      <div class="orbit orbit-1"><div class="orbit-particle"></div></div>
+      <div class="orbit orbit-2"><div class="orbit-particle"></div></div>
+      <div class="orbit orbit-3"><div class="orbit-particle"></div></div>
     </div>
   </div>
-</div>
-
-<!-- ═══ Setup Overlay ═══ -->
-<div class="setup-overlay" class:reconfig-mode={!isFirstSetup}>
-  <div class="setup-container">
-    <!-- ═══ Header — Logo + title ═══ -->
-    <div class="setup-header">
-      <div class="logo-container">
-        <svg
-          class="logo-icon"
-          width="40"
-          height="40"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="url(#logoGradient)"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <defs>
-            <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#6c5ce7" />
-              <stop offset="100%" stop-color="#ff79c6" />
-            </linearGradient>
-          </defs>
-          <circle cx="12" cy="12" r="10" />
-          <path
-            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
-          />
-          <path d="M2 12h20" />
-        </svg>
-        <h1 class="setup-title">Set Up Stellar Planner</h1>
+  <div class="setup-overlay reconfig-mode">
+    <div class="setup-container">
+      <div class="setup-header">
+        <div class="logo-container">
+          <svg
+            class="logo-icon"
+            width="40"
+            height="40"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="url(#logoGradient)"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <defs>
+              <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6c5ce7" />
+                <stop offset="100%" stop-color="#ff79c6" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="10" />
+            <path
+              d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+            />
+            <path d="M2 12h20" />
+          </svg>
+          <h1 class="setup-title">Reconfigure Stellar Planner</h1>
+        </div>
+        <p class="setup-subtitle">Update your Supabase credentials and redeploy</p>
       </div>
-      <p class="setup-subtitle">
-        Configure Stellar Planner to connect to your own Supabase backend
-      </p>
+      <Reconfigure />
     </div>
+  </div>
+{:else}
+  <!-- ═══ Cosmic Background ═══ -->
+  <div class="setup-background" class:reconfig-mode={!isFirstSetup}>
+    <div class="stars stars-small"></div>
+    <div class="stars stars-medium"></div>
+    <div class="stars stars-large"></div>
+    <div class="nebula nebula-1"></div>
+    <div class="nebula nebula-2"></div>
+    <div class="nebula nebula-3"></div>
+    <!-- Orbital System — decorative rotating rings -->
+    <div class="orbital-system">
+      <div class="orbit orbit-1">
+        <div class="orbit-particle"></div>
+      </div>
+      <div class="orbit orbit-2">
+        <div class="orbit-particle"></div>
+      </div>
+      <div class="orbit orbit-3">
+        <div class="orbit-particle"></div>
+      </div>
+    </div>
+  </div>
 
-    <!-- ═══ Step Indicator ═══ -->
-    <div class="step-indicator">
-      {#each [1, 2, 3, 4] as step (step)}
-        <div
-          class="step-dot"
-          class:active={currentStep === step}
-          class:completed={currentStep > step}
-        >
-          {#if currentStep > step}
+  <!-- ═══ Setup Overlay ═══ -->
+  <div class="setup-overlay" class:reconfig-mode={!isFirstSetup}>
+    <div class="setup-container">
+      <!-- ═══ Header — Logo + title ═══ -->
+      <div class="setup-header">
+        <div class="logo-container">
+          <svg
+            class="logo-icon"
+            width="40"
+            height="40"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="url(#logoGradient)"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <defs>
+              <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6c5ce7" />
+                <stop offset="100%" stop-color="#ff79c6" />
+              </linearGradient>
+            </defs>
+            <circle cx="12" cy="12" r="10" />
+            <path
+              d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+            />
+            <path d="M2 12h20" />
+          </svg>
+          <h1 class="setup-title">Set Up Stellar Planner</h1>
+        </div>
+        <p class="setup-subtitle">
+          Configure Stellar Planner to connect to your own Supabase backend
+        </p>
+      </div>
+
+      <!-- ═══ Step Indicator ═══ -->
+      <div class="step-indicator">
+        {#each [1, 2, 3, 4] as step (step)}
+          <div
+            class="step-dot"
+            class:active={currentStep === step}
+            class:completed={currentStep > step}
+          >
+            {#if currentStep > step}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg
+              >
+            {:else}
+              {step}
+            {/if}
+          </div>
+          {#if step < 4}
+            <div class="step-line" class:completed={currentStep > step}></div>
+          {/if}
+        {/each}
+      </div>
+
+      <!-- ═══ Offline Warning ═══ -->
+      {#if !$isOnline}
+        <div class="offline-card">
+          <div class="offline-icon">
             <svg
-              width="14"
-              height="14"
+              width="48"
+              height="48"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="3"
+              stroke-width="2"
               stroke-linecap="round"
-              stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg
+              stroke-linejoin="round"
             >
-          {:else}
-            {step}
-          {/if}
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+              <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+              <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+              <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+              <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+              <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+          </div>
+          <h2 class="offline-title">Internet Required</h2>
+          <p class="offline-description">
+            Setup requires an internet connection to configure your Supabase backend and deploy
+            credentials. Please connect to the internet to continue.
+          </p>
         </div>
-        {#if step < 4}
-          <div class="step-line" class:completed={currentStep > step}></div>
-        {/if}
-      {/each}
-    </div>
+      {/if}
 
-    <!-- ═══ Offline Warning ═══ -->
-    {#if !$isOnline}
-      <div class="offline-card">
-        <div class="offline-icon">
+      <!-- ═══ Step Card ═══ -->
+      <div class="step-card">
+        <!-- ─── Step 1: Create a Supabase Project ─── -->
+        {#if currentStep === 1}
+          <div class="section-header">
+            <span class="section-number">1</span>
+            <h2 class="section-title">Create a Supabase Project</h2>
+          </div>
+          <div class="section-content">
+            <p class="section-description">
+              Stellar Planner stores data in your own Supabase project. Create one if you don't have
+              one already &mdash; the free tier is more than enough.
+            </p>
+            <ol class="instruction-list">
+              <li>
+                Go to <a
+                  href="https://supabase.com/dashboard"
+                  target="_blank"
+                  rel="noopener noreferrer">supabase.com/dashboard</a
+                > and sign in (or create an account)
+              </li>
+              <li>
+                Click <strong>New Project</strong>, pick a name, set a database password, and choose
+                a region close to you
+              </li>
+              <li>Wait for provisioning to finish (about 30 seconds)</li>
+            </ol>
+            <div class="info-note">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+              <span
+                >For production use, configure a custom SMTP provider in Authentication &gt;
+                Settings. Supabase's built-in email service is limited to 2 emails per hour.</span
+              >
+            </div>
+          </div>
+
+          <!-- ─── Step 2: Initialize Database ─── -->
+        {:else if currentStep === 2}
+          <div class="section-header">
+            <span class="section-number">2</span>
+            <h2 class="section-title">Initialize the Database</h2>
+          </div>
+          <div class="section-content">
+            <p class="section-description">
+              The required tables and RLS policies are created automatically during the build
+              process. When your app deploys to Vercel, the schema is pushed to your Supabase
+              database &mdash; no manual SQL is needed.
+            </p>
+          </div>
+
+          <!-- ─── Step 3: Enter Credentials ─── -->
+        {:else if currentStep === 3}
+          <div class="section-header">
+            <span class="section-number">3</span>
+            <h2 class="section-title">Connect Your Supabase Project</h2>
+          </div>
+          <div class="section-content">
+            <p class="section-description">
+              Find these values in your Supabase dashboard under <strong>Settings &gt; API</strong>.
+            </p>
+
+            <!-- Supabase URL input -->
+            <div class="form-group">
+              <label for="supabaseUrl">Supabase URL</label>
+              <input
+                type="url"
+                id="supabaseUrl"
+                bind:value={supabaseUrl}
+                placeholder="https://your-project.supabase.co"
+                disabled={deploying || deployStage === 'ready'}
+              />
+            </div>
+
+            <!-- Supabase publishable key input -->
+            <div class="form-group">
+              <label for="supabasePublishableKey">Supabase Publishable Key</label>
+              <input
+                type="text"
+                id="supabasePublishableKey"
+                bind:value={supabasePublishableKey}
+                placeholder="eyJhbGciOiJIUzI1NiIs..."
+                disabled={deploying || deployStage === 'ready'}
+              />
+              <span class="input-hint"
+                >This is your public (anon) key. Row-Level Security policies enforce access control.</span
+              >
+            </div>
+
+            <!-- Validation feedback messages -->
+            {#if validateError}
+              <div class="message error">{validateError}</div>
+            {/if}
+
+            {#if validateSuccess && !credentialsChanged}
+              <div class="message success">Credentials validated successfully.</div>
+            {/if}
+
+            <!-- "Test Connection" button -->
+            <button
+              class="btn btn-secondary"
+              onclick={handleValidate}
+              disabled={!supabaseUrl ||
+                !supabasePublishableKey ||
+                validating ||
+                deploying ||
+                deployStage === 'ready'}
+            >
+              {#if validating}
+                <span class="loading-spinner"></span>
+                Validating...
+              {:else}
+                Test Connection
+              {/if}
+            </button>
+          </div>
+
+          <!-- ─── Step 4: Deploy ─── -->
+        {:else}
+          <div class="section-header">
+            <span class="section-number">4</span>
+            <h2 class="section-title">Deploy to Vercel</h2>
+          </div>
+          <div class="section-content">
+            <p class="section-description">
+              To persist your Supabase credentials across deployments, Stellar needs a one-time
+              Vercel API token to set environment variables and trigger a redeploy.
+            </p>
+
+            <ol class="instruction-list">
+              <li>
+                Go to <a
+                  href="https://vercel.com/account/tokens"
+                  target="_blank"
+                  rel="noopener noreferrer">Vercel Settings &gt; Tokens</a
+                >
+              </li>
+              <li>Create a token with a descriptive name (e.g., "Stellar Setup")</li>
+              <li>Copy and paste below</li>
+            </ol>
+
+            <!-- Token usage note — not stored after use -->
+            <div class="info-note">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+              <span
+                >This token is used once to set environment variables and trigger a redeployment. It
+                is not stored.</span
+              >
+            </div>
+
+            <!-- Vercel token input -->
+            <div class="form-group">
+              <label for="vercelToken">Vercel API Token</label>
+              <input
+                type="password"
+                id="vercelToken"
+                bind:value={vercelToken}
+                placeholder="Enter your Vercel token"
+                disabled={deploying || deployStage === 'ready'}
+              />
+            </div>
+
+            <!-- Deploy error feedback -->
+            {#if deployError}
+              <div class="message error">{deployError}</div>
+            {/if}
+
+            <!-- Deploy button -->
+            {#if deployStage === 'idle'}
+              <button
+                class="btn btn-primary"
+                onclick={handleDeploy}
+                disabled={!validateSuccess || credentialsChanged || !vercelToken || deploying}
+              >
+                Deploy
+              </button>
+            {/if}
+
+            <!-- Deployment progress stages -->
+            {#if deployStage !== 'idle'}
+              <div class="deploy-steps">
+                <!-- Step A: Setting environment variables -->
+                <div
+                  class="deploy-step"
+                  class:active={deployStage === 'setting-env'}
+                  class:complete={deployStage === 'deploying' || deployStage === 'ready'}
+                >
+                  <div class="deploy-step-indicator">
+                    {#if deployStage === 'setting-env'}
+                      <span class="loading-spinner small"></span>
+                    {:else}
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    {/if}
+                  </div>
+                  <span>Setting environment variables...</span>
+                </div>
+
+                <!-- Step B: Deploying (waiting for new build) -->
+                <div
+                  class="deploy-step"
+                  class:active={deployStage === 'deploying'}
+                  class:complete={deployStage === 'ready'}
+                >
+                  <div class="deploy-step-indicator">
+                    {#if deployStage === 'deploying'}
+                      <span class="loading-spinner small"></span>
+                    {:else if deployStage === 'ready'}
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    {:else}
+                      <div class="deploy-dot"></div>
+                    {/if}
+                  </div>
+                  <span>Deploying... (might take a bit)</span>
+                </div>
+
+                <!-- Step C: Ready -->
+                <div class="deploy-step" class:active={deployStage === 'ready'}>
+                  <div class="deploy-step-indicator">
+                    {#if deployStage === 'ready'}
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    {:else}
+                      <div class="deploy-dot"></div>
+                    {/if}
+                  </div>
+                  <span>Ready</span>
+                </div>
+              </div>
+
+              <!-- Success message when deployment is live -->
+              {#if deployStage === 'ready'}
+                <div class="message success">
+                  Your Stellar instance is configured and the new deployment is live. Use the
+                  notification at the bottom of the page to refresh and load the updated version.
+                </div>
+              {/if}
+            {/if}
+          </div>
+        {/if}
+      </div>
+
+      <!-- ═══ Step Navigation ═══ -->
+      <div class="step-nav">
+        {#if currentStep > 1}
+          <button
+            class="btn btn-secondary"
+            onclick={() => currentStep--}
+            disabled={deploying || deployStage === 'ready'}
+          >
+            Back
+          </button>
+        {:else}
+          <div></div>
+        {/if}
+
+        {#if currentStep < 3}
+          <button class="btn btn-primary" onclick={() => currentStep++}>Continue</button>
+        {:else if currentStep === 3}
+          <button
+            class="btn btn-primary"
+            onclick={() => currentStep++}
+            disabled={!validateSuccess || credentialsChanged}
+          >
+            Continue
+          </button>
+        {/if}
+      </div>
+
+      <!-- ═══ Security notice (first-time setup only) ═══ -->
+      {#if isFirstSetup}
+        <div class="security-warning">
           <svg
-            width="48"
-            height="48"
+            width="18"
+            height="18"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -315,375 +721,21 @@
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <line x1="1" y1="1" x2="23" y2="23"></line>
-            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
-            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
-            <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
-            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
-            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            <path
+              d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+            />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
-        </div>
-        <h2 class="offline-title">Internet Required</h2>
-        <p class="offline-description">
-          Setup requires an internet connection to configure your Supabase backend and deploy
-          credentials. Please connect to the internet to continue.
-        </p>
-      </div>
-    {/if}
-
-    <!-- ═══ Step Card ═══ -->
-    <div class="step-card">
-      <!-- ─── Step 1: Create a Supabase Project ─── -->
-      {#if currentStep === 1}
-        <div class="section-header">
-          <span class="section-number">1</span>
-          <h2 class="section-title">Create a Supabase Project</h2>
-        </div>
-        <div class="section-content">
-          <p class="section-description">
-            Stellar Planner stores data in your own Supabase project. Create one if you don't have
-            one already &mdash; the free tier is more than enough.
-          </p>
-          <ol class="instruction-list">
-            <li>
-              Go to <a
-                href="https://supabase.com/dashboard"
-                target="_blank"
-                rel="noopener noreferrer">supabase.com/dashboard</a
-              > and sign in (or create an account)
-            </li>
-            <li>
-              Click <strong>New Project</strong>, pick a name, set a database password, and choose a
-              region close to you
-            </li>
-            <li>Wait for provisioning to finish (about 30 seconds)</li>
-          </ol>
-          <div class="info-note">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-            <span
-              >For production use, configure a custom SMTP provider in Authentication &gt; Settings.
-              Supabase's built-in email service is limited to 2 emails per hour.</span
-            >
+          <div>
+            This page is publicly accessible until setup is complete. Afterward, only authenticated
+            users can reconfigure.
           </div>
-        </div>
-
-        <!-- ─── Step 2: Initialize Database ─── -->
-      {:else if currentStep === 2}
-        <div class="section-header">
-          <span class="section-number">2</span>
-          <h2 class="section-title">Initialize the Database</h2>
-        </div>
-        <div class="section-content">
-          <p class="section-description">
-            The required tables and RLS policies are created automatically during the build process.
-            When your app deploys to Vercel, the schema is pushed to your Supabase database &mdash;
-            no manual SQL is needed.
-          </p>
-        </div>
-
-        <!-- ─── Step 3: Enter Credentials ─── -->
-      {:else if currentStep === 3}
-        <div class="section-header">
-          <span class="section-number">3</span>
-          <h2 class="section-title">Connect Your Supabase Project</h2>
-        </div>
-        <div class="section-content">
-          <p class="section-description">
-            Find these values in your Supabase dashboard under <strong>Settings &gt; API</strong>.
-          </p>
-
-          <!-- Supabase URL input -->
-          <div class="form-group">
-            <label for="supabaseUrl">Supabase URL</label>
-            <input
-              type="url"
-              id="supabaseUrl"
-              bind:value={supabaseUrl}
-              placeholder="https://your-project.supabase.co"
-              disabled={deploying || deployStage === 'ready'}
-            />
-          </div>
-
-          <!-- Supabase publishable key input -->
-          <div class="form-group">
-            <label for="supabasePublishableKey">Supabase Publishable Key</label>
-            <input
-              type="text"
-              id="supabasePublishableKey"
-              bind:value={supabasePublishableKey}
-              placeholder="eyJhbGciOiJIUzI1NiIs..."
-              disabled={deploying || deployStage === 'ready'}
-            />
-            <span class="input-hint"
-              >This is your public (anon) key. Row-Level Security policies enforce access control.</span
-            >
-          </div>
-
-          <!-- Validation feedback messages -->
-          {#if validateError}
-            <div class="message error">{validateError}</div>
-          {/if}
-
-          {#if validateSuccess && !credentialsChanged}
-            <div class="message success">Credentials validated successfully.</div>
-          {/if}
-
-          <!-- "Test Connection" button -->
-          <button
-            class="btn btn-secondary"
-            onclick={handleValidate}
-            disabled={!supabaseUrl ||
-              !supabasePublishableKey ||
-              validating ||
-              deploying ||
-              deployStage === 'ready'}
-          >
-            {#if validating}
-              <span class="loading-spinner"></span>
-              Validating...
-            {:else}
-              Test Connection
-            {/if}
-          </button>
-        </div>
-
-        <!-- ─── Step 4: Deploy ─── -->
-      {:else}
-        <div class="section-header">
-          <span class="section-number">4</span>
-          <h2 class="section-title">Deploy to Vercel</h2>
-        </div>
-        <div class="section-content">
-          <p class="section-description">
-            To persist your Supabase credentials across deployments, Stellar needs a one-time Vercel
-            API token to set environment variables and trigger a redeploy.
-          </p>
-
-          <ol class="instruction-list">
-            <li>
-              Go to <a
-                href="https://vercel.com/account/tokens"
-                target="_blank"
-                rel="noopener noreferrer">Vercel Settings &gt; Tokens</a
-              >
-            </li>
-            <li>Create a token with a descriptive name (e.g., "Stellar Setup")</li>
-            <li>Copy and paste below</li>
-          </ol>
-
-          <!-- Token usage note — not stored after use -->
-          <div class="info-note">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-            <span
-              >This token is used once to set environment variables and trigger a redeployment. It
-              is not stored.</span
-            >
-          </div>
-
-          <!-- Vercel token input -->
-          <div class="form-group">
-            <label for="vercelToken">Vercel API Token</label>
-            <input
-              type="password"
-              id="vercelToken"
-              bind:value={vercelToken}
-              placeholder="Enter your Vercel token"
-              disabled={deploying || deployStage === 'ready'}
-            />
-          </div>
-
-          <!-- Deploy error feedback -->
-          {#if deployError}
-            <div class="message error">{deployError}</div>
-          {/if}
-
-          <!-- Deploy button -->
-          {#if deployStage === 'idle'}
-            <button
-              class="btn btn-primary"
-              onclick={handleDeploy}
-              disabled={!validateSuccess || credentialsChanged || !vercelToken || deploying}
-            >
-              Deploy
-            </button>
-          {/if}
-
-          <!-- Deployment progress stages -->
-          {#if deployStage !== 'idle'}
-            <div class="deploy-steps">
-              <!-- Step A: Setting environment variables -->
-              <div
-                class="deploy-step"
-                class:active={deployStage === 'setting-env'}
-                class:complete={deployStage === 'deploying' || deployStage === 'ready'}
-              >
-                <div class="deploy-step-indicator">
-                  {#if deployStage === 'setting-env'}
-                    <span class="loading-spinner small"></span>
-                  {:else}
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="3"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  {/if}
-                </div>
-                <span>Setting environment variables...</span>
-              </div>
-
-              <!-- Step B: Deploying (waiting for new build) -->
-              <div
-                class="deploy-step"
-                class:active={deployStage === 'deploying'}
-                class:complete={deployStage === 'ready'}
-              >
-                <div class="deploy-step-indicator">
-                  {#if deployStage === 'deploying'}
-                    <span class="loading-spinner small"></span>
-                  {:else if deployStage === 'ready'}
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="3"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  {:else}
-                    <div class="deploy-dot"></div>
-                  {/if}
-                </div>
-                <span>Deploying... (might take a bit)</span>
-              </div>
-
-              <!-- Step C: Ready -->
-              <div class="deploy-step" class:active={deployStage === 'ready'}>
-                <div class="deploy-step-indicator">
-                  {#if deployStage === 'ready'}
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="3"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  {:else}
-                    <div class="deploy-dot"></div>
-                  {/if}
-                </div>
-                <span>Ready</span>
-              </div>
-            </div>
-
-            <!-- Success message when deployment is live -->
-            {#if deployStage === 'ready'}
-              <div class="message success">
-                Your Stellar instance is configured and the new deployment is live. Use the
-                notification at the bottom of the page to refresh and load the updated version.
-              </div>
-            {/if}
-          {/if}
         </div>
       {/if}
     </div>
-
-    <!-- ═══ Step Navigation ═══ -->
-    <div class="step-nav">
-      {#if currentStep > 1}
-        <button
-          class="btn btn-secondary"
-          onclick={() => currentStep--}
-          disabled={deploying || deployStage === 'ready'}
-        >
-          Back
-        </button>
-      {:else}
-        <div></div>
-      {/if}
-
-      {#if currentStep < 3}
-        <button class="btn btn-primary" onclick={() => currentStep++}>Continue</button>
-      {:else if currentStep === 3}
-        <button
-          class="btn btn-primary"
-          onclick={() => currentStep++}
-          disabled={!validateSuccess || credentialsChanged}
-        >
-          Continue
-        </button>
-      {/if}
-    </div>
-
-    <!-- ═══ Security notice (first-time setup only) ═══ -->
-    {#if isFirstSetup}
-      <div class="security-warning">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path
-            d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-          />
-          <line x1="12" y1="9" x2="12" y2="13" />
-          <line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
-        <div>
-          This page is publicly accessible until setup is complete. Afterward, only authenticated
-          users can reconfigure.
-        </div>
-      </div>
-    {/if}
   </div>
-</div>
+{/if}
 
 <style>
   /* ═══════════════════════════════════════════════════════════════════════════════════
