@@ -61,7 +61,8 @@ export const POST: RequestHandler = async ({ request }) => {
     vercelToken,
     projectId,
     supabaseUrl,
-    supabasePublishableKey
+    supabasePublishableKey,
+    prefix: 'stellar'
   });
   return json(result);
 };
