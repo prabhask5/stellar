@@ -21,7 +21,7 @@
   import { page } from '$app/stores';
   import { setConfig } from 'stellar-drive/config';
   import { isOnline } from 'stellar-drive/stores';
-  import { pollForNewServiceWorker } from 'stellar-drive/kit';
+  import { pollForNewServiceWorker, monitorSwLifecycle } from 'stellar-drive/kit';
   import Reconfigure from './Reconfigure.svelte';
 
   // =============================================================================
@@ -159,14 +159,32 @@
    */
   function pollForDeployment(): Promise<void> {
     return new Promise((resolve) => {
-      pollForNewServiceWorker({
+      let resolved = false;
+
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        stopPoll();
+        stopMonitor();
+        deployStage = 'ready';
+        resolve();
+      };
+
+      const stopMonitor = monitorSwLifecycle({ onUpdateAvailable: done });
+
+      const stopPoll = pollForNewServiceWorker({
         intervalMs: 3000,
         maxAttempts: 200,
-        onFound: () => {
-          deployStage = 'ready';
-          resolve();
-        }
+        onFound: done
       });
+
+      if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+        navigator.serviceWorker.addEventListener('controllerchange', done, { once: true });
+      }
+
+      setTimeout(() => {
+        if (!resolved) done();
+      }, 180_000);
     });
   }
 
@@ -1355,11 +1373,6 @@
     cursor: not-allowed;
     transform: none !important;
     box-shadow: none !important;
-  }
-
-  .done-link {
-    text-decoration: none;
-    text-align: center;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
