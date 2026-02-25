@@ -19,6 +19,8 @@
  * - {@link blockLists}      — Website block list CRUD + cascade delete
  * - {@link blockedWebsites} — Individual blocked website CRUD
  * - {@link projects}        — Project CRUD + multi-entity cascade
+ * - {@link taskLists}       — Task list CRUD + cascade delete
+ * - {@link taskListItems}   — Individual task list item CRUD + toggle
  *
  * @module repositories
  */
@@ -36,3 +38,5 @@ export * from './focusSessions';
 export * from './blockLists';
 export * from './blockedWebsites';
 export * from './projects';
+export * from './taskLists';
+export * from './taskListItems';

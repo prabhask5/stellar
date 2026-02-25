@@ -1,11 +1,15 @@
 <script lang="ts">
   /**
-   * @fileoverview **Agenda** — Daily tasks + long-term tasks / reminders page.
+   * @fileoverview **Agenda** — Daily tasks + task lists + long-term tasks / reminders page.
    *
-   * Split into two sections:
-   * 1. **Today's Tasks** — Quick daily tasks with drag-and-drop reordering,
+   * Split into three sections:
+   * 1. **Pending Tasks** — Quick daily tasks with drag-and-drop reordering,
    *    plus a commitments modal for managing ongoing commitments.
-   * 2. **Long-term Tasks & Reminders** — Calendar view with overdue / due-today /
+   * 2. **Task Lists** — Named containers of simple tasks displayed as
+   *    reorderable cards showing "X / Y tasks" completion counts.  Clicking
+   *    a card navigates to `/agenda/[id]` for managing items within that list.
+   *    Supports create (via modal), delete (with cascade), and reorder.
+   * 3. **Long-term Tasks & Reminders** — Calendar view with overdue / due-today /
    *    upcoming / completed task lists. Supports task creation, tag management,
    *    and category creation via modal chaining.
    *
@@ -21,17 +25,20 @@
   import { page } from '$app/stores';
   import { resolveUserId } from 'stellar-drive/auth';
 
+  import { goto } from '$app/navigation';
   import {
     taskCategoriesStore,
     commitmentsStore,
     dailyTasksStore,
-    longTermTasksStore
+    longTermTasksStore,
+    taskListsStore
   } from '$lib/stores/data';
   import type {
     TaskCategory,
     Commitment,
     DailyTask,
     LongTermTaskWithCategory,
+    TaskListWithCounts,
     CommitmentSection,
     AgendaItemType
   } from '$lib/types';
@@ -48,6 +55,9 @@
   import CategoryCreateModal from '$lib/components/CategoryCreateModal.svelte';
   import TaskTagsModal from '$lib/components/TaskTagsModal.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import Modal from '$lib/components/Modal.svelte';
+  import { remoteChangeAnimation } from 'stellar-drive/actions';
+  import { truncateTooltip } from 'stellar-drive/actions';
 
   // =============================================================================
   //                         COMPONENT STATE
@@ -64,6 +74,24 @@
   let _commitmentsLoading = $state(true);
   let dailyTasksLoading = $state(true);
   let longTermTasksLoading = $state(true);
+
+  /* ── Task lists state ──── */
+  let taskLists = $state<TaskListWithCounts[]>([]);
+  let taskListsLoading = $state(true);
+  let showCreateTaskListModal = $state(false);
+  let newTaskListName = $state('');
+  let creatingTaskList = $state(false);
+
+  /**
+   * Focus action for accessibility — auto-focuses an input on desktop.
+   * Skips on mobile (width <= 640) to prevent the keyboard from popping up.
+   * @param node - The HTML element to focus
+   */
+  function focus(node: HTMLElement) {
+    if (window.innerWidth > 640) {
+      node.focus();
+    }
+  }
 
   /* ── Modal visibility toggles ──── */
   let showCommitmentsModal = $state(false);
@@ -110,7 +138,9 @@
       dailyTasksStore.subscribe((v) => (dailyTasks = v)),
       dailyTasksStore.loading.subscribe((v) => (dailyTasksLoading = v)),
       longTermTasksStore.subscribe((v) => (longTermTasks = v)),
-      longTermTasksStore.loading.subscribe((v) => (longTermTasksLoading = v))
+      longTermTasksStore.loading.subscribe((v) => (longTermTasksLoading = v)),
+      taskListsStore.subscribe((v) => (taskLists = v)),
+      taskListsStore.loading.subscribe((v) => (taskListsLoading = v))
     ];
 
     return () => unsubs.forEach((u) => u());
@@ -129,7 +159,8 @@
       taskCategoriesStore.load(),
       commitmentsStore.load(),
       dailyTasksStore.load(),
-      longTermTasksStore.load()
+      longTermTasksStore.load(),
+      taskListsStore.load()
     ]);
 
     // Spawn linked daily tasks for long-term tasks due today or before
@@ -374,6 +405,65 @@
   }
 
   // =============================================================================
+  //                    TASK LIST HANDLERS
+  // =============================================================================
+
+  /**
+   * Create a new task list from the modal form.
+   *
+   * Guards against empty names and double-submits (via `creatingTaskList`
+   * flag).  On success, resets the form input and closes the modal.
+   * The store optimistically prepends the new list with zero counts.
+   *
+   * @param event - Form submit event (prevented to avoid page reload)
+   */
+  async function handleCreateTaskList(event: Event) {
+    event.preventDefault();
+    if (!newTaskListName.trim() || creatingTaskList) return;
+
+    try {
+      creatingTaskList = true;
+      const userId = getUserId();
+      if (!userId) return;
+      await taskListsStore.create(newTaskListName.trim(), userId);
+      /* Reset form state and close modal on success */
+      newTaskListName = '';
+      showCreateTaskListModal = false;
+    } catch {
+      /* Silent — the store handles optimistic updates and the UI stays
+         consistent even if the write fails (sync will reconcile later) */
+    } finally {
+      creatingTaskList = false;
+    }
+  }
+
+  /**
+   * Delete a task list and all its child items (with confirmation).
+   *
+   * Shows a browser `confirm()` dialog before proceeding.  The repository
+   * cascade-deletes all `task_list_items` atomically via batch write.
+   *
+   * @param id - The task list's unique identifier
+   */
+  async function handleDeleteTaskList(id: string) {
+    if (!confirm('Delete this task list and all its tasks?')) return;
+    await taskListsStore.delete(id);
+  }
+
+  /**
+   * Persist a drag-and-drop reorder of a task list card.
+   *
+   * Called by {@link DraggableList}'s `onReorder` callback when the
+   * user drops a card at a new position in the grid.
+   *
+   * @param id       - The dragged task list's unique identifier
+   * @param newOrder - The zero-based target position
+   */
+  async function handleReorderTaskList(id: string, newOrder: number) {
+    await taskListsStore.reorder(id, newOrder);
+  }
+
+  // =============================================================================
   //                    CALENDAR HANDLERS
   // =============================================================================
 
@@ -401,10 +491,10 @@
 
 <!-- ═══ Page Container ═══ -->
 <div class="container">
-  <!-- ═══ TODAY'S TASKS Section ═══ -->
+  <!-- ═══ PENDING TASKS Section ═══ -->
   <section class="section">
     <header class="section-header">
-      <h2 class="section-title">Today's Tasks</h2>
+      <h2 class="section-title">Pending Tasks</h2>
       <div class="section-actions">
         <button class="btn btn-secondary btn-sm" onclick={() => (showCommitmentsModal = true)}>
           Commitments
@@ -443,6 +533,87 @@
         </DraggableList>
       {/if}
     </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       TASK LISTS Section — Named containers of simple tasks.
+       Cards show list name + "X / Y tasks" count.  Clicking navigates to
+       the detail page at /agenda/[id].  Cards can be drag-reordered.
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="section">
+    <header class="section-header">
+      <h2 class="section-title">Task Lists</h2>
+      <div class="section-actions">
+        <button class="btn btn-primary btn-sm" onclick={() => (showCreateTaskListModal = true)}>
+          + New List
+        </button>
+      </div>
+    </header>
+
+    {#if taskListsLoading}
+      <!-- Skeleton cards (2 placeholders with staggered animation) -->
+      <div class="lists-grid">
+        {#each Array(2) as _, i (i)}
+          <div class="skeleton-card" style="--delay: {i * 0.15}s">
+            <div class="skeleton-header">
+              <div class="skeleton-title"></div>
+              <div class="skeleton-btn"></div>
+            </div>
+            <div class="skeleton-stats"></div>
+            <div class="skeleton-shimmer"></div>
+          </div>
+        {/each}
+      </div>
+    {:else if taskLists.length === 0}
+      <!-- Empty state — no task lists created yet -->
+      <div class="empty-inline">No task lists yet. Create one above.</div>
+    {:else}
+      <!-- ═══ Draggable Task List Cards ═══
+           Each card uses the same `.list-card` design as the Plans page
+           goal list cards.  `remoteChangeAnimation` highlights cards
+           that arrive from background sync.
+      -->
+      <DraggableList items={taskLists} onReorder={handleReorderTaskList}>
+        {#snippet renderItem({ item: list, dragHandleProps })}
+          <div
+            class="list-card has-drag-handle"
+            role="button"
+            tabindex="0"
+            onclick={() => goto(`/agenda/${list.id}`)}
+            onkeypress={(e) => e.key === 'Enter' && goto(`/agenda/${list.id}`)}
+            use:remoteChangeAnimation={{ entityId: list.id, entityType: 'task_lists' }}
+          >
+            <!-- Drag handle — centered at top of card for vertical reorder -->
+            <button
+              class="drag-handle card-drag-handle"
+              {...dragHandleProps}
+              aria-label="Drag to reorder">⋮⋮</button
+            >
+            <div class="list-header">
+              <!-- List name — truncated with tooltip on overflow -->
+              <h3 class="list-name" use:truncateTooltip>{list.name}</h3>
+              <!-- Delete button — stopPropagation prevents card click/navigation -->
+              <button
+                class="delete-btn"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteTaskList(list.id);
+                }}
+                aria-label="Delete list"
+              >
+                ×
+              </button>
+            </div>
+            <!-- Completion count — "X / Y tasks" in monospace font -->
+            <div class="list-stats">
+              <span class="stat-text">
+                {list.completedItems} / {list.totalItems} tasks
+              </span>
+            </div>
+          </div>
+        {/snippet}
+      </DraggableList>
+    {/if}
   </section>
 
   <!-- ═══ LONG-TERM TASKS & REMINDERS Section ═══ -->
@@ -678,6 +849,39 @@
   onDeleteCategory={handleDeleteCategory}
   onUpdateCategory={handleUpdateCategory}
 />
+
+<!-- ═══ Create Task List Modal ═══ -->
+<Modal
+  open={showCreateTaskListModal}
+  title="Create New Task List"
+  onClose={() => (showCreateTaskListModal = false)}
+>
+  <form class="create-form" onsubmit={handleCreateTaskList}>
+    <div class="form-group">
+      <label for="task-list-name">List Name</label>
+      <input
+        id="task-list-name"
+        type="text"
+        bind:value={newTaskListName}
+        placeholder="Enter list name..."
+        required
+        use:focus
+      />
+    </div>
+    <div class="form-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        onclick={() => (showCreateTaskListModal = false)}
+      >
+        Cancel
+      </button>
+      <button type="submit" class="btn btn-primary" disabled={creatingTaskList}>
+        {creatingTaskList ? 'Creating...' : 'Create List'}
+      </button>
+    </div>
+  </form>
+</Modal>
 
 <!-- Transition backdrop - stays visible during modal swaps -->
 <div class="transition-backdrop" class:visible={modalTransitioning}></div>
@@ -985,6 +1189,213 @@
     }
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     TASK LIST CARDS — matches Plans page `.list-card` design
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .list-card {
+    background: linear-gradient(165deg, rgba(15, 15, 30, 0.95) 0%, rgba(20, 20, 40, 0.9) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-radius: var(--radius-2xl);
+    padding: 1.75rem;
+    cursor: pointer;
+    transition: all 0.4s var(--ease-out);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .list-card.has-drag-handle {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-drag-handle {
+    align-self: center;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(108, 92, 231, 0.1);
+    margin: -1rem -1rem 0.75rem -1rem;
+    padding: 0.375rem 1rem;
+    width: auto;
+    font-size: 1rem;
+    letter-spacing: 0.15em;
+  }
+
+  /* Top glow line */
+  .list-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 15%;
+    right: 15%;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(108, 92, 231, 0.4),
+      rgba(255, 255, 255, 0.2),
+      rgba(108, 92, 231, 0.4),
+      transparent
+    );
+  }
+
+  /* Hover nebula effect */
+  .list-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -30%;
+    width: 150px;
+    height: 200%;
+    background: radial-gradient(ellipse, rgba(108, 92, 231, 0.15) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s;
+    pointer-events: none;
+  }
+
+  .list-card:hover {
+    border-color: rgba(108, 92, 231, 0.5);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow:
+      0 24px 50px rgba(0, 0, 0, 0.5),
+      0 0 80px rgba(108, 92, 231, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .list-card:hover::after {
+    opacity: 1;
+  }
+
+  .list-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .list-name {
+    font-size: 1.375rem;
+    font-weight: 700;
+    flex: 1;
+    margin-right: 1rem;
+    letter-spacing: -0.02em;
+  }
+
+  .delete-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-lg);
+    font-size: 1.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.35;
+    transition: all 0.3s var(--ease-spring);
+    border: 1px solid transparent;
+    background: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+  }
+
+  .delete-btn:hover {
+    opacity: 1;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.3) 0%, rgba(255, 107, 107, 0.1) 100%);
+    border-color: rgba(255, 107, 107, 0.5);
+    color: var(--color-red);
+    transform: scale(1.15);
+    box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
+  }
+
+  .list-stats {
+    position: relative;
+    z-index: 1;
+  }
+
+  .stat-text {
+    font-size: 0.9375rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    font-family: var(--font-mono);
+  }
+
+  .lists-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* ── Skeleton cards ── */
+
+  .skeleton-card {
+    background: linear-gradient(165deg, rgba(15, 15, 30, 0.95) 0%, rgba(20, 20, 40, 0.9) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-2xl);
+    padding: 1.75rem;
+    position: relative;
+    overflow: hidden;
+    animation: skeletonPulse 2s ease-in-out infinite;
+    animation-delay: var(--delay);
+  }
+
+  .skeleton-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .skeleton-title {
+    width: 60%;
+    height: 1.25rem;
+    background: rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-sm);
+  }
+
+  .skeleton-btn {
+    width: 32px;
+    height: 32px;
+    background: rgba(108, 92, 231, 0.1);
+    border-radius: var(--radius-md);
+  }
+
+  .skeleton-stats {
+    width: 40%;
+    height: 0.875rem;
+    background: rgba(108, 92, 231, 0.1);
+    border-radius: var(--radius-sm);
+  }
+
+  /* ── Create form modal styles ── */
+
+  .create-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .form-group label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
   .empty-actions {
     display: flex;
     gap: 0.75rem;
@@ -1038,6 +1449,19 @@
      ═══════════════════════════════════════════════════════════════════════════════════ */
 
   @media (max-width: 640px) {
+    .list-card {
+      padding: 1.25rem;
+      border-radius: var(--radius-xl);
+    }
+
+    .list-card:hover {
+      transform: translateY(-4px) scale(1.01);
+    }
+
+    .list-card:active {
+      transform: translateY(0) scale(0.99);
+    }
+
     .section {
       margin-bottom: 2rem;
     }

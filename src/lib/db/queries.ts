@@ -11,7 +11,7 @@
  *
  * Tables touched: `goal_lists`, `goals`, `daily_routine_goals`,
  * `daily_goal_progress`, `task_categories`, `commitments`, `daily_tasks`,
- * `long_term_agenda`, `projects`.
+ * `long_term_agenda`, `task_lists`, `task_list_items`, `projects`.
  *
  * @module queries
  */
@@ -30,6 +30,9 @@ import type {
   DailyTask,
   LongTermTask,
   LongTermTaskWithCategory,
+  TaskList,
+  TaskListItem,
+  TaskListWithCounts,
   Project
 } from '$lib/types';
 
@@ -357,6 +360,91 @@ export async function getLongTermTask(id: string): Promise<LongTermTaskWithCateg
   }
 
   return { ...(task as LongTermTaskWithCategory), category };
+}
+
+// =============================================================================
+//                         Task List Queries
+// =============================================================================
+
+/**
+ * Fetches all task lists with aggregate item counts.
+ *
+ * For each active (non-deleted) list, queries its child `task_list_items`
+ * by the `task_list_id` index and computes two aggregate counts:
+ * - `totalItems`     — number of non-deleted items in the list
+ * - `completedItems` — number of non-deleted items where `completed === true`
+ *
+ * These counts power the "X / Y tasks" display on the agenda page cards.
+ *
+ * The `autoRemoteFallback` option ensures the query falls back to the
+ * remote database on first load before the local cache is populated.
+ *
+ * @returns An array of {@link TaskListWithCounts} sorted ascending by `order`
+ */
+export async function getTaskLists(): Promise<TaskListWithCounts[]> {
+  /* ── Fetch all non-deleted task lists ──── */
+  const lists = await queryAll<TaskList & Record<string, unknown>>('task_lists', {
+    autoRemoteFallback: true
+  });
+
+  /* ── Enrich each list with child item counts ──── */
+  const listsWithCounts = await Promise.all(
+    lists.map(async (list) => {
+      /* Query child items by the task_list_id index */
+      const items = await queryByIndex<TaskListItem & Record<string, unknown>>(
+        'task_list_items',
+        'task_list_id',
+        list.id
+      );
+
+      /* Filter out soft-deleted items before counting */
+      const active = (items as TaskListItem[]).filter((i) => !i.deleted);
+
+      return {
+        ...list,
+        totalItems: active.length,
+        completedItems: active.filter((i) => i.completed).length
+      };
+    })
+  );
+
+  return listsWithCounts as TaskListWithCounts[];
+}
+
+/**
+ * Fetches a single task list by ID together with its active, ordered items.
+ *
+ * Used by the `/agenda/[id]` detail page.  The query uses
+ * `remoteFallback: true` so that deep-linked pages (e.g. shared URLs or
+ * bookmarks) can load even if the local IndexedDB cache hasn't been
+ * fully populated by background sync yet.
+ *
+ * Items are returned sorted ascending by `order` via the `sortByOrder`
+ * option, matching the drag-to-reorder display order.
+ *
+ * @param id - The task list's unique identifier
+ * @returns The {@link TaskList} merged with an `items` array, or `null` if
+ *          the list doesn't exist or is soft-deleted
+ */
+export async function getTaskList(
+  id: string
+): Promise<(TaskList & { items: TaskListItem[] }) | null> {
+  /* ── Fetch the parent list record ──── */
+  const list = await queryOne<TaskList & Record<string, unknown>>('task_lists', id, {
+    remoteFallback: true
+  });
+
+  if (!list) return null;
+
+  /* ── Fetch child items sorted by order for display ──── */
+  const items = await queryByIndex<TaskListItem & Record<string, unknown>>(
+    'task_list_items',
+    'task_list_id',
+    id,
+    { remoteFallback: true, sortByOrder: true }
+  );
+
+  return { ...(list as TaskList), items: items as TaskListItem[] };
 }
 
 // =============================================================================

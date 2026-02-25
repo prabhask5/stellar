@@ -124,6 +124,20 @@ export const schema: SchemaDefinition = {
     ownership: { parent: 'block_lists', fk: 'block_list_id' },
     fields: { block_list_id: 'uuid', domain: 'string' }
   },
+  task_lists: {
+    indexes: 'order',
+    fields: { name: 'string', order: 'number' }
+  },
+  task_list_items: {
+    indexes: 'task_list_id, order',
+    ownership: { parent: 'task_lists', fk: 'task_list_id' },
+    fields: {
+      task_list_id: 'uuid',
+      name: 'string',
+      completed: 'boolean',
+      order: 'number'
+    }
+  },
   projects: {
     indexes: 'is_current, order',
     fields: {

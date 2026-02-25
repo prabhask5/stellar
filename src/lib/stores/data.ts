@@ -14,7 +14,9 @@
  *    progress tracking, and month-level calendar progress
  * 3. **Task Stores** — task categories, commitments, daily tasks, and
  *    long-term agenda items
- * 4. **Project Stores** — projects with joined goal-list progress, tags,
+ * 4. **Task List Stores** — task lists (named containers of simple tasks)
+ *    and single task list detail with nested items
+ * 5. **Project Stores** — projects with joined goal-list progress, tags,
  *    and combined completion metrics
  *
  * Each store follows a consistent factory pattern:
@@ -41,9 +43,13 @@ import type {
   LongTermTask,
   LongTermTaskWithCategory,
   AgendaItemType,
+  TaskList,
+  TaskListItem,
+  TaskListWithCounts,
   ProjectWithDetails
 } from '$lib/types';
 import { queryAll } from 'stellar-drive/data';
+import { debug } from 'stellar-drive/utils';
 import {
   createCollectionStore,
   createDetailStore,
@@ -1173,6 +1179,300 @@ function createLongTermTasksStore() {
 
 /** Singleton long-term-tasks store consumed by the agenda page. */
 export const longTermTasksStore = createLongTermTasksStore();
+
+// =============================================================================
+//  TASK LIST STORES
+// =============================================================================
+//
+// Task lists are named containers for simple tasks (similar to daily tasks
+// but organized into user-created groups).  They appear as reorderable
+// cards on the Agenda page, each showing "X / Y tasks" completion count.
+// Clicking a card navigates to `/agenda/[id]` where items can be managed.
+//
+// Two stores work together:
+//   - `taskListsStore`  — collection of all lists with aggregate counts
+//   - `taskListStore`   — single list detail with its nested items array
+// =============================================================================
+
+// ── Task Lists Store ────────────────────────────────────────────────────────
+
+/**
+ * Factory for the **task lists** collection store.
+ *
+ * Manages the top-level collection of task lists, each enriched with
+ * aggregate item counts (`totalItems`, `completedItems`).  These counts
+ * are computed by {@link queries.getTaskLists} at load time and updated
+ * optimistically on create/delete.
+ *
+ * Supports CRUD, reorder, and sync-driven auto-refresh (via
+ * {@link createCollectionStore}'s built-in `onSyncComplete` listener).
+ *
+ * @returns A custom Svelte store with `load`, `create`, `update`, `delete`,
+ *          `reorder`, and `refresh` methods.
+ */
+function createTaskListsStore() {
+  const store = createCollectionStore<TaskListWithCounts>({
+    load: queries.getTaskLists
+  });
+
+  return {
+    ...store,
+
+    /**
+     * Create a new task list and optimistically prepend it to the store.
+     *
+     * The new list starts with `totalItems: 0` and `completedItems: 0`
+     * since it has no child items yet.  The `remoteChangesStore` is
+     * notified to suppress the remote-change animation for this entity
+     * (since we just created it locally).
+     *
+     * @param name   - Display name for the new list.
+     * @param userId - Owner user ID (from auth state).
+     * @returns The newly created {@link TaskList}.
+     */
+    create: async (name: string, userId: string) => {
+      const newList = await repo.createTaskList(name, userId);
+
+      /* ── Record local change to suppress remote-change animation ──── */
+      remoteChangesStore.recordLocalChange(newList.id, 'task_lists', 'create');
+
+      /* ── Optimistic prepend with zero counts ──── */
+      store.mutate((lists) => [{ ...newList, totalItems: 0, completedItems: 0 }, ...lists]);
+
+      debug('log', `[TaskListsStore] Created list "${name}" (id=${newList.id})`);
+      return newList;
+    },
+
+    /**
+     * Rename an existing task list and update it in the store.
+     *
+     * @param id   - Task list ID.
+     * @param name - New display name.
+     * @returns The updated record, or `undefined` if not found.
+     */
+    update: async (id: string, name: string) => {
+      const updated = await repo.updateTaskList(id, name);
+      if (updated) {
+        /* ── Optimistic name update — preserve counts ──── */
+        store.mutate((lists) => lists.map((l) => (l.id === id ? { ...l, name } : l)));
+        debug('log', `[TaskListsStore] Renamed list (id=${id}, newName="${name}")`);
+      }
+      return updated;
+    },
+
+    /**
+     * Delete a task list (cascades to child items) and remove it from the store.
+     *
+     * The repository layer handles cascade-deleting all child
+     * `task_list_items` atomically via batch write.
+     *
+     * @param id - Task list ID to delete.
+     */
+    delete: async (id: string) => {
+      await repo.deleteTaskList(id);
+
+      /* ── Optimistic removal from the collection ──── */
+      store.mutate((lists) => lists.filter((l) => l.id !== id));
+
+      debug('log', `[TaskListsStore] Deleted list (id=${id})`);
+    },
+
+    /**
+     * Move a task list to a new sort position and re-sort the store.
+     *
+     * After updating the order in the database, the store array is
+     * re-sorted ascending by `order` so the UI reflects the new position
+     * immediately without waiting for a full refresh.
+     *
+     * @param id       - Task list ID.
+     * @param newOrder - Target sort-order value.
+     * @returns The updated record, or `undefined` if not found.
+     */
+    reorder: async (id: string, newOrder: number) => {
+      const updated = await repo.reorderTaskList(id, newOrder);
+      if (updated) {
+        store.mutate((lists) => {
+          /* ── Update the order on the target item ──── */
+          const updatedLists = lists.map((l) => (l.id === id ? { ...l, order: newOrder } : l));
+          /* ── Re-sort so the UI reflects the new position ──── */
+          updatedLists.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          return updatedLists;
+        });
+        debug('log', `[TaskListsStore] Reordered list (id=${id}, newOrder=${newOrder})`);
+      }
+      return updated;
+    }
+  };
+}
+
+/** Singleton task-lists store consumed by the agenda page. */
+export const taskListsStore = createTaskListsStore();
+
+// ── Single Task List (with nested Items) Store ──────────────────────────────
+
+/**
+ * Factory for the **single task list** detail store.
+ *
+ * Holds one {@link TaskList} together with its child {@link TaskListItem}
+ * array.  Used on the `/agenda/[id]` detail page for managing individual
+ * items (add, toggle, delete, reorder).
+ *
+ * The store follows the same pattern as {@link createGoalListStore}:
+ * - `load(id)` fetches the list + items via {@link queries.getTaskList}
+ * - `clear()` resets to `null` when navigating away
+ * - `mutate()` applies optimistic updates to the nested items array
+ * - `onSyncComplete` auto-refreshes from local DB when sync finishes
+ *
+ * @returns A custom Svelte store with item-level CRUD methods.
+ */
+function createTaskListStore() {
+  const store = createDetailStore<TaskList & { items: TaskListItem[] }>({
+    load: queries.getTaskList
+  });
+
+  return {
+    ...store,
+
+    /**
+     * Rename the currently loaded task list.
+     *
+     * Persists to the database then optimistically updates the store's
+     * `name` field so the page header reflects the change immediately.
+     *
+     * @param id   - Task list ID.
+     * @param name - New display name.
+     */
+    updateName: async (id: string, name: string) => {
+      await repo.updateTaskList(id, name);
+
+      /* ── Optimistic name update ──── */
+      store.mutate((list) => (list ? { ...list, name } : null));
+
+      debug('log', `[TaskListStore] Renamed list (id=${id}, newName="${name}")`);
+    },
+
+    /**
+     * Create a new item inside the loaded list and prepend it to the array.
+     *
+     * New items appear at the top of the list (lowest `order` value),
+     * matching the behaviour of daily tasks and goals.
+     *
+     * @param taskListId - Parent list ID.
+     * @param name       - Item display name.
+     * @returns The newly created {@link TaskListItem}.
+     */
+    addItem: async (taskListId: string, name: string) => {
+      const newItem = await repo.createTaskListItem(taskListId, name);
+
+      /* ── Suppress remote-change animation for locally created items ──── */
+      remoteChangesStore.recordLocalChange(newItem.id, 'task_list_items', 'create');
+
+      /* ── Optimistic prepend to items array ──── */
+      store.mutate((list) => (list ? { ...list, items: [newItem, ...list.items] } : null));
+
+      debug('log', `[TaskListStore] Added item "${name}" (id=${newItem.id}, listId=${taskListId})`);
+      return newItem;
+    },
+
+    /**
+     * Partially update an item's properties (name, completed).
+     *
+     * After the database write, the store replaces the matching item
+     * in the array with the updated record from the engine.
+     *
+     * @param itemId  - Item ID.
+     * @param updates - Partial field updates (`name` and/or `completed`).
+     * @returns The updated {@link TaskListItem}, or `undefined` if not found.
+     */
+    updateItem: async (
+      itemId: string,
+      updates: Partial<Pick<TaskListItem, 'name' | 'completed'>>
+    ) => {
+      const updated = await repo.updateTaskListItem(itemId, updates);
+      if (updated) {
+        /* ── Replace the matching item in the array ──── */
+        store.mutate((list) =>
+          list ? { ...list, items: list.items.map((i) => (i.id === itemId ? updated : i)) } : null
+        );
+        debug(
+          'log',
+          `[TaskListStore] Updated item (id=${itemId}, updates=${JSON.stringify(updates)})`
+        );
+      }
+      return updated;
+    },
+
+    /**
+     * Toggle an item's `completed` flag.
+     *
+     * Delegates to the repository's read-then-flip logic, then replaces
+     * the item in the store array with the updated record.
+     *
+     * @param itemId - Item ID.
+     * @returns The updated {@link TaskListItem}, or `undefined` if not found.
+     */
+    toggleItem: async (itemId: string) => {
+      const updated = await repo.toggleTaskListItem(itemId);
+      if (updated) {
+        /* ── Replace the toggled item in the array ──── */
+        store.mutate((list) =>
+          list ? { ...list, items: list.items.map((i) => (i.id === itemId ? updated : i)) } : null
+        );
+        debug('log', `[TaskListStore] Toggled item (id=${itemId}, completed=${updated.completed})`);
+      }
+      return updated;
+    },
+
+    /**
+     * Delete an item and remove it from the store.
+     *
+     * The engine soft-deletes the record; the store filters it out
+     * of the items array immediately for an optimistic UI update.
+     *
+     * @param itemId - Item ID to delete.
+     */
+    deleteItem: async (itemId: string) => {
+      await repo.deleteTaskListItem(itemId);
+
+      /* ── Optimistic removal from items array ──── */
+      store.mutate((list) =>
+        list ? { ...list, items: list.items.filter((i) => i.id !== itemId) } : null
+      );
+
+      debug('log', `[TaskListStore] Deleted item (id=${itemId})`);
+    },
+
+    /**
+     * Move an item to a new sort position within its list.
+     *
+     * After updating the order in the database, the store's items array
+     * is re-sorted ascending by `order` so the UI reflects the new
+     * position immediately without a full refresh.
+     *
+     * @param itemId   - Item ID.
+     * @param newOrder - Target sort-order value.
+     * @returns The updated {@link TaskListItem}, or `undefined` if not found.
+     */
+    reorderItem: async (itemId: string, newOrder: number) => {
+      const updated = await repo.reorderTaskListItem(itemId, newOrder);
+      if (updated) {
+        store.mutate((list) => {
+          if (!list) return null;
+          /* ── Update the order on the target item ──── */
+          const updatedItems = list.items.map((i) => (i.id === itemId ? updated : i));
+          /* ── Re-sort so the UI reflects the new position ──── */
+          updatedItems.sort((a, b) => a.order - b.order);
+          return { ...list, items: updatedItems };
+        });
+        debug('log', `[TaskListStore] Reordered item (id=${itemId}, newOrder=${newOrder})`);
+      }
+      return updated;
+    }
+  };
+}
+
+/** Singleton single-task-list store consumed by the detail page. */
+export const taskListStore = createTaskListStore();
 
 // =============================================================================
 //  PROJECT STORES

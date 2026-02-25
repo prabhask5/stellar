@@ -23,6 +23,8 @@ import type {
   FocusSession as GenFocusSession,
   BlockList as GenBlockList,
   BlockedWebsite as GenBlockedWebsite,
+  TaskList as GenTaskList,
+  TaskListItem as GenTaskListItem,
   Project as GenProject
 } from './types.generated';
 
@@ -111,6 +113,12 @@ export interface BlockList extends Omit<GenBlockList, 'active_days'> {
 /** A single domain entry within a BlockList. */
 export type BlockedWebsite = GenBlockedWebsite;
 
+/** A named container for simple tasks (task list items). */
+export type TaskList = GenTaskList;
+
+/** A single task item within a TaskList. */
+export type TaskListItem = GenTaskListItem;
+
 /** A top-level project. */
 export type Project = GenProject;
 
@@ -136,6 +144,12 @@ export interface GoalListWithProgress extends GoalList {
 /** A LongTermTask with its category eagerly joined. */
 export interface LongTermTaskWithCategory extends LongTermTask {
   category?: TaskCategory;
+}
+
+/** A TaskList enriched with aggregate item counts. */
+export interface TaskListWithCounts extends TaskList {
+  totalItems: number;
+  completedItems: number;
 }
 
 /** A Project enriched with joined details and aggregate statistics. */
