@@ -39,7 +39,7 @@
   "dependencies": {
     "date-fns": "^4.1.0",
     "postgres": "^3.4.8",
-    "stellar-drive": "^1.1.13"
+    "stellar-drive": "^1.1.15"
   },
   "type": "module"
 }

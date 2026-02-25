@@ -39,6 +39,7 @@
     linkSingleUserDevice
   } from 'stellar-drive/auth';
   import { sendDeviceVerification, isDemoMode } from 'stellar-drive';
+  import { isSafeRedirect } from 'stellar-drive/utils';
 
   // =============================================================================
   //  Layout / Page Data
@@ -47,8 +48,12 @@
   /** Whether this device has a linked single-user account (derived from IndexedDB, not layout data) */
   let deviceLinked = $state(false);
 
-  /** Post-login redirect URL extracted from `?redirect=` query param */
-  const redirectUrl = $derived($page.url.searchParams.get('redirect') || '/');
+  /** Post-login redirect URL — validated to prevent open-redirect attacks */
+  const redirectUrl = $derived.by(() => {
+    const param = $page.url.searchParams.get('redirect');
+    if (param && isSafeRedirect(param)) return param;
+    return '/';
+  });
 
   // =============================================================================
   //  Shared UI State

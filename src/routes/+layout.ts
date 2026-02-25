@@ -29,6 +29,7 @@ import { goto } from '$app/navigation';
 import { initEngine, supabase } from 'stellar-drive';
 import { lockSingleUser } from 'stellar-drive/auth';
 import { resolveRootLayout } from 'stellar-drive/kit';
+import { isSafeRedirect } from 'stellar-drive/utils';
 import { demoConfig } from '$lib/demo/config';
 import { schema } from '$lib/schema';
 import type { RootLayoutData } from 'stellar-drive/kit';
@@ -125,14 +126,18 @@ export const load: LayoutLoad = async ({ url }): Promise<RootLayoutData> => {
     const result = await resolveRootLayout();
 
     if (result.authMode === 'none') {
-      if (!result.serverConfigured && !url.pathname.startsWith('/setup')) {
+      if (
+        !result.serverConfigured &&
+        !url.pathname.startsWith('/setup') &&
+        !url.pathname.startsWith('/policy')
+      ) {
         redirect(307, '/setup');
       } else if (result.serverConfigured) {
         const isPublicRoute = PUBLIC_ROUTES.some((r) => url.pathname.startsWith(r));
         if (!isPublicRoute) {
           const returnUrl = url.pathname + url.search;
           const loginUrl =
-            returnUrl && returnUrl !== '/'
+            returnUrl && returnUrl !== '/' && isSafeRedirect(returnUrl)
               ? `/login?redirect=${encodeURIComponent(returnUrl)}`
               : '/login';
           redirect(307, loginUrl);

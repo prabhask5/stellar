@@ -84,21 +84,31 @@ function calculateListProgress(goals: Goal[]): {
  * @returns An array of {@link GoalListWithProgress} sorted by `order`
  */
 export async function getGoalLists(): Promise<GoalListWithProgress[]> {
-  const lists = await queryAll<GoalList & Record<string, unknown>>('goal_lists', {
-    autoRemoteFallback: true
-  });
-
-  const listsWithProgress: GoalListWithProgress[] = await Promise.all(
-    lists.map(async (list) => {
-      const goals = await queryByIndex<Goal & Record<string, unknown>>(
-        'goals',
-        'goal_list_id',
-        list.id
-      );
-      return { ...list, ...calculateListProgress(goals as Goal[]) };
+  /* ── Batch-load lists and ALL goals in two calls (avoids N+1) ──── */
+  const [lists, allGoals] = await Promise.all([
+    queryAll<GoalList & Record<string, unknown>>('goal_lists', {
+      autoRemoteFallback: true
+    }),
+    queryAll<Goal & Record<string, unknown>>('goals', {
+      autoRemoteFallback: true
     })
-  );
-  return listsWithProgress as GoalListWithProgress[];
+  ]);
+
+  /* ── Group goals by goal_list_id for O(1) lookup per list ──── */
+  const goalsByListId = new Map<string, Goal[]>();
+  for (const goal of allGoals as Goal[]) {
+    const existing = goalsByListId.get(goal.goal_list_id);
+    if (existing) {
+      existing.push(goal);
+    } else {
+      goalsByListId.set(goal.goal_list_id, [goal]);
+    }
+  }
+
+  return lists.map((list) => ({
+    ...list,
+    ...calculateListProgress(goalsByListId.get(list.id) || [])
+  })) as GoalListWithProgress[];
 }
 
 /**
@@ -124,6 +134,20 @@ export async function getGoalList(id: string): Promise<(GoalList & { goals: Goal
     sortByOrder: true
   });
   return { ...(list as GoalList), goals: goals as Goal[] };
+}
+
+/**
+ * Fetches all non-deleted goals (flat list, no grouping).
+ *
+ * Used by the projects store to compute combined progress across goals
+ * and tasks without re-fetching goals that `getGoalLists()` already loaded.
+ *
+ * @returns All active {@link Goal} items
+ */
+export async function getAllGoals(): Promise<Goal[]> {
+  return queryAll<Goal & Record<string, unknown>>('goals', {
+    autoRemoteFallback: true
+  }) as Promise<Goal[]>;
 }
 
 // =============================================================================
@@ -382,33 +406,36 @@ export async function getLongTermTask(id: string): Promise<LongTermTaskWithCateg
  * @returns An array of {@link TaskListWithCounts} sorted ascending by `order`
  */
 export async function getTaskLists(): Promise<TaskListWithCounts[]> {
-  /* ── Fetch all non-deleted task lists ──── */
-  const lists = await queryAll<TaskList & Record<string, unknown>>('task_lists', {
-    autoRemoteFallback: true
-  });
-
-  /* ── Enrich each list with child item counts ──── */
-  const listsWithCounts = await Promise.all(
-    lists.map(async (list) => {
-      /* Query child items by the task_list_id index */
-      const items = await queryByIndex<TaskListItem & Record<string, unknown>>(
-        'task_list_items',
-        'task_list_id',
-        list.id
-      );
-
-      /* Filter out soft-deleted items before counting */
-      const active = (items as TaskListItem[]).filter((i) => !i.deleted);
-
-      return {
-        ...list,
-        totalItems: active.length,
-        completedItems: active.filter((i) => i.completed).length
-      };
+  /* ── Batch-load lists and ALL items in two calls (avoids N+1) ──── */
+  const [lists, allItems] = await Promise.all([
+    queryAll<TaskList & Record<string, unknown>>('task_lists', {
+      autoRemoteFallback: true
+    }),
+    queryAll<TaskListItem & Record<string, unknown>>('task_list_items', {
+      autoRemoteFallback: true
     })
-  );
+  ]);
 
-  return listsWithCounts as TaskListWithCounts[];
+  /* ── Group non-deleted items by task_list_id for O(1) lookup ──── */
+  const itemsByListId = new Map<string, TaskListItem[]>();
+  for (const item of allItems as TaskListItem[]) {
+    if (item.deleted) continue;
+    const existing = itemsByListId.get(item.task_list_id);
+    if (existing) {
+      existing.push(item);
+    } else {
+      itemsByListId.set(item.task_list_id, [item]);
+    }
+  }
+
+  return lists.map((list) => {
+    const active = itemsByListId.get(list.id) || [];
+    return {
+      ...list,
+      totalItems: active.length,
+      completedItems: active.filter((i) => i.completed).length
+    };
+  }) as TaskListWithCounts[];
 }
 
 /**

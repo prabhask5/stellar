@@ -48,7 +48,6 @@ import type {
   TaskListWithCounts,
   ProjectWithDetails
 } from '$lib/types';
-import { queryAll } from 'stellar-drive/data';
 import { debug } from 'stellar-drive/utils';
 import {
   createCollectionStore,
@@ -1041,8 +1040,9 @@ function createDailyTasksStore() {
         store.mutate((tasks) =>
           tasks.map((t) => (t.id === id ? { ...updated, category: taskCategory } : t))
         );
+        /* Fire-and-forget: refresh the other store without blocking the caller */
         if (wasSpawned) {
-          await longTermTasksStore.refresh();
+          void longTermTasksStore.refresh();
         }
       }
       return updated;
@@ -1054,8 +1054,9 @@ function createDailyTasksStore() {
 
       await repo.deleteDailyTask(id);
       store.mutate((tasks) => tasks.filter((t) => t.id !== id));
+      /* Fire-and-forget: refresh the other store without blocking the caller */
       if (wasSpawned) {
-        await longTermTasksStore.refresh();
+        void longTermTasksStore.refresh();
       }
     },
 
@@ -1075,8 +1076,9 @@ function createDailyTasksStore() {
       const hadSpawned = currentTasks.some((t) => t.completed && t.long_term_task_id);
       await repo.clearCompletedDailyTasks(userId);
       store.mutate((tasks) => tasks.filter((t) => !t.completed));
+      /* Fire-and-forget: refresh the other store without blocking the caller */
       if (hadSpawned) {
-        await longTermTasksStore.refresh();
+        void longTermTasksStore.refresh();
       }
     }
   };
@@ -1131,7 +1133,8 @@ function createLongTermTasksStore() {
       if (dueDate <= today && type === 'task') {
         const spawnedTask = await repo.createDailyTask(name, userId, newTask.id);
         remoteChangesStore.recordLocalChange(spawnedTask.id, 'daily_tasks', 'create');
-        await dailyTasksStore.refresh();
+        /* Fire-and-forget: refresh the daily tasks view without blocking */
+        void dailyTasksStore.refresh();
       }
 
       return newTask;
@@ -1147,8 +1150,9 @@ function createLongTermTasksStore() {
         if (taskWithCategory) {
           store.mutate((tasks) => tasks.map((t) => (t.id === id ? taskWithCategory : t)));
         }
+        /* Fire-and-forget: refresh the daily tasks view without blocking */
         if (updates.due_date !== undefined || updates.name !== undefined) {
-          await dailyTasksStore.refresh();
+          void dailyTasksStore.refresh();
         }
       }
       return updated;
@@ -1164,7 +1168,8 @@ function createLongTermTasksStore() {
         if (taskWithCategory) {
           store.mutate((tasks) => tasks.map((t) => (t.id === id ? taskWithCategory : t)));
         }
-        await dailyTasksStore.refresh();
+        /* Fire-and-forget: refresh the daily tasks view without blocking */
+        void dailyTasksStore.refresh();
       }
       return updated;
     },
@@ -1172,7 +1177,8 @@ function createLongTermTasksStore() {
     delete: async (id: string) => {
       await repo.deleteLongTermTask(id);
       store.mutate((tasks) => tasks.filter((t) => t.id !== id));
-      await dailyTasksStore.refresh();
+      /* Fire-and-forget: refresh the daily tasks view without blocking */
+      void dailyTasksStore.refresh();
     }
   };
 }
@@ -1513,7 +1519,7 @@ function createProjectsStore() {
       queries.getGoalLists(),
       queries.getTaskCategories(),
       queries.getLongTermTasks(),
-      queryAll<Goal & Record<string, unknown>>('goals') as Promise<Goal[]>
+      queries.getAllGoals()
     ]);
 
     return projects.map((project) => {

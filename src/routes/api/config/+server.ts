@@ -8,26 +8,22 @@
 //  Supabase has been configured (i.e., environment variables are present).
 //  If not, the client redirects to the `/setup` wizard.
 //
-//  Delegates entirely to `getServerConfig()` from stellar-drive, which
+//  Delegates entirely to `createConfigHandler()` from stellar-drive, which
 //  reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` from
-//  `process.env` and returns them (or `null` values when unconfigured).
+//  `process.env` and returns them with security headers (Cache-Control,
+//  X-Content-Type-Options).
 //
 // =============================================================================
 
-import { json } from '@sveltejs/kit';
-import { getServerConfig } from 'stellar-drive/kit';
+import { createConfigHandler } from 'stellar-drive/kit';
 import type { RequestHandler } from './$types';
 
 /**
  * **GET /api/config** — Retrieve the current Supabase configuration.
  *
- * Reads `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` from the
- * server environment and returns them as JSON. The client uses this to
- * initialise the Supabase client or detect that setup is required.
+ * Factory-created handler that reads env vars and returns them as JSON
+ * with appropriate security headers.
  *
- * @returns JSON payload with `{ supabaseUrl, supabasePublishableKey }` (values
- *          may be `null` if the environment is unconfigured).
+ * @see {@link createConfigHandler} for implementation details.
  */
-export const GET: RequestHandler = async () => {
-  return json(getServerConfig());
-};
+export const GET: RequestHandler = createConfigHandler();
