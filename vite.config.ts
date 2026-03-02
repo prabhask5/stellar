@@ -27,7 +27,11 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [
     sveltekit(),
-    stellarPWA({ prefix: 'stellar', name: 'Stellar Planner', schema: true })
+    stellarPWA({
+      prefix: 'stellar',
+      name: 'Stellar Planner',
+      schema: { customSQL: 'src/lib/custom.sql' }
+    })
   ],
   build: {
     /**
