@@ -90,7 +90,7 @@ async function handleSubmit(e: Event) {
   try {
     // Test Supabase connectivity
     const tempClient = createClient(supabaseUrl, supabaseAnonKey);
-    const { error } = await tempClient.from('focus_sessions').select('id').limit(1);
+    const { error } = await tempClient.from('stellar_focus_sessions').select('id').limit(1);
 
     if (error) {
       // "Invalid API key" means bad credentials

@@ -56,6 +56,13 @@ let setupRealtimeRunning = false;
 // Track reconnection timeout so we can cancel stacked retries
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
+// Supabase table names (prefixed to match stellar-drive's schema)
+const TABLES = {
+  focus_sessions: 'stellar_focus_sessions',
+  block_lists: 'stellar_block_lists',
+  blocked_websites: 'stellar_blocked_websites'
+} as const;
+
 // Explicit column definitions to reduce egress (no SELECT *)
 const COLUMNS = {
   focus_sessions: 'id,user_id,phase,status,phase_started_at,focus_duration,break_duration,ended_at',
@@ -305,7 +312,7 @@ browser.runtime.onMessage.addListener((message: { type: string }, _sender: brows
 
         // No user_id filter — RLS handles access (single-user app)
         const { data: sessions, error } = await supabase
-          .from('focus_sessions')
+          .from(TABLES.focus_sessions)
           .select(COLUMNS.focus_sessions + ',started_at,elapsed_duration,deleted')
           .gte('started_at', todayStr)
           .order('created_at', { ascending: false });
@@ -534,7 +541,7 @@ async function setupRealtimeSubscriptions() {
       {
         event: '*',
         schema: 'public',
-        table: 'focus_sessions',
+        table: TABLES.focus_sessions,
         filter: `user_id=eq.${userId}`
       },
       (payload) => {
@@ -585,7 +592,7 @@ async function setupRealtimeSubscriptions() {
       {
         event: '*',
         schema: 'public',
-        table: 'block_lists',
+        table: TABLES.block_lists,
         filter: `user_id=eq.${userId}`
       },
       (payload) => {
@@ -603,7 +610,7 @@ async function setupRealtimeSubscriptions() {
       {
         event: '*',
         schema: 'public',
-        table: 'blocked_websites'
+        table: TABLES.blocked_websites
       },
       (payload) => {
         debugLog('[Stellar Focus] Real-time: Blocked website update', payload.eventType);
@@ -790,7 +797,7 @@ async function pollFocusSession() {
     // No user_id filter — RLS handles access (single-user app)
     const supabase = await getSupabase();
     const { data, error } = await supabase
-      .from('focus_sessions')
+      .from(TABLES.focus_sessions)
       .select(COLUMNS.focus_sessions)
       .is('ended_at', null)
       .neq('status', 'stopped')
@@ -872,7 +879,7 @@ async function refreshBlockLists() {
     // Fetch block lists with explicit columns (egress optimization)
     // No user_id filter — RLS handles access (single-user app)
     const { data: lists, error: listsError } = await supabase
-      .from('block_lists')
+      .from(TABLES.block_lists)
       .select(COLUMNS.block_lists)
       .eq('deleted', false)
       .eq('is_enabled', true);
@@ -896,7 +903,7 @@ async function refreshBlockLists() {
 
       if (enabledListIds.length > 0) {
         const { data: websites, error: websitesError } = await supabase
-          .from('blocked_websites')
+          .from(TABLES.blocked_websites)
           .select(COLUMNS.blocked_websites)
           .in('block_list_id', enabledListIds)
           .eq('deleted', false);
