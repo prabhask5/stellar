@@ -7,13 +7,7 @@
   "project": [
     "src/**/*.{svelte,ts,js}"
   ],
-  "ignore": [
-    "src/app.d.ts",
-    "**/*.test.ts",
-    "**/*.spec.ts"
-  ],
   "sveltekit": {
     "config": "svelte.config.js"
-  },
-  "ignoreDependencies": ["postgres", "stellar-drive"]
+  }
 }

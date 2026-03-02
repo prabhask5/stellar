@@ -8,18 +8,19 @@
 -- Returns the first auth user's email, gate type, code length, and profile.
 -- Used by the stellar-focus browser extension and new devices to discover the
 -- existing account without authentication (called with the anon/publishable key).
-CREATE OR REPLACE FUNCTION public.get_extension_config()
-RETURNS json
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
+CREATE OR REPLACE FUNCTION get_extension_config()
+RETURNS json LANGUAGE sql SECURITY DEFINER STABLE AS $$
   SELECT json_build_object(
     'email', u.email,
-    'gateType', COALESCE(u.raw_user_meta_data->>'gateType', 'code'),
+    'gateType', 'code',
     'codeLength', COALESCE((u.raw_user_meta_data->>'code_length')::int, 6),
-    'profile', COALESCE(u.raw_user_meta_data->'profile', '{}'::jsonb)
+    'profile', json_build_object(
+      'firstName', COALESCE(u.raw_user_meta_data->>'first_name', ''),
+      'lastName', COALESCE(u.raw_user_meta_data->>'last_name', '')
+    )
   )
   FROM auth.users u
-  LIMIT 1;
+  WHERE u.email IS NOT NULL
+  ORDER BY u.created_at ASC LIMIT 1;
 $$;
+GRANT EXECUTE ON FUNCTION get_extension_config() TO anon, authenticated;
