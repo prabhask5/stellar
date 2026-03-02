@@ -69,7 +69,7 @@ export async function getUser() {
  * Must match the engine's padPin() implementation.
  */
 function padPin(pin: string): string {
-  return `${pin}_stellar`;
+  return `${pin}_app`;
 }
 
 /**
