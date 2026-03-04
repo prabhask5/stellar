@@ -411,6 +411,9 @@
     margin: -0.5rem -1rem;
     border-radius: var(--radius-xl);
     transition: all 0.35s var(--ease-out);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     background: linear-gradient(
       135deg,
       var(--color-text) 0%,
@@ -421,15 +424,32 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    letter-spacing: -0.03em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    letter-spacing: -0.02em;
+    animation: textShimmer 8s linear infinite;
   }
 
+  @keyframes textShimmer {
+    0% {
+      background-position: 0% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
+  }
+
+  .page-header h1:hover,
   .title-edit-btn:hover h1 {
-    background-position: 100% center;
+    background: linear-gradient(
+      135deg,
+      var(--color-primary-light) 0%,
+      var(--color-accent) 50%,
+      var(--color-primary-light) 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    filter: drop-shadow(0 0 30px var(--color-primary-glow));
+    animation: textShimmer 4s linear infinite;
   }
 
   .title-skeleton {
@@ -449,22 +469,14 @@
   }
 
   .edit-name-form input {
-    flex: 1;
-    min-width: 0;
-    font-size: 1.25rem;
+    font-size: 1.375rem;
     font-weight: 700;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-xl);
-    border: 1px solid rgba(108, 92, 231, 0.4);
-    background: rgba(15, 15, 30, 0.8);
-    color: var(--color-text);
-    transition: border-color 0.3s;
-  }
-
-  .edit-name-form input:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 20px var(--color-primary-glow);
+    padding: 0.625rem 1rem;
+    width: 250px;
+    background: rgba(108, 92, 231, 0.15);
+    border: 2px solid var(--color-primary);
+    box-shadow: 0 0 30px var(--color-primary-glow);
+    letter-spacing: -0.01em;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════
@@ -778,21 +790,47 @@
 
   @media (max-width: 640px) {
     .page-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
       margin-bottom: 1.5rem;
     }
 
-    .back-btn {
-      padding: 0.5rem 0.875rem;
-      font-size: 0.8125rem;
+    .header-left {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
     }
 
-    .page-header h1,
-    .title-edit-btn h1 {
-      font-size: 1.375rem;
+    .back-btn {
+      width: 100%;
+      justify-content: center;
+      padding: 0.875rem;
+    }
+
+    .back-btn:hover {
+      transform: none;
+    }
+
+    .back-btn:active {
+      transform: scale(0.98);
+    }
+
+    .page-header h1 {
+      font-size: 1.5rem;
+      text-align: center;
+      padding: 0.5rem;
+      margin: 0;
+    }
+
+    .page-header h1:hover {
+      filter: none;
     }
 
     .edit-name-form {
-      gap: 0.5rem;
+      flex-direction: column;
+      width: 100%;
+      gap: 0.75rem;
     }
 
     .edit-name-form input {
@@ -825,10 +863,25 @@
     }
   }
 
+  /* iPhone 14/15/16 Pro Max specific (430px) */
+  @media (min-width: 430px) and (max-width: 640px) {
+    .page-header h1 {
+      font-size: 1.75rem;
+    }
+
+    .edit-name-form input {
+      font-size: 1.25rem;
+    }
+  }
+
+  /* Very small devices (iPhone SE) */
   @media (max-width: 375px) {
-    .page-header h1,
-    .title-edit-btn h1 {
-      font-size: 1.125rem;
+    .page-header h1 {
+      font-size: 1.25rem;
+    }
+
+    .edit-name-form input {
+      font-size: 1rem;
     }
   }
 </style>

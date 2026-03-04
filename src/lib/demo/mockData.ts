@@ -6,7 +6,7 @@
  * Stellar app. The function is called by stellar-drive's demo mode infra
  * every time the app loads in demo mode (data resets on refresh).
  *
- * ## Tables seeded (13 total)
+ * ## Tables seeded (15 total)
  *
  * | Table              | Records | Notes                                    |
  * |--------------------|---------|------------------------------------------|
@@ -23,6 +23,8 @@
  * | focusSessions      | 3       | stopped, running, stopped                |
  * | blockLists         | 2       | "Work Focus" (enabled) + "Study Time"    |
  * | blockedWebsites    | 4       | twitter, reddit, youtube, instagram      |
+ * | taskLists          | 3       | multi-word names, varied completion      |
+ * | taskListItems      | 12      | 4+5+3 items across the 3 lists           |
  *
  * ## Entity relationship invariants
  *
@@ -1023,6 +1025,181 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       block_list_id: 'demo-block-list-2',
       domain: 'instagram.com',
       created_at: oneWeekAgo.toISOString(),
+      updated_at: now.toISOString(),
+      ...common
+    }
+  ]);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  TASK LISTS (3)
+  //
+  //  Named containers for simple checklist-style tasks. Each list holds
+  //  a flat set of `task_list_items` with a name, completion flag, and
+  //  drag-to-reorder support. Displayed on the Agenda page.
+  //
+  //  Lists use multi-word names to exercise the full title display.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  await db.table('taskLists').bulkPut([
+    {
+      id: 'demo-task-list-1',
+      user_id: userId,
+      name: 'Grocery List',
+      order: 0,
+      created_at: oneWeekAgo.toISOString(),
+      updated_at: now.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-task-list-2',
+      user_id: userId,
+      name: 'Weekend Home Projects',
+      order: 1,
+      created_at: threeDaysAgo.toISOString(),
+      updated_at: now.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-task-list-3',
+      user_id: userId,
+      name: 'Books To Read',
+      order: 2,
+      created_at: yesterday.toISOString(),
+      updated_at: now.toISOString(),
+      ...common
+    }
+  ]);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  TASK LIST ITEMS (12)
+  //
+  //  Individual checklist items within task lists. Mix of completed and
+  //  incomplete items to give a realistic feel. Ordered by `order` field.
+  //
+  //  NOTE: No `user_id` — ownership via parent task list.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  await db.table('taskListItems').bulkPut([
+    // ── Grocery List items (4 items, 2 completed) ──
+    {
+      id: 'demo-tl-item-1',
+      task_list_id: 'demo-task-list-1',
+      name: 'Avocados',
+      completed: true,
+      order: 0,
+      created_at: oneWeekAgo.toISOString(),
+      updated_at: yesterday.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-tl-item-2',
+      task_list_id: 'demo-task-list-1',
+      name: 'Sourdough bread',
+      completed: true,
+      order: 1,
+      created_at: oneWeekAgo.toISOString(),
+      updated_at: yesterday.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-tl-item-3',
+      task_list_id: 'demo-task-list-1',
+      name: 'Oat milk',
+      completed: false,
+      order: 2,
+      created_at: oneWeekAgo.toISOString(),
+      updated_at: now.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-tl-item-4',
+      task_list_id: 'demo-task-list-1',
+      name: 'Fresh basil',
+      completed: false,
+      order: 3,
+      created_at: yesterday.toISOString(),
+      updated_at: now.toISOString(),
+      ...common
+    },
+    // ── Weekend Home Projects items (5 items, 3 completed) ──
+    {
+      id: 'demo-tl-item-5',
+      task_list_id: 'demo-task-list-2',
+      name: 'Fix leaky kitchen faucet',
+      completed: true,
+      order: 0,
+      created_at: threeDaysAgo.toISOString(),
+      updated_at: yesterday.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-tl-item-6',
+      task_list_id: 'demo-task-list-2',
+      name: 'Repaint bathroom trim',
+      completed: true,
+      order: 1,
+      created_at: threeDaysAgo.toISOString(),
+      updated_at: yesterday.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-tl-item-7',
+      task_list_id: 'demo-task-list-2',
+      name: 'Organize garage shelves',
+      completed: true,
+      order: 2,
+      created_at: threeDaysAgo.toISOString(),
+      updated_at: twoDaysAgo.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-tl-item-8',
+      task_list_id: 'demo-task-list-2',
+      name: 'Install new light fixture',
+      completed: false,
+      order: 3,
+      created_at: yesterday.toISOString(),
+      updated_at: now.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-tl-item-9',
+      task_list_id: 'demo-task-list-2',
+      name: 'Clean gutters',
+      completed: false,
+      order: 4,
+      created_at: yesterday.toISOString(),
+      updated_at: now.toISOString(),
+      ...common
+    },
+    // ── Books To Read items (3 items, 1 completed) ──
+    {
+      id: 'demo-tl-item-10',
+      task_list_id: 'demo-task-list-3',
+      name: 'Designing Data-Intensive Applications',
+      completed: true,
+      order: 0,
+      created_at: yesterday.toISOString(),
+      updated_at: now.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-tl-item-11',
+      task_list_id: 'demo-task-list-3',
+      name: 'The Pragmatic Programmer',
+      completed: false,
+      order: 1,
+      created_at: yesterday.toISOString(),
+      updated_at: now.toISOString(),
+      ...common
+    },
+    {
+      id: 'demo-tl-item-12',
+      task_list_id: 'demo-task-list-3',
+      name: 'Staff Engineer: Leadership Beyond the Management Track',
+      completed: false,
+      order: 2,
+      created_at: yesterday.toISOString(),
       updated_at: now.toISOString(),
       ...common
     }
