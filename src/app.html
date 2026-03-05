@@ -500,6 +500,28 @@
     </script>
 
     <!-- ================================================================= -->
+    <!--              SW OFFLINE BRIDGE (runs before bundles load)          -->
+    <!-- ================================================================= -->
+    <!--
+      Listens for the service worker's NETWORK_UNREACHABLE message, which is
+      sent when the SW's navigation fetch times out (1.5s). Sets a global
+      flag that probeNetworkReachability() reads so it can skip its own HEAD
+      request. The 'online' handler resets the flag when connectivity returns.
+    -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', function (e) {
+          if (e.data && e.data.type === 'NETWORK_UNREACHABLE') {
+            window.__stellarOffline = true;
+          }
+        });
+      }
+      window.addEventListener('online', function () {
+        window.__stellarOffline = false;
+      });
+    </script>
+
+    <!-- ================================================================= -->
     <!--                SERVICE WORKER REGISTRATION                        -->
     <!-- ================================================================= -->
     <!--

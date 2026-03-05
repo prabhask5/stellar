@@ -26,7 +26,7 @@
 import { browser } from '$app/environment';
 import { redirect } from '@sveltejs/kit';
 import { goto } from '$app/navigation';
-import { initEngine, supabase } from 'stellar-drive';
+import { initEngine, supabase, probeNetworkReachability } from 'stellar-drive';
 import { lockSingleUser } from 'stellar-drive/auth';
 import { resolveRootLayout } from 'stellar-drive/kit';
 import { isSafeRedirect } from 'stellar-drive/utils';
@@ -123,6 +123,12 @@ if (browser) {
  */
 export const load: LayoutLoad = async ({ url }): Promise<RootLayoutData> => {
   if (browser) {
+    /* Probe actual network reachability ONCE before any startup code.
+       Sets the offline flag so initConfig(), resolveAuthState(), and
+       getSession() can skip network calls synchronously. If the SW has
+       already set the flag via NETWORK_UNREACHABLE postMessage, the probe
+       returns immediately without a network request. */
+    await probeNetworkReachability();
     const result = await resolveRootLayout();
 
     if (result.authMode === 'none') {
