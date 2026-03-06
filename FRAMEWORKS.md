@@ -235,7 +235,7 @@ The database is called `GoalPlannerDB` and is currently at **schema version 13**
 | `longTermTasks` | Long-term tasks and reminders with due dates | `user_id`, `due_date`, `category_id` |
 | `focusSettings` | Focus mode configuration | `user_id` |
 | `focusSessions` | Focus session history | `user_id`, `started_at`, `ended_at`, `status` |
-| `blockLists` | Website block list definitions | `user_id`, `order` |
+| `blockLists` | Website block list definitions | `user_id`, `order`, `focus_session_only` |
 | `blockedWebsites` | Individual blocked website URLs | `block_list_id` |
 | `projects` | Project containers (group lists + tags + commitments) | `user_id`, `is_current`, `order` |
 

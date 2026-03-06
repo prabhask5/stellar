@@ -1133,9 +1133,9 @@ npm run package
 
 1. Configure the extension via the options page (Supabase URL, publishable key, app URL)
 2. Log in via the popup
-3. Start a focus session in Stellar Planner
-4. The extension receives the update via realtime (watch the sync indicator in the popup)
-5. Navigate to a domain in your block lists -- you should see the blocked page with the galaxy animation
+3. For always-active block lists: navigate to a blocked domain on a scheduled day -- you should see the blocked page
+4. For focus-session-only block lists: start a focus session in Stellar Planner, then navigate to a blocked domain -- the block page appears only during focus phases
+5. The extension receives updates via realtime (watch the sync indicator in the popup)
 
 ### Debugging
 

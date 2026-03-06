@@ -67,11 +67,12 @@ Install the Stellar Focus extension through the links below (more information ab
 ### Focus Timer (Pomodoro)
 - **Customizable Sessions**: Configure focus duration, short break, long break, and number of sessions before a long break.
 - **Phase Management**: Automatic transitions between focus, break, and long break phases with visual session schedule.
-- **Website Blocking**: Integrates with the Stellar Focus browser extension to block distracting websites during focus phases.
+- **Website Blocking**: Integrates with the Stellar Focus browser extension to block distracting websites. Block lists can be always-active on scheduled days or focus-session-only.
 - **Focus Time Tracking**: Tracks accumulated focus minutes per day.
 
 ### Block Lists
 - **Multiple Lists**: Create separate named block lists (e.g., "Social Media", "News", "Entertainment").
+- **Activation Modes**: Each list can be "always active" on its scheduled days or "focus sessions only" (active only during Pomodoro focus phases).
 - **Day Scheduling**: Configure each list to be active only on certain days of the week.
 - **Enable/Disable**: Toggle individual lists on and off without deleting them.
 - **Subdomain Matching**: Blocking `youtube.com` automatically blocks `www.youtube.com`, `music.youtube.com`, etc.
@@ -99,9 +100,9 @@ Install the Stellar Focus extension through the links below (more information ab
 
 ## Companion Extension
 
-**Stellar Focus** is a browser extension that blocks distracting websites during focus sessions managed in Stellar.
+**Stellar Focus** is a browser extension that blocks distracting websites based on your block list configuration in Stellar.
 
-- Blocks sites only during active focus phases (breaks and pauses allow full access)
+- Two activation modes per block list: always-active on scheduled days, or focus-session-only
 - Real-time sync via Supabase Realtime WebSockets
 - Day-of-week scheduling for block lists
 - Subdomain matching

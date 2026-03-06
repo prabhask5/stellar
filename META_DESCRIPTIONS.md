@@ -36,7 +36,7 @@ Stellar is a self-hosted, offline-first productivity PWA with goal tracking, dai
 ## B) Firefox Add-on Store - Summary
 
 ```
-Companion extension for Stellar productivity app. Blocks distracting websites during active Pomodoro focus sessions. Syncs block lists in real time via your Supabase instance. Fail-safe: never blocks when offline.
+Companion extension for Stellar productivity app. Blocks distracting websites with two modes: always-active on scheduled days or during focus sessions only. Syncs block lists in real time via your Supabase instance. Fail-safe: never blocks when offline.
 ```
 
 (214 characters)
@@ -49,7 +49,7 @@ Companion extension for Stellar productivity app. Blocks distracting websites du
 Stellar Focus is the companion browser extension for Stellar, a self-hosted productivity PWA. It blocks distracting websites while you're in an active Pomodoro focus phase, helping you stay on task during deep work sessions.
 
 KEY FEATURES:
-- Blocks websites only during active focus phases in Stellar
+- Two activation modes per block list: always-active on scheduled days, or focus-session-only (active only during Pomodoro focus phases)
 - Multiple configurable block lists
 - Subdomain matching (block "reddit.com" and all its subdomains)
 - Day-of-week scheduling (e.g., block social media only on weekdays)
@@ -80,10 +80,10 @@ Requires a Stellar account. Learn more and set up Stellar: https://github.com/pr
 ## D) Chrome Web Store - Description
 
 ```
-Stellar Focus blocks distracting websites during your active Pomodoro focus sessions in Stellar, the self-hosted productivity app. Stay focused on what matters — sites are blocked only when you're in a focus phase and unblocked the moment your session ends.
+Stellar Focus blocks distracting websites based on your block list configuration in Stellar, the self-hosted productivity app. Each block list can be always-active on its scheduled days or restricted to focus sessions only.
 
 FEATURES:
-- Focus-aware blocking — sites are blocked only during active Pomodoro focus phases, not during breaks or idle time
+- Two activation modes — each block list can be "always active" on scheduled days or "focus sessions only" (active only during Pomodoro focus phases)
 - Multiple block lists — organize blocked sites into separate lists for different contexts
 - Subdomain matching — blocking "reddit.com" automatically covers all subdomains like "old.reddit.com"
 - Day-of-week scheduling — set specific days for each block list (e.g., block social media on weekdays only)

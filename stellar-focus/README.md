@@ -1,8 +1,8 @@
 # Stellar Focus
 
-**Version 1.0.12** | Companion browser extension for [Stellar](../README.md)
+**Version 1.0.13** | Companion browser extension for [Stellar](../README.md)
 
-Stellar Focus is a companion browser extension for the Stellar self-hosted productivity PWA. It blocks distracting websites during active Pomodoro focus sessions managed in Stellar Planner. The extension and Stellar communicate exclusively through a shared Supabase backend -- there is no direct communication between them. With only two runtime dependencies, Stellar Focus is lightweight by design and built around a fail-safe blocking philosophy: when in doubt, it allows navigation rather than risking a false block.
+Stellar Focus is a companion browser extension for the Stellar self-hosted productivity PWA. It blocks distracting websites based on configurable block lists that can be always-active on scheduled days or restricted to focus sessions only. The extension and Stellar communicate exclusively through a shared Supabase backend -- there is no direct communication between them. With only two runtime dependencies, Stellar Focus is lightweight by design and built around a fail-safe blocking philosophy: when in doubt, it allows navigation rather than risking a false block.
 
 ---
 
@@ -60,6 +60,7 @@ Stellar Focus is a companion browser extension for the Stellar self-hosted produ
 
 ### Intelligent Website Blocking
 
+- **Two activation modes per block list** -- each list can be "always active" on its scheduled days or "focus sessions only" (active only during Pomodoro focus phases)
 - **Domain matching with subdomain support** -- blocking `youtube.com` also blocks `www.youtube.com`, `music.youtube.com`, and any other subdomain
 - **Day-of-week scheduling** -- configure each block list to activate only on specific days of the week
 - **Multiple named block lists** -- organize blocked sites into separate lists, each with an independent enable/disable toggle
@@ -67,7 +68,7 @@ Stellar Focus is a companion browser extension for the Stellar self-hosted produ
 ### Focus Session Integration
 
 - **Real-time sync via Supabase Realtime** -- a single consolidated WebSocket channel with 3 subscriptions instantly detects when focus sessions start, pause, resume, or end
-- **Phase-aware blocking** -- only blocks during active focus phases; automatically stops blocking during breaks
+- **Per-list focus awareness** -- focus-session-only lists block during active focus phases and stop during breaks; always-active lists block regardless of focus state
 - **30-second polling backup** -- browser alarm-based polling ensures state stays current even if the WebSocket connection drops
 
 ### Fail-Safe Design
@@ -76,15 +77,14 @@ The extension follows a strict fail-safe principle: it **never blocks navigation
 
 - Browser is offline (network connectivity required)
 - User is not authenticated
-- Focus session is paused or stopped
-- Current phase is a break
+- For focus-session-only lists: focus session is paused, stopped, or in a break phase
 - Any error occurs in the blocking pipeline
 
 When anything goes wrong, the extension defaults to **allowing** navigation. Users are never locked out of websites due to an extension error.
 
 ### Space-Themed Block Page
 
-When a site is blocked during an active focus session, users see an immersive space-themed page featuring:
+When a site is blocked, users see an immersive space-themed page featuring:
 
 - An animated spiral galaxy with 5,000+ twinkling stars across 2 spiral arms
 - Encouraging messages to stay focused on the current task

@@ -92,8 +92,10 @@ between the extension and the main app -- they share a Supabase backend.
 |  |   | phase           |    | name          |   | domain        | |      |
 |  |   | status          |    | active_days   |   | deleted       | |      |
 |  |   | phase_started_at|    | is_enabled    |   +---------------+ |      |
-|  |   | focus_duration  |    | order         |                     |      |
-|  |   | break_duration  |    | deleted       |                     |      |
+|  |   | focus_duration  |    |focus_session_ |                     |      |
+|  |   | break_duration  |    |  only         |                     |      |
+|  |   |                 |    | order         |                     |      |
+|  |   |                 |    | deleted       |                     |      |
 |  |   | ended_at        |    +---------------+                     |      |
 |  |   | started_at      |                                          |      |
 |  |   | elapsed_duration|                                          |      |
@@ -210,21 +212,23 @@ webNavigation.onBeforeNavigate(details)
               | Yes
               v
    +---------------------+
-   | Active session?     |    No
-   | (status==='running')+---------> ALLOW
+   | Compute focus state |
+   | isFocusActive =     |
+   | session running &&  |
+   | phase === 'focus'   |
    +----------+----------+
-              | Yes
-              v
-   +---------------------+
-   | Focus phase?        |    No
-   | (phase==='focus')   +---------> ALLOW (breaks are unblocked)
-   +----------+----------+
-              | Yes
+              |
               v
    +---------------------+
    | Domain in active    |    No
    | block list?         +---------> ALLOW
-   | (isDomainBlocked)   |
+   | (isDomainBlocked    |
+   |  checks per-list:   |
+   |  - always-active:   |
+   |    enabled + today   |
+   |  - focus-only:      |
+   |    enabled + today   |
+   |    + isFocusActive)  |
    +----------+----------+
               | Yes
               v
@@ -280,6 +284,22 @@ Day numbers follow JavaScript's `Date.getDay()` convention:
 
 At navigation time, the current day is checked against each block list's
 `active_days`. If the list is not active today, all its websites are skipped.
+
+### Activation Modes
+
+Each block list has a `focus_session_only` boolean field:
+
+```
+focus_session_only: false  -->  "Always active" — blocks on scheduled days
+                                regardless of focus session state
+focus_session_only: true   -->  "Focus sessions only" — blocks only when a
+                                Pomodoro focus phase is running AND it's a
+                                scheduled day
+```
+
+The `isDomainBlocked(hostname, isFocusActive)` function evaluates each list
+independently: always-active lists check only enabled + active day, while
+focus-session-only lists additionally require `isFocusActive === true`.
 
 ---
 
@@ -511,6 +531,8 @@ can report false positives (connected to a network but no internet access).
 |  |  - name: string           |  Display name                             |
 |  |  - active_days: number[]  |  [0-6] or null (all days)                |
 |  |  - is_enabled: boolean    |  Always true in cache (filtered on fetch) |
+|  |  - focus_session_only:    |  true = active only during focus phases   |
+|  |    boolean                |  false = always active on scheduled days  |
 |  |  - order: number          |  Sort order                               |
 |  +---------------------------+                                            |
 |                                                                           |
@@ -830,7 +852,8 @@ egress:
 |    |                                       |                                      |
 |    |                                       |   block_lists:                       |
 |    |                                       |     id, user_id, name, active_days,  |
-|    |                                       |     is_enabled, order, deleted       |
+|    |                                       |     is_enabled, focus_session_only,  |
+|    |                                       |     order, deleted                   |
 |    |                                       |                                      |
 |    |                                       |   blocked_websites:                  |
 |    |                                       |     id, block_list_id, domain,       |

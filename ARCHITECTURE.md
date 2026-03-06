@@ -128,7 +128,8 @@ Stellar uses **Dexie.js** (managed by `@stellar/sync-engine`) as an ORM over the
 | focusSettings      | id, user_id, updated_at                          |
 | focusSessions      | id, user_id, started_at, ended_at, status,       |
 |                    | updated_at                                       |
-| blockLists         | id, user_id, order, updated_at                   |
+| blockLists         | id, user_id, order, focus_session_only,           |
+|                    | updated_at                                       |
 | blockedWebsites    | id, block_list_id, updated_at                    |
 | projects           | id, user_id, is_current, order, created_at,      |
 |                    | updated_at                                       |
