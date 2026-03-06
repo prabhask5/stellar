@@ -1,6 +1,6 @@
 # Stellar Focus
 
-**Version 1.0.14** | Companion browser extension for [Stellar](../README.md)
+**Version 1.0.15** | Companion browser extension for [Stellar](../README.md)
 
 Stellar Focus is a companion browser extension for the Stellar self-hosted productivity PWA. It blocks distracting websites based on configurable block lists that can be always-active on scheduled days or restricted to focus sessions only. The extension and Stellar communicate exclusively through a shared Supabase backend -- there is no direct communication between them. With only two runtime dependencies, Stellar Focus is lightweight by design and built around a fail-safe blocking philosophy: when in doubt, it allows navigation rather than risking a false block.
 
@@ -95,7 +95,7 @@ When a site is blocked, users see an immersive space-themed page featuring:
 The browser action popup provides at-a-glance focus information:
 
 - Current focus session status (running, paused, on break, inactive)
-- Active block lists and their enabled/disabled states
+- All block lists with active/inactive status and type badges (Focus, Always, Disabled) on hover
 - Total focus time accumulated today
 - Real-time sync status indicator
 - PIN-based authentication screen with avatar and auto-submit

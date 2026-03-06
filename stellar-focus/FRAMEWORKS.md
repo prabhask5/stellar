@@ -993,7 +993,7 @@ export const focusSessionCacheStore = {
 
 | Store | Key | Purpose |
 |---|---|---|
-| `blockLists` | `id` (UUID) | Cached enabled block lists from Supabase |
+| `blockLists` | `id` (UUID) | Cached block lists from Supabase (all non-deleted) |
 | `blockedWebsites` | `id` (UUID) | Cached blocked domains from Supabase |
 | `focusSessionCache` | `'current'` (fixed key) | The single active focus session |
 

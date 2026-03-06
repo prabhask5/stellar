@@ -664,8 +664,8 @@ async function handleBlockListRealtimeUpdate(payload: { eventType: string; new?:
       }
     } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
       const list = payload.new as { id: string; user_id: string; name: string; active_days: (0|1|2|3|4|5|6)[] | null; is_enabled: boolean; focus_session_only?: boolean; order: number; deleted?: boolean };
-      if (list && !list.deleted && list.is_enabled) {
-        // Add/update enabled block list in cache
+      if (list && !list.deleted) {
+        // Add/update block list in cache
         await blockListsCache.put({
           id: list.id,
           user_id: list.user_id,
@@ -675,8 +675,8 @@ async function handleBlockListRealtimeUpdate(payload: { eventType: string; new?:
           focus_session_only: list.focus_session_only ?? false,
           order: list.order
         });
-      } else if (list && (list.deleted || !list.is_enabled)) {
-        // Remove disabled or deleted list from cache
+      } else if (list?.deleted) {
+        // Remove deleted list from cache
         await blockListsCache.delete(list.id);
       }
     }
@@ -881,8 +881,7 @@ async function refreshBlockLists() {
     const { data: lists, error: listsError } = await supabase
       .from(TABLES.block_lists)
       .select(COLUMNS.block_lists)
-      .eq('deleted', false)
-      .eq('is_enabled', true);
+      .eq('deleted', false);
 
     if (lists && !listsError) {
       // Clear and update cache
@@ -899,14 +898,14 @@ async function refreshBlockLists() {
         });
       }
 
-      // Fetch blocked websites for enabled lists with explicit columns
-      const enabledListIds = lists.map(l => l.id);
+      // Fetch blocked websites for all lists with explicit columns
+      const listIds = lists.map(l => l.id);
 
-      if (enabledListIds.length > 0) {
+      if (listIds.length > 0) {
         const { data: websites, error: websitesError } = await supabase
           .from(TABLES.blocked_websites)
           .select(COLUMNS.blocked_websites)
-          .in('block_list_id', enabledListIds)
+          .in('block_list_id', listIds)
           .eq('deleted', false);
 
         if (websites && !websitesError) {
@@ -944,7 +943,7 @@ async function isDomainBlocked(hostname: string, isFocusActive: boolean): Promis
     for (const website of blockedWebsites) {
       // Find the block list for this website
       const list = blockLists.find(l => l.id === website.block_list_id);
-      if (!list) continue;
+      if (!list || !list.is_enabled) continue;
 
       // Skip if list requires focus session and no focus session is active
       if (list.focus_session_only && !isFocusActive) {

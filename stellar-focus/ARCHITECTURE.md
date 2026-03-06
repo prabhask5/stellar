@@ -530,7 +530,7 @@ can report false positives (connected to a network but no internet access).
 |  |  - user_id: string        |  Owner user UUID                          |
 |  |  - name: string           |  Display name                             |
 |  |  - active_days: number[]  |  [0-6] or null (all days)                |
-|  |  - is_enabled: boolean    |  Always true in cache (filtered on fetch) |
+|  |  - is_enabled: boolean    |  Checked at blocking time, not at cache   |
 |  |  - focus_session_only:    |  true = active only during focus phases   |
 |  |    boolean                |  false = always active on scheduled days  |
 |  |  - order: number          |  Sort order                               |
@@ -587,7 +587,7 @@ can report false positives (connected to a network but no internet access).
   | refreshBlockLists() start  | blockLists, blockedWebsites|
   |   (then immediately        |   (clear-then-repopulate)  |
   |    repopulated)            |                            |
-  | Block list deleted/disabled| Individual record removed  |
+  | Block list deleted         | Individual record removed  |
   +----------------------------+----------------------------+
 
   PRESERVE (keep existing cache)

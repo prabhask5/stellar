@@ -1389,6 +1389,12 @@ body {
   border: 1px solid rgba(38, 222, 129, 0.2);
 }
 
+.list-type-badge.list-disabled {
+  color: var(--color-red);
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.2);
+}
+
 .edit-link {
   display: flex;
   align-items: center;

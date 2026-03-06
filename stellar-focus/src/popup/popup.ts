@@ -788,17 +788,18 @@ async function renderBlockLists(lists: BlockList[]) {
     nameSpan.textContent = list.name;
     itemDiv.appendChild(nameSpan);
 
-    if (list.focus_session_only) {
-      const typeBadge = document.createElement('span');
+    const typeBadge = document.createElement('span');
+    if (!list.is_enabled) {
+      typeBadge.className = 'list-type-badge list-disabled';
+      typeBadge.textContent = 'Disabled';
+    } else if (list.focus_session_only) {
       typeBadge.className = 'list-type-badge focus-only';
       typeBadge.textContent = 'Focus';
-      itemDiv.appendChild(typeBadge);
     } else {
-      const typeBadge = document.createElement('span');
       typeBadge.className = 'list-type-badge always-on';
       typeBadge.textContent = 'Always';
-      itemDiv.appendChild(typeBadge);
     }
+    itemDiv.appendChild(typeBadge);
 
     const editLink = document.createElement('a');
     editLink.href = editUrl;
