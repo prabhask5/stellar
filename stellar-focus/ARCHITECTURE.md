@@ -60,7 +60,7 @@ between the extension and the main app -- they share a Supabase backend.
 |  |  | - blockLists        | |      |      (options/options.html)   |     |
 |  |  | - blockedWebsites   | |      |                               |     |
 |  |  | - focusSessionCache | |      |  - Supabase URL               |     |
-|  |  +---------------------+ |      |  - Anon Key                   |     |
+|  |  +---------------------+ |      |  - Publishable Key            |     |
 |  |           ^              |      |  - App URL                    |     |
 |  |           |              |      |  - Debug mode toggle          |     |
 |  +-----------|--------------|      +-------------------------------+     |
@@ -647,7 +647,7 @@ profile) is discovered via the `get_extension_config()` RPC function.
             v
   +---------------------+
   | isConfigured()?     |  Check browser.storage.local for Supabase
-  +----------+----------+  URL, anon key, and app URL
+  +----------+----------+  URL, publishable key, and app URL
              |
              v
   +---------------------+

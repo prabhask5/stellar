@@ -1355,6 +1355,32 @@ body {
   flex: 1;
   font-size: 14px;
   color: var(--color-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-type-badge {
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.list-type-badge.focus-only {
+  color: var(--color-primary-light);
+  background: rgba(108, 92, 231, 0.15);
+  border: 1px solid rgba(108, 92, 231, 0.25);
+}
+
+.list-type-badge.always-on {
+  color: var(--color-green);
+  background: rgba(38, 222, 129, 0.1);
+  border: 1px solid rgba(38, 222, 129, 0.2);
 }
 
 .edit-link {

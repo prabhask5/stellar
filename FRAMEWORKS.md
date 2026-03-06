@@ -355,7 +355,7 @@ Supabase serves as the cloud sync layer. While Stellar works fully offline using
 
 1. **Multi-device sync** -- Changes made on one device are pushed to Supabase and pulled/pushed in real time to other devices.
 2. **Authentication** -- Supabase Auth handles user registration, login, session tokens, and token refresh.
-3. **Security** -- Row Level Security ensures that even if someone has the Supabase URL and anon key, they can only access their own data.
+3. **Security** -- Row Level Security ensures that even if someone has the Supabase URL and Publishable Key, they can only access their own data.
 4. **Real-time updates** -- WebSocket subscriptions instantly notify other open tabs/devices of changes.
 
 > **Note:** Supabase client initialization, authentication flows (including offline credential caching and PKCE), and runtime configuration management are handled by the `@stellar/sync-engine` package. See the [engine FRAMEWORKS.md](https://github.com/prabhask5/stellar-drive/blob/main/FRAMEWORKS.md) for implementation details.

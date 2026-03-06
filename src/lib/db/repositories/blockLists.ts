@@ -77,7 +77,8 @@ export async function getBlockList(id: string): Promise<BlockList | null> {
 export async function createBlockList(
   name: string,
   userId: string,
-  activeDays: DayOfWeek[] | null = null
+  activeDays: DayOfWeek[] | null = null,
+  focusSessionOnly: boolean = false
 ): Promise<BlockList> {
   const timestamp = now();
 
@@ -90,6 +91,7 @@ export async function createBlockList(
     name,
     active_days: activeDays,
     is_enabled: true,
+    focus_session_only: focusSessionOnly,
     order: nextOrder,
     created_at: timestamp,
     updated_at: timestamp
@@ -109,7 +111,7 @@ export async function createBlockList(
  */
 export async function updateBlockList(
   id: string,
-  updates: Partial<Pick<BlockList, 'name' | 'active_days' | 'is_enabled'>>
+  updates: Partial<Pick<BlockList, 'name' | 'active_days' | 'is_enabled' | 'focus_session_only'>>
 ): Promise<BlockList | undefined> {
   const result = await engineUpdate('block_lists', id, updates as Record<string, unknown>);
   return result as unknown as BlockList | undefined;

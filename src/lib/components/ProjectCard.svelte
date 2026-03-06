@@ -277,7 +277,7 @@
 
   .project-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     margin-bottom: 1.25rem;
     position: relative;
@@ -323,11 +323,12 @@
 
   .star-btn {
     width: 36px;
-    height: 36px;
+    aspect-ratio: 1;
     border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     opacity: 0.4;
     transition: all 0.4s var(--ease-out);
     border: 1px solid transparent;
@@ -536,12 +537,13 @@
 
   .delete-btn {
     width: 36px;
-    height: 36px;
+    aspect-ratio: 1;
     border-radius: var(--radius-lg);
     font-size: 1.375rem;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     opacity: 0.35;
     transition: all 0.3s var(--ease-spring);
     border: 1px solid transparent;
@@ -597,7 +599,6 @@
     .star-btn,
     .delete-btn {
       width: 44px;
-      height: 44px;
       opacity: 0.5;
     }
 

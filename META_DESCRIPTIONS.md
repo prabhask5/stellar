@@ -60,7 +60,7 @@ KEY FEATURES:
 HOW TO USE:
 1. Set up a Stellar account at your self-hosted Stellar instance
 2. Install this extension and open the options page
-3. Enter your Supabase URL and anon key (found in your Stellar deployment)
+3. Enter your Supabase URL and Publishable Key (found in your Stellar deployment)
 4. Sign in with your Stellar account credentials
 5. Configure your block lists in Stellar Planner under Focus settings
 6. Start a focus session in Stellar — blocked sites are enforced automatically
@@ -94,7 +94,7 @@ FEATURES:
 HOW TO USE:
 1. Set up a Stellar account at your self-hosted Stellar instance
 2. Install Stellar Focus and open the extension options page
-3. Enter your Supabase URL and anon key from your Stellar deployment
+3. Enter your Supabase URL and Publishable Key from your Stellar deployment
 4. Sign in with your Stellar account credentials
 5. Configure block lists in Stellar Planner under Focus settings
 6. Start a Pomodoro focus session in Stellar — blocked sites are enforced automatically

@@ -117,7 +117,13 @@ export const schema: SchemaDefinition = {
   },
   block_lists: {
     indexes: 'order',
-    fields: { name: 'string', active_days: 'json?', is_enabled: 'boolean', order: 'number' }
+    fields: {
+      name: 'string',
+      active_days: 'json?',
+      is_enabled: 'boolean',
+      focus_session_only: 'boolean',
+      order: 'number'
+    }
   },
   blocked_websites: {
     indexes: 'block_list_id',

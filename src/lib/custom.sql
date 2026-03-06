@@ -7,7 +7,7 @@
 -- get_extension_config()
 -- Returns the first auth user's email, gate type, code length, and profile.
 -- Used by the stellar-focus browser extension and new devices to discover the
--- existing account without authentication (called with the anon/publishable key).
+-- existing account without authentication (called with the publishable key).
 CREATE OR REPLACE FUNCTION get_extension_config()
 RETURNS json LANGUAGE sql SECURITY DEFINER STABLE AS $$
   SELECT json_build_object(

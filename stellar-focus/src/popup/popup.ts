@@ -29,6 +29,7 @@ interface BlockList {
   name: string;
   is_enabled: boolean;
   active_days: (0 | 1 | 2 | 3 | 4 | 5 | 6)[] | null;
+  focus_session_only: boolean;
 }
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
@@ -68,6 +69,7 @@ let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let cachedBlockLists: BlockList[] = [];
 let focusTimeInterval: ReturnType<typeof setInterval> | null = null;
 let hasActiveRunningSession = false;
+let isFocusPhaseActive = false;
 let currentGateConfig: GateConfig | null = null;
 
 // Initialize
@@ -527,6 +529,15 @@ async function loadFocusStatus(isInitialLoad = false) {
         setTimeout(() => setSyncStatus('synced'), 800);
       }
 
+      // Track focus phase state for block list active status
+      const wasFocusActive = isFocusPhaseActive;
+      isFocusPhaseActive = !!(session && session.status === 'running' && session.phase === 'focus');
+      if (wasFocusActive !== isFocusPhaseActive && cachedBlockLists.length > 0) {
+        // Re-render block lists to update active indicators
+        renderBlockLists(cachedBlockLists);
+        updateActiveBlockListCount(cachedBlockLists);
+      }
+
       updateStatusDisplay(session);
     }
 
@@ -553,9 +564,14 @@ async function loadBlockLists() {
 
 function isBlockListActiveToday(list: BlockList): boolean {
   if (!list.is_enabled) return false;
-  if (list.active_days === null) return true;
-  const currentDay = new Date().getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
-  return list.active_days.includes(currentDay);
+  // Check day schedule
+  if (list.active_days !== null) {
+    const currentDay = new Date().getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    if (!list.active_days.includes(currentDay)) return false;
+  }
+  // Focus-session-only lists require an active focus phase to be "active"
+  if (list.focus_session_only && !isFocusPhaseActive) return false;
+  return true;
 }
 
 function updateActiveBlockListCount(lists: BlockList[]) {
@@ -771,6 +787,18 @@ async function renderBlockLists(lists: BlockList[]) {
     nameSpan.className = 'block-list-name';
     nameSpan.textContent = list.name;
     itemDiv.appendChild(nameSpan);
+
+    if (list.focus_session_only) {
+      const typeBadge = document.createElement('span');
+      typeBadge.className = 'list-type-badge focus-only';
+      typeBadge.textContent = 'Focus';
+      itemDiv.appendChild(typeBadge);
+    } else {
+      const typeBadge = document.createElement('span');
+      typeBadge.className = 'list-type-badge always-on';
+      typeBadge.textContent = 'Always';
+      itemDiv.appendChild(typeBadge);
+    }
 
     const editLink = document.createElement('a');
     editLink.href = editUrl;

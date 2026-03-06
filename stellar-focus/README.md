@@ -106,7 +106,7 @@ The browser action popup provides at-a-glance focus information:
 A dedicated options page for configuring the extension's connection to the Stellar backend:
 
 - Supabase project URL
-- Supabase anonymous key
+- Supabase publishable key
 - Stellar Planner URL
 
 ---
@@ -187,7 +187,7 @@ You will need three values from your Supabase project:
 | Setting | Description | Example |
 |---------|-------------|---------|
 | **Supabase URL** | Your Supabase project URL | `https://your-project.supabase.co` |
-| **Supabase Anon Key** | Your Supabase anonymous/public key | `eyJhbGciOiJIUzI1NiIs...` |
+| **Supabase Publishable Key** | Your Supabase publishable key | `eyJhbGciOiJIUzI1NiIs...` |
 | **App URL** | The URL where Stellar Planner is hosted | `https://planner.prabhas.io` |
 
 Alternatively, for development you can create a local config file:
@@ -200,7 +200,7 @@ Then edit `src/config.local.ts`:
 
 ```typescript
 export const SUPABASE_URL = 'https://your-project.supabase.co';
-export const SUPABASE_ANON_KEY = 'your-anon-key';
+export const SUPABASE_PUBLISHABLE_KEY = 'your-publishable-key';
 export const APP_URL = 'https://planner.prabhas.io';
 ```
 

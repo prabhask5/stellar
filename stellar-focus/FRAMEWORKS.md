@@ -78,7 +78,7 @@ The Storage API persists data across browser restarts. The extension uses `brows
 
 ```ts
 // Save a value
-await browser.storage.local.set({ stellar_config: { supabaseUrl: '...', supabaseAnonKey: '...' } });
+await browser.storage.local.set({ stellar_config: { supabaseUrl: '...', supabasePublishableKey: '...' } });
 
 // Read a value
 const result = await browser.storage.local.get('stellar_config');
@@ -89,7 +89,7 @@ await browser.storage.local.remove('stellar_config');
 ```
 
 Used in:
-- `src/config.ts` -- stores the Supabase URL, anon key, and app URL
+- `src/config.ts` -- stores the Supabase URL, publishable key, and app URL
 - `src/auth/supabase.ts` -- custom storage adapter for Supabase auth tokens
 - `src/lib/debug.ts` -- stores the debug mode toggle
 
@@ -244,7 +244,7 @@ export async function getSupabase(): Promise<SupabaseClient> {
     throw new Error('Extension not configured.');
   }
 
-  supabaseInstance = createClient(config.supabaseUrl, config.supabaseAnonKey, {
+  supabaseInstance = createClient(config.supabaseUrl, config.supabasePublishableKey, {
     auth: {
       persistSession: true,
       storage: {
@@ -651,7 +651,7 @@ When the service worker intercepts a navigation to a blocked domain, it redirect
 The options page is where the user configures which Supabase instance to connect to. It contains a form with three fields:
 
 - **Supabase URL** -- the project URL (e.g., `https://abc123.supabase.co`)
-- **Supabase Anon Key** -- the public anonymous key
+- **Supabase Publishable Key** -- the public publishable key
 - **App URL** -- Stellar Planner URL
 
 On save, the options page validates the connection by making a test query, stores the config in `browser.storage.local`, and notifies the service worker to re-initialize via `browser.runtime.sendMessage({ type: 'CONFIG_UPDATED' })`.
@@ -1131,7 +1131,7 @@ npm run package
 
 ### Testing the Blocking Flow
 
-1. Configure the extension via the options page (Supabase URL, anon key, app URL)
+1. Configure the extension via the options page (Supabase URL, publishable key, app URL)
 2. Log in via the popup
 3. Start a focus session in Stellar Planner
 4. The extension receives the update via realtime (watch the sync indicator in the popup)

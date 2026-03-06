@@ -105,7 +105,7 @@ export interface FocusSession extends Omit<GenFocusSession, 'phase' | 'status'> 
   status: FocusStatus;
 }
 
-/** A named collection of websites to block during focus sessions. */
+/** A named collection of websites to block, optionally only during focus sessions. */
 export interface BlockList extends Omit<GenBlockList, 'active_days'> {
   active_days: DayOfWeek[] | null;
 }

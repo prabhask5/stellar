@@ -14,6 +14,7 @@ export interface BlockListCache {
   name: string;
   active_days: DayOfWeek[] | null;  // null = all days
   is_enabled: boolean;
+  focus_session_only: boolean;
   order: number;
 }
 

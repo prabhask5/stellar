@@ -30,13 +30,19 @@
     name?: string;
     /** Initial active days — `null` means every day; array for specific days */
     activeDays?: DayOfWeek[] | null;
+    /** Whether this block list only activates during focus sessions */
+    focusSessionOnly?: boolean;
     /** Label text for the submit button (e.g., "Create" or "Save") */
     submitLabel?: string;
     /** Entity ID of the block list being edited — `null` for new lists */
     // For trackEditing - existing entity being edited
     entityId?: string | null;
     /** Callback → fires with validated form data on submission */
-    onSubmit: (data: { name: string; activeDays: DayOfWeek[] | null }) => void;
+    onSubmit: (data: {
+      name: string;
+      activeDays: DayOfWeek[] | null;
+      focusSessionOnly: boolean;
+    }) => void;
     /** Optional callback → fires when the cancel button is clicked */
     onCancel?: () => void;
   }
@@ -44,6 +50,7 @@
   let {
     name: initialName = '',
     activeDays: initialActiveDays = null,
+    focusSessionOnly: initialFocusSessionOnly = false,
     submitLabel = 'Create',
     entityId = null,
     onSubmit,
@@ -76,6 +83,10 @@
   /** Fields currently showing the shimmer highlight after loading remote data */
   // Track which fields were recently animated for shimmer effect
   let highlightedFields = $state<Set<string>>(new Set());
+
+  /** Whether this block list only activates during focus sessions */
+  // svelte-ignore state_referenced_locally
+  let focusSessionOnly = $state(initialFocusSessionOnly);
 
   /**
    * Set of selected day-of-week values.
@@ -165,7 +176,8 @@
   /** Human-readable labels for the `DeferredChangesBanner` field display */
   const blockListFieldLabels: Record<string, string> = {
     name: 'Name',
-    active_days: 'Active Days'
+    active_days: 'Active Days',
+    focus_session_only: 'Focus Session Only'
   };
 
   /* ── Short day labels for compact formatting ──── */
@@ -216,11 +228,14 @@
   const remoteData = $derived.by(() => {
     if (!entityId) return null;
     const hasDiff =
-      initialName !== name || JSON.stringify(initialActiveDays) !== JSON.stringify(localActiveDays);
+      initialName !== name ||
+      JSON.stringify(initialActiveDays) !== JSON.stringify(localActiveDays) ||
+      initialFocusSessionOnly !== focusSessionOnly;
     if (!hasDiff) return null;
     return {
       name: initialName,
-      active_days: initialActiveDays
+      active_days: initialActiveDays,
+      focus_session_only: initialFocusSessionOnly
     };
   });
 
@@ -236,9 +251,11 @@
       : Array.from(selectedDays).sort((a, b) => a - b);
     if (JSON.stringify(currentActiveDays) !== JSON.stringify(initialActiveDays))
       fieldsToHighlight.push('active_days');
+    if (focusSessionOnly !== initialFocusSessionOnly) fieldsToHighlight.push('focus_session_only');
 
     /* ── Apply remote values ──── */
     name = initialName;
+    focusSessionOnly = initialFocusSessionOnly;
     selectedDays =
       initialActiveDays === null
         ? new Set([0, 1, 2, 3, 4, 5, 6] as DayOfWeek[])
@@ -273,7 +290,8 @@
 
     onSubmit({
       name: name.trim(),
-      activeDays: activeDaysResult
+      activeDays: activeDaysResult,
+      focusSessionOnly
     });
   }
 </script>
@@ -296,7 +314,8 @@
       {remoteData}
       localData={{
         name,
-        active_days: allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b)
+        active_days: allDaysSelected ? null : Array.from(selectedDays).sort((a, b) => a - b),
+        focus_session_only: focusSessionOnly
       }}
       fieldLabels={blockListFieldLabels}
       formatValue={formatFieldValue}
@@ -316,6 +335,28 @@
       required
       class:field-changed={highlightedFields.has('name')}
     />
+  </div>
+
+  <!-- ═══ Focus Session Toggle ═══ -->
+  <div class="form-group">
+    <span class="label">Activation Mode</span>
+    <button
+      type="button"
+      class="focus-toggle"
+      class:active={focusSessionOnly}
+      class:field-changed={highlightedFields.has('focus_session_only')}
+      onclick={() => (focusSessionOnly = !focusSessionOnly)}
+      role="switch"
+      aria-checked={focusSessionOnly}
+      aria-label="Only activate during focus sessions"
+    >
+      <span class="focus-toggle-track">
+        <span class="focus-toggle-knob"></span>
+      </span>
+      <span class="focus-toggle-label">
+        {focusSessionOnly ? 'Focus sessions only' : 'Always active on scheduled days'}
+      </span>
+    </button>
   </div>
 
   <!-- ═══ Active Days Selector ═══ -->
@@ -371,9 +412,12 @@
     </div>
   </div>
 
-  <!-- Help text summarising the active-days selection -->
+  <!-- Help text summarising the active-days selection and focus mode -->
   <p class="help-text">
-    This block list will be active on <strong>{activeDaysDescription()}</strong> during focus sessions.
+    This block list will be active {activeDaysDescription() === 'every day' ? '' : 'on '}<strong
+      >{activeDaysDescription()}</strong
+    >{#if focusSessionOnly}
+      <strong>during focus sessions</strong>{/if}.
   </p>
 
   <!-- ═══ Form Actions ═══ -->
@@ -409,6 +453,70 @@
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  /* ═══ Focus Session Toggle ═══ */
+
+  .focus-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, rgba(37, 37, 61, 0.6) 0%, rgba(26, 26, 46, 0.7) 100%);
+    border: 1px solid rgba(108, 92, 231, 0.15);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all 0.2s var(--ease-smooth);
+    width: 100%;
+    text-align: left;
+  }
+
+  .focus-toggle:hover {
+    border-color: rgba(108, 92, 231, 0.3);
+    background: linear-gradient(135deg, rgba(37, 37, 61, 0.8) 0%, rgba(26, 26, 46, 0.9) 100%);
+  }
+
+  .focus-toggle-track {
+    position: relative;
+    width: 40px;
+    height: 24px;
+    border-radius: 12px;
+    background: rgba(108, 92, 231, 0.2);
+    border: 1px solid rgba(108, 92, 231, 0.3);
+    transition: all 0.3s;
+    flex-shrink: 0;
+  }
+
+  .focus-toggle.active .focus-toggle-track {
+    background: var(--gradient-primary);
+    border-color: transparent;
+  }
+
+  .focus-toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    transition: transform 0.3s var(--ease-spring);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .focus-toggle.active .focus-toggle-knob {
+    transform: translateX(16px);
+  }
+
+  .focus-toggle-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    transition: color 0.2s;
+  }
+
+  .focus-toggle.active .focus-toggle-label {
+    color: var(--color-primary-light);
   }
 
   /* ═══ Days Selector ═══ */

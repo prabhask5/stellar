@@ -4,6 +4,13 @@ A self-hosted, offline-first productivity PWA for managing goals, tasks, routine
 
 Try it at: [https://planner.prabhas.io/demo](https://planner.prabhas.io/demo)
 
+Install the Stellar Focus extension through the links below (more information about this extension later in the doc):
+
+| Browser | Link |
+|---------|------|
+| Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/stellar-focus/eppioehchokbecpepjkkcedffakhepfo) |
+| Firefox | [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/stellar-focus/) |
+
 ---
 
 ## Documentation

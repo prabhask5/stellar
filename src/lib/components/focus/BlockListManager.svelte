@@ -33,9 +33,11 @@
   interface Props {
     /** Authenticated user's ID — used to load block lists from the store */
     userId: string;
+    /** Whether a focus session is currently in the focus phase */
+    isFocusPhaseActive?: boolean;
   }
 
-  let { userId }: Props = $props();
+  let { userId, isFocusPhaseActive = false }: Props = $props();
 
   // =============================================================================
   //  DOM Element Tracking
@@ -120,8 +122,12 @@
    *
    * @param data - Form data containing the list name and active days
    */
-  async function createList(data: { name: string; activeDays: DayOfWeek[] | null }) {
-    const newList = await blockListStore.create(data.name);
+  async function createList(data: {
+    name: string;
+    activeDays: DayOfWeek[] | null;
+    focusSessionOnly: boolean;
+  }) {
+    const newList = await blockListStore.create(data.name, data.focusSessionOnly);
     if (newList && data.activeDays !== null) {
       // Update with active_days if not all days
       await blockListStore.update(newList.id, { active_days: data.activeDays });
@@ -193,15 +199,21 @@
    * @param list - Object with `is_enabled` and `active_days` fields
    * @returns `true` if the list is enabled and covers today
    */
-  // Helper to check if a block list is active today
+  // Helper to check if a block list is currently actively blocking
   function isBlockListActiveToday(list: {
     is_enabled: boolean;
     active_days: DayOfWeek[] | null;
+    focus_session_only: boolean;
   }): boolean {
     if (!list.is_enabled) return false;
-    if (list.active_days === null) return true; // null means every day
-    const currentDay = new Date().getDay() as DayOfWeek;
-    return list.active_days.includes(currentDay);
+    // Check day schedule
+    if (list.active_days !== null) {
+      const currentDay = new Date().getDay() as DayOfWeek;
+      if (!list.active_days.includes(currentDay)) return false;
+    }
+    // Focus-session-only lists require an active focus phase
+    if (list.focus_session_only && !isFocusPhaseActive) return false;
+    return true;
   }
 
   /** Count of block lists that are enabled and active on today's day-of-week */
@@ -331,9 +343,11 @@
               >
                 <div class="list-details">
                   <span class="list-name" use:truncateTooltip>{list.name}</span>
-                  <span class="list-days" use:truncateTooltip
-                    >{getActiveDaysLabel(list.active_days)}</span
-                  >
+                  <span class="list-days" use:truncateTooltip>
+                    {getActiveDaysLabel(list.active_days)}{#if list.focus_session_only}<span
+                        class="focus-badge">Focus</span
+                      >{/if}
+                  </span>
                 </div>
                 <svg
                   viewBox="0 0 24 24"
@@ -372,9 +386,7 @@
             </div>
           {:else}
             <!-- Empty state — no block lists created yet -->
-            <p class="empty-text">
-              No block lists yet. Create one to block distracting websites during focus sessions.
-            </p>
+            <p class="empty-text">No block lists yet. Create one to block distracting websites.</p>
           {/each}
         </div>
       </div>
@@ -566,6 +578,23 @@
     font-size: 0.6875rem;
     color: var(--color-text-muted);
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .focus-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.0625rem 0.375rem;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-primary-light);
+    background: rgba(108, 92, 231, 0.15);
+    border: 1px solid rgba(108, 92, 231, 0.25);
+    border-radius: var(--radius-full);
   }
 
   /* ═══ Delete Button ═══ */

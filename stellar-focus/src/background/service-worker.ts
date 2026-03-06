@@ -66,7 +66,7 @@ const TABLES = {
 // Explicit column definitions to reduce egress (no SELECT *)
 const COLUMNS = {
   focus_sessions: 'id,user_id,phase,status,phase_started_at,focus_duration,break_duration,ended_at',
-  block_lists: 'id,user_id,name,active_days,is_enabled,order,deleted',
+  block_lists: 'id,user_id,name,active_days,is_enabled,focus_session_only,order,deleted',
   blocked_websites: 'id,block_list_id,domain,deleted'
 } as const;
 
@@ -373,14 +373,13 @@ browser.webNavigation.onBeforeNavigate.addListener(async (details: browser.WebNa
   // CRITICAL: Don't block if offline
   if (!isOnline) return;
 
-  // Check if we have an active focus session
-  if (!currentFocusSession || currentFocusSession.status !== 'running') return;
-
-  // Only block during focus phase, not during breaks
-  if (currentFocusSession.phase !== 'focus') return;
-
-  // Check if the URL should be blocked
-  const shouldBlock = await isDomainBlocked(hostname);
+  // Check if the URL should be blocked (considers focus session state per-list)
+  const isFocusActive = !!(
+    currentFocusSession &&
+    currentFocusSession.status === 'running' &&
+    currentFocusSession.phase === 'focus'
+  );
+  const shouldBlock = await isDomainBlocked(hostname, isFocusActive);
 
   if (isDebugDomain) {
     debugLog('[Stellar Focus] Should block', hostname, ':', shouldBlock);
@@ -664,7 +663,7 @@ async function handleBlockListRealtimeUpdate(payload: { eventType: string; new?:
         }
       }
     } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-      const list = payload.new as { id: string; user_id: string; name: string; active_days: (0|1|2|3|4|5|6)[] | null; is_enabled: boolean; order: number; deleted?: boolean };
+      const list = payload.new as { id: string; user_id: string; name: string; active_days: (0|1|2|3|4|5|6)[] | null; is_enabled: boolean; focus_session_only?: boolean; order: number; deleted?: boolean };
       if (list && !list.deleted && list.is_enabled) {
         // Add/update enabled block list in cache
         await blockListsCache.put({
@@ -673,6 +672,7 @@ async function handleBlockListRealtimeUpdate(payload: { eventType: string; new?:
           name: list.name,
           active_days: list.active_days,
           is_enabled: list.is_enabled,
+          focus_session_only: list.focus_session_only ?? false,
           order: list.order
         });
       } else if (list && (list.deleted || !list.is_enabled)) {
@@ -894,6 +894,7 @@ async function refreshBlockLists() {
           name: list.name,
           active_days: list.active_days,
           is_enabled: list.is_enabled,
+          focus_session_only: list.focus_session_only ?? false,
           order: list.order
         });
       }
@@ -927,7 +928,7 @@ async function refreshBlockLists() {
   }
 }
 
-async function isDomainBlocked(hostname: string): Promise<boolean> {
+async function isDomainBlocked(hostname: string, isFocusActive: boolean): Promise<boolean> {
   try {
     // Normalize hostname (remove www prefix, lowercase)
     const normalizedHostname = hostname.toLowerCase().replace(/^www\./, '');
@@ -944,6 +945,11 @@ async function isDomainBlocked(hostname: string): Promise<boolean> {
       // Find the block list for this website
       const list = blockLists.find(l => l.id === website.block_list_id);
       if (!list) continue;
+
+      // Skip if list requires focus session and no focus session is active
+      if (list.focus_session_only && !isFocusActive) {
+        continue;
+      }
 
       // Check if list is active today
       // active_days null means all days, otherwise check if current day is in the array

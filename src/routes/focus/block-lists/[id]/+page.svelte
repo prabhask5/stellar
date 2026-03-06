@@ -89,14 +89,19 @@
    * Save block-list name and schedule changes, then navigate back to `/focus`.
    * @param data - Updated name and active-days from `BlockListForm`
    */
-  async function handleUpdateBlockList(data: { name: string; activeDays: DayOfWeek[] | null }) {
+  async function handleUpdateBlockList(data: {
+    name: string;
+    activeDays: DayOfWeek[] | null;
+    focusSessionOnly: boolean;
+  }) {
     if (!blockList || saving) return;
 
     try {
       saving = true;
       await singleBlockListStore.update(blockList.id, {
         name: data.name,
-        active_days: data.activeDays
+        active_days: data.activeDays,
+        focus_session_only: data.focusSessionOnly
       });
       goto('/focus');
     } catch (e) {
@@ -229,6 +234,7 @@
       <BlockListForm
         name={blockList.name}
         activeDays={blockList.active_days}
+        focusSessionOnly={blockList.focus_session_only}
         submitLabel={saving ? 'Saving...' : 'Save Changes'}
         entityId={blockList.id}
         onSubmit={handleUpdateBlockList}
@@ -307,9 +313,7 @@
               </button>
             </div>
           {:else}
-            <p class="empty-text">
-              No websites added yet. Add websites to block during focus sessions.
-            </p>
+            <p class="empty-text">No websites added yet. Add websites to block.</p>
           {/each}
         </div>
       {/if}

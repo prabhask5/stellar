@@ -1269,7 +1269,7 @@
 
   .list-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     margin-bottom: 1.25rem;
     position: relative;
@@ -1286,12 +1286,13 @@
 
   .delete-btn {
     width: 36px;
-    height: 36px;
+    aspect-ratio: 1;
     border-radius: var(--radius-lg);
     font-size: 1.375rem;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     opacity: 0.35;
     transition: all 0.3s var(--ease-spring);
     border: 1px solid transparent;

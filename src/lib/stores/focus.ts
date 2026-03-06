@@ -850,9 +850,9 @@ function createBlockListStore() {
      * @param name - Display name for the block list.
      * @returns The newly created {@link BlockList}, or `undefined` if no user.
      */
-    create: async (name: string) => {
+    create: async (name: string, focusSessionOnly: boolean = false) => {
       if (!currentUserId) return;
-      const newList = await repo.createBlockList(name, currentUserId);
+      const newList = await repo.createBlockList(name, currentUserId, null, focusSessionOnly);
       /* Record for animation before updating store */
       remoteChangesStore.recordLocalChange(newList.id, 'block_lists', 'create');
       store.mutate((lists) => [newList, ...lists]);
@@ -860,7 +860,7 @@ function createBlockListStore() {
     },
 
     /**
-     * Partially update a block list's name, active days, or enabled state.
+     * Partially update a block list's name, active days, enabled state, or focus mode.
      *
      * @param id      - Block list ID.
      * @param updates - Partial field updates.
@@ -868,7 +868,9 @@ function createBlockListStore() {
      */
     update: async (
       id: string,
-      updates: Partial<Pick<BlockList, 'name' | 'active_days' | 'is_enabled'>>
+      updates: Partial<
+        Pick<BlockList, 'name' | 'active_days' | 'is_enabled' | 'focus_session_only'>
+      >
     ) => {
       const updated = await repo.updateBlockList(id, updates);
       if (updated) {
@@ -1063,7 +1065,7 @@ function createSingleBlockListStore() {
     ...store,
 
     /**
-     * Update the block list's name, active days, or enabled state.
+     * Update the block list's name, active days, enabled state, or focus mode.
      *
      * Also refreshes the parent {@link blockListStore} so collection-level
      * derived data (like enabled count) stays current.
@@ -1074,7 +1076,9 @@ function createSingleBlockListStore() {
      */
     update: async (
       id: string,
-      updates: Partial<Pick<BlockList, 'name' | 'active_days' | 'is_enabled'>>
+      updates: Partial<
+        Pick<BlockList, 'name' | 'active_days' | 'is_enabled' | 'focus_session_only'>
+      >
     ) => {
       const updated = await repo.updateBlockList(id, updates);
       if (updated) {

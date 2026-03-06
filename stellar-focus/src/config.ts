@@ -10,7 +10,7 @@ import { debugError } from './lib/debug';
 
 export interface StellarExtConfig {
   supabaseUrl: string;
-  supabaseAnonKey: string;
+  supabasePublishableKey: string;
   appUrl: string;
 }
 
@@ -28,7 +28,13 @@ export async function getConfig(): Promise<StellarExtConfig | null> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEY);
     const stored = result[STORAGE_KEY];
-    if (stored && stored.supabaseUrl && stored.supabaseAnonKey && stored.appUrl) {
+    // Migrate legacy "supabaseAnonKey" → "supabasePublishableKey"
+    if (stored && stored.supabaseUrl && stored.supabaseAnonKey && !stored.supabasePublishableKey) {
+      stored.supabasePublishableKey = stored.supabaseAnonKey;
+      delete stored.supabaseAnonKey;
+      await browser.storage.local.set({ [STORAGE_KEY]: stored });
+    }
+    if (stored && stored.supabaseUrl && stored.supabasePublishableKey && stored.appUrl) {
       cachedConfig = stored as StellarExtConfig;
       return cachedConfig;
     }
@@ -69,7 +75,7 @@ export async function clearConfig(): Promise<void> {
  * Use getConfig() for reliable access.
  */
 export const config = new Proxy(
-  {} as { supabaseUrl: string; supabaseAnonKey: string; appUrl: string },
+  {} as { supabaseUrl: string; supabasePublishableKey: string; appUrl: string },
   {
     get(_target, prop: string) {
       if (cachedConfig) {

@@ -967,6 +967,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       name: 'Work Focus',
       active_days: [1, 2, 3, 4, 5], // ← weekdays only
       is_enabled: true,
+      focus_session_only: false, // ← always active on scheduled days
       order: 0,
       created_at: twoWeeksAgo.toISOString(),
       updated_at: now.toISOString(),
@@ -978,6 +979,7 @@ export async function seedDemoData(db: DexieDb): Promise<void> {
       name: 'Study Time',
       active_days: null, // ← null = every day (canonical representation)
       is_enabled: false,
+      focus_session_only: true, // ← only during focus sessions
       order: 1,
       created_at: oneWeekAgo.toISOString(),
       updated_at: now.toISOString(),

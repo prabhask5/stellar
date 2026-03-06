@@ -173,16 +173,21 @@
   // =============================================================================
 
   /**
-   * Check whether a block list should be active for the current day-of-week.
-   * A `null` `active_days` array means "every day."
+   * Check whether a block list is currently actively blocking websites.
+   * Considers enabled state, day schedule, and focus session requirement.
    * @param list - The block list to check
-   * @returns `true` if the list is enabled and scheduled for today
+   * @returns `true` if the list is currently blocking
    */
   function isBlockListActiveToday(list: BlockList): boolean {
     if (!list.is_enabled) return false;
-    if (list.active_days === null) return true; // null means every day
-    const currentDay = new Date().getDay() as DayOfWeek;
-    return list.active_days.includes(currentDay);
+    if (list.active_days !== null) {
+      const currentDay = new Date().getDay() as DayOfWeek;
+      if (!list.active_days.includes(currentDay)) return false;
+    }
+    if (list.focus_session_only && !(session?.status === 'running' && session?.phase === 'focus')) {
+      return false;
+    }
+    return true;
   }
 
   /** Number of block lists active today — shown in the stats row */
@@ -264,7 +269,10 @@
     </div>
 
     <!-- ═══ Block List Manager — CRUD for website block lists ═══ -->
-    <BlockListManager userId={getUserId()} />
+    <BlockListManager
+      userId={getUserId()}
+      isFocusPhaseActive={!!(session?.status === 'running' && session?.phase === 'focus')}
+    />
   {/if}
 </div>
 

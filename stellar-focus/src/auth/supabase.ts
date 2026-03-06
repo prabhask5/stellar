@@ -17,7 +17,7 @@ export async function getSupabase(): Promise<SupabaseClient> {
     throw new Error('Extension not configured. Please set up your Stellar instance in the options page.');
   }
 
-  supabaseInstance = createClient(config.supabaseUrl, config.supabaseAnonKey, {
+  supabaseInstance = createClient(config.supabaseUrl, config.supabasePublishableKey, {
     auth: {
       persistSession: true,
       storage: {

@@ -10,7 +10,7 @@ import { getConfig, setConfig } from '../config';
 // DOM Elements
 const form = document.getElementById('configForm') as HTMLFormElement;
 const supabaseUrlInput = document.getElementById('supabaseUrl') as HTMLInputElement;
-const supabaseAnonKeyInput = document.getElementById('supabaseAnonKey') as HTMLInputElement;
+const supabasePublishableKeyInput = document.getElementById('supabasePublishableKey') as HTMLInputElement;
 const appUrlInput = document.getElementById('appUrl') as HTMLInputElement;
 const messageEl = document.getElementById('message') as HTMLElement;
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const existing = await getConfig();
   if (existing) {
     supabaseUrlInput.value = existing.supabaseUrl;
-    supabaseAnonKeyInput.value = existing.supabaseAnonKey;
+    supabasePublishableKeyInput.value = existing.supabasePublishableKey;
     appUrlInput.value = existing.appUrl;
   }
 
@@ -62,10 +62,10 @@ async function handleSubmit(e: Event) {
   hideMessage();
 
   const supabaseUrl = supabaseUrlInput.value.trim();
-  const supabaseAnonKey = supabaseAnonKeyInput.value.trim();
+  const supabasePublishableKey = supabasePublishableKeyInput.value.trim();
   const appUrl = appUrlInput.value.trim().replace(/\/$/, ''); // Remove trailing slash
 
-  if (!supabaseUrl || !supabaseAnonKey || !appUrl) {
+  if (!supabaseUrl || !supabasePublishableKey || !appUrl) {
     showMessage('All fields are required', 'error');
     return;
   }
@@ -89,13 +89,13 @@ async function handleSubmit(e: Event) {
 
   try {
     // Test Supabase connectivity
-    const tempClient = createClient(supabaseUrl, supabaseAnonKey);
+    const tempClient = createClient(supabaseUrl, supabasePublishableKey);
     const { error } = await tempClient.from('stellar_focus_sessions').select('id').limit(1);
 
     if (error) {
       // "Invalid API key" means bad credentials
       if (error.message?.includes('Invalid API key') || error.code === 'PGRST301') {
-        showMessage('Invalid Supabase credentials. Check your URL and Anon Key.', 'error');
+        showMessage('Invalid Supabase credentials. Check your URL and Publishable Key.', 'error');
         setLoading(false);
         return;
       }
@@ -103,7 +103,7 @@ async function handleSubmit(e: Event) {
     }
 
     // Save config
-    await setConfig({ supabaseUrl, supabaseAnonKey, appUrl });
+    await setConfig({ supabaseUrl, supabasePublishableKey, appUrl });
 
     // Notify service worker to re-initialize
     try {
