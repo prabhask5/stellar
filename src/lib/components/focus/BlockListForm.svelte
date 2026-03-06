@@ -415,9 +415,8 @@
   <!-- Help text summarising the active-days selection and focus mode -->
   <p class="help-text">
     This block list will be active {activeDaysDescription() === 'every day' ? '' : 'on '}<strong
-      >{activeDaysDescription()}</strong
-    >{#if focusSessionOnly}
-      <strong>during focus sessions</strong>{/if}.
+      >{activeDaysDescription()}{focusSessionOnly ? ' during focus sessions' : ''}</strong
+    >.
   </p>
 
   <!-- ═══ Form Actions ═══ -->
