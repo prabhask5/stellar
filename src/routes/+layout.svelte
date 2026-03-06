@@ -42,7 +42,7 @@
   import { authState, hasHydrated, wasDbReset } from 'stellar-drive/stores';
   import { debug } from 'stellar-drive/utils';
   import { hydrateAuthState } from 'stellar-drive/kit';
-  import { isDemoMode } from 'stellar-drive';
+  import { isDemoMode, isOffline } from 'stellar-drive';
 
   /* ── Types ── */
   import type { LayoutData } from './+layout';
@@ -124,7 +124,7 @@
         error?.name === 'ChunkLoadError' ||
         (error?.message?.includes('Loading chunk') && error?.message?.includes('failed'));
 
-      if (isChunkError && !navigator.onLine) {
+      if (isChunkError && (isOffline() || !navigator.onLine)) {
         event.preventDefault(); // Prevent default error handling
         // Show offline navigation toast
         toastMessage = "This page isn't available offline. Please reconnect or go back.";
