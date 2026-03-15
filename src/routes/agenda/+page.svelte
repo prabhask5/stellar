@@ -1481,14 +1481,15 @@
     .section-actions {
       justify-content: center;
       gap: 0.375rem;
+      flex-wrap: nowrap;
     }
 
     .section-actions .btn {
+      flex: 1;
       justify-content: center;
-      padding: 0.4375rem 0.625rem;
+      padding: 0.4375rem 0.5rem;
       font-size: 0.6875rem;
       white-space: nowrap;
-      width: 100%;
     }
 
     .daily-tasks-section {
@@ -1540,7 +1541,7 @@
     }
 
     .section-actions .btn {
-      width: auto;
+      flex: 0 0 auto;
     }
   }
 </style>
