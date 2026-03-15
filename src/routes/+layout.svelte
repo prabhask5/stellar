@@ -312,6 +312,17 @@
     // Lock the single-user session (stops engine, resets auth state, does NOT destroy data)
     await lockSingleUser();
 
+    // Inject a raw DOM overlay that survives the full-page navigation.
+    // The Svelte overlay gets destroyed when the page unloads, causing a
+    // brief flash of the blank background. This raw element persists in
+    // the DOM until the browser replaces it with the login page's paint.
+    const persistentOverlay = document.createElement('div');
+    persistentOverlay.style.cssText =
+      'position:fixed;inset:0;z-index:99999;background:#050510;display:flex;align-items:center;justify-content:center;';
+    persistentOverlay.innerHTML =
+      '<p style="color:rgba(255,255,255,0.4);font-size:1.1rem;letter-spacing:0.1em;">Locking...</p>';
+    document.body.appendChild(persistentOverlay);
+
     // Navigate to login
     window.location.href = '/login';
   }
