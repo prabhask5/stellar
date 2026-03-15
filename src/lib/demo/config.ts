@@ -20,7 +20,7 @@
  * @see {@link ../../routes/+layout.ts} — where this config is consumed
  */
 
-import type { DemoConfig } from 'stellar-drive';
+import type { DemoConfig } from 'stellar-drive/demo';
 import { seedDemoData } from './mockData';
 
 /**

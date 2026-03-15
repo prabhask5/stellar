@@ -31,15 +31,12 @@
   } from 'stellar-drive/auth';
   import { authState } from 'stellar-drive/stores';
   import { isDebugMode, setDebugMode, getDiagnostics } from 'stellar-drive/utils';
-  import {
-    resetDatabase,
-    getTrustedDevices,
-    removeTrustedDevice,
-    getCurrentDeviceId,
-    isDemoMode,
-    getDemoConfig
-  } from 'stellar-drive';
-  import type { TrustedDevice, DiagnosticsSnapshot } from 'stellar-drive';
+  import { resetDatabase } from 'stellar-drive/config';
+  import { repairSyncQueue } from 'stellar-drive/engine';
+  import { getTrustedDevices, removeTrustedDevice, getCurrentDeviceId } from 'stellar-drive/auth';
+  import { isDemoMode, getDemoConfig } from 'stellar-drive/demo';
+  import type { TrustedDevice } from 'stellar-drive/types';
+  import type { DiagnosticsSnapshot } from 'stellar-drive/types';
   import { onMount, onDestroy } from 'svelte';
 
   // =============================================================================
@@ -106,6 +103,7 @@
   let forceSyncing = $state(false);
   let triggeringSyncManual = $state(false);
   let resettingCursor = $state(false);
+  let repairingSyncQueue = $state(false);
   let viewingTombstones = $state(false);
   let cleaningTombstones = $state(false);
 
@@ -744,6 +742,28 @@
       alert('Tombstone cleanup failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
     cleaningTombstones = false;
+  }
+
+  /** Scan IndexedDB for records missing from the sync queue and re-queue them. */
+  async function handleRepairSyncQueue() {
+    if (isDemo) {
+      showDemoToast('Not available in demo mode');
+      return;
+    }
+    if (
+      !confirm(
+        'This will scan all local records and re-queue any that are missing from the sync queue. Continue?'
+      )
+    )
+      return;
+    repairingSyncQueue = true;
+    try {
+      const count = await repairSyncQueue();
+      alert(`Repair complete. Re-queued ${count} record${count === 1 ? '' : 's'}.`);
+    } catch (err) {
+      alert('Repair failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+    repairingSyncQueue = false;
   }
 
   /** Dispatch a custom event that the app shell listens for to sign out on mobile. */
@@ -1586,6 +1606,32 @@
       Permanently removes old soft-deleted records from local IndexedDB and remote Supabase.<br
       /><span class="console-label">Run in console:</span>
       <code class="console-cmd">__stellarTombstones({'{'} cleanup: true })</code>
+    </p>
+
+    <button class="btn btn-secondary" onclick={handleRepairSyncQueue} disabled={repairingSyncQueue}>
+      {#if repairingSyncQueue}
+        <span class="loading-spinner"></span>
+        Repairing...
+      {:else}
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
+          />
+        </svg>
+        Repair Sync Queue
+      {/if}
+    </button>
+    <p class="setting-hint" style="margin-top: 0.5rem;">
+      Scans all local records and re-queues any that are missing from the sync queue.
     </p>
 
     <button class="btn btn-danger" onclick={handleResetDatabase} disabled={resetting}>

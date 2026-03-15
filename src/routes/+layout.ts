@@ -26,7 +26,7 @@
 import { browser } from '$app/environment';
 import { redirect } from '@sveltejs/kit';
 import { goto } from '$app/navigation';
-import { initEngine, supabase, probeNetworkReachability } from 'stellar-drive';
+import { initEngine, supabase, probeNetworkReachability } from 'stellar-drive/config';
 import { lockSingleUser } from 'stellar-drive/auth';
 import { resolveRootLayout } from 'stellar-drive/kit';
 import { isSafeRedirect } from 'stellar-drive/utils';

@@ -16,7 +16,7 @@
  */
 
 import { generateId, now } from 'stellar-drive/utils';
-import { getDb } from 'stellar-drive';
+import { getDb } from 'stellar-drive/config';
 import { engineCreate, engineUpdate, engineIncrement } from 'stellar-drive/data';
 import type { DailyGoalProgress } from '$lib/types';
 

@@ -43,7 +43,8 @@
   import { authState, hasHydrated, wasDbReset } from 'stellar-drive/stores';
   import { debug } from 'stellar-drive/utils';
   import { hydrateAuthState } from 'stellar-drive/kit';
-  import { isDemoMode, isOffline } from 'stellar-drive';
+  import { isDemoMode } from 'stellar-drive/demo';
+  import { isOffline } from 'stellar-drive/config';
 
   /* ── Types ── */
   import type { LayoutData } from './+layout';
