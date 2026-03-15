@@ -1488,6 +1488,7 @@
       padding: 0.4375rem 0.625rem;
       font-size: 0.6875rem;
       white-space: nowrap;
+      width: 100%;
     }
 
     .daily-tasks-section {
@@ -1536,6 +1537,10 @@
 
     .section-actions {
       justify-content: flex-end;
+    }
+
+    .section-actions .btn {
+      width: auto;
     }
   }
 </style>
