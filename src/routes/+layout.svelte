@@ -45,6 +45,7 @@
   import { hydrateAuthState } from 'stellar-drive/kit';
   import { isDemoMode } from 'stellar-drive/demo';
   import { isOffline } from 'stellar-drive/config';
+  import { scrollGuard } from 'stellar-drive/actions';
 
   /* ── Types ── */
   import type { LayoutData } from './+layout';
@@ -709,7 +710,7 @@
   <!-- ═══════════════════════════════════════════════════════════════════════
        Main Content Area — renders the matched page
        ═══════════════════════════════════════════════════════════════════════ -->
-  <main class="main" class:with-bottom-nav={isAuthenticated}>
+  <main class="main" class:with-bottom-nav={isAuthenticated} use:scrollGuard>
     {@render children?.()}
   </main>
 
