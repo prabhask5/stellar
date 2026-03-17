@@ -229,21 +229,6 @@
           lastErrorDetails: null,
           recentErrors: []
         },
-        crdt: {
-          enabled: false,
-          config: null,
-          activeDocuments: [],
-          activeDocumentCount: 0,
-          offline: {
-            documentCount: 0,
-            maxDocuments: 0,
-            totalSizeBytes: 0,
-            totalSizeFormatted: '0 B',
-            documents: []
-          },
-          pendingUpdates: [],
-          totalPendingUpdates: 0
-        },
         config: {
           tableCount: 13,
           tableNames: [
