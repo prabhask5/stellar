@@ -40,12 +40,14 @@
 
   /* ── Stellar Engine — Auth & Stores ── */
   import { lockSingleUser, resolveFirstName, resolveAvatarInitial } from 'stellar-drive/auth';
-  import { authState, hasHydrated, wasDbReset } from 'stellar-drive/stores';
+  import { authState } from 'stellar-drive/stores';
   import { debug } from 'stellar-drive/utils';
   import { hydrateAuthState } from 'stellar-drive/kit';
   import { isDemoMode } from 'stellar-drive/demo';
-  import { isOffline } from 'stellar-drive/config';
   import { scrollGuard } from 'stellar-drive/actions';
+
+  /* ── App Bootstrap ── */
+  import { initializeApp } from '$lib/stores/data';
 
   /* ── Types ── */
   import type { LayoutData } from './+layout';
@@ -92,6 +94,10 @@
   /** Stored reference to the chunk error handler so we can remove it on destroy. */
   let chunkErrorHandler: ((event: PromiseRejectionEvent) => void) | null = null;
 
+  /* ── Data Bootstrap ── */
+  /** Flips to `true` once `initializeApp()` resolves — all collection stores loaded. */
+  let dataReady = $state(false);
+
   // =============================================================================
   //  Reactive Effects
   // =============================================================================
@@ -107,6 +113,18 @@
    */
   $effect(() => {
     hydrateAuthState(data);
+  });
+
+  /**
+   * Effect: once authenticated, preload all collection stores from IndexedDB
+   * so nav pages render with data immediately (no per-page loading spinners).
+   */
+  $effect(() => {
+    if (data.authMode !== 'none') {
+      initializeApp().then(() => {
+        dataReady = true;
+      });
+    }
   });
 
   // =============================================================================
@@ -127,7 +145,7 @@
         error?.name === 'ChunkLoadError' ||
         (error?.message?.includes('Loading chunk') && error?.message?.includes('failed'));
 
-      if (isChunkError && (isOffline() || !navigator.onLine)) {
+      if (isChunkError) {
         event.preventDefault(); // Prevent default error handling
         // Show offline navigation toast
         toastMessage = "This page isn't available offline. Please reconnect or go back.";
@@ -258,6 +276,19 @@
     data.authMode !== 'none' && !isAuthPage && !$authState.isLoading
   );
 
+  /** Nav routes whose rendering depends on collection stores being loaded. */
+  const NAV_ROUTES = ['/', '/agenda', '/plans', '/routines', '/focus'];
+  const isNavPage = $derived(
+    NAV_ROUTES.some((r) =>
+      r === '/' ? $page.url.pathname === '/' : $page.url.pathname.startsWith(r)
+    )
+  );
+
+  /** Show the loading overlay while auth resolves OR while stores load for nav pages. */
+  const showLoader = $derived(
+    $authState.isLoading || (data.authMode !== 'none' && isNavPage && !dataReady)
+  );
+
   /** Pages that provide their own background (home has starfield, auth pages have their own). */
   const NON_STARFIELD_PATHS = ['/', '/login', '/setup', '/policy', '/demo', '/confirm'];
 
@@ -348,7 +379,7 @@
      ═══════════════════════════════════════════════════════════════════════════ -->
 <div class="app" class:authenticated={isAuthenticated} class:loading={$authState.isLoading}>
   <!-- ── Auth Loading Overlay — prevents flash during initial auth check ── -->
-  {#if $authState.isLoading || (wasDbReset() && !hasHydrated())}
+  {#if showLoader}
     <div class="auth-loading-overlay">
       <div class="stellar-loader">
         <div class="loader-ring loader-ring-1"></div>

@@ -16,7 +16,6 @@
   //                               IMPORTS
   // =============================================================================
 
-  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { goalListsStore, projectsStore } from '$lib/stores/data';
@@ -116,10 +115,6 @@
   // =============================================================================
   //                           LIFECYCLE
   // =============================================================================
-
-  onMount(async () => {
-    await Promise.all([goalListsStore.load(), projectsStore.load()]);
-  });
 
   // =============================================================================
   //                      EVENT HANDLERS

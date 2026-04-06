@@ -1658,3 +1658,41 @@ function createProjectsStore() {
 
 /** Singleton projects store consumed by the projects page and dashboard. */
 export const projectsStore = createProjectsStore();
+
+// =============================================================================
+//  App Bootstrap
+// =============================================================================
+
+/**
+ * Preloads all collection stores from IndexedDB in parallel.
+ * Returns a cached promise so subsequent calls are no-ops.
+ */
+let preloadPromise: Promise<void> | null = null;
+export function preloadAllStores(): Promise<void> {
+  if (preloadPromise) return preloadPromise;
+  preloadPromise = Promise.all([
+    taskCategoriesStore.load(),
+    commitmentsStore.load(),
+    dailyTasksStore.load(),
+    longTermTasksStore.load(),
+    taskListsStore.load(),
+    goalListsStore.load(),
+    projectsStore.load(),
+    dailyRoutinesStore.load()
+  ]).then(() => {});
+  return preloadPromise;
+}
+
+/**
+ * Top-level app initialization — loads all stores, then signals readiness.
+ * Cached: safe to call from multiple components / effects.
+ */
+let initPromise: Promise<void> | null = null;
+export function initializeApp(): Promise<void> {
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
+    await preloadAllStores();
+    debug('log', '[INIT] Stores loaded from IndexedDB — page ready');
+  })();
+  return initPromise;
+}

@@ -150,7 +150,7 @@
    * the edit page (browser already scrolled, so we just tidy the URL).
    */
   onMount(async () => {
-    await Promise.all([loadCalendarData(), dailyRoutinesStore.load()]);
+    await loadCalendarData();
 
     // If we arrived via hash (from edit page), clear it from URL so it doesn't persist
     // The browser already scrolled to the element, we just clean up the URL

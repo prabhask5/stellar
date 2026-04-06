@@ -155,14 +155,6 @@
    * long-term tasks that are due today or earlier.
    */
   onMount(async () => {
-    await Promise.all([
-      taskCategoriesStore.load(),
-      commitmentsStore.load(),
-      dailyTasksStore.load(),
-      longTermTasksStore.load(),
-      taskListsStore.load()
-    ]);
-
     // Spawn linked daily tasks for long-term tasks due today or before
     const userId = getUserId();
     if (userId) {
