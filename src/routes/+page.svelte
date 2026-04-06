@@ -42,9 +42,6 @@
   //  Component State
   // =============================================================================
 
-  /** Whether the page is still initialising (shows the stellar loader). */
-  let isLoading = $state(true);
-
   /** The currently displayed motivational message. */
   let selectedCompliment = $state('');
 
@@ -187,8 +184,6 @@
     // Select a random motivational compliment
     selectedCompliment = getRandomCompliment();
 
-    isLoading = false;
-
     // Subscribe to sync completion — check if greeting needs update.
     // This handles the case where the page is open overnight.
     unsubscribeSyncComplete = onSyncComplete(() => {
@@ -220,110 +215,86 @@
   <title>Home - Stellar Planner</title>
 </svelte:head>
 
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     Loading State — full-screen stellar spinner while auth resolves
-     ═══════════════════════════════════════════════════════════════════════════ -->
-{#if isLoading}
-  <div class="loading-screen">
-    <div class="stellar-loader">
-      <div class="loader-ring loader-ring-1"></div>
-      <div class="loader-ring loader-ring-2"></div>
-      <div class="loader-ring loader-ring-3"></div>
-      <div class="loader-core">
-        <div class="loader-core-inner"></div>
-      </div>
-      <div class="loader-particle loader-particle-1"></div>
-      <div class="loader-particle loader-particle-2"></div>
-      <div class="loader-particle loader-particle-3"></div>
-      <div class="loader-particle loader-particle-4"></div>
+<!-- ═══════════════════════════════════════════════════════════════════════
+     Home Container — immersive space-themed welcome screen
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="home-container">
+  <!-- ── Animated Star Field — three layers of parallax stars ── -->
+  <div class="starfield">
+    <div class="stars stars-small"></div>
+    <div class="stars stars-medium"></div>
+    <div class="stars stars-large"></div>
+  </div>
+
+  <!-- ── Nebula Effects — blurred radial gradients for depth ── -->
+  <div class="nebula nebula-1"></div>
+  <div class="nebula nebula-2"></div>
+  <div class="nebula nebula-3"></div>
+
+  <!-- ── Orbital Rings — concentric rotating ring borders with particles ── -->
+  <div class="orbital-system">
+    <div class="orbit orbit-1"></div>
+    <div class="orbit orbit-2"></div>
+    <div class="orbit orbit-3"></div>
+    <div class="orbit-particle particle-1"></div>
+    <div class="orbit-particle particle-2"></div>
+    <div class="orbit-particle particle-3"></div>
+  </div>
+
+  <!-- ── Shooting Stars — periodic streak animations ── -->
+  <div class="shooting-star shooting-star-1"></div>
+  <div class="shooting-star shooting-star-2"></div>
+  <div class="shooting-star shooting-star-3"></div>
+
+  <!-- ── Central Content — greeting and compliment ── -->
+  <div class="content">
+    <div class="greeting-wrapper">
+      <div class="greeting-glow"></div>
+      <h1 class="greeting">
+        <span class="greeting-hello" class:greeting-transitioning={isGreetingTransitioning}
+          >{timeGreeting},</span
+        >
+        <span class="greeting-name" use:truncateTooltip>{firstName}</span>
+      </h1>
+    </div>
+
+    <!-- Compliment — prefixed with "Remember, " -->
+    <p class="compliment">
+      Remember, {selectedCompliment}
+    </p>
+
+    <!-- ── Decorative Constellation — SVG lines connecting pulsing star dots ── -->
+    <div class="constellation">
+      <span class="star star-1"></span>
+      <span class="star star-2"></span>
+      <span class="star star-3"></span>
+      <span class="star star-4"></span>
+      <span class="star star-5"></span>
+      <svg class="constellation-lines" viewBox="0 0 200 100" fill="none">
+        <path
+          d="M20 50 L80 30 L140 55 L180 25"
+          stroke="url(#constellationGrad)"
+          stroke-width="1"
+          opacity="0.3"
+        />
+        <path d="M80 30 L100 70" stroke="url(#constellationGrad)" stroke-width="1" opacity="0.3" />
+        <defs>
+          <linearGradient id="constellationGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#6c5ce7" />
+            <stop offset="50%" stop-color="#ff79c6" />
+            <stop offset="100%" stop-color="#26de81" />
+          </linearGradient>
+        </defs>
+      </svg>
     </div>
   </div>
-{:else}
-  <!-- ═══════════════════════════════════════════════════════════════════════
-       Home Container — immersive space-themed welcome screen
-       ═══════════════════════════════════════════════════════════════════════ -->
-  <div class="home-container">
-    <!-- ── Animated Star Field — three layers of parallax stars ── -->
-    <div class="starfield">
-      <div class="stars stars-small"></div>
-      <div class="stars stars-medium"></div>
-      <div class="stars stars-large"></div>
-    </div>
 
-    <!-- ── Nebula Effects — blurred radial gradients for depth ── -->
-    <div class="nebula nebula-1"></div>
-    <div class="nebula nebula-2"></div>
-    <div class="nebula nebula-3"></div>
-
-    <!-- ── Orbital Rings — concentric rotating ring borders with particles ── -->
-    <div class="orbital-system">
-      <div class="orbit orbit-1"></div>
-      <div class="orbit orbit-2"></div>
-      <div class="orbit orbit-3"></div>
-      <div class="orbit-particle particle-1"></div>
-      <div class="orbit-particle particle-2"></div>
-      <div class="orbit-particle particle-3"></div>
-    </div>
-
-    <!-- ── Shooting Stars — periodic streak animations ── -->
-    <div class="shooting-star shooting-star-1"></div>
-    <div class="shooting-star shooting-star-2"></div>
-    <div class="shooting-star shooting-star-3"></div>
-
-    <!-- ── Central Content — greeting and compliment ── -->
-    <div class="content">
-      <div class="greeting-wrapper">
-        <div class="greeting-glow"></div>
-        <h1 class="greeting">
-          <span class="greeting-hello" class:greeting-transitioning={isGreetingTransitioning}
-            >{timeGreeting},</span
-          >
-          <span class="greeting-name" use:truncateTooltip>{firstName}</span>
-        </h1>
-      </div>
-
-      <!-- Compliment — prefixed with "Remember, " -->
-      <p class="compliment">
-        Remember, {selectedCompliment}
-      </p>
-
-      <!-- ── Decorative Constellation — SVG lines connecting pulsing star dots ── -->
-      <div class="constellation">
-        <span class="star star-1"></span>
-        <span class="star star-2"></span>
-        <span class="star star-3"></span>
-        <span class="star star-4"></span>
-        <span class="star star-5"></span>
-        <svg class="constellation-lines" viewBox="0 0 200 100" fill="none">
-          <path
-            d="M20 50 L80 30 L140 55 L180 25"
-            stroke="url(#constellationGrad)"
-            stroke-width="1"
-            opacity="0.3"
-          />
-          <path
-            d="M80 30 L100 70"
-            stroke="url(#constellationGrad)"
-            stroke-width="1"
-            opacity="0.3"
-          />
-          <defs>
-            <linearGradient id="constellationGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#6c5ce7" />
-              <stop offset="50%" stop-color="#ff79c6" />
-              <stop offset="100%" stop-color="#26de81" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-    </div>
-
-    <!-- ── Floating Particles — 20 randomly-positioned drifting dots ── -->
-    <div class="particles">
-      {#each Array(20) as _, _i (_i)}
-        <span
-          class="particle"
-          style="
+  <!-- ── Floating Particles — 20 randomly-positioned drifting dots ── -->
+  <div class="particles">
+    {#each Array(20) as _, _i (_i)}
+      <span
+        class="particle"
+        style="
             --delay: {Math.random() * 5}s;
             --duration: {5 + Math.random() * 10}s;
             --x-start: {Math.random() * 100}%;
@@ -331,259 +302,12 @@
             --size: {2 + Math.random() * 4}px;
             --opacity: {0.3 + Math.random() * 0.5};
           "
-        ></span>
-      {/each}
-    </div>
+      ></span>
+    {/each}
   </div>
-{/if}
+</div>
 
 <style>
-  /* ═══════════════════════════════════════════════════════════════════════════════════
-     LOADING SCREEN
-     ═══════════════════════════════════════════════════════════════════════════════════ */
-
-  .loading-screen {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-void);
-  }
-
-  /* ═══ Stellar Loader — animated "star being born" spinner ═══ */
-
-  .stellar-loader {
-    position: relative;
-    width: 120px;
-    height: 120px;
-    animation: loaderFadeIn 0.6s ease-out both;
-  }
-
-  @keyframes loaderFadeIn {
-    from {
-      opacity: 0;
-      transform: scale(0.8);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  /* ── Orbital Rings ── */
-
-  .loader-ring {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 1px solid transparent;
-  }
-
-  .loader-ring-1 {
-    inset: 0;
-    border-color: rgba(108, 92, 231, 0.25);
-    border-top-color: rgba(108, 92, 231, 0.8);
-    animation: loaderOrbit 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  }
-
-  .loader-ring-2 {
-    inset: 12px;
-    border-color: rgba(255, 121, 198, 0.15);
-    border-right-color: rgba(255, 121, 198, 0.6);
-    animation: loaderOrbit 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite reverse;
-  }
-
-  .loader-ring-3 {
-    inset: 24px;
-    border-color: rgba(0, 212, 255, 0.1);
-    border-bottom-color: rgba(0, 212, 255, 0.5);
-    animation: loaderOrbit 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  }
-
-  @keyframes loaderOrbit {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  /* ── Core ── */
-
-  .loader-core {
-    position: absolute;
-    inset: 36px;
-    border-radius: 50%;
-    background: radial-gradient(
-      circle,
-      rgba(108, 92, 231, 0.4) 0%,
-      rgba(108, 92, 231, 0.1) 60%,
-      transparent 70%
-    );
-    animation: loaderCorePulse 2s ease-in-out infinite;
-  }
-
-  .loader-core-inner {
-    position: absolute;
-    inset: 30%;
-    border-radius: 50%;
-    background: radial-gradient(
-      circle,
-      rgba(255, 255, 255, 0.95) 0%,
-      rgba(139, 124, 240, 0.9) 30%,
-      rgba(108, 92, 231, 0.6) 60%,
-      transparent 100%
-    );
-    box-shadow:
-      0 0 20px rgba(108, 92, 231, 0.8),
-      0 0 40px rgba(108, 92, 231, 0.4),
-      0 0 80px rgba(108, 92, 231, 0.2);
-    animation: loaderCoreGlow 2s ease-in-out infinite;
-  }
-
-  @keyframes loaderCorePulse {
-    0%,
-    100% {
-      transform: scale(1);
-      opacity: 0.8;
-    }
-    50% {
-      transform: scale(1.15);
-      opacity: 1;
-    }
-  }
-
-  @keyframes loaderCoreGlow {
-    0%,
-    100% {
-      transform: scale(1);
-      box-shadow:
-        0 0 20px rgba(108, 92, 231, 0.8),
-        0 0 40px rgba(108, 92, 231, 0.4),
-        0 0 80px rgba(108, 92, 231, 0.2);
-    }
-    50% {
-      transform: scale(1.1);
-      box-shadow:
-        0 0 30px rgba(139, 124, 240, 0.9),
-        0 0 60px rgba(108, 92, 231, 0.5),
-        0 0 100px rgba(255, 121, 198, 0.2);
-    }
-  }
-
-  /* ── Orbiting Particles ── */
-
-  .loader-particle {
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    top: 50%;
-    left: 50%;
-  }
-
-  .loader-particle-1 {
-    background: rgba(108, 92, 231, 0.9);
-    box-shadow: 0 0 6px rgba(108, 92, 231, 0.6);
-    animation: loaderParticleOrbit1 3s linear infinite;
-  }
-
-  .loader-particle-2 {
-    width: 3px;
-    height: 3px;
-    background: rgba(255, 121, 198, 0.9);
-    box-shadow: 0 0 6px rgba(255, 121, 198, 0.6);
-    animation: loaderParticleOrbit2 2.2s linear infinite;
-  }
-
-  .loader-particle-3 {
-    width: 3px;
-    height: 3px;
-    background: rgba(0, 212, 255, 0.9);
-    box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
-    animation: loaderParticleOrbit3 2.8s linear infinite;
-  }
-
-  .loader-particle-4 {
-    width: 2px;
-    height: 2px;
-    background: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
-    animation: loaderParticleOrbit4 3.5s linear infinite;
-  }
-
-  @keyframes loaderParticleOrbit1 {
-    from {
-      transform: rotate(0deg) translateX(54px) rotate(0deg);
-      opacity: 0.9;
-    }
-    50% {
-      opacity: 0.4;
-    }
-    to {
-      transform: rotate(360deg) translateX(54px) rotate(-360deg);
-      opacity: 0.9;
-    }
-  }
-
-  @keyframes loaderParticleOrbit2 {
-    from {
-      transform: rotate(90deg) translateX(42px) rotate(-90deg);
-      opacity: 0.8;
-    }
-    50% {
-      opacity: 0.3;
-    }
-    to {
-      transform: rotate(450deg) translateX(42px) rotate(-450deg);
-      opacity: 0.8;
-    }
-  }
-
-  @keyframes loaderParticleOrbit3 {
-    from {
-      transform: rotate(200deg) translateX(48px) rotate(-200deg);
-      opacity: 0.8;
-    }
-    50% {
-      opacity: 0.3;
-    }
-    to {
-      transform: rotate(560deg) translateX(48px) rotate(-560deg);
-      opacity: 0.8;
-    }
-  }
-
-  @keyframes loaderParticleOrbit4 {
-    from {
-      transform: rotate(320deg) translateX(36px) rotate(-320deg);
-      opacity: 0.7;
-    }
-    50% {
-      opacity: 0.2;
-    }
-    to {
-      transform: rotate(680deg) translateX(36px) rotate(-680deg);
-      opacity: 0.7;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .loader-ring,
-    .loader-core,
-    .loader-core-inner,
-    .loader-particle {
-      animation: none !important;
-    }
-    .loader-core-inner {
-      box-shadow:
-        0 0 20px rgba(108, 92, 231, 0.8),
-        0 0 40px rgba(108, 92, 231, 0.4);
-    }
-  }
-
   /* ═══════════════════════════════════════════════════════════════════════════════════
      HOME CONTAINER
      ═══════════════════════════════════════════════════════════════════════════════════ */
