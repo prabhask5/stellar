@@ -377,7 +377,7 @@
 <!-- ═══════════════════════════════════════════════════════════════════════════
      App Shell Container
      ═══════════════════════════════════════════════════════════════════════════ -->
-<div class="app" class:authenticated={isAuthenticated} class:loading={$authState.isLoading}>
+<div class="app" class:authenticated={isAuthenticated} class:loading={showLoader}>
   <!-- ── Auth Loading Overlay — prevents flash during initial auth check ── -->
   {#if showLoader}
     <div class="auth-loading-overlay">
