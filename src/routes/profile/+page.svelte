@@ -34,7 +34,7 @@
   import { resetDatabase } from 'stellar-drive/config';
   import { repairSyncQueue } from 'stellar-drive/engine';
   import { getTrustedDevices, removeTrustedDevice, getCurrentDeviceId } from 'stellar-drive/auth';
-  import { isDemoMode, getDemoConfig } from 'stellar-drive/demo';
+  import { isDemoMode, getDemoConfig, showDemoBlocked } from 'stellar-drive/demo';
   import type { TrustedDevice } from 'stellar-drive/types';
   import type { DiagnosticsSnapshot } from 'stellar-drive/types';
   import { onMount, onDestroy } from 'svelte';
@@ -87,17 +87,6 @@
   let codeSuccess = $state<string | null>(null);
   let debugMode = $state(isDebugMode());
   let resetting = $state(false);
-
-  /* ── Demo mode toast ──── */
-  let demoToast = $state('');
-  let demoToastTimer: ReturnType<typeof setTimeout> | null = null;
-
-  /** Show a temporary toast for blocked demo operations. */
-  function showDemoToast(msg: string) {
-    demoToast = msg;
-    if (demoToastTimer) clearTimeout(demoToastTimer);
-    demoToastTimer = setTimeout(() => (demoToast = ''), 3000);
-  }
 
   /* ── Debug tools loading flags ──── */
   let forceSyncing = $state(false);
@@ -361,7 +350,7 @@
   async function handleProfileSubmit(e: Event) {
     e.preventDefault();
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
     profileLoading = true;
@@ -394,7 +383,7 @@
   async function handleCodeSubmit(e: Event) {
     e.preventDefault();
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
 
@@ -447,7 +436,7 @@
   async function handleEmailSubmit(e: Event) {
     e.preventDefault();
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
     emailError = null;
@@ -555,7 +544,7 @@
    */
   async function handleResetDatabase() {
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
     if (
@@ -580,7 +569,7 @@
    */
   async function handleRemoveDevice(id: string) {
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
     removingDeviceId = id;
@@ -608,7 +597,7 @@
   /** Resets the sync cursor and re-downloads all data from Supabase. */
   async function handleForceFullSync() {
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
     if (
@@ -637,7 +626,7 @@
   /** Manually trigger a single push/pull sync cycle. */
   async function handleTriggerSync() {
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
     triggeringSyncManual = true;
@@ -658,7 +647,7 @@
   /** Reset the sync cursor so the next cycle pulls all remote data. */
   async function handleResetSyncCursor() {
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
     resettingCursor = true;
@@ -681,7 +670,7 @@
   /** Log soft-deleted record counts per table to the browser console. */
   async function handleViewTombstones() {
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
     viewingTombstones = true;
@@ -704,7 +693,7 @@
   /** Permanently remove old soft-deleted records from local + remote DBs. */
   async function handleCleanupTombstones() {
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
     if (
@@ -733,7 +722,7 @@
   /** Scan IndexedDB for records missing from the sync queue and re-queue them. */
   async function handleRepairSyncQueue() {
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
     if (
@@ -755,7 +744,7 @@
   /** Dispatch a custom event that the app shell listens for to sign out on mobile. */
   function handleMobileSignOut() {
     if (isDemo) {
-      showDemoToast('Not available in demo mode');
+      showDemoBlocked('Not available in demo mode');
       return;
     }
     window.dispatchEvent(new CustomEvent('stellar:signout'));
@@ -819,13 +808,6 @@
 <svelte:head>
   <title>Profile - Stellar Planner</title>
 </svelte:head>
-
-<!-- ═══ Demo Toast ═══ -->
-{#if demoToast}
-  <div class="demo-toast" role="status" aria-live="polite">
-    <span>{demoToast}</span>
-  </div>
-{/if}
 
 <!-- ═══ Page Container ═══ -->
 <div class="profile-page">
@@ -3300,43 +3282,6 @@
     }
     50% {
       opacity: 1;
-    }
-  }
-
-  /* ═══ Demo Toast ═══ */
-
-  :global(.demo-toast) {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 9500;
-    padding: 1rem 2rem;
-    background: linear-gradient(135deg, rgba(108, 92, 231, 0.85) 0%, rgba(255, 121, 198, 0.7) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: var(--radius-xl, 1rem);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    color: #fff;
-    font-size: 1rem;
-    font-weight: 600;
-    white-space: nowrap;
-    text-align: center;
-    box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.5),
-      0 0 60px rgba(108, 92, 231, 0.3);
-    animation: demoToastIn 0.3s ease-out;
-    pointer-events: none;
-  }
-
-  @keyframes demoToastIn {
-    from {
-      opacity: 0;
-      transform: translate(-50%, -50%) scale(0.9);
-    }
-    to {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
     }
   }
 </style>

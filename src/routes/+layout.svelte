@@ -55,6 +55,7 @@
   /* ── Components ── */
   import SyncStatus from 'stellar-drive/components/SyncStatus';
   import DemoBanner from 'stellar-drive/components/DemoBanner';
+  import DemoBlockedMessage from 'stellar-drive/components/DemoBlockedMessage';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
   import PageStarfield from '$lib/components/PageStarfield.svelte';
 
@@ -859,6 +860,9 @@
 
   <!-- ── Demo Mode Banner — shown when demo mode is active ── -->
   <DemoBanner />
+
+  <!-- ── Demo Blocked Message — center-screen overlay for gated demo operations ── -->
+  <DemoBlockedMessage />
 </div>
 
 <style>
@@ -2022,6 +2026,11 @@
 
   /* ── Mobile (<=640px) — switch to bottom nav + island header ── */
   @media (max-width: 640px) {
+    /* Raise the demo banner above the mobile bottom nav bar */
+    :global(:root) {
+      --demo-banner-bottom: 4.5rem;
+    }
+
     /* Hide desktop nav completely on mobile */
     .nav-desktop {
       display: none;
