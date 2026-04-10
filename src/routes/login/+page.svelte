@@ -36,7 +36,8 @@
     completeDeviceVerification,
     pollDeviceVerification,
     fetchRemoteGateConfig,
-    linkSingleUserDevice
+    linkSingleUserDevice,
+    checkPersistentLockout
   } from 'stellar-drive/auth';
   import { sendDeviceVerification } from 'stellar-drive/auth';
   import { isDemoMode } from 'stellar-drive/demo';
@@ -246,6 +247,12 @@
     /* ── Initial resolution complete — show the appropriate card ──── */
     resolving = false;
 
+    /* ── Check for a persistent PIN lockout from a previous session ──── */
+    const lockoutMs = await checkPersistentLockout();
+    if (lockoutMs > 0) {
+      startRetryCountdown(lockoutMs);
+    }
+
     /* ── Listen for auth confirmation from the `/confirm` page ──── */
     try {
       authChannel = new BroadcastChannel('stellar-auth-channel');
@@ -379,6 +386,19 @@
         }
       }
     }, 1000);
+  }
+
+  /**
+   * Format a countdown in seconds as a human-readable string.
+   * e.g. 45 → "45s", 125 → "2m 5s", 3661 → "1h 1m"
+   */
+  function formatCountdown(totalSeconds: number): string {
+    if (totalSeconds < 60) return `${totalSeconds}s`;
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    if (h > 0) return s > 0 ? `${h}h ${m}m ${s}s` : `${h}h ${m}m`;
+    return `${m}m ${s}s`;
   }
 
   // =============================================================================
@@ -931,8 +951,25 @@
               {/if}
             </div>
 
-            <!-- Error message with retry countdown -->
-            {#if error}
+            <!-- Lockout banner (brute-force protection) or regular error message -->
+            {#if retryCountdown > 0}
+              <div class="message lockout">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span>Too many attempts — try again in {formatCountdown(retryCountdown)}</span>
+              </div>
+            {:else if error}
               <div class="message error">
                 <svg
                   width="16"
@@ -948,7 +985,7 @@
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <span>{error}{retryCountdown > 0 ? ` (${retryCountdown}s)` : ''}</span>
+                <span>{error}</span>
               </div>
             {/if}
           </div>
@@ -1008,8 +1045,25 @@
               {/if}
             </div>
 
-            <!-- Error message with retry countdown -->
-            {#if error}
+            <!-- Lockout banner (brute-force protection) or regular error message -->
+            {#if retryCountdown > 0}
+              <div class="message lockout">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span>Too many attempts — try again in {formatCountdown(retryCountdown)}</span>
+              </div>
+            {:else if error}
               <div class="message error">
                 <svg
                   width="16"
@@ -1025,7 +1079,7 @@
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <span>{error}{retryCountdown > 0 ? ` (${retryCountdown}s)` : ''}</span>
+                <span>{error}</span>
               </div>
             {/if}
           </div>
@@ -2326,6 +2380,13 @@
     color: var(--color-red);
     border: 1px solid rgba(255, 107, 107, 0.4);
     box-shadow: 0 0 20px rgba(255, 107, 107, 0.1);
+  }
+
+  .lockout {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 191, 36, 0.05) 100%);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.08);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════

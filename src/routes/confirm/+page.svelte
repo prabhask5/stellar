@@ -63,10 +63,12 @@
 
       status = 'success';
 
-      /* Brief pause so the user sees the success state */
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      /* Hand off to the login tab or navigate directly */
+      /* Hand off to the login tab immediately after verification succeeds.
+         broadcastAuthConfirmed has a 500 ms internal delay before attempting
+         window.close(), so the user briefly sees the "success" state before
+         the tab closes.  We deliberately do NOT add an extra delay here —
+         a long pause creates a race window where the SIGNED_IN auth-state
+         change can fire and interrupt the flow. */
       await focusOrRedirect();
     } else {
       /* No token in URL — nothing to verify; just redirect */
