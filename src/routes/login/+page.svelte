@@ -27,7 +27,7 @@
 
   import { onMount, onDestroy, tick } from 'svelte';
   import { fade } from 'svelte/transition';
-  import { goto, invalidateAll } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import {
     setupSingleUser,
@@ -277,8 +277,7 @@
             const result = await completeSingleUserSetup();
             if (!result.error) {
               showConfirmationModal = false;
-              await invalidateAll();
-              goto('/');
+              goto('/', { invalidateAll: true });
             } else {
               error = result.error;
               showConfirmationModal = false;
@@ -348,12 +347,13 @@
     const result = await completeDeviceVerification();
     if (!result.error) {
       showDeviceVerificationModal = false;
-      await invalidateAll();
-      goto(redirectUrl);
+      goto(redirectUrl, { invalidateAll: true });
     } else {
       error = result.error;
       showDeviceVerificationModal = false;
       verificationCompleting = false;
+      loading = false;
+      linkLoading = false;
     }
   }
 
@@ -650,8 +650,7 @@
         return;
       }
       /* No confirmation needed → go straight to the app (keep loading=true to avoid flash) */
-      await invalidateAll();
-      goto('/');
+      goto('/', { invalidateAll: true });
       return;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Setup failed. Please try again.';
@@ -717,8 +716,7 @@
         return;
       }
       /* Success → navigate to the redirect target (keep loading=true to avoid PIN flash) */
-      await invalidateAll();
-      goto(redirectUrl);
+      goto(redirectUrl, { invalidateAll: true });
       return;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Incorrect code';
@@ -796,8 +794,7 @@
         return;
       }
       /* Success → navigate to the redirect target (keep linkLoading=true to avoid flash) */
-      await invalidateAll();
-      goto(redirectUrl);
+      goto(redirectUrl, { invalidateAll: true });
       return;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Incorrect code';
