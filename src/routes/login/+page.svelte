@@ -385,9 +385,9 @@
           clearInterval(retryTimer);
           retryTimer = null;
         }
-        tick().then(() => {
+        setTimeout(() => {
           unlockInputs[0]?.focus();
-        });
+        }, 50);
       }
     }, 1000);
   }
