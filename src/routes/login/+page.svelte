@@ -26,6 +26,7 @@
    */
 
   import { onMount, onDestroy, tick } from 'svelte';
+  import { fade } from 'svelte/transition';
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/stores';
   import {
@@ -384,6 +385,9 @@
           clearInterval(retryTimer);
           retryTimer = null;
         }
+        tick().then(() => {
+          unlockInputs[0]?.focus();
+        });
       }
     }, 1000);
   }
@@ -680,6 +684,10 @@
         error = result.error;
         if (result.retryAfterMs) {
           startRetryCountdown(result.retryAfterMs);
+        } else {
+          setTimeout(() => {
+            if (retryCountdown === 0) error = null;
+          }, 2500);
         }
         shaking = true;
         setTimeout(() => {
@@ -705,6 +713,9 @@
       return;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Incorrect code';
+      setTimeout(() => {
+        if (retryCountdown === 0) error = null;
+      }, 2500);
       shaking = true;
       setTimeout(() => {
         shaking = false;
@@ -753,6 +764,10 @@
         error = result.error;
         if (result.retryAfterMs) {
           startRetryCountdown(result.retryAfterMs);
+        } else {
+          setTimeout(() => {
+            if (retryCountdown === 0) error = null;
+          }, 2500);
         }
         shaking = true;
         setTimeout(() => {
@@ -777,6 +792,9 @@
       return;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Incorrect code';
+      setTimeout(() => {
+        if (retryCountdown === 0) error = null;
+      }, 2500);
       shaking = true;
       setTimeout(() => {
         shaking = false;
@@ -845,43 +863,6 @@
 
   <!-- ═══ Login Content — centered card area ═══ -->
   <div class="login-content">
-    <!-- ═══ Brand Header — logo + title + tagline ═══ -->
-    <div class="brand">
-      <div class="brand-icon">
-        <div class="brand-glow"></div>
-        <svg width="48" height="48" viewBox="0 0 100 100" fill="none">
-          <circle
-            cx="50"
-            cy="50"
-            r="45"
-            stroke="url(#loginBrandGrad)"
-            stroke-width="5"
-            fill="none"
-          />
-          <path
-            d="M30 52 L45 67 L72 35"
-            stroke="url(#loginCheckGrad)"
-            stroke-width="6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            fill="none"
-          />
-          <defs>
-            <linearGradient id="loginBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#6c5ce7" />
-              <stop offset="100%" stop-color="#ff79c6" />
-            </linearGradient>
-            <linearGradient id="loginCheckGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#26de81" />
-              <stop offset="100%" stop-color="#00d4ff" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-      <h1 class="brand-title">Stellar</h1>
-      <p class="brand-tagline">Your universe of productivity awaits</p>
-    </div>
-
     <!-- ═══ Mode cards (hidden while resolving initial auth state) ═══ -->
     {#if resolving}
       <div class="login-card resolving-card">
@@ -920,7 +901,6 @@
           <!-- PIN code entry -->
           <div class="form-fields">
             <div class="form-group">
-              <div class="code-label">Access Code</div>
               {#if loading}
                 <div class="code-loading">
                   <span class="loading-spinner"></span>
@@ -950,44 +930,6 @@
                 </div>
               {/if}
             </div>
-
-            <!-- Lockout banner (brute-force protection) or regular error message -->
-            {#if retryCountdown > 0}
-              <div class="message lockout">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                <span>Too many attempts — try again in {formatCountdown(retryCountdown)}</span>
-              </div>
-            {:else if error}
-              <div class="message error">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span>{error}</span>
-              </div>
-            {/if}
           </div>
         </div>
       </div>
@@ -1015,7 +957,6 @@
           <!-- PIN code entry for device linking -->
           <div class="form-fields">
             <div class="form-group">
-              <div class="code-label">Access Code</div>
               {#if linkLoading}
                 <div class="code-loading">
                   <span class="loading-spinner"></span>
@@ -1044,44 +985,6 @@
                 </div>
               {/if}
             </div>
-
-            <!-- Lockout banner (brute-force protection) or regular error message -->
-            {#if retryCountdown > 0}
-              <div class="message lockout">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                <span>Too many attempts — try again in {formatCountdown(retryCountdown)}</span>
-              </div>
-            {:else if error}
-              <div class="message error">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span>{error}</span>
-              </div>
-            {/if}
           </div>
         </div>
       </div>
@@ -1433,6 +1336,44 @@
           </button>
         </div>
       </div>
+    </div>
+  {/if}
+
+  <!-- ═══ Bottom Status Banner ═══ -->
+  {#if retryCountdown > 0}
+    <div class="bottom-banner lockout" transition:fade={{ duration: 250 }}>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+      <span>Too many attempts — try again in {formatCountdown(retryCountdown)}</span>
+    </div>
+  {:else if error}
+    <div class="bottom-banner error-banner" transition:fade={{ duration: 250 }}>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+      <span>{error}</span>
     </div>
   {/if}
 </div>
@@ -1849,85 +1790,6 @@
   /* ═══════════════════════════════════════════════════════════════════════════════════
      BRAND — Logo icon, title with shimmer gradient, tagline
      ═══════════════════════════════════════════════════════════════════════════════════ */
-
-  .brand {
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .brand-icon {
-    position: relative;
-    animation: brandFloat 4s ease-in-out infinite;
-    filter: drop-shadow(0 0 30px var(--color-primary-glow));
-  }
-
-  .brand-glow {
-    position: absolute;
-    inset: -20px;
-    background: radial-gradient(circle, rgba(108, 92, 231, 0.4) 0%, transparent 70%);
-    border-radius: 50%;
-    animation: brandGlowPulse 3s ease-in-out infinite;
-  }
-
-  @keyframes brandGlowPulse {
-    0%,
-    100% {
-      opacity: 0.5;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.8;
-      transform: scale(1.2);
-    }
-  }
-
-  @keyframes brandFloat {
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-8px);
-    }
-  }
-
-  .brand-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-    background: linear-gradient(
-      135deg,
-      var(--color-text) 0%,
-      var(--color-primary-light) 50%,
-      var(--color-text) 100%
-    );
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    letter-spacing: -0.03em;
-    animation: textShimmer 6s linear infinite;
-    margin: 0;
-  }
-
-  @keyframes textShimmer {
-    0% {
-      background-position: 0% center;
-    }
-    100% {
-      background-position: 200% center;
-    }
-  }
-
-  .brand-tagline {
-    color: var(--color-text-muted);
-    font-size: 1rem;
-    font-weight: 500;
-    margin: 0;
-    opacity: 0.8;
-  }
 
   /* ═══════════════════════════════════════════════════════════════════════════════════
      LOGIN CARD — Cinematic glass card with animated border
@@ -2572,18 +2434,20 @@
     100% {
       transform: translateX(0);
     }
-    10%,
-    30%,
-    50%,
-    70%,
-    90% {
+    15% {
+      transform: translateX(-8px);
+    }
+    30% {
+      transform: translateX(7px);
+    }
+    45% {
       transform: translateX(-6px);
     }
-    20%,
-    40%,
-    60%,
-    80% {
-      transform: translateX(6px);
+    60% {
+      transform: translateX(4px);
+    }
+    75% {
+      transform: translateX(-2px);
     }
   }
 
@@ -2598,16 +2462,6 @@
   @media (min-width: 1200px) {
     .login-content {
       max-width: 480px;
-    }
-    .brand-icon svg {
-      width: 56px;
-      height: 56px;
-    }
-    .brand-title {
-      font-size: 3rem;
-    }
-    .brand-tagline {
-      font-size: 1.125rem;
     }
     .card-inner {
       padding: 3rem;
@@ -2646,13 +2500,6 @@
     .login-content {
       max-width: 460px;
     }
-    .brand-icon svg {
-      width: 52px;
-      height: 52px;
-    }
-    .brand-title {
-      font-size: 2.75rem;
-    }
     .card-inner {
       padding: 2.75rem;
     }
@@ -2666,16 +2513,6 @@
     .login-content {
       padding: 1.5rem;
       gap: 1.5rem;
-    }
-    .brand-icon svg {
-      width: 44px;
-      height: 44px;
-    }
-    .brand-title {
-      font-size: 2.25rem;
-    }
-    .brand-tagline {
-      font-size: 0.9375rem;
     }
     .card-inner {
       padding: 2rem;
@@ -2747,16 +2584,6 @@
       padding: 1.25rem;
       gap: 1.75rem;
     }
-    .brand-icon svg {
-      width: 48px;
-      height: 48px;
-    }
-    .brand-title {
-      font-size: 2.5rem;
-    }
-    .brand-tagline {
-      font-size: 1rem;
-    }
     .card-inner {
       padding: 2rem;
       border-radius: 22px;
@@ -2808,13 +2635,6 @@
       padding: 1.5rem;
       gap: 2rem;
     }
-    .brand-icon svg {
-      width: 52px;
-      height: 52px;
-    }
-    .brand-title {
-      font-size: 2.75rem;
-    }
     .card-inner {
       padding: 2.25rem;
     }
@@ -2850,16 +2670,6 @@
     .login-content {
       padding: 1rem;
       gap: 1.25rem;
-    }
-    .brand-icon svg {
-      width: 40px;
-      height: 40px;
-    }
-    .brand-title {
-      font-size: 2rem;
-    }
-    .brand-tagline {
-      font-size: 0.8125rem;
     }
     .card-inner {
       padding: 1.5rem;
@@ -2967,17 +2777,12 @@
     .orbit-particle,
     .shooting-star,
     .particle,
-    .brand-icon,
-    .brand-glow,
     .card-glow,
     .avatar-ring-outer,
     .avatar-ring-inner {
       animation: none;
     }
 
-    .brand-title {
-      animation: none;
-    }
     .login-card {
       animation: none;
       background: rgba(108, 92, 231, 0.3);
@@ -3079,5 +2884,48 @@
   .modal-card .card-subtitle strong {
     color: var(--color-text);
     font-weight: 600;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     BOTTOM STATUS BANNER — fixed pill anchored to bottom of viewport
+     ═══════════════════════════════════════════════════════════════════════════════════ */
+
+  .bottom-banner {
+    position: fixed;
+    bottom: max(32px, calc(env(safe-area-inset-bottom) + 20px));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.125rem;
+    border-radius: 100px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    white-space: nowrap;
+    backdrop-filter: blur(20px);
+    z-index: 200;
+  }
+
+  .bottom-banner.error-banner {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 107, 107, 0.18) 0%,
+      rgba(255, 107, 107, 0.06) 100%
+    );
+    color: var(--color-red, #ff6b6b);
+    border: 1px solid rgba(255, 107, 107, 0.4);
+    box-shadow:
+      0 4px 24px rgba(255, 107, 107, 0.15),
+      0 0 40px rgba(255, 107, 107, 0.05);
+  }
+
+  .bottom-banner.lockout {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 191, 36, 0.05) 100%);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    box-shadow:
+      0 4px 24px rgba(251, 191, 36, 0.12),
+      0 0 40px rgba(251, 191, 36, 0.05);
   }
 </style>
