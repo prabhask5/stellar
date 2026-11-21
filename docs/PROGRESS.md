@@ -103,8 +103,8 @@ Legend: `[ ]` open · `[x]` done and verified. "AC" = acceptance criteria.
 
 ## Phase 11 — API & iOS readiness
 
-- [ ] Every `/api/v1` endpoint in §11 with zod validation, error envelope, `updated_since`, CORS, rate limits. AC: API e2e tests.
-- [ ] Generated `docs/openapi.json`; `docs/API.md`; `docs/IOS_INTEGRATION.md`. AC: generator in sync test.
+- [x] Every `/api/v1` endpoint in §11 with zod validation, error envelope, `updated_since`, CORS, rate limits. AC: API e2e tests.
+- [x] Generated `docs/openapi.json`; `docs/API.md`; `docs/IOS_INTEGRATION.md`. AC: generator in sync test.
 
 ## Phase 12 — Ship
 

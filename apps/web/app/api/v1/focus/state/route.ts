@@ -1,0 +1,8 @@
+import { api, json, preflight } from "@/lib/server/http";
+import { guard, rpc } from "@/lib/server/resource";
+
+export const dynamic = "force-dynamic";
+export const OPTIONS = preflight;
+
+/** Timer state, settings, what is being blocked, and the server clock, in one call. */
+export const GET = api(async (req) => json(await rpc(await guard(req), "sp_focus_get")));

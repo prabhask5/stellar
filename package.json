@@ -18,7 +18,8 @@
     "tokens": "pnpm --filter @stellar/ui-tokens generate",
     "stack:up": "docker compose -f dev/supabase/docker-compose.yml up -d --wait",
     "stack:down": "docker compose -f dev/supabase/docker-compose.yml down -v",
-    "build:extension": "turbo run zip --filter=@stellar/extension"
+    "build:extension": "turbo run zip --filter=@stellar/extension",
+    "openapi": "node scripts/generate-openapi.mts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

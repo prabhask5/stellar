@@ -119,3 +119,15 @@ One line of context, the choice, and why. Newest at the bottom of each phase.
 - **Presence.** The extension joins the same presence channel as the app, so it counts in "N devices in sync".
 - **Firefox.** `browser_specific_settings.gecko.id` is `stellar-planner@stellar.local`, minimum version 128, with `data_collection_permissions: none` (the extension talks only to the owner's own instance).
 - **Distribution.** `pnpm --filter @stellar/extension zip` builds both targets and copies `stellar-planner-chrome.zip` / `stellar-planner-firefox.zip` into `apps/web/public/extension/`; the web build depends on it, so the Docker image always serves matching packages.
+
+## Phase 11 — API & iOS readiness
+
+- **Thin facade.** Each handler forwards the caller's token to Supabase and lets RLS, constraints, triggers and RPCs decide. Shared plumbing is in `apps/web/lib/server/resource.ts` (list with delta sync, idempotent create, update, soft/hard delete, reorder). Postgres errors map to the envelope: check/validation → 400, missing → 404, permission → 403, unique → 409.
+- **Delta sync.** `updated_since` returns changed rows plus `deleted_ids`, the union of soft-deleted rows and tombstones of hard deletes. Clients pass back the previous `server_time`.
+- **Idempotent creates** use the client's `id` with insert-or-ignore, then return the stored row, so a retry never overwrites later edits.
+- **`GET /tasks`** without `view` is the sync feed; with `view` it calls `sp_tasks_view`, the same ordering the app uses.
+- **`POST /focus/actions`** answers `409` when the version check fails, with the normal body (`ok: false`, reason, current state), so clients can branch on status or body.
+- **Extras beyond §11:** `/tasks/reorder`, `/goals/reorder`, `/routines/reorder`, `/block-lists/reorder` (the spec lists reorder only for lists, but every ordered collection needs it) and `/api/v1/openapi.json`.
+- **`DELETE /quotes`** takes `?id=` (or `{ id }` in the body), as §11 lists it without a path parameter.
+- **OpenAPI** is built in `packages/shared/src/openapi.ts` with zod 4's `z.toJSONSchema`; request schemas use input types, responses output types, and objects are left open so later fields are not breaking. Tests check `docs/openapi.json` is current, that every documented operation has a handler exporting that method, and that no route is undocumented.
+- **Rate limits:** auth endpoints keep their strict per-IP limits and PIN lockout; everything else shares 1,200 requests a minute per session type.
