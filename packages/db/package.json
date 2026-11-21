@@ -1,0 +1,25 @@
+{
+  "name": "@stellar/db",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "bundle": "node scripts/bundle.ts",
+    "migrate": "node scripts/migrate.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "gen-types": "node scripts/gen-types.ts"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "@stellar/shared": "workspace:*"
+  }
+}
