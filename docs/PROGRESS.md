@@ -96,10 +96,10 @@ Legend: `[ ]` open · `[x]` done and verified. "AC" = acceptance criteria.
 
 ## Phase 10 — Extension
 
-- [ ] Connect flow (URL → instance → PIN), storage adapter, auto refresh. AC: unit tests + build.
-- [ ] Background: Realtime + alarms + startup + online resync, DNR redirect rules, already-open tabs, offline resilience, badge. AC: unit tests on rule builder + state reducer.
-- [ ] Block page per mockup; popup with full controls and settings. AC: screenshots.
-- [ ] Chrome + Firefox builds and zips; served from the web app. AC: `pnpm --filter extension build` emits both zips.
+- [x] Connect flow (URL → instance → PIN), storage adapter, auto refresh. AC: unit tests + build.
+- [x] Background: Realtime + alarms + startup + online resync, DNR redirect rules, already-open tabs, offline resilience, badge. AC: unit tests on rule builder + state reducer.
+- [x] Block page per mockup; popup with full controls and settings. AC: screenshots.
+- [x] Chrome + Firefox builds and zips; served from the web app. AC: `pnpm --filter extension build` emits both zips.
 
 ## Phase 11 — API & iOS readiness
 

@@ -1,0 +1,120 @@
+@import "../../assets/base.css";
+
+.blocked {
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(40px, 14vh, 116px) 24px 32px;
+  text-align: center;
+}
+
+/* The eclipse: a black disk with a gold corona, over a slowly turning nebula halo. */
+.eclipse {
+  position: relative;
+  width: min(268px, 72vw);
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.eclipse__halo {
+  position: absolute;
+  inset: -62%;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, rgba(246, 199, 110, 0.34) 40%, transparent 62%),
+    conic-gradient(
+      from 20deg,
+      rgba(110, 76, 255, 0.72),
+      rgba(214, 72, 160, 0.6),
+      rgba(246, 199, 110, 0.3),
+      rgba(60, 110, 255, 0.5),
+      rgba(110, 76, 255, 0.72)
+    );
+  -webkit-mask-image: radial-gradient(closest-side, #000 30%, transparent 78%);
+  mask-image: radial-gradient(closest-side, #000 30%, transparent 78%);
+  filter: blur(26px);
+  animation: turn 80s linear infinite;
+}
+.eclipse__disk {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #000;
+  border: 2px solid var(--sp-accent);
+  box-shadow:
+    0 0 26px rgba(246, 199, 110, 0.55),
+    0 0 90px rgba(246, 199, 110, 0.22);
+}
+.eclipse__body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.eclipse__eyebrow {
+  color: var(--sp-accent);
+}
+.eclipse__time {
+  margin: 6px 0 4px;
+  font-size: 72px;
+  line-height: 1;
+  font-weight: 200;
+  letter-spacing: -0.03em;
+}
+.eclipse__caption {
+  color: var(--sp-text-secondary);
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.blocked__title {
+  margin-top: clamp(40px, 9vh, 76px);
+  font-size: clamp(28px, 5vw, 38px);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.blocked__line {
+  margin-top: 14px;
+  font-size: 17px;
+  line-height: 22px;
+  color: var(--sp-text-secondary);
+  overflow-wrap: anywhere;
+}
+.blocked__progress {
+  margin-top: 28px;
+  width: min(360px, 80vw);
+  height: 4px;
+  border-radius: 999px;
+  background: var(--sp-track);
+  overflow: hidden;
+}
+.blocked__progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sp-accent);
+  transition: width 350ms linear;
+}
+.blocked__action {
+  margin-top: 28px;
+}
+.blocked__footer {
+  margin-top: auto;
+  padding-top: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--sp-text-secondary);
+}

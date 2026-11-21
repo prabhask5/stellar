@@ -1,0 +1,187 @@
+@import "@stellar/ui-tokens/css/tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+  background: var(--sp-bg-void);
+  color: var(--sp-text-primary);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+body {
+  margin: 0;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--sp-accent);
+  outline-offset: 2px;
+}
+
+p,
+h1,
+h2 {
+  margin: 0;
+}
+
+/* The same sky as the app: nebula wash and seeded star tiles. */
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--sp-bg-void);
+}
+
+.sky::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(42% 36% at 78% 12%, var(--sp-nebula-violet), transparent 70%),
+    radial-gradient(38% 34% at 86% 92%, var(--sp-nebula-magenta), transparent 72%),
+    radial-gradient(46% 40% at 8% 88%, var(--sp-nebula-blue), transparent 70%);
+  opacity: 0.55;
+}
+
+.sky::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(0.8px 0.8px at 31px 47px, rgba(235, 232, 255, 0.8) 50%, transparent 100%),
+    radial-gradient(1px 1px at 142px 198px, rgba(255, 226, 180, 0.85) 50%, transparent 100%),
+    radial-gradient(0.7px 0.7px at 263px 81px, rgba(235, 232, 255, 0.6) 50%, transparent 100%),
+    radial-gradient(1.2px 1.2px at 351px 289px, rgba(235, 232, 255, 0.9) 50%, transparent 100%),
+    radial-gradient(0.8px 0.8px at 77px 331px, rgba(235, 232, 255, 0.7) 50%, transparent 100%),
+    radial-gradient(0.9px 0.9px at 219px 373px, rgba(255, 226, 180, 0.7) 50%, transparent 100%),
+    radial-gradient(0.7px 0.7px at 391px 133px, rgba(235, 232, 255, 0.55) 50%, transparent 100%),
+    radial-gradient(1px 1px at 173px 23px, rgba(235, 232, 255, 0.75) 50%, transparent 100%),
+    radial-gradient(0.8px 0.8px at 305px 211px, rgba(235, 232, 255, 0.5) 50%, transparent 100%),
+    radial-gradient(1.1px 1.1px at 23px 229px, rgba(235, 232, 255, 0.8) 50%, transparent 100%);
+  background-size: 420px 420px;
+}
+
+.eyebrow {
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.glass {
+  background: var(--sp-glass-fill);
+  border: 1px solid var(--sp-glass-border);
+  -webkit-backdrop-filter: var(--sp-glass-blur);
+  backdrop-filter: var(--sp-glass-blur);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-weight: 500;
+  transition:
+    transform 100ms ease-out,
+    background-color 100ms ease-out,
+    filter 100ms ease-out;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.btn--primary {
+  background: var(--sp-accent);
+  color: var(--sp-accent-ink);
+  font-weight: 600;
+}
+.btn--primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+.btn--secondary {
+  background: var(--sp-fill-subtle);
+  border: 1px solid var(--sp-glass-border);
+}
+.btn--secondary:hover:not(:disabled) {
+  background: var(--sp-fill-selected);
+}
+.btn--danger {
+  background: rgba(255, 122, 138, 0.12);
+  border: 1px solid rgba(255, 122, 138, 0.28);
+  color: var(--sp-danger);
+}
+.btn--block {
+  width: 100%;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--sp-text-secondary);
+}
+.dot--live {
+  background: var(--sp-success);
+  box-shadow: 0 0 8px rgba(124, 242, 176, 0.7);
+}
+.dot--warn {
+  background: var(--sp-warning);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

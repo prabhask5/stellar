@@ -107,3 +107,15 @@ One line of context, the choice, and why. Newest at the bottom of each phase.
 - **Manifest shortcuts** open `/tasks?new=1` (cursor in quick add) and `/focus?start=1` (starts or resumes the timer).
 - **Outbox race fixed.** Unit tests showed two flushes could start at once and send an operation twice; the flush now claims itself synchronously.
 - **Device matrix.** One spec walks every page at the eight SPEC §9.1 sizes with simulated insets and asserts: no horizontal overflow, nothing clipped, headers below the top inset, tab bar above the home indicator and inside side insets, background full-bleed.
+
+## Phase 10 — Extension
+
+- **Host access.** A declarativeNetRequest _redirect_ only applies to requests the extension has host permission for, so the manifest declares `host_permissions: ["<all_urls>"]` (any site may be put on a block list from another device). The same grant lets the background reach the instance and Supabase. Chrome grants it at install; Firefox treats MV3 host permissions as optional, so the popup also calls `permissions.request` from the Continue click.
+- **Rules use `regexFilter` + `regexSubstitution`,** not `urlFilter: "||domain^"`. The spec's block page must offer "continue to the originally requested URL", and only a regex substitution can carry that URL: the rule redirects to `blocked.html?site=<domain>#<original URL>` (the fragment needs no encoding). Each regex matches the domain and all subdomains over http/https, main frame only. Beyond 900 domains (Chrome allows 1,000 regex rules) the remaining ones fall back to `urlFilter` rules without the continue address.
+- **The block page only ever links back to the blocked site itself:** the address in the fragment is ignored unless its host belongs to the blocked domain.
+- **No state in memory.** Connection, session and the last snapshot live in `storage.local`. The worker re-syncs on install, browser start, a 30-second alarm (the shortest period browsers allow), `online`, popup/block-page open, and every Realtime event. An alarm at `phase_ends_at` lifts the block with no network; a paused focus phase blocks until a state change arrives.
+- **One round trip.** The extension reads everything from `sp_focus_get` (state, settings, active lists, patterns, server time) and refetches on any change to the four tables, which keeps the background tiny and correct.
+- **Realtime keep-alive.** The socket heartbeat is 20 seconds, under Chrome's 30-second service-worker idle limit, so an open socket keeps the worker alive while it is needed.
+- **Presence.** The extension joins the same presence channel as the app, so it counts in "N devices in sync".
+- **Firefox.** `browser_specific_settings.gecko.id` is `stellar-planner@stellar.local`, minimum version 128, with `data_collection_permissions: none` (the extension talks only to the owner's own instance).
+- **Distribution.** `pnpm --filter @stellar/extension zip` builds both targets and copies `stellar-planner-chrome.zip` / `stellar-planner-firefox.zip` into `apps/web/public/extension/`; the web build depends on it, so the Docker image always serves matching packages.

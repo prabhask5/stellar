@@ -17,7 +17,8 @@
     "format:check": "prettier --check .",
     "tokens": "pnpm --filter @stellar/ui-tokens generate",
     "stack:up": "docker compose -f dev/supabase/docker-compose.yml up -d --wait",
-    "stack:down": "docker compose -f dev/supabase/docker-compose.yml down -v"
+    "stack:down": "docker compose -f dev/supabase/docker-compose.yml down -v",
+    "build:extension": "turbo run zip --filter=@stellar/extension"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
