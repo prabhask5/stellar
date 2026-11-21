@@ -2,7 +2,8 @@
 
 import type { Task } from "@stellar/db";
 import type { DateStr } from "@stellar/shared";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import type { ReactNode } from "react";
 import { cx } from "@/components/ui/cx";
 import { TaskRow, type TaskRowProps } from "./task-row";
@@ -39,7 +40,7 @@ export function TaskGroup({
     >
       <AnimatePresence initial={false}>
         {tasks.map((task, i) => (
-          <motion.div
+          <m.div
             key={task.id}
             role="listitem"
             layout={reduce ? false : "position"}
@@ -61,7 +62,7 @@ export function TaskGroup({
               onOpen={onOpen}
               onReschedule={onReschedule}
             />
-          </motion.div>
+          </m.div>
         ))}
       </AnimatePresence>
       {footer}

@@ -178,10 +178,18 @@ html[data-tier="minimal"] .glass-strong {
   backdrop-filter: none;
 }
 
+/* Without blur, list text passing under the tab bar would stay sharp, so the bar is solid. */
+html[data-tier="minimal"] .sp-tabbar {
+  background-color: rgb(17, 14, 42) !important;
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass,
   .glass-strong {
     background: rgba(24, 20, 56, 0.92);
+  }
+  .sp-tabbar {
+    background-color: rgb(17, 14, 42) !important;
   }
 }
 

@@ -18,8 +18,8 @@ import {
 } from "./cache";
 import { SCORING_TABLES } from "./data/core";
 import { hasPending } from "./outbox";
-import { readMeta } from "./session";
-import { getSupabase } from "./supabase";
+import { readMeta, type SessionMeta } from "./session";
+import { type Db, getSupabase } from "./supabase";
 import { useSync } from "./sync-store";
 
 type Row = Record<string, unknown>;
@@ -98,8 +98,28 @@ let hadConnection = false;
  */
 export function startRealtime(deviceKind: "web" | "pwa" = "web"): () => void {
   const meta = readMeta();
-  if (!meta || channel) return () => {};
-  const db = getSupabase();
+  if (!meta || channel || starting) return () => {};
+  let cancelled = false;
+  let stop = () => {};
+  starting = true;
+  void getSupabase()
+    .then((db) => {
+      if (!cancelled) stop = subscribe(db, meta, deviceKind);
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      starting = false;
+    });
+  return () => {
+    cancelled = true;
+    stop();
+  };
+}
+
+let starting = false;
+
+function subscribe(db: Db, meta: SessionMeta, deviceKind: "web" | "pwa"): () => void {
+  if (channel) return () => {};
   const presenceKey = `${deviceKind}:${meta.deviceId ?? crypto.randomUUID()}:${Math.random().toString(36).slice(2, 8)}`;
   let ch = db.channel(`sp:${meta.userId}`, { config: { presence: { key: presenceKey } } });
 

@@ -149,7 +149,7 @@ export function resync(): Promise<void> {
     try {
       const link = await getClient();
       if (!link) {
-        await setStatus("disconnected");
+        // Not linked: "disconnected" is the default, so nothing is written to storage.
         await apply(null);
         return;
       }
@@ -181,6 +181,12 @@ export function resync(): Promise<void> {
 }
 
 async function disconnect(): Promise<void> {
+  // Let a sync that is already under way finish first, so it cannot write state back afterwards.
+  if (debounce) {
+    clearTimeout(debounce);
+    debounce = null;
+  }
+  if (resyncing) await resyncing.catch(() => undefined);
   const link = await getClient();
   if (link) {
     if (channel) await link.db.removeChannel(channel).catch(() => undefined);

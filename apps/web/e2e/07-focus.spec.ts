@@ -87,6 +87,9 @@ test.describe("focus", () => {
     await page.getByRole("button", { name: "Pause" }).click();
     await expect(focus(page)).toHaveAttribute("data-status", "paused");
     await expect(focus(page)).toHaveAttribute("data-blocking", "true");
+    // The server's own figure for the paused time replaces the optimistic one; read after it lands.
+    await expect.poll(async () => (await state()).status).toBe("paused");
+    await page.waitForTimeout(400);
     const frozen = await page.getByTestId("timer-clock").innerText();
     await page.waitForTimeout(1300);
     await expect(page.getByTestId("timer-clock")).toHaveText(frozen);

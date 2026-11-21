@@ -61,7 +61,9 @@ function useOlderCompleted(from: DateStr, to: DateStr, enabled: boolean): Task[]
     enabled: enabled && ready,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await getSupabase()
+      const { data, error } = await (
+        await getSupabase()
+      )
         .from("sp_tasks")
         .select("*")
         .is("deleted_at", null)

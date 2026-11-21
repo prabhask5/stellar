@@ -7,11 +7,19 @@ import {
   isBlockingActive,
   phaseLabel,
   todayIn,
-  zFocusStats,
 } from "@stellar/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { cx } from "@/components/ui/cx";
+
+interface Stats {
+  today: string;
+  today_minutes: number;
+  total_minutes: number;
+  streak_days: number;
+  days: { date: string; minutes: number }[];
+}
+
 import { GlassCard } from "@/components/ui/glass-card";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { keys, queryClient } from "@/lib/client/cache";
@@ -20,9 +28,9 @@ import { serverNow } from "@/lib/client/session";
 import { getSupabase } from "@/lib/client/supabase";
 
 async function fetchStats(days: number) {
-  const { data, error } = await getSupabase().rpc("sp_focus_stats", { p_days: days });
+  const { data, error } = await (await getSupabase()).rpc("sp_focus_stats", { p_days: days });
   if (error) throw Object.assign(new Error(error.message), error);
-  return zFocusStats.parse(data);
+  return data as unknown as Stats;
 }
 
 function Tile({ label, value }: { label: string; value: string }) {

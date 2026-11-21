@@ -170,7 +170,7 @@ interface UntypedFilter extends PromiseLike<PgResult> {
 }
 
 async function execute(item: QueuedOp): Promise<unknown> {
-  const db = getSupabase() as unknown as Untyped;
+  const db = (await getSupabase()) as unknown as Untyped;
   const { op } = item;
   const waited = serverNow() - item.at > STALE_MS;
   switch (op.kind) {

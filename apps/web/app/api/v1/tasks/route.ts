@@ -1,6 +1,6 @@
 import { zDate, zId, zTaskCreate, zTaskView } from "@stellar/shared";
 import { api, json, preflight } from "@/lib/server/http";
-import { create, guard, list, now, rpc } from "@/lib/server/resource";
+import { create, guard, list, rpc, syncTime } from "@/lib/server/resource";
 
 export const dynamic = "force-dynamic";
 export const OPTIONS = preflight;
@@ -23,6 +23,7 @@ export const GET = api(async (req) => {
       ],
     });
   }
+  const serverTime = await syncTime(auth);
   const data = await rpc(auth, "sp_tasks_view", {
     p_view: zTaskView.parse(view),
     p_list_id: p.get("list_id") ? zId.parse(p.get("list_id")) : null,
@@ -30,7 +31,7 @@ export const GET = api(async (req) => {
     p_to: p.get("to") ? zDate.parse(p.get("to")) : null,
     p_include_completed: p.get("include_completed") === "true",
   });
-  return json({ data, deleted_ids: [], server_time: now() });
+  return json({ data, deleted_ids: [], server_time: serverTime });
 });
 
 export const POST = api(async (req) => create(req, await guard(req), "sp_tasks", zTaskCreate));

@@ -19,7 +19,8 @@
     "stack:up": "docker compose -f dev/supabase/docker-compose.yml up -d --wait",
     "stack:down": "docker compose -f dev/supabase/docker-compose.yml down -v",
     "build:extension": "turbo run zip --filter=@stellar/extension",
-    "openapi": "node scripts/generate-openapi.mts"
+    "openapi": "node scripts/generate-openapi.mts",
+    "budgets": "node scripts/check-budgets.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

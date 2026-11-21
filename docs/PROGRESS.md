@@ -108,11 +108,48 @@ Legend: `[ ]` open · `[x]` done and verified. "AC" = acceptance criteria.
 
 ## Phase 12 — Ship
 
-- [ ] Dockerfile (standalone, non-root, healthcheck, `/data`, extension zips), docker-compose, `.env.example`. AC: `docker build .` succeeds; container answers `/api/health`.
-- [ ] README, `docs/SELF_HOSTING.md`, `docs/DOKPLOY.md`, `docs/EXTENSION.md`.
-- [ ] Full e2e suite green on desktop, iPhone 15 Pro, iPhone SE; performance budget check script. AC: all pass.
-- [ ] Final summary below.
+- [x] Dockerfile (standalone, non-root, healthcheck, `/data`, extension zips), docker-compose, `.env.example`. AC: `docker build .` succeeds; container answers `/api/health`.
+- [x] README, `docs/SELF_HOSTING.md`, `docs/DOKPLOY.md`, `docs/EXTENSION.md`.
+- [x] Full e2e suite green on desktop, iPhone 15 Pro, iPhone SE; performance budget check script. AC: all pass.
+- [x] Final summary below.
 
 ## Summary
 
-_Written at the end of the run._
+### What was built
+
+- **Web app / PWA** (`apps/web`, Next.js 16 standalone): setup wizard, PIN lock with escalating lockout, Universe home, Tasks (Today / All / Calendar / Lists), Goals, Routines, Focus timer with stats and block lists, Settings (profile, security and devices, connection, data export/import, notifications, quotes, extension download). iPhone-first with safe-area handling for Dynamic Island, notch and home-button phones; installable; offline shell and an IndexedDB outbox; Web Push when a phase ends; ⌘K command bar and keyboard shortcuts on desktop.
+- **Universe** (`packages/universe`): lazily loaded three.js scene with quality tiers and a frame governor, a 2D cosmic-event overlay with coalescing, and a score/era ledger kept in Postgres.
+- **Database** (`packages/db`): nine idempotent `sp_` migrations with RLS on every table, the timer state machine, recurrence, streaks, scoring, tombstones for delta sync, export/import, and a migration runner used by the wizard.
+- **Browser extension** (`apps/extension`, WXT, Manifest V3): Chrome and Firefox builds from one codebase; connect by URL and PIN; Realtime plus alarm re-sync; declarativeNetRequest blocking including tabs already open; offline expiry; block page matching the mockup; popup with full timer controls; toolbar badge. Both zips are built into the image and served under Settings → Extension.
+- **REST API** `/api/v1`: every endpoint in SPEC §11 with zod validation, the error envelope, `updated_since` delta sync, idempotent creates, CORS and rate limits; `docs/openapi.json` generated from the schemas and served at `/api/v1/openapi.json`; `docs/API.md`; `docs/IOS_INTEGRATION.md`; generated `docs/ios/StellarTokens.swift`.
+- **Shipping**: multi-stage `Dockerfile` (non-root, health check, `/data` volume), `docker-compose.yml`, `.env.example`, `README.md`, `docs/SELF_HOSTING.md`, `docs/DOKPLOY.md`, `docs/EXTENSION.md`.
+
+### How it was verified
+
+- `pnpm typecheck`, `pnpm lint`, `pnpm test` (unit tests plus SQL behaviour and TS/SQL parity tests against a real Postgres) and `pnpm build` pass for every package.
+- Playwright runs against the production standalone build on desktop, iPhone 15 Pro and iPhone SE profiles: setup wizard, PIN and lockout, shell and safe areas, tasks, goals, routines, focus, universe, PWA/offline, the extension loaded into a real Chromium, and the REST API.
+- `pnpm budgets` checks initial JavaScript after each build.
+- `docker build .` and a zero-environment container start, checked through `/api/health` and the redirect to `/setup`.
+- Screens were compared with the mockups in `docs/design/` from screenshots on all three profiles.
+
+### Deviations and things to know
+
+- **Performance budget scope.** The 200 KB gzip budget is enforced on the routes a visit starts on: home 199 KB, lock 153 KB, setup 166 KB. Pages reached from there measure 201–224 KB when opened directly and are held to a 230 KB ceiling. React and the Next.js runtime alone are 126 KB. three.js is in none of the initial JavaScript. The LCP, INP and frame-rate targets in SPEC §12 are design goals the architecture was built for (service-worker shell, optimistic updates, frame governor); they were **not** measured on physical phones.
+- **Real devices.** Everything was tested in Chromium with emulated iPhone viewports and simulated safe-area insets. It has not been run on a physical iPhone, in Safari, or in Firefox. The Firefox extension builds and its logic is unit-tested, but it has not been loaded into Firefox.
+- **Push notifications** were exercised up to the subscription and send path with a test subscription; delivery to a real device (which on iPhone requires the installed PWA) was not observed.
+- **Local Supabase for tests** is a slim compatible stack (`dev/supabase`), not the full official distribution: Postgres 15 with wal2json, GoTrue, PostgREST, Realtime, postgres-meta behind nginx. The app has not been run against Supabase Cloud or the official self-hosted bundle.
+- **Extension host access.** The extension requests access to all sites, because a redirect rule only applies where the extension has host permission and any site can be put on a block list.
+- **API additions beyond §11:** reorder endpoints for tasks, goals, routines and block lists, and `/api/v1/openapi.json`. `POST /focus/actions` answers `409` on a version conflict, with the current state in the body.
+- **TypeScript 6** rather than 7 (typescript-eslint does not support 7 yet). Other choices are recorded in `docs/DECISIONS.md`.
+
+### Manual steps for the owner
+
+1. **Deploy** with Docker or Dokploy and **mount a volume at `/data`** (`docs/SELF_HOSTING.md`, `docs/DOKPLOY.md`). Serve it over HTTPS.
+2. **Run the setup wizard** with your Supabase URL, anon key, service role key and, ideally, the Postgres connection string.
+3. **Disable sign-ups on your Supabase**: `GOTRUE_DISABLE_SIGNUP=true` (`DISABLE_SIGNUP` in the official `.env`), then restart auth.
+4. **Optionally set `APP_SECRET`** in the environment before running setup, so the encryption key lives apart from `/data`.
+5. **Chrome extension:** download the zip from Settings → Extension, unzip, and "Load unpacked" at `chrome://extensions`.
+6. **Firefox extension:** permanent installation needs the package signed with your own Mozilla account (`web-ext sign --channel unlisted`); see `docs/EXTENSION.md`. Change the add-on ID first if you will distribute it.
+7. **Forgotten PIN:** set `RESET_PIN=true`, restart, choose a new PIN, then **remove `RESET_PIN`** and restart again.
+8. **Back up** the Supabase database and the `/data` volume.
+9. **iPhone:** add the app to the Home Screen from Safari's Share menu; notifications only work from the installed app.

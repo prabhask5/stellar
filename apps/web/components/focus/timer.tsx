@@ -40,7 +40,8 @@ export function PhaseStrip({ state, settings }: { state: FocusState; settings: F
             key={p.phase}
             aria-current={active ? "step" : undefined}
             className={cx(
-              "flex h-[38px] min-w-0 flex-1 items-center justify-center gap-1 rounded-thumb px-2 text-[15px] font-medium transition-colors duration-200",
+              // Sized by content so "Short break" is never cut off, down to 320px-wide phones.
+              "flex h-[38px] min-w-0 flex-auto items-center justify-center gap-1 whitespace-nowrap rounded-thumb px-1 text-[13px] font-medium transition-colors duration-200 min-[360px]:px-2 min-[360px]:text-[15px]",
               active ? "bg-fill-thumb text-fg" : "text-fg-2",
             )}
           >

@@ -56,7 +56,7 @@ function check<T>(res: { data: T | null; error: { message: string } | null }): T
 export async function fetchCollection<T extends CollectionTable>(
   table: T,
 ): Promise<Collections[T][]> {
-  const db = getSupabase();
+  const db = await getSupabase();
   switch (table) {
     case "sp_tasks": {
       const since = new Date(serverNow() - 90 * 86_400_000).toISOString();
@@ -116,7 +116,7 @@ export async function fetchCollection<T extends CollectionTable>(
 }
 
 export async function fetchSettings(): Promise<Settings> {
-  const db = getSupabase();
+  const db = await getSupabase();
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const boot = check(await db.rpc("sp_bootstrap", { p_timezone: zone })) as unknown as {
     settings: Settings;
@@ -136,7 +136,7 @@ export async function fetchSettings(): Promise<Settings> {
 }
 
 export async function fetchFocus(): Promise<FocusCache> {
-  const db = getSupabase();
+  const db = await getSupabase();
   const startedAt = Date.now();
   const res = check(await db.rpc("sp_focus_get")) as unknown as {
     state: FocusState;

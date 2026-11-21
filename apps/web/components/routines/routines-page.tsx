@@ -26,7 +26,9 @@ function useOlderLogs(from: DateStr, to: DateStr, today: DateStr): void {
     enabled: ready && needed,
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { data, error } = await getSupabase()
+      const { data, error } = await (
+        await getSupabase()
+      )
         .from("sp_routine_logs")
         .select("*")
         .gte("date", from)

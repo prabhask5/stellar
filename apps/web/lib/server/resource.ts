@@ -84,6 +84,19 @@ export function now(): string {
   return new Date().toISOString();
 }
 
+/**
+ * The sync cursor handed to clients as `server_time`. It is the database's
+ * clock, because that is the clock that stamps `updated_at` and deletions.
+ */
+export async function syncTime(auth: AuthContext): Promise<string> {
+  const res = await db(auth).rpc("sp_now");
+  if (res.error || typeof res.data !== "string") {
+    // A database that has not run migration 0009 yet: step back a little so skew cannot hide a change.
+    return new Date(Date.now() - 5000).toISOString();
+  }
+  return new Date(res.data).toISOString();
+}
+
 export interface ListOptions {
   table: string;
   /** Rows carry `deleted_at` and are soft-deleted. */
@@ -105,7 +118,8 @@ export async function list(req: NextRequest, auth: AuthContext, opts: ListOption
     updated_since: params.get("updated_since") ?? undefined,
   });
   const client = db(auth);
-  const serverTime = now();
+  // Read the cursor before the rows, so nothing written in between can be missed.
+  const serverTime = await syncTime(auth);
   let q = client.from(opts.table).select("*");
   if (opts.filter) q = opts.filter(q, params);
   for (const [column, ascending] of opts.order ?? [])

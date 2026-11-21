@@ -899,6 +899,7 @@ export type Database = {
       }
       sp_import: { Args: { p_data: Json }; Returns: Json }
       sp_normalize_site: { Args: { p_input: string }; Returns: string }
+      sp_now: { Args: Record<PropertyKey, never>; Returns: string }
       sp_postpone_overdue_to_today: {
         Args: Record<PropertyKey, never>
         Returns: Json

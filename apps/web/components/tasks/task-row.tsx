@@ -2,14 +2,16 @@
 
 import type { Task } from "@stellar/db";
 import { type DateStr, dueLabel } from "@stellar/shared";
-import { animate, motion, type PanInfo, useMotionValue, useTransform } from "motion/react";
-import { memo, useRef, useState } from "react";
+import { type PanInfo, useMotionValue, useTransform } from "motion/react";
+import * as m from "motion/react-m";
+import { memo, useEffect, useRef, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cx } from "@/components/ui/cx";
 import { CalendarIcon, CheckIcon, TrashIcon } from "@/components/ui/icons";
 import { useIsTouch } from "@/components/ui/use-media";
 import { toggleTask } from "@/lib/client/complete";
 import { deleteTask } from "@/lib/client/data/tasks";
+import { preloadAnimate, withAnimate } from "@/lib/client/motion-animate";
 import { useUi } from "@/lib/client/ui-store";
 
 export interface TaskRowProps {
@@ -55,8 +57,12 @@ export const TaskRow = memo(function TaskRow({
   const completeOpacity = useTransform(x, [0, 28, COMPLETE_AT], [0, 0.5, 1]);
   const completeScale = useTransform(x, [0, COMPLETE_AT], [0.6, 1]);
 
+  useEffect(preloadAnimate, []);
+
   const settle = (to: number) => {
-    void animate(x, to, { type: "spring", stiffness: 400, damping: 36 });
+    withAnimate((animate) => {
+      void animate(x, to, { type: "spring", stiffness: 400, damping: 36 });
+    });
     setOpen(to !== 0);
   };
 
@@ -131,15 +137,15 @@ export const TaskRow = memo(function TaskRow({
 
   return (
     <div data-testid="task-row" data-task={task.name} className="relative overflow-hidden">
-      <motion.div
+      <m.div
         aria-hidden="true"
         style={{ opacity: completeOpacity }}
         className="absolute inset-y-0 left-0 flex w-full items-center bg-accent/90 pl-6 text-accent-ink"
       >
-        <motion.span style={{ scale: completeScale }}>
+        <m.span style={{ scale: completeScale }}>
           <CheckIcon size={24} strokeWidth={2.4} />
-        </motion.span>
-      </motion.div>
+        </m.span>
+      </m.div>
       <div className="absolute inset-y-0 right-0 flex" style={{ width: ACTIONS_WIDTH }}>
         <button
           type="button"
@@ -171,7 +177,7 @@ export const TaskRow = memo(function TaskRow({
           Delete
         </button>
       </div>
-      <motion.div
+      <m.div
         drag="x"
         dragDirectionLock
         dragConstraints={{ left: -ACTIONS_WIDTH, right: done ? 0 : 120 }}
@@ -182,7 +188,7 @@ export const TaskRow = memo(function TaskRow({
         className="relative bg-[#110e2b]"
       >
         {body}
-      </motion.div>
+      </m.div>
     </div>
   );
 });

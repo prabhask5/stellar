@@ -3,7 +3,8 @@
 import type { Goal, GoalList } from "@stellar/db";
 import { goalProgress, listProgress } from "@stellar/shared";
 import { originOf } from "@stellar/universe/bus";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { useMemo, useState } from "react";
 import { applyMove, ListFormSheet, rebalance } from "@/components/tasks/lists";
 import { AmountLabel } from "@/components/ui/amount";
@@ -104,9 +105,6 @@ function GoalRow({
           >
             {goal.name}
           </button>
-          <span className="text-fg-2" aria-hidden="true">
-            ·
-          </span>
           <AmountLabel
             current={goal.current_amount}
             total={goal.total_amount}
@@ -231,7 +229,7 @@ export function GoalListDetail({ list, index, goals, onBack }: GoalListDetailPro
           >
             <AnimatePresence initial={false}>
               {sorted.map((goal, i) => (
-                <motion.div
+                <m.div
                   key={goal.id}
                   role="listitem"
                   initial={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
@@ -255,7 +253,7 @@ export function GoalListDetail({ list, index, goals, onBack }: GoalListDetailPro
                       </div>
                     )}
                   </SortableItem>
-                </motion.div>
+                </m.div>
               ))}
             </AnimatePresence>
           </div>

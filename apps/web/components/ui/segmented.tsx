@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { useId } from "react";
 import { cx } from "./cx";
 
@@ -74,14 +75,15 @@ export function SegmentedControl<T extends string>({
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(o.value)}
             className={cx(
-              "relative z-10 flex items-center justify-center whitespace-nowrap rounded-thumb px-3 font-medium transition-colors duration-200",
+              "relative z-10 flex items-center justify-center whitespace-nowrap rounded-thumb font-medium transition-colors duration-200",
               size === "md" ? "h-[38px] text-[15px] lg:h-[34px] lg:text-[14px]" : "h-8 text-[13px]",
-              fit === "equal" ? "min-w-0 flex-1" : "px-4",
+              // Segments share the leftover width but never shrink below their label ("Calendar" on small phones).
+              fit === "equal" ? "min-w-0 flex-auto px-2" : "px-4",
               active ? "text-fg" : "text-fg-2 hover:text-fg",
             )}
           >
             {active && (
-              <motion.span
+              <m.span
                 layoutId={`${id}-thumb`}
                 transition={reduce ? { duration: 0 } : SPRING}
                 className="absolute inset-0 -z-10 rounded-thumb bg-fill-thumb shadow-[0_1px_2px_rgba(0,0,0,0.25)]"

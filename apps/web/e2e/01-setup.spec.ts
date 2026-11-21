@@ -67,7 +67,7 @@ test.describe("setup wizard", () => {
     // Database: migrations run automatically with a progress list.
     await expect(page.getByRole("heading", { name: "Prepare the database" })).toBeVisible();
     await expect(page.getByTestId("db-ready")).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId("migrations").locator("li")).toHaveCount(8);
+    await expect(page.getByTestId("migrations").locator("li")).toHaveCount(9);
     await expect(page.getByTestId("migrations").locator('[data-status="failed"]')).toHaveCount(0);
     await shot("setup-3-database");
     await page.getByRole("button", { name: "Continue" }).click();
@@ -103,9 +103,21 @@ test.describe("setup wizard", () => {
     await expect(page.getByRole("heading", { name: "You’re all set" })).toBeVisible();
     await expect(page.getByText("GOTRUE_DISABLE_SIGNUP=true")).toBeVisible();
     await shot("setup-6-done");
+    // The wizard leaves a one-shot flag that makes the home screen play "First Light".
+    // Home consumes it as soon as it mounts, so record the write itself.
+    await page.evaluate(() => {
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key: string, value: string) {
+        if (key === "sp-first-light") setItem.call(this, "sp-first-light-written", value);
+        setItem.call(this, key, value);
+      };
+    });
     await page.getByRole("button", { name: "Enter your universe" }).click();
     await expect(page).toHaveURL(/\/$/);
-    expect(await page.evaluate(() => sessionStorage.getItem("sp-first-light"))).toBe("1");
+    expect(await page.evaluate(() => sessionStorage.getItem("sp-first-light-written"))).toBe("1");
+    await expect
+      .poll(() => page.evaluate(() => sessionStorage.getItem("sp-first-light")))
+      .toBeNull();
 
     // What the server did behind the scenes.
     const [owner] = await sql<{ id: string; confirmed: boolean }>(

@@ -1,13 +1,7 @@
 "use client";
 
 import type { Settings } from "@stellar/db";
-import {
-  type DateStr,
-  todayIn,
-  type UniverseSnapshot,
-  type WeekStart,
-  zUniverseSnapshot,
-} from "@stellar/shared";
+import { type DateStr, todayIn, type UniverseSnapshot, type WeekStart } from "@stellar/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { create } from "zustand";
@@ -50,9 +44,9 @@ export function useFocus(): FocusCache | undefined {
 }
 
 async function fetchUniverse(): Promise<UniverseSnapshot> {
-  const { data, error } = await getSupabase().rpc("sp_universe_snapshot");
+  const { data, error } = await (await getSupabase()).rpc("sp_universe_snapshot");
   if (error) throw Object.assign(new Error(error.message), error);
-  const snapshot = zUniverseSnapshot.parse(data);
+  const snapshot = data as unknown as UniverseSnapshot;
   setServerSkew(snapshot.server_time);
   return snapshot;
 }

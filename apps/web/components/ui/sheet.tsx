@@ -1,204 +1,27 @@
 "use client";
 
-import {
-  AnimatePresence,
-  motion,
-  type PanInfo,
-  useDragControls,
-  useReducedMotion,
-} from "motion/react";
-import { Dialog } from "radix-ui";
-import type { ReactNode } from "react";
-import { cx } from "./cx";
-import { IconButton } from "./button";
-import { XIcon } from "./icons";
-import { useIsWide } from "./use-media";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { whenIdle } from "@/lib/client/idle";
+import type { SheetProps } from "./sheet-impl";
 
-export interface SheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  /** Hide the title visually (it is still announced). */
-  hideTitle?: boolean;
-  description?: string;
-  children: ReactNode;
-  /** Phone detent: "auto" hugs the content, "large" fills most of the screen. */
-  detent?: "auto" | "large";
-  /** Desktop dialog width. */
-  width?: number;
-  footer?: ReactNode;
-  className?: string;
-}
+export type { SheetProps };
 
-const SPRING = { type: "spring", stiffness: 300, damping: 32 } as const;
+const load = () => import("./sheet-impl");
+const SheetImpl = lazy(() => load().then((m) => ({ default: m.Sheet })));
 
 /**
- * Bottom sheet on phones (drag down to dismiss, respects the home indicator
- * and the keyboard), centred dialog from 768px up. Focus is trapped and
- * restored by Radix Dialog.
+ * Bottom sheet on phones, centred dialog on wide screens. The dialog machinery
+ * is only needed once something opens, so it is fetched when the browser is
+ * idle (or on first open, whichever comes first) instead of with the page.
  */
-export function Sheet({
-  open,
-  onOpenChange,
-  title,
-  hideTitle,
-  description,
-  children,
-  detent = "auto",
-  width = 480,
-  footer,
-  className,
-}: SheetProps) {
-  const wide = useIsWide();
-  const reduce = useReducedMotion();
-  const controls = useDragControls();
-
-  const onDragEnd = (_: unknown, info: PanInfo) => {
-    if (info.offset.y > 110 || info.velocity.y > 600) onOpenChange(false);
-  };
-
+export function Sheet(props: SheetProps) {
+  const [used, setUsed] = useState(props.open);
+  if (props.open && !used) setUsed(true);
+  useEffect(() => whenIdle(() => void load()), []);
+  if (!used) return null;
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <AnimatePresence>
-        {open && (
-          <Dialog.Portal forceMount>
-            <Dialog.Overlay asChild forceMount>
-              <motion.div
-                className="fixed inset-0 z-[60] bg-[rgba(4,3,14,0.62)]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              />
-            </Dialog.Overlay>
-            <Dialog.Content
-              asChild
-              forceMount
-              aria-describedby={description ? undefined : undefined}
-            >
-              {wide ? (
-                <motion.div
-                  className={cx(
-                    "glass-strong fixed left-1/2 top-1/2 z-[61] flex max-h-[min(86dvh,760px)] w-[calc(100vw-48px)] flex-col rounded-hero outline-none",
-                    className,
-                  )}
-                  style={{ maxWidth: width, x: "-50%", y: "-50%" }}
-                  initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.97 }}
-                  transition={reduce ? { duration: 0.15 } : SPRING}
-                >
-                  <Header
-                    title={title}
-                    hideTitle={hideTitle}
-                    description={description}
-                    onClose={() => onOpenChange(false)}
-                  />
-                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6">
-                    {children}
-                  </div>
-                  {footer && <div className="border-t border-separator px-6 py-4">{footer}</div>}
-                </motion.div>
-              ) : (
-                <motion.div
-                  className={cx(
-                    "glass-strong fixed inset-x-0 bottom-0 z-[61] flex flex-col rounded-t-hero border-b-0 outline-none",
-                    detent === "large" ? "h-[92dvh]" : "max-h-[92dvh]",
-                    className,
-                  )}
-                  style={{
-                    paddingLeft: "var(--sal)",
-                    paddingRight: "var(--sar)",
-                    paddingBottom: "var(--kb)",
-                  }}
-                  initial={reduce ? { opacity: 0 } : { y: "100%" }}
-                  animate={reduce ? { opacity: 1 } : { y: 0 }}
-                  exit={reduce ? { opacity: 0 } : { y: "100%" }}
-                  transition={reduce ? { duration: 0.15 } : SPRING}
-                  drag={reduce ? false : "y"}
-                  dragControls={controls}
-                  dragListener={false}
-                  dragConstraints={{ top: 0, bottom: 0 }}
-                  dragElastic={{ top: 0, bottom: 0.6 }}
-                  onDragEnd={onDragEnd}
-                >
-                  <div
-                    className="flex h-6 shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
-                    onPointerDown={(e) => controls.start(e)}
-                    aria-hidden="true"
-                  >
-                    <span className="h-[5px] w-9 rounded-full bg-white/25" />
-                  </div>
-                  <Header
-                    title={title}
-                    hideTitle={hideTitle}
-                    description={description}
-                    onClose={() => onOpenChange(false)}
-                    compact
-                  />
-                  <div
-                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5"
-                    style={{ paddingBottom: footer ? 16 : "max(20px, var(--sab))" }}
-                  >
-                    {children}
-                  </div>
-                  {footer && (
-                    <div
-                      className="border-t border-separator px-5 pt-3"
-                      style={{ paddingBottom: "max(12px, var(--sab))" }}
-                    >
-                      {footer}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </Dialog.Content>
-          </Dialog.Portal>
-        )}
-      </AnimatePresence>
-    </Dialog.Root>
-  );
-}
-
-function Header({
-  title,
-  hideTitle,
-  description,
-  onClose,
-  compact,
-}: {
-  title: string;
-  hideTitle?: boolean;
-  description?: string;
-  onClose: () => void;
-  compact?: boolean;
-}) {
-  return (
-    <div
-      className={cx(
-        "flex shrink-0 items-start justify-between gap-3",
-        compact ? "px-5 pb-3" : "px-6 pb-4 pt-6",
-      )}
-    >
-      <div className="min-w-0">
-        <Dialog.Title className={cx("text-title3", hideTitle && "sr-only")}>{title}</Dialog.Title>
-        {description ? (
-          <Dialog.Description className="mt-1 text-subhead text-fg-2">
-            {description}
-          </Dialog.Description>
-        ) : (
-          <Dialog.Description className="sr-only">{title}</Dialog.Description>
-        )}
-      </div>
-      <IconButton
-        label="Close"
-        variant="subtle"
-        size={32}
-        onClick={onClose}
-        className="-mr-1 shrink-0 text-fg-2"
-      >
-        <XIcon size={16} strokeWidth={2.2} />
-      </IconButton>
-    </div>
+    <Suspense fallback={null}>
+      <SheetImpl {...props} />
+    </Suspense>
   );
 }

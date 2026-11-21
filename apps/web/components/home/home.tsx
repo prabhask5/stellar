@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef } from "react";
 import { InstallHint } from "@/components/shell/install-hint";
 import { TaskRow } from "@/components/tasks/task-row";
+import { cx } from "@/components/ui/cx";
 import { GlassCard } from "@/components/ui/glass-card";
 import { GearIcon } from "@/components/ui/icons";
 import { useMounted } from "@/components/ui/use-media";
@@ -36,11 +37,25 @@ import { useUi } from "@/lib/client/ui-store";
 
 const FIRST_LIGHT_KEY = "sp-first-light";
 
-function StatTile({ label, children }: { label: string; children: React.ReactNode }) {
+function StatTile({
+  label,
+  compact,
+  children,
+}: {
+  label: string;
+  /** Long values (three-digit counts) step down a size so they fit on a 320px phone. */
+  compact?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="min-w-0 flex-1 rounded-[14px] bg-fill-subtle px-3 py-2.5">
+    <div className="min-w-0 flex-1 rounded-[14px] bg-fill-subtle px-2.5 py-2.5 min-[360px]:px-3">
       <p className="text-caption text-fg-2">{label}</p>
-      <p className="mt-0.5 truncate text-[20px] font-semibold leading-6 tracking-[-0.01em] text-fg tnum">
+      <p
+        className={cx(
+          "mt-0.5 truncate font-semibold leading-6 tracking-[-0.01em] text-fg tnum",
+          compact ? "text-[16px] min-[360px]:text-[20px]" : "text-[20px]",
+        )}
+      >
         {children}
       </p>
     </div>
@@ -172,9 +187,12 @@ export function Home() {
           </Link>
         </div>
         <div className="flex gap-2">
-          <StatTile label="Tasks">
+          <StatTile label="Tasks" compact={`${stats.done}${stats.total}`.length > 4}>
             {stats.done}
-            <span className={small}> / {stats.total}</span>
+            <span className={small}>
+              {`${stats.done}${stats.total}`.length > 4 ? "/" : " / "}
+              {stats.total}
+            </span>
           </StatTile>
           <StatTile label="Routines">
             {routinesFraction === null ? (

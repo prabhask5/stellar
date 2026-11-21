@@ -62,6 +62,7 @@ Every list endpoint returns the same envelope:
 ```
 
 - First sync: call without parameters to get every live row. Keep `server_time`.
+- `server_time` is the database's clock, the same clock that stamps every change, so the cursor is immune to clock differences between your device, the app server and the database. Never substitute a local timestamp for it.
 - Later: pass it back as `?updated_since=<server_time>`. `data` holds rows created or changed since then; `deleted_ids` holds ids removed since then (soft-deleted rows and hard deletes alike). Apply both, keep the new `server_time`.
 - Deletes are soft for tasks, goals, routines and all lists: rows stay restorable for 30 days and are then purged.
 

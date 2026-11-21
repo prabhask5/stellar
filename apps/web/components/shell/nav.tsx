@@ -41,7 +41,7 @@ export function TabBar() {
   return (
     <nav
       aria-label="Main"
-      className="sp-tabbar glass fixed z-40 flex items-stretch rounded-tabbar !bg-[rgba(17,14,42,0.86)] p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.35)] md:hidden"
+      className="sp-tabbar glass fixed z-40 flex items-stretch rounded-tabbar !bg-[rgba(17,14,42,0.985)] p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.35)] md:hidden"
       style={{
         height: "var(--tabbar-h)",
         bottom: "var(--tabbar-bottom)",

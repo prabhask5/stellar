@@ -1,0 +1,24 @@
+# Runs Stellar Planner on http://localhost:3000.
+# No environment variables are required: open the app and follow the setup wizard.
+services:
+  stellar-planner:
+    build: .
+    image: stellar-planner:latest
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      # Encrypted config and generated secrets. Back this up.
+      - stellar-data:/data
+    # Optional overrides; see .env.example. Values set here win over the wizard's.
+    environment:
+      APP_SECRET: ${APP_SECRET:-}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      DATABASE_URL: ${DATABASE_URL:-}
+      RESET_PIN: ${RESET_PIN:-}
+
+volumes:
+  stellar-data:

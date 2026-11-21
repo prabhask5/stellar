@@ -463,6 +463,8 @@ test.describe("tasks", () => {
     await page.getByRole("button", { name: "Tomorrow", exact: true }).click();
     await page.getByRole("button", { name: "Done" }).click();
     await expect(page.getByTestId("today-tab")).not.toContainText("Call Mom");
+    // The reschedule sheet is still on screen while it animates out.
+    await expect(page.getByRole("dialog")).toHaveCount(0);
 
     await swipe("Draft Q1 roadmap", -150);
     await page.getByRole("button", { name: "Delete “Draft Q1 roadmap”" }).click();

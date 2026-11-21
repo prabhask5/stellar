@@ -131,7 +131,7 @@ test.describe("app shell", () => {
 
     await sql("delete from sp_tasks where name = 'Exported task'");
     await page.getByLabel("Import file").setInputFiles(path);
-    await page.getByRole("button", { name: "Import", exact: true }).last().click();
+    await page.getByRole("dialog").getByRole("button", { name: "Import", exact: true }).click();
     await expect(page.getByText(/Imported \d+ items/)).toBeVisible();
     expect(
       (await sql("select count(*)::int as n from sp_tasks where name = 'Exported task'"))[0]?.n,

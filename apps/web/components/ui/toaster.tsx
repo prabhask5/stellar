@@ -1,6 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import { useEffect } from "react";
 import { type Toast, useToasts } from "@/lib/client/toast";
 import { cx } from "./cx";
@@ -16,7 +17,7 @@ function ToastItem({ toast }: { toast: Toast }) {
   }, [toast.id, toast.duration, dismiss]);
 
   return (
-    <motion.div
+    <m.div
       layout={!reduce}
       role={toast.tone === "error" ? "alert" : "status"}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.97 }}
@@ -55,7 +56,7 @@ function ToastItem({ toast }: { toast: Toast }) {
           {toast.action.label}
         </button>
       )}
-    </motion.div>
+    </m.div>
   );
 }
 

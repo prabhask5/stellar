@@ -1,5 +1,5 @@
 import type { Database } from "@stellar/db";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAccessToken, readMeta } from "./session";
 
 export type Db = SupabaseClient<Database>;
@@ -9,12 +9,15 @@ let client: { key: string; db: Db } | null = null;
 /**
  * Browser Supabase client. It talks to PostgREST and Realtime directly with a
  * short-lived access token supplied by `getAccessToken`; it holds no session
- * and never sees a refresh token.
+ * and never sees a refresh token. The library is loaded on first use, so it is
+ * not part of the JavaScript a page needs before it can paint.
  */
-export function getSupabase(): Db {
+export async function getSupabase(): Promise<Db> {
   const meta = readMeta();
   if (!meta) throw new Error("No session yet");
   const key = `${meta.supabaseUrl}|${meta.supabaseAnonKey}`;
+  if (client?.key === key) return client.db;
+  const { createClient } = await import("@supabase/supabase-js");
   if (client?.key === key) return client.db;
   const db = createClient<Database>(meta.supabaseUrl, meta.supabaseAnonKey, {
     accessToken: getAccessToken,

@@ -86,6 +86,7 @@ test.describe("browser extension", () => {
   test.beforeEach(async () => {
     await wipeData();
     clearLockout();
+    await sql(`delete from sp_devices where kind = 'extension'`);
     await sql(`
       with l as (insert into sp_block_lists (user_id, name, sort_order) values (${OWNER}, 'Social', 1), (${OWNER}, 'News', 2) returning id, name)
       insert into sp_block_list_sites (user_id, block_list_id, pattern)

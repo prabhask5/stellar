@@ -1,49 +1,46 @@
 "use client";
 
-import { Popover as RadixPopover } from "radix-ui";
-import type { ReactNode } from "react";
-import { cx } from "./cx";
+import {
+  cloneElement,
+  isValidElement,
+  lazy,
+  type MouseEvent,
+  type ReactNode,
+  Suspense,
+  useEffect,
+  useState,
+} from "react";
+import { whenIdle } from "@/lib/client/idle";
+import type { PopoverProps } from "./popover-impl";
 
-export interface PopoverProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  trigger: ReactNode;
-  children: ReactNode;
-  align?: "start" | "center" | "end";
-  side?: "top" | "bottom" | "left" | "right";
-  className?: string;
-  label: string;
-}
+export type { PopoverProps };
 
-/** Glass popover for desktop pickers. On phones the same content is shown in a Sheet. */
-export function Popover({
-  open,
-  onOpenChange,
-  trigger,
-  children,
-  align = "start",
-  side = "bottom",
-  className,
-  label,
-}: PopoverProps) {
+const load = () => import("./popover-impl");
+const PopoverImpl = lazy(() => load().then((m) => ({ default: m.Popover })));
+
+/**
+ * Glass popover for desktop pickers. Until it is first opened only the trigger
+ * is rendered; the positioning and focus machinery loads when the browser is
+ * idle, or on that first click.
+ */
+export function Popover(props: PopoverProps) {
+  const [used, setUsed] = useState(props.open);
+  if (props.open && !used) setUsed(true);
+  useEffect(() => whenIdle(() => void load()), []);
+
+  const bare: ReactNode = isValidElement<{ onClick?: (e: MouseEvent) => void }>(props.trigger)
+    ? cloneElement(props.trigger, {
+        onClick: (e: MouseEvent) => {
+          (props.trigger as { props: { onClick?: (e: MouseEvent) => void } }).props.onClick?.(e);
+          if (!e.defaultPrevented) props.onOpenChange(true);
+        },
+      })
+    : props.trigger;
+
+  if (!used) return bare;
   return (
-    <RadixPopover.Root open={open} onOpenChange={onOpenChange}>
-      <RadixPopover.Trigger asChild>{trigger}</RadixPopover.Trigger>
-      <RadixPopover.Portal>
-        <RadixPopover.Content
-          align={align}
-          side={side}
-          sideOffset={8}
-          collisionPadding={12}
-          aria-label={label}
-          className={cx(
-            "glass-strong z-[70] rounded-card p-3 shadow-[0_18px_50px_rgba(0,0,0,0.45)] outline-none animate-fade",
-            className,
-          )}
-        >
-          {children}
-        </RadixPopover.Content>
-      </RadixPopover.Portal>
-    </RadixPopover.Root>
+    <Suspense fallback={bare}>
+      <PopoverImpl {...props} />
+    </Suspense>
   );
 }

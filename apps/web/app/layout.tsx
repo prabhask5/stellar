@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import { ServiceWorker } from "@/components/shell/service-worker";
 import { Starfield } from "@/components/sky/starfield";
+import { MotionProvider } from "@/components/ui/motion-provider";
 import { UniverseHost } from "@/components/universe/universe-host";
 import splash from "@/lib/splash.generated.json";
 import "./globals.css";
@@ -49,7 +50,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <Starfield />
         <UniverseHost />
-        <div className="sp-shell">{children}</div>
+        <MotionProvider>
+          <div className="sp-shell">{children}</div>
+        </MotionProvider>
         <ServiceWorker />
       </body>
     </html>
