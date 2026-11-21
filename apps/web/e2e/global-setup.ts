@@ -13,7 +13,8 @@ export default async function globalSetup() {
     );
   } catch (err) {
     throw new Error(
-      `The local Supabase stack is not reachable at ${DATABASE_URL}. Run \`pnpm stack:up\` first.\n${String(err)}`,
+      `The local Supabase stack is not reachable at ${DATABASE_URL}. Run \`pnpm stack:up\` first.`,
+      { cause: err },
     );
   }
 }
