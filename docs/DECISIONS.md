@@ -42,3 +42,17 @@ One line of context, the choice, and why. Newest at the bottom of each phase.
 - **Data directory.** `/data` in the container, `STELLAR_DATA_DIR` to override, `.data/` beside the app in local development.
 - **Migrations on boot** run only when a Postgres connection string is configured; otherwise Settings → Connection offers the paste-and-verify path after an update.
 - **E2E isolation.** Tests reset the instance by deleting the files in the test data directory and the owner user, and send a unique `X-Forwarded-For` per test so the rate limiter needs no test-only switch.
+
+## Phase 3 — App shell & design system
+
+- **One cached collection per table.** Each table is a TanStack Query entry holding an array; views (Today, All, Calendar, lists, day rings, streaks) are pure functions from `packages/shared` over those arrays. Realtime patches the arrays by id. Tasks load open tasks plus those completed in the last 90 days; routine logs load the last 400 days.
+- **Every write goes through the outbox.** A mutation updates the cache first, then queues an operation (IndexedDB-backed, sent strictly in order). Inserts carry client-generated ids and are sent as "insert or ignore"; updates that waited more than 15 seconds are guarded by `updated_at` so an offline edit cannot overwrite a newer change (last write wins). A rejected operation is dropped, the affected collection is reloaded, and a toast says so.
+- **Realtime echoes never fight the user.** While a row has operations queued, incoming Realtime rows for it are ignored; when the last operation settles, the server's version of the row replaces the optimistic one.
+- **Realtime joins with the owner's token.** The socket is authenticated (`realtime.setAuth()`) before the channel subscribes, so RLS filters apply. One channel carries all ten tables plus presence (the "N devices in sync" count). Hard-delete tables get an extra unfiltered DELETE listener because delete events cannot be filtered by column.
+- **Goal increments are deltas.** `sp_goal_increment` is sent with the delta, not the new total, so increments made offline on two devices add up.
+- **Completion feel.** The checkbox fills immediately; the row lingers 600ms, then leaves; consecutive completions share one Undo toast ("3 tasks completed").
+- **Routes are static shells.** List detail uses a query parameter (`/tasks?list=…`) rather than a dynamic segment so every page can be precached for offline use.
+- **Command bar ordering.** Typed text that matches a command ranks that command first; "Add task “…”" is always offered last (and is the only result for ordinary task text).
+- **Emoji data is self-hosted** under `/emoji` (copied from `emojibase-data`), so the picker makes no third-party requests and works offline. Refresh with `node apps/web/scripts/copy-emoji.mjs`.
+- **Sidebar wording** follows the mockup: "716 stars to Star Cluster" (the number is stardust still needed for the next era).
+- **Dev stack Postgres.** The test stack builds Postgres 15 with `wal2json` and allow-lists it in `output_plugin_libraries` (required by current Postgres releases) so Realtime works locally.

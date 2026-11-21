@@ -1,0 +1,49 @@
+import type { Database } from "@stellar/db";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getAccessToken, readMeta } from "./session";
+
+export type Db = SupabaseClient<Database>;
+
+let client: { key: string; db: Db } | null = null;
+
+/**
+ * Browser Supabase client. It talks to PostgREST and Realtime directly with a
+ * short-lived access token supplied by `getAccessToken`; it holds no session
+ * and never sees a refresh token.
+ */
+export function getSupabase(): Db {
+  const meta = readMeta();
+  if (!meta) throw new Error("No session yet");
+  const key = `${meta.supabaseUrl}|${meta.supabaseAnonKey}`;
+  if (client?.key === key) return client.db;
+  const db = createClient<Database>(meta.supabaseUrl, meta.supabaseAnonKey, {
+    accessToken: getAccessToken,
+    realtime: { params: { eventsPerSecond: 20 } },
+  });
+  client = { key, db };
+  return db;
+}
+
+export function hasSupabase(): boolean {
+  return readMeta() !== null;
+}
+
+/** PostgREST and network errors as one message. */
+export function describeError(err: unknown): string {
+  if (err && typeof err === "object" && "message" in err && typeof err.message === "string")
+    return err.message;
+  return "Something went wrong.";
+}
+
+/** True for failures that are worth retrying later (offline, timeouts, 5xx). */
+export function isNetworkError(err: unknown): boolean {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+  const e = err as { message?: string; code?: string; status?: number; name?: string } | null;
+  if (!e) return false;
+  if (e.name === "AbortError" || e.name === "TypeError") return true;
+  if (typeof e.status === "number" && (e.status === 0 || e.status >= 500)) return true;
+  const msg = e.message ?? "";
+  return /failed to fetch|networkerror|load failed|network request failed|fetch failed|timeout/i.test(
+    msg,
+  );
+}

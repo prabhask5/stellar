@@ -3,19 +3,18 @@
 name: stellar-dev
 services:
   db:
-    image: postgres:15
-    command:
-      [
-        "postgres",
-        "-c",
-        "wal_level=logical",
-        "-c",
-        "max_replication_slots=10",
-        "-c",
-        "max_wal_senders=10",
-        "-c",
-        "fsync=off",
-      ]
+    build:
+      context: .
+      dockerfile: db.Dockerfile
+    image: stellar-dev-db:15
+    # wal2json must be allow-listed as an output plugin on current Postgres releases.
+    command: >
+      postgres
+      -c wal_level=logical
+      -c max_replication_slots=10
+      -c max_wal_senders=10
+      -c fsync=off
+      -c output_plugin_libraries=pgoutput,test_decoding,wal2json
     environment:
       POSTGRES_PASSWORD: postgres
     ports: ["54322:5432"]

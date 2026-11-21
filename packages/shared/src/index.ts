@@ -6,4 +6,5 @@ export * from "./rank.ts";
 export * from "./recurrence.ts";
 export * from "./schemas.ts";
 export * from "./scoring.ts";
+export * from "./task-views.ts";
 export * from "./timer.ts";

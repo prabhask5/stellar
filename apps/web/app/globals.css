@@ -375,3 +375,23 @@ html[data-tier="minimal"] .sp-sky__stars--twinkle {
     animation: sp-fade 150ms ease-out both;
   }
 }
+
+/* Toasts sit above the floating tab bar on phones. */
+:root {
+  --toast-bottom: calc(var(--tabbar-h) + var(--tabbar-bottom) + 12px);
+}
+@media (min-width: 768px) {
+  :root {
+    --toast-bottom: max(24px, var(--sab));
+  }
+}
+
+/* Signed-in shell: content clears the rail / sidebar from 768px up. */
+.sp-app {
+  padding-left: calc(var(--nav-w) + var(--sal));
+}
+@media (max-width: 767.98px) {
+  .sp-app {
+    padding-left: 0;
+  }
+}

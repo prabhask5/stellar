@@ -47,12 +47,12 @@ Legend: `[ ]` open · `[x]` done and verified. "AC" = acceptance criteria.
 
 ## Phase 3 — App shell & design system
 
-- [ ] Component library (§6.4): GlassCard, GroupedList, TabBar, Sidebar, Rail, SegmentedControl, TaskRow, QuickAddBar, ListCard, ProgressBar, ProgressRing, DayRing, Stepper, Sheet, DatePicker (+time wheel), EmojiPicker, Toast, TimerRing, SyncIndicator, custom icon set. AC: matches mockups at all three widths; a11y labels; 44px targets.
-- [ ] Responsive navigation: tab bar <768, rail 768–1023, sidebar ≥1024 with Era progress. AC: screenshots.
-- [ ] Settings (General, Appearance, Quotes, Notifications, Security, Extension, Connection, Data, About). AC: each section functional.
-- [ ] Toasts with Undo (5s). AC: e2e.
-- [ ] ⌘K command bar + shortcuts (`N`, `1–5`, `Space`). AC: e2e desktop.
-- [ ] Sync layer: TanStack Query + Realtime `postgres_changes` cache patching + optimistic mutations. AC: two contexts reflect each other in ~1s (e2e).
+- [x] Component library (§6.4): GlassCard, GroupedList, TabBar, Sidebar, Rail, SegmentedControl, TaskRow, QuickAddBar, ListCard, ProgressBar, ProgressRing, DayRing, Stepper, Sheet, DatePicker (+time wheel), EmojiPicker, Toast, TimerRing, SyncIndicator, custom icon set. AC: matches mockups at all three widths; a11y labels; 44px targets. (QuickAddBar and ListCard ship with Tasks in Phase 4, TimerRing with Focus in Phase 7.)
+- [x] Responsive navigation: tab bar <768, rail 768–1023, sidebar ≥1024 with Era progress. AC: screenshots.
+- [x] Settings (General, Appearance, Quotes, Notifications, Security, Extension, Connection, Data, About). AC: each section functional. (The Notifications section ships with web push in Phase 7.)
+- [x] Toasts with Undo (5s). AC: e2e.
+- [x] ⌘K command bar + shortcuts (`N`, `1–5`, `Space`). AC: e2e desktop.
+- [x] Sync layer: TanStack Query + Realtime `postgres_changes` cache patching + optimistic mutations. AC: two contexts reflect each other in ~1s (e2e).
 
 ## Phase 4 — Tasks
 
