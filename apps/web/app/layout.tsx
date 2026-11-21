@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import { Starfield } from "@/components/sky/starfield";
+import { UniverseHost } from "@/components/universe/universe-host";
 import "./globals.css";
 
 const inter = Inter({
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={inter.variable} data-tier="auto">
       <body>
         <Starfield />
+        <UniverseHost />
         <div className="sp-shell">{children}</div>
       </body>
     </html>

@@ -13,8 +13,9 @@ import {
   zonedParts,
 } from "@stellar/shared";
 import { emitCosmic } from "@stellar/universe/bus";
+import { clearHover, orbitBy, pickAt, setDragging, zoomBy } from "@stellar/universe/store";
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { TaskRow } from "@/components/tasks/task-row";
 import { GlassCard } from "@/components/ui/glass-card";
 import { GearIcon } from "@/components/ui/icons";
@@ -148,7 +149,7 @@ export function Home() {
       </header>
 
       {/* The sky fills this space; it is interactive on this page only. */}
-      <div className="min-h-[120px] flex-1" data-universe-stage />
+      <UniverseStage />
 
       <GlassCard
         radius="hero"
@@ -198,6 +199,88 @@ export function Home() {
         </div>
       </GlassCard>
     </main>
+  );
+}
+
+/**
+ * The open sky on the Universe home. Drag to orbit, pinch or scroll to zoom
+ * (it eases back to the default framing), hover or tap a planet or a
+ * constellation to see what it stands for.
+ */
+function UniverseStage() {
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const moved = useRef(0);
+  const pinch = useRef(0);
+  const labelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      setDragging(false);
+      clearHover();
+      if (labelTimer.current) clearTimeout(labelTimer.current);
+    },
+    [],
+  );
+
+  const spread = () => {
+    const [a, b] = [...pointers.current.values()];
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  };
+
+  return (
+    <div
+      className="min-h-[120px] flex-1 cursor-grab touch-none select-none active:cursor-grabbing"
+      data-universe-stage
+      role="img"
+      aria-label="Your universe. Drag to look around."
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        moved.current = 0;
+        pinch.current = spread();
+        setDragging(true);
+      }}
+      onPointerMove={(e) => {
+        const prev = pointers.current.get(e.pointerId);
+        if (!prev) {
+          // Hover with a mouse: show the label of whatever is under the pointer.
+          if (e.pointerType === "mouse") pickAt(e.clientX, e.clientY);
+          return;
+        }
+        pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointers.current.size >= 2) {
+          const d = spread();
+          if (pinch.current > 0 && d > 0) zoomBy(d / pinch.current);
+          pinch.current = d;
+        } else {
+          const dx = e.clientX - prev.x;
+          const dy = e.clientY - prev.y;
+          moved.current += Math.abs(dx) + Math.abs(dy);
+          orbitBy(dx, dy);
+        }
+      }}
+      onPointerUp={(e) => {
+        pointers.current.delete(e.pointerId);
+        pinch.current = spread();
+        if (pointers.current.size === 0) {
+          setDragging(false);
+          // A tap (not a drag) selects what is under it; the label fades after a moment on touch.
+          if (moved.current < 8) {
+            const hit = pickAt(e.clientX, e.clientY);
+            if (labelTimer.current) clearTimeout(labelTimer.current);
+            if (hit && e.pointerType !== "mouse") labelTimer.current = setTimeout(clearHover, 2600);
+          }
+        }
+      }}
+      onPointerCancel={(e) => {
+        pointers.current.delete(e.pointerId);
+        if (pointers.current.size === 0) setDragging(false);
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType === "mouse" && !pointers.current.has(e.pointerId)) clearHover();
+      }}
+      onWheel={(e) => zoomBy(e.deltaY < 0 ? 1.08 : 0.93)}
+    />
   );
 }
 

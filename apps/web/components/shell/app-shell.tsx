@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
+import { UniverseBridge } from "@/components/universe/universe-bridge";
 import { CommandBar } from "./command-bar";
 import { FocusTicker } from "./focus-ticker";
 import { InactivityLock } from "./inactivity-lock";
@@ -21,6 +22,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Shortcuts />
       <FocusTicker />
       <InactivityLock />
+      <UniverseBridge />
     </Providers>
   );
 }

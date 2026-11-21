@@ -80,11 +80,11 @@ Legend: `[ ]` open · `[x]` done and verified. "AC" = acceptance criteria.
 
 ## Phase 8 — Universe & events
 
-- [ ] Persistent `UniverseCanvas` in root layout, idle-loaded, cross-fade from CSS starfield, never remounted. AC: three.js only in lazy chunk; no canvas re-render on navigation.
-- [ ] Deterministic stars / planets / constellations / core / nebulae / era layers; gentle dimming. AC: same seed → same positions (unit test).
-- [ ] Camera drift, orbit/zoom on home with inertial return, hover/tap labels. AC: manual + screenshot.
-- [ ] Quality tiers + auto-detect + frame-time fallback, pause when hidden / input focused on phones. AC: unit tests for tier selection.
-- [ ] EventDirector with every §7.2 event, coalescing, reduced-motion/minimal variants. AC: unit tests for queue/coalescing; events visible in e2e screenshots.
+- [x] Persistent `UniverseCanvas` in root layout, idle-loaded, cross-fade from CSS starfield, never remounted. AC: three.js only in lazy chunk; no canvas re-render on navigation.
+- [x] Deterministic stars / planets / constellations / core / nebulae / era layers; gentle dimming. AC: same seed → same positions (unit test).
+- [x] Camera drift, orbit/zoom on home with inertial return, hover/tap labels. AC: manual + screenshot.
+- [x] Quality tiers + auto-detect + frame-time fallback, pause when hidden / input focused on phones. AC: unit tests for tier selection.
+- [x] EventDirector with every §7.2 event, coalescing, reduced-motion/minimal variants. AC: unit tests for queue/coalescing; events visible in e2e screenshots.
 
 ## Phase 9 — PWA & offline
 
