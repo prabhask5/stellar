@@ -56,3 +56,15 @@ One line of context, the choice, and why. Newest at the bottom of each phase.
 - **Emoji data is self-hosted** under `/emoji` (copied from `emojibase-data`), so the picker makes no third-party requests and works offline. Refresh with `node apps/web/scripts/copy-emoji.mjs`.
 - **Sidebar wording** follows the mockup: "716 stars to Star Cluster" (the number is stardust still needed for the next era).
 - **Dev stack Postgres.** The test stack builds Postgres 15 with `wal2json` and allow-lists it in `output_plugin_libraries` (required by current Postgres releases) so Realtime works locally.
+
+## Phases 4–6 — Tasks, Goals, Routines
+
+- **Quick add defaults.** On the Today tab a new task is due today, on Calendar it takes the selected day, on All it has no date. Otherwise a task added from Today would vanish from the view it was added in.
+- **Task lists on phones** are their own segment ("Lists"); on desktop they sit in the right column as in the mockup.
+- **"Show completed" is per view and per device** (localStorage). All and list views show what is in the cache (completed within 90 days); Calendar loads older completed tasks for the visible range on demand.
+- **Reordering** is available for task lists, goal lists, goals, and tasks inside a list (drag handle, long-press on touch, keyboard). A drop writes one row; `sp_rebalance` runs only when a gap is exhausted.
+- **Swipe actions** exist only on touch devices: right completes, left reveals Reschedule and Delete.
+- **Goal amounts.** The stepper is −/+ as in the mockup; the current number in "5 / 8 glasses" is itself the tap-to-type control. Holding − or + repeats.
+- **Routines: today is always inline on phones** (as in the mockup); tapping another day opens that day in a sheet. Desktop shows the selected day inline beside the calendar. Future days show the schedule read-only.
+- **Manage routines** expands in place from the mockup's "Manage routines · N active" row.
+- **Tab bar fill** is slightly more opaque than `glass.fill` because Chromium does not blur content that sits inside another backdrop-filtered card; legibility must not depend on the blur.

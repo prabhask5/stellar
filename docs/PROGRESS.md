@@ -56,20 +56,20 @@ Legend: `[ ]` open · `[x]` done and verified. "AC" = acceptance criteria.
 
 ## Phase 4 — Tasks
 
-- [ ] QuickAddBar (due date/time, description, list; list disables date). AC: e2e.
-- [ ] Today (Overdue + "Move all to today" with Undo), All (date groups), Calendar (month, week on desktop, drag to reschedule, agenda, prefilled quick add). AC: e2e.
-- [ ] Task lists: reorderable emoji cards, create, list detail with own quick add, rename/emoji/delete. AC: e2e; list tasks never in Today/All/Calendar.
-- [ ] Task detail sheet; swipe actions; show completed toggle. AC: e2e/phone.
+- [x] QuickAddBar (due date/time, description, list; list disables date). AC: e2e.
+- [x] Today (Overdue + "Move all to today" with Undo), All (date groups), Calendar (month, week on desktop, drag to reschedule, agenda, prefilled quick add). AC: e2e.
+- [x] Task lists: reorderable emoji cards, create, list detail with own quick add, rename/emoji/delete. AC: e2e; list tasks never in Today/All/Calendar.
+- [x] Task detail sheet; swipe actions; show completed toggle. AC: e2e/phone.
 
 ## Phase 5 — Goals
 
-- [ ] Quote card, time progress (Day/Week/Month/Year/Life). AC: unit-tested math, tz + week start aware.
-- [ ] Goal lists (reorderable, mini planet, progress), list detail, add goal sheet, Stepper with typed value. AC: e2e goal progress.
+- [x] Quote card, time progress (Day/Week/Month/Year/Life). AC: unit-tested math, tz + week start aware.
+- [x] Goal lists (reorderable, mini planet, progress), list detail, add goal sheet, Stepper with typed value. AC: e2e goal progress.
 
 ## Phase 6 — Routines
 
-- [ ] Month calendar with DayRings, day panel (inline desktop / sheet phone) with live %. AC: e2e.
-- [ ] Manage routines: three frequencies, 14-date live preview, streaks, rewrite-on-edit note, delete confirm. AC: e2e scheduling + edit rewrite + delete.
+- [x] Month calendar with DayRings, day panel (inline desktop / sheet phone) with live %. AC: e2e.
+- [x] Manage routines: three frequencies, 14-date live preview, streaks, rewrite-on-edit note, delete confirm. AC: e2e scheduling + edit rewrite + delete.
 
 ## Phase 7 — Focus
 

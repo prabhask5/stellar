@@ -192,3 +192,31 @@ export async function enterPin(page: Page, pin: string, projectName: string): Pr
     await page.keyboard.type(pin, { delay: 15 });
   }
 }
+
+/**
+ * A real touch swipe (touchstart → touchmove… → touchend) through the DevTools protocol,
+ * so gesture code sees genuine touch pointer events.
+ */
+export async function swipe(
+  page: Page,
+  from: { x: number; y: number },
+  dx: number,
+  dy = 0,
+  steps = 10,
+): Promise<void> {
+  const cdp = await page.context().newCDPSession(page);
+  const point = (x: number, y: number) => [{ x: Math.round(x), y: Math.round(y), id: 1 }];
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: point(from.x, from.y),
+  });
+  for (let i = 1; i <= steps; i++) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: point(from.x + (dx * i) / steps, from.y + (dy * i) / steps),
+    });
+    await page.waitForTimeout(16);
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await cdp.detach();
+}

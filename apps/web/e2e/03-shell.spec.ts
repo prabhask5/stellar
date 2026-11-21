@@ -137,13 +137,11 @@ test.describe("app shell", () => {
       (await sql("select count(*)::int as n from sp_tasks where name = 'Exported task'"))[0]?.n,
     ).toBe(1);
 
-    await page
-      .getByLabel("Import file")
-      .setInputFiles({
-        name: "nope.json",
-        mimeType: "application/json",
-        buffer: Buffer.from('{"hello":1}'),
-      });
+    await page.getByLabel("Import file").setInputFiles({
+      name: "nope.json",
+      mimeType: "application/json",
+      buffer: Buffer.from('{"hello":1}'),
+    });
     await expect(page.getByText("That file is not a Stellar Planner export.")).toBeVisible();
     await sql("delete from sp_tasks where name = 'Exported task'");
   });
