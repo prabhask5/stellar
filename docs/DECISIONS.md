@@ -28,3 +28,17 @@ One line of context, the choice, and why. Newest at the bottom of each phase.
 - **Era numbering.** Eras are shown one-based ("Era III · Nebula"), matching the mockup.
 - **Quotes.** 132 built-ins, all from authors or translations in the public domain, attributed; commonly misattributed lines were left out.
 - **Streak definition.** Consecutive _scheduled_ days completed, counting back from today; an unfinished today does not break the streak, a missed previous scheduled day does.
+
+## Phase 2 — Setup & auth
+
+- **Web session model.** The spec wants httpOnly cookies _and_ direct browser-to-Supabase access. The refresh token lives only in httpOnly cookies (`@supabase/ssr`, cookie name `sp-auth`). The page asks `GET /api/v1/auth/session` for a short-lived access token, keeps it in memory, and uses it for PostgREST and Realtime. Page scripts can never read the long-lived credential, and the PIN endpoint returns no tokens to web clients.
+- **Session checks.** The proxy only checks that the session cookie exists (no network on navigation; pages are static shells and RLS guards the data). `/auth/session` verifies the token with the auth server, so "sign out everywhere" and device revocation end other browsers at their next token fetch. An access token already in memory stays valid until it expires (at most one hour); that is inherent to JWTs.
+- **Owner only.** The API accepts tokens only for the hidden owner's user id, because the Supabase project may host other users.
+- **Lockout is global, not per IP.** There is one owner, so 5 wrong PINs lock sign-in for everyone (30s, doubling, 1h cap, persisted in `/data/lockout.json`; a corrupt file fails closed). A separate in-memory per-IP limiter throttles the auth and setup endpoints.
+- **PIN length is never disclosed.** The lock screen shows an Unlock button; after one successful sign-in the device remembers the length locally and auto-submits from then on.
+- **Setup endpoints close after first run.** Connect/migrate/verify are open only until setup first completes; afterwards they require a session (Settings → Connection). `RESET_PIN=true` reopens only the PIN step and re-keys the hidden owner, which signs out every device. The PIN is cleared on every boot while the variable is set; the UI and docs say to remove it.
+- **Service-role probe.** Checked by fetching a non-existent user id through the admin API (404 = key works) instead of listing users, which is both cheaper and immune to foreign rows that GoTrue cannot scan.
+- **VAPID keys** are generated with Node's `crypto` (P-256), with no dependency in the setup path.
+- **Data directory.** `/data` in the container, `STELLAR_DATA_DIR` to override, `.data/` beside the app in local development.
+- **Migrations on boot** run only when a Postgres connection string is configured; otherwise Settings → Connection offers the paste-and-verify path after an update.
+- **E2E isolation.** Tests reset the instance by deleting the files in the test data directory and the owner user, and send a unique `X-Forwarded-For` per test so the rate limiter needs no test-only switch.

@@ -34,16 +34,16 @@ Legend: `[ ]` open · `[x]` done and verified. "AC" = acceptance criteria.
 
 ## Phase 2 — Setup & auth
 
-- [ ] Zero-config boot: unconfigured → every route redirects to `/setup`. AC: e2e.
-- [ ] Encrypted `/data/config.json` (AES-256-GCM, key from `APP_SECRET`), generated `/data/secret`, env overrides. AC: unit tests for round-trip + tamper detection.
-- [ ] Wizard step Welcome → Connect (URL normalization, auth/rest probes with hints, service-role validation) → Database (connection string / pg-meta / copy SQL + Verify, progress list) → PIN (keypad) → About you → Done (First Light). AC: e2e against the local test stack.
-- [ ] Hidden owner user via admin API, VAPID keys, signup-disable recommendation. AC: owner exists, password only in encrypted config.
-- [ ] `POST /api/v1/auth/pin` (argon2id, cookies for web/pwa, tokens for extension/ios), `sp_devices`, `sp_auth_events`. AC: e2e + unit.
-- [ ] Escalating lockout persisted in `/data` (5 fails → 30s, doubling, cap 1h). AC: unit tests + e2e lockout.
-- [ ] Lock screen (starfield + keypad), inactivity lock setting. AC: e2e.
-- [ ] Devices list, revoke (needs `DATABASE_URL`), sign out everywhere, change PIN. AC: API tests.
-- [ ] `RESET_PIN=true` recovery. AC: unit test on boot logic.
-- [ ] `GET /api/v1/instance`, `GET /api/health`. AC: e2e.
+- [x] Zero-config boot: unconfigured → every route redirects to `/setup`. AC: e2e.
+- [x] Encrypted `/data/config.json` (AES-256-GCM, key from `APP_SECRET`), generated `/data/secret`, env overrides. AC: unit tests for round-trip + tamper detection.
+- [x] Wizard step Welcome → Connect (URL normalization, auth/rest probes with hints, service-role validation) → Database (connection string / pg-meta / copy SQL + Verify, progress list) → PIN (keypad) → About you → Done (First Light). AC: e2e against the local test stack.
+- [x] Hidden owner user via admin API, VAPID keys, signup-disable recommendation. AC: owner exists, password only in encrypted config.
+- [x] `POST /api/v1/auth/pin` (argon2id, cookies for web/pwa, tokens for extension/ios), `sp_devices`, `sp_auth_events`. AC: e2e + unit.
+- [x] Escalating lockout persisted in `/data` (5 fails → 30s, doubling, cap 1h). AC: unit tests + e2e lockout.
+- [x] Lock screen (starfield + keypad) and `/api/v1/auth/unlock`. AC: e2e. (The inactivity-lock setting and the Security settings UI land with Settings in Phase 3.)
+- [x] Devices list, revoke (needs `DATABASE_URL`), sign out everywhere, change PIN. AC: API tests.
+- [x] `RESET_PIN=true` recovery. AC: unit test on boot logic.
+- [x] `GET /api/v1/instance`, `GET /api/health`. AC: e2e.
 
 ## Phase 3 — App shell & design system
 

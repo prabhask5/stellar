@@ -42,8 +42,9 @@ export async function open(): Promise<pg.Client> {
 export async function createUser(admin: pg.Client, timezone = "UTC"): Promise<string> {
   const id = randomUUID();
   await admin.query(
-    `insert into auth.users (id, instance_id, aud, role, email)
-     values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', $2)`,
+    // GoTrue expects empty strings, not NULLs, in its token columns.
+    `insert into auth.users (id, instance_id, aud, role, email, confirmation_token, recovery_token, email_change_token_new, email_change)
+     values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', $2, '', '', '', '')`,
     [id, `test-${id}@stellar.test`],
   );
   await admin.query("insert into public.sp_settings (user_id, timezone) values ($1, $2)", [
