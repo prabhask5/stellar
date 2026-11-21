@@ -74,7 +74,7 @@ export async function wipeData(): Promise<void> {
       delete from public.sp_push_subscriptions where user_id = uid;
       update public.sp_focus_state set status = 'idle', phase = 'focus', round = 1, phase_started_at = null,
         phase_ends_at = null, paused_remaining_ms = null, phase_total_ms = null, session_id = null,
-        last_completed_at = null, last_completed_phase = null, notified_phase_end_at = null where user_id = uid;
+        last_completed_at = null, last_completed_phase = null, notified_phase_end_at = null, version = 0 where user_id = uid;
       update public.sp_focus_settings set focus_min = 25, short_break_min = 5, long_break_min = 15,
         rounds_before_long = 4, auto_start_breaks = false, auto_start_focus = false, active_block_list_ids = '{}'
         where user_id = uid;

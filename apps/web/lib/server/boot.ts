@@ -1,5 +1,6 @@
 import { runMigrations } from "@stellar/db/runner";
 import { applyPinReset, getConfig, updateStoredConfig } from "./config";
+import { startScheduler } from "./scheduler";
 
 declare global {
   var __stellarBooted: boolean | undefined;
@@ -35,4 +36,7 @@ export async function boot(): Promise<void> {
   } catch (err) {
     console.error("[boot] could not run migrations:", err instanceof Error ? err.message : err);
   }
+
+  // The loop itself waits until the app is configured, so it is safe to start now.
+  startScheduler();
 }

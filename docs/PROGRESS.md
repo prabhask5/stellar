@@ -73,10 +73,10 @@ Legend: `[ ]` open · `[x]` done and verified. "AC" = acceptance criteria.
 
 ## Phase 7 — Focus
 
-- [ ] Scheduler loop in `instrumentation.ts` (single-instance guard) advancing due phases + sending push. AC: phase advances with no client open.
-- [ ] Focus screen: phase segments, TimerRing, controls, SyncIndicator (presence), blocking card, fullscreen. AC: e2e start/pause/skip + blocking-state assertions.
-- [ ] Phase settings sheet, block list manager (validation, multi-line paste), stats (today, 7/30-day chart, streak, log). AC: e2e.
-- [ ] Web push: VAPID, subscribe/unsubscribe, phase-end messages, iOS hint. AC: subscription API tests; SW push handler.
+- [x] Scheduler loop in `instrumentation.ts` (single-instance guard) advancing due phases + sending push. AC: phase advances with no client open.
+- [x] Focus screen: phase segments, TimerRing, controls, SyncIndicator (presence), blocking card, fullscreen. AC: e2e start/pause/skip + blocking-state assertions.
+- [x] Phase settings sheet, block list manager (validation, multi-line paste), stats (today, 7/30-day chart, streak, log). AC: e2e.
+- [x] Web push: VAPID, subscribe/unsubscribe, phase-end messages, iOS hint. AC: subscription API tests; SW push handler. (The service worker that receives the push ships with the PWA in Phase 9.)
 
 ## Phase 8 — Universe & events
 

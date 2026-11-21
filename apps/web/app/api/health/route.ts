@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getConfig } from "@/lib/server/config";
+import { schedulerRunning } from "@/lib/server/scheduler";
 import { APP_VERSION } from "@/lib/server/version";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,13 @@ function readState(): { configured: boolean; stage: string } {
 export function GET() {
   const state = readState();
   return NextResponse.json(
-    { status: "ok", version: APP_VERSION, ...state, time: new Date().toISOString() },
+    {
+      status: "ok",
+      version: APP_VERSION,
+      ...state,
+      scheduler: schedulerRunning(),
+      time: new Date().toISOString(),
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

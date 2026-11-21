@@ -68,3 +68,15 @@ One line of context, the choice, and why. Newest at the bottom of each phase.
 - **Routines: today is always inline on phones** (as in the mockup); tapping another day opens that day in a sheet. Desktop shows the selected day inline beside the calendar. Future days show the schedule read-only.
 - **Manage routines** expands in place from the mockup's "Manage routines · N active" row.
 - **Tab bar fill** is slightly more opaque than `glass.fill` because Chromium does not blur content that sits inside another backdrop-filtered card; legibility must not depend on the blur.
+
+## Phase 7 — Focus
+
+- **Who advances the timer.** The server's scheduler loop (every 2s, single instance per process, started from `instrumentation.ts`) is authoritative. Each open client also schedules a fallback `advance` 2.5s after the phase should have ended; the versioned RPC makes that race harmless. The loop also runs the daily purge of soft-deleted rows.
+- **Optimistic timer.** Controls apply the shared state machine locally (instant), then send the action with the version it was based on. A conflict simply replaces the optimistic state with the server's.
+- **Phase strip is a display**, not a control: phases change only through the timer (Start, Skip, End), which keeps every device on the same path.
+- **Settings changes apply from the next phase**; the running phase keeps the length it started with (`phase_total_ms`).
+- **Space on Focus** starts, pauses or resumes unless a button, field or dialog has the keyboard.
+- **Fullscreen** is an in-page overlay that also requests the Fullscreen API where it exists (iPhone has none), so it works everywhere.
+- **Block list sites.** Entries are split on whitespace, commas and new lines, so pasted lists work; valid ones are added immediately and only the entries that need fixing stay in the box with a message.
+- **Push.** Sent by the scheduler for phases completed by anyone (server or client), exactly once, and skipped if the phase ended more than 10 minutes ago (after downtime). Dead subscriptions (404/410) are removed. Permission is requested only from a button.
+- **Stats** come from `sp_focus_stats` (owner time zone); the phase in flight is added client-side so today's total moves while you focus. All focus time counts, including phases ended early; stardust is awarded only for completed focus phases.
