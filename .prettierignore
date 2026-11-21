@@ -1,0 +1,15 @@
+node_modules
+.next
+.turbo
+.output
+.wxt
+dist
+pnpm-lock.yaml
+packages/ui-tokens/css
+packages/db/src/types.ts
+packages/db/src/bundle.generated.ts
+docs/openapi.json
+docs/ios/StellarTokens.swift
+docs/design
+apps/web/public
+SPEC.md

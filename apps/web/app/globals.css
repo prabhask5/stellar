@@ -1,0 +1,315 @@
+@import "tailwindcss";
+@import "@stellar/ui-tokens/css/tokens.css";
+@import "@stellar/ui-tokens/css/theme.css";
+
+@source "../components";
+@source "../lib";
+@source "../../../packages/universe/src";
+
+/* ---------------------------------------------------------------------------
+   Safe areas. Insets always come from env(); components read the variables so
+   tests can simulate a notch / Dynamic Island with a class on <html>.
+--------------------------------------------------------------------------- */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  /* Height of the on-screen keyboard, maintained from visualViewport. */
+  --kb: 0px;
+  --page-pad: 20px;
+  --tabbar-h: var(--sp-tab-bar-height);
+  --tabbar-bottom: max(12px, var(--sab));
+  /* Space a scroll container must leave free below its content. */
+  --bottom-clearance: calc(var(--tabbar-h) + var(--tabbar-bottom) + 24px);
+  --nav-w: 0px;
+  color-scheme: dark;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --page-pad: clamp(20px, 4vw, 56px);
+    --nav-w: 72px;
+    --bottom-clearance: calc(max(24px, var(--sab)) + 16px);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --nav-w: 220px;
+  }
+}
+
+/* Test-only inset simulation (Playwright adds one of these to <html>). */
+html.sp-insets-island {
+  --sat: 59px;
+  --sab: 34px;
+}
+html.sp-insets-notch {
+  --sat: 47px;
+  --sab: 34px;
+}
+html.sp-insets-landscape {
+  --sat: 0px;
+  --sal: 59px;
+  --sar: 59px;
+  --sab: 21px;
+}
+
+@layer base {
+  html {
+    background: var(--sp-bg-void);
+    color: var(--sp-text-primary);
+    font-family: var(--sp-font);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    height: 100%;
+    overscroll-behavior: none;
+  }
+
+  body {
+    min-height: 100dvh;
+    margin: 0;
+    background: transparent;
+    font-size: 17px;
+    line-height: 22px;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  @media (min-width: 1024px) {
+    body {
+      font-size: 15px;
+      line-height: 20px;
+    }
+  }
+
+  button,
+  a,
+  [role="button"],
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+
+  /* 16px minimum stops iOS from zooming the page on focus. */
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+    font-family: inherit;
+  }
+
+  @media (min-width: 1024px) and (pointer: fine) {
+    input,
+    textarea,
+    select {
+      font-size: 15px;
+    }
+  }
+
+  ::placeholder {
+    color: color-mix(in srgb, var(--sp-text-secondary) 72%, transparent);
+    opacity: 1;
+  }
+
+  :focus {
+    outline: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--sp-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--sp-accent-soft);
+  }
+
+  h1,
+  h2,
+  h3,
+  p {
+    margin: 0;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Surfaces
+--------------------------------------------------------------------------- */
+@utility glass {
+  background: var(--sp-glass-fill);
+  border: 1px solid var(--sp-glass-border);
+  -webkit-backdrop-filter: var(--sp-glass-blur);
+  backdrop-filter: var(--sp-glass-blur);
+}
+
+@utility glass-strong {
+  background: var(--sp-glass-fill-strong);
+  border: 1px solid var(--sp-glass-border);
+  -webkit-backdrop-filter: var(--sp-glass-blur);
+  backdrop-filter: var(--sp-glass-blur);
+}
+
+/* The Minimal tier and browsers without backdrop-filter get the opaque fill. */
+html[data-tier="minimal"] .glass,
+html[data-tier="minimal"] .glass-strong {
+  background: var(--sp-glass-fill-strong);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass,
+  .glass-strong {
+    background: rgba(24, 20, 56, 0.92);
+  }
+}
+
+@utility glow {
+  box-shadow: var(--sp-glow);
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility eyebrow {
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@utility hit {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Page padding helpers that include the safe areas. */
+@utility pt-safe {
+  padding-top: max(16px, var(--sat));
+}
+@utility pb-safe {
+  padding-bottom: max(16px, var(--sab));
+}
+@utility px-safe {
+  padding-left: max(var(--page-pad), var(--sal));
+  padding-right: max(var(--page-pad), var(--sar));
+}
+@utility pb-clearance {
+  padding-bottom: var(--bottom-clearance);
+}
+
+/* ---------------------------------------------------------------------------
+   Sky: the zero-JS starfield shown at first paint and kept on the Minimal tier.
+--------------------------------------------------------------------------- */
+.sp-sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--sp-bg-void);
+  contain: strict;
+}
+
+.sp-sky__nebula {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(42% 36% at 78% 12%, var(--sp-nebula-violet), transparent 70%),
+    radial-gradient(38% 34% at 12% 88%, var(--sp-nebula-magenta), transparent 72%),
+    radial-gradient(46% 40% at 88% 92%, var(--sp-nebula-blue), transparent 70%),
+    radial-gradient(30% 26% at 18% 8%, rgba(110, 76, 255, 0.22), transparent 70%);
+  opacity: 0.62;
+  filter: saturate(115%);
+  animation: sp-drift 90s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.sp-sky__stars {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+
+.sp-sky__stars--twinkle {
+  animation: sp-twinkle 7s ease-in-out infinite alternate;
+}
+
+.sp-sky__veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(7, 6, 21, 0.1), rgba(7, 6, 21, 0.45));
+}
+
+@keyframes sp-drift {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(1.5%, 1%, 0) scale(1.06);
+  }
+}
+
+@keyframes sp-twinkle {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+html[data-tier="minimal"] .sp-sky__nebula,
+html[data-tier="minimal"] .sp-sky__stars--twinkle {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-sky__nebula,
+  .sp-sky__stars--twinkle {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* App shell: fills the dynamic viewport, never the bare 100vh. */
+.sp-shell {
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+}

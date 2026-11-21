@@ -1,0 +1,17 @@
+{
+  "name": "@stellar/ui-tokens",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.json": "./tokens.json",
+    "./css/*": "./css/*"
+  },
+  "scripts": {
+    "generate": "node scripts/generate.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  }
+}
