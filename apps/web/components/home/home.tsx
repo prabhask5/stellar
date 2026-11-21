@@ -16,6 +16,7 @@ import { emitCosmic } from "@stellar/universe/bus";
 import { clearHover, orbitBy, pickAt, setDragging, zoomBy } from "@stellar/universe/store";
 import Link from "next/link";
 import { useEffect, useMemo, useRef } from "react";
+import { InstallHint } from "@/components/shell/install-hint";
 import { TaskRow } from "@/components/tasks/task-row";
 import { GlassCard } from "@/components/ui/glass-card";
 import { GearIcon } from "@/components/ui/icons";
@@ -151,6 +152,7 @@ export function Home() {
       {/* The sky fills this space; it is interactive on this page only. */}
       <UniverseStage />
 
+      <InstallHint />
       <GlassCard
         radius="hero"
         as="section"

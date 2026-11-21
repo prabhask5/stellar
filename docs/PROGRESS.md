@@ -88,11 +88,11 @@ Legend: `[ ]` open · `[x]` done and verified. "AC" = acceptance criteria.
 
 ## Phase 9 — PWA & offline
 
-- [ ] Manifest, icons (incl. maskable), shortcuts, generated iOS splash screens. AC: files generated from one SVG by script.
-- [ ] Service worker: precache shell, navigation fallback, runtime caching, update toast, push. AC: offline reload serves shell (e2e).
-- [ ] IndexedDB persisted query cache + ordered outbox replay with client UUIDs. AC: unit tests for outbox; e2e offline add → reconnect.
-- [ ] Offline focus timer. AC: actions queue and reconcile by version.
-- [ ] Safe-area polish across full device matrix. AC: screenshot pass, nothing under insets.
+- [x] Manifest, icons (incl. maskable), shortcuts, generated iOS splash screens. AC: files generated from one SVG by script.
+- [x] Service worker: precache shell, navigation fallback, runtime caching, update toast, push. AC: offline reload serves shell (e2e).
+- [x] IndexedDB persisted query cache + ordered outbox replay with client UUIDs. AC: unit tests for outbox; e2e offline add → reconnect.
+- [x] Offline focus timer. AC: actions queue and reconcile by version.
+- [x] Safe-area polish across full device matrix. AC: screenshot pass, nothing under insets.
 
 ## Phase 10 — Extension
 

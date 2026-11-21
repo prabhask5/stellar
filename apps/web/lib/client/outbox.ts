@@ -238,13 +238,14 @@ function scheduleRetry(): void {
 
 /** Sends queued operations in order. Stops at the first network failure and retries later. */
 export async function flush(): Promise<void> {
+  // Claim the flush synchronously: a second caller must not start while this one is still loading.
   if (flushing) return;
-  await loadOutbox();
-  if (queue.length === 0) return;
   flushing = true;
-  publish();
   let authRetried = false;
   try {
+    await loadOutbox();
+    if (queue.length === 0) return;
+    publish();
     // Nothing can be sent before the session is known (first paint, or offline at launch).
     try {
       await getSession();
@@ -288,6 +289,8 @@ export async function flush(): Promise<void> {
   } finally {
     flushing = false;
     publish();
+    // Anything queued while this flush was finishing gets its own pass.
+    if (queue.length > 0 && !retryTimer) setTimeout(() => void flush(), 0);
   }
 }
 

@@ -50,6 +50,21 @@ export function FocusPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [focus?.state]);
 
+  // Home-screen shortcut "Start focus" opens here with ?start=1.
+  const shortcutDone = useRef(false);
+  useEffect(() => {
+    if (
+      shortcutDone.current ||
+      !focus ||
+      new URLSearchParams(window.location.search).get("start") !== "1"
+    )
+      return;
+    shortcutDone.current = true;
+    window.history.replaceState(null, "", "/focus");
+    if (focus.state.status === "idle" || focus.state.status === "awaiting") timerAction("start");
+    else if (focus.state.status === "paused") timerAction("resume");
+  }, [focus]);
+
   const exitFullscreen = useCallback(() => {
     setFullscreen(false);
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});

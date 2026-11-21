@@ -3,13 +3,14 @@
 import type { Task, TaskList } from "@stellar/db";
 import { type DateStr, formatLongDate } from "@stellar/shared";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DateSheet } from "@/components/ui/date-chip";
 import { Page } from "@/components/ui/page";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { useIsDesktop, useMounted } from "@/components/ui/use-media";
 import { useCollection, useToday, useWeekStart } from "@/lib/client/data/hooks";
 import { updateTask } from "@/lib/client/data/tasks";
+import { useUi } from "@/lib/client/ui-store";
 import { CalendarTab } from "./calendar-tab";
 import { ListDetail } from "./list-detail";
 import { TaskListsPanel } from "./lists";
@@ -70,6 +71,14 @@ export function TasksPage() {
     },
     [params, pathname, router],
   );
+
+  // Home-screen shortcut "New task" opens here with ?new=1: put the cursor in quick add.
+  const wantsNew = params.get("new") === "1";
+  useEffect(() => {
+    if (!wantsNew || !mounted) return;
+    const t = setTimeout(() => useUi.getState().focusQuickAdd(), 150);
+    return () => clearTimeout(t);
+  }, [wantsNew, mounted]);
 
   const openTask = tasks.find((t) => t.id === openId) ?? null;
   const rescheduleTask = tasks.find((t) => t.id === rescheduleId) ?? null;

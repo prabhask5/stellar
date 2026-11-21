@@ -38,6 +38,8 @@ async function leave(): Promise<void> {
   clearSessionState();
   queryClient.clear();
   await clearLocalData();
+  // The cached page shells stay (they hold no data), so the lock screen still opens offline.
+  navigator.serviceWorker?.controller?.postMessage({ type: "CLEAR_PAGES" });
   window.location.replace("/lock");
 }
 
