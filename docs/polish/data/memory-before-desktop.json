@@ -1,0 +1,441 @@
+[
+ {
+  "minute": 0,
+  "heapMB": 8.9,
+  "nodes": 300,
+  "listeners": 409,
+  "gl": null
+ },
+ {
+  "minute": 0.6,
+  "round": 4,
+  "heapMB": 12.7,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 1.1,
+  "round": 8,
+  "heapMB": 13.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 1.8,
+  "round": 12,
+  "heapMB": 13.6,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 2.3,
+  "round": 16,
+  "heapMB": 13.7,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 2.9,
+  "round": 20,
+  "heapMB": 13.9,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 3.5,
+  "round": 24,
+  "heapMB": 14,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 4,
+  "round": 28,
+  "heapMB": 13.5,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 4.6,
+  "round": 32,
+  "heapMB": 13.6,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 5.1,
+  "round": 36,
+  "heapMB": 13.7,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 5.7,
+  "round": 40,
+  "heapMB": 13.9,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 6.3,
+  "round": 44,
+  "heapMB": 14,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 6.8,
+  "round": 48,
+  "heapMB": 14.1,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 7.4,
+  "round": 52,
+  "heapMB": 14.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 8,
+  "round": 56,
+  "heapMB": 14.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 8.5,
+  "round": 60,
+  "heapMB": 14.3,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 9.1,
+  "round": 64,
+  "heapMB": 14.4,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 9.6,
+  "round": 68,
+  "heapMB": 14.4,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 10.2,
+  "round": 72,
+  "heapMB": 14.4,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 10.8,
+  "round": 76,
+  "heapMB": 14.5,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 11.3,
+  "round": 80,
+  "heapMB": 14.5,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 11.9,
+  "round": 84,
+  "heapMB": 14.5,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 12.5,
+  "round": 88,
+  "heapMB": 14.6,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 13,
+  "round": 92,
+  "heapMB": 14.6,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 13.6,
+  "round": 96,
+  "heapMB": 14.7,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 14.1,
+  "round": 100,
+  "heapMB": 14.7,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 14.7,
+  "round": 104,
+  "heapMB": 14.8,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 15.3,
+  "round": 108,
+  "heapMB": 14.9,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 15.8,
+  "round": 112,
+  "heapMB": 14.9,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 16.4,
+  "round": 116,
+  "heapMB": 15,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 17,
+  "round": 120,
+  "heapMB": 15,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 17.5,
+  "round": 124,
+  "heapMB": 15,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 18.1,
+  "round": 128,
+  "heapMB": 15,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 18.7,
+  "round": 132,
+  "heapMB": 15,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 19.2,
+  "round": 136,
+  "heapMB": 15,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 19.8,
+  "round": 140,
+  "heapMB": 15,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 20.3,
+  "round": 144,
+  "heapMB": 15.1,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 20.9,
+  "round": 148,
+  "heapMB": 15.1,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 21.5,
+  "round": 152,
+  "heapMB": 15.1,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 22,
+  "round": 156,
+  "heapMB": 15.1,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 22.6,
+  "round": 160,
+  "heapMB": 15.1,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 23.1,
+  "round": 164,
+  "heapMB": 15.1,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 23.7,
+  "round": 168,
+  "heapMB": 15.1,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 24.3,
+  "round": 172,
+  "heapMB": 15.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 24.8,
+  "round": 176,
+  "heapMB": 15.1,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 25.4,
+  "round": 180,
+  "heapMB": 15.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 25.9,
+  "round": 184,
+  "heapMB": 15.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 26.5,
+  "round": 188,
+  "heapMB": 15.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 27.1,
+  "round": 192,
+  "heapMB": 15.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 27.6,
+  "round": 196,
+  "heapMB": 15.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 28.2,
+  "round": 200,
+  "heapMB": 15.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 28.8,
+  "round": 204,
+  "heapMB": 15.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 29.3,
+  "round": 208,
+  "heapMB": 15.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 29.9,
+  "round": 212,
+  "heapMB": 15.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ },
+ {
+  "minute": 30,
+  "round": 214,
+  "heapMB": 15.2,
+  "nodes": 323,
+  "listeners": 588,
+  "gl": null
+ }
+]

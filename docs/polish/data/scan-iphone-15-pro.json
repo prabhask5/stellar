@@ -1,0 +1,921 @@
+[
+ {
+  "screen": "home",
+  "kind": "touch-target",
+  "detail": [
+   "button[Dismiss] 36×36",
+   "a[See all] 62×36"
+  ]
+ },
+ {
+  "screen": "home",
+  "kind": "facts",
+  "detail": {
+   "interactive": 11,
+   "selectableChrome": 8,
+   "calloutNotNone": 11,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "home",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "aria-prohibited-attr",
+   "help": "Elements must only use permitted ARIA attributes",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "home",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "region",
+   "help": "All page content should be contained by landmarks",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/today",
+  "kind": "touch-target",
+  "detail": [
+   "button[Today] 89×38",
+   "button[All] 65×38",
+   "button[Calendar] 110×38",
+   "button[Lists] 80×38",
+   "button[Due date: Today] 88×36",
+   "button[Description] 124×36",
+   "button[List] 72×36",
+   "button[Move all to today] 138×36",
+   "button[Show completed] 51×31"
+  ]
+ },
+ {
+  "screen": "tasks/today",
+  "kind": "facts",
+  "detail": {
+   "interactive": 57,
+   "selectableChrome": 13,
+   "calloutNotNone": 57,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/today",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "aria-prohibited-attr",
+   "help": "Elements must only use permitted ARIA attributes",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/today",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "label-content-name-mismatch",
+   "help": "Elements must have their visible text as part of their accessible name",
+   "nodes": [
+    "div[aria-label=\"Overdue tasks\"] > .overflow-hidden[role=\"listitem\"]:nth-child(1) > .overflow-hidden.relative[data-testid=\"task-row\"] > .bg-\\[\\#110e2b\\].relative[draggable=\"false\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.text-left",
+    "div[data-task=\"Reply to landlord about lease\"] > .bg-\\[\\#110e2b\\].relative[draggable=\"false\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.text-left",
+    "button[aria-label=\"Edit “Draft Q1 roadmap”\"]",
+    "div[data-task=\"Review pull request #142\"] > .bg-\\[\\#110e2b\\].relative[draggable=\"false\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.text-left"
+   ],
+   "count": 6
+  }
+ },
+ {
+  "screen": "tasks/today",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "region",
+   "help": "All page content should be contained by landmarks",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/task-sheet",
+  "kind": "touch-target",
+  "detail": [
+   "button[Close] 32×32",
+   "button[Due date: Nov 14, 9:30 AM] 160×36"
+  ]
+ },
+ {
+  "screen": "tasks/task-sheet",
+  "kind": "facts",
+  "detail": {
+   "interactive": 7,
+   "selectableChrome": 2,
+   "calloutNotNone": 7,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": [
+    "INPUT [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]",
+    "Add a note [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
+   ]
+  }
+ },
+ {
+  "screen": "tasks/date-picker",
+  "kind": "touch-target",
+  "detail": [
+   "button[Close] 32×32",
+   "button[Today] 59×32",
+   "button[Tomorrow] 84×32",
+   "button[Next week] 86×32",
+   "button[No date] 71×32",
+   "button[Previous month] 36×36",
+   "button[Next month] 36×36",
+   "button[Monday, October 26] 50×40",
+   "button[Tuesday, October 27] 50×40",
+   "button[Wednesday, October 28] 50×40",
+   "button[Thursday, October 29] 50×40",
+   "button[Friday, October 30] 50×40",
+   "button[Saturday, October 31] 50×40",
+   "button[Sunday, November 1] 50×40",
+   "button[Monday, November 2] 50×40",
+   "button[Tuesday, November 3] 50×40",
+   "button[Wednesday, November 4] 50×40",
+   "button[Thursday, November 5] 50×40",
+   "button[Friday, November 6] 50×40",
+   "button[Saturday, November 7] 50×40",
+   "button[Sunday, November 8] 50×40",
+   "button[Monday, November 9] 50×40",
+   "button[Tuesday, November 10] 50×40",
+   "button[Wednesday, November 11] 50×40",
+   "button[Thursday, November 12] 50×40",
+   "button[Friday, November 13] 50×40",
+   "button[Saturday, November 14] 50×40",
+   "button[Sunday, November 15] 50×40",
+   "button[Monday, November 16] 50×40",
+   "button[Tuesday, November 17] 50×40",
+   "button[Wednesday, November 18] 50×40",
+   "button[Thursday, November 19] 50×40",
+   "button[Friday, November 20] 50×40",
+   "button[Saturday, November 21] 50×40",
+   "button[Sunday, November 22] 50×40",
+   "button[Monday, November 23] 50×40",
+   "button[Tuesday, November 24] 50×40",
+   "button[Wednesday, November 25] 50×40",
+   "button[Thursday, November 26] 50×40",
+   "button[Friday, November 27] 50×40",
+   "button[Saturday, November 28] 50×40",
+   "button[Sunday, November 29] 50×40",
+   "button[Monday, November 30] 50×40",
+   "button[Tuesday, December 1] 50×40",
+   "button[Wednesday, December 2] 50×40",
+   "button[Thursday, December 3] 50×40",
+   "button[Friday, December 4] 50×40",
+   "button[Saturday, December 5] 50×40",
+   "button[Sunday, December 6] 50×40",
+   "button[Add time] 107×36"
+  ]
+ },
+ {
+  "screen": "tasks/date-picker",
+  "kind": "facts",
+  "detail": {
+   "interactive": 51,
+   "selectableChrome": 1,
+   "calloutNotNone": 51,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/all",
+  "kind": "touch-target",
+  "detail": [
+   "button[Today] 89×38",
+   "button[All] 65×38",
+   "button[Calendar] 110×38",
+   "button[Lists] 80×38",
+   "button[Due date] 107×36",
+   "button[Description] 124×36",
+   "button[List] 72×36"
+  ]
+ },
+ {
+  "screen": "tasks/all",
+  "kind": "facts",
+  "detail": {
+   "interactive": 59,
+   "selectableChrome": 12,
+   "calloutNotNone": 59,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/all",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "aria-prohibited-attr",
+   "help": "Elements must only use permitted ARIA attributes",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/all",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "label-content-name-mismatch",
+   "help": "Elements must have their visible text as part of their accessible name",
+   "nodes": [
+    "div[aria-label=\"Overdue tasks\"] > .overflow-hidden[role=\"listitem\"]:nth-child(1) > .relative.overflow-hidden[data-testid=\"task-row\"] > .bg-\\[\\#110e2b\\].relative[draggable=\"false\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.text-left",
+    ".border-t.border-separator[role=\"listitem\"]:nth-child(2) > .relative[data-task=\"Reply to landlord about lease\"][data-testid=\"task-row\"] > .bg-\\[\\#110e2b\\].relative[draggable=\"false\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.text-left",
+    "button[aria-label=\"Edit “Draft Q1 roadmap”\"]",
+    ".border-t.border-separator[role=\"listitem\"]:nth-child(9) > .relative[data-task=\"Review pull request #142\"][data-testid=\"task-row\"] > .bg-\\[\\#110e2b\\].relative[draggable=\"false\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.text-left"
+   ],
+   "count": 14
+  }
+ },
+ {
+  "screen": "tasks/all",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "region",
+   "help": "All page content should be contained by landmarks",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/calendar",
+  "kind": "touch-target",
+  "detail": [
+   "button[Today] 89×38",
+   "button[All] 65×38",
+   "button[Calendar] 110×38",
+   "button[Lists] 80×38",
+   "button[Due date: Today] 88×36",
+   "button[Description] 124×36",
+   "button[List] 72×36",
+   "button[Today] 66×36",
+   "button[Previous month] 36×36",
+   "button[Next month] 36×36",
+   "button[Show completed] 51×31"
+  ]
+ },
+ {
+  "screen": "tasks/calendar",
+  "kind": "facts",
+  "detail": {
+   "interactive": 119,
+   "selectableChrome": 99,
+   "calloutNotNone": 119,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/calendar",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "aria-prohibited-attr",
+   "help": "Elements must only use permitted ARIA attributes",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/calendar",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "color-contrast",
+   "help": "Elements must meet minimum color contrast ratio thresholds",
+   "nodes": [
+    "button[aria-label=\"Monday, Oct 26\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
+    "button[aria-label=\"Tuesday, Oct 27\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
+    "button[aria-label=\"Wednesday, Oct 28\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
+    "button[aria-label=\"Thursday, Oct 29\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]"
+   ],
+   "count": 6
+  }
+ },
+ {
+  "screen": "tasks/calendar",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "label-content-name-mismatch",
+   "help": "Elements must have their visible text as part of their accessible name",
+   "nodes": [
+    "button[aria-label=\"Edit “Schedule car service”\"]"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/calendar",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "region",
+   "help": "All page content should be contained by landmarks",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/lists",
+  "kind": "touch-target",
+  "detail": [
+   "button[Today] 89×38",
+   "button[All] 65×38",
+   "button[Calendar] 110×38",
+   "button[Lists] 80×38",
+   "button[New task list] 36×36",
+   "button[Reorder Groceries] 36×36",
+   "button[Reorder Reading] 36×36",
+   "button[Reorder Apartment] 36×36",
+   "button[Reorder Japan trip] 36×36",
+   "button[Reorder Ideas] 36×36",
+   "button[Reorder Gift ideas] 36×36",
+   "button[Reorder A list with a deliberately long name to te] 36×36",
+   "button[Reorder مهام البيت] 36×36"
+  ]
+ },
+ {
+  "screen": "tasks/lists",
+  "kind": "facts",
+  "detail": {
+   "interactive": 26,
+   "selectableChrome": 26,
+   "calloutNotNone": 26,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/lists",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "aria-prohibited-attr",
+   "help": "Elements must only use permitted ARIA attributes",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/lists",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "label-content-name-mismatch",
+   "help": "Elements must have their visible text as part of their accessible name",
+   "nodes": [
+    "button[aria-label=\"Open Groceries\"]",
+    "button[aria-label=\"Open Reading\"]",
+    "button[aria-label=\"Open Apartment\"]",
+    "button[aria-label=\"Open Japan trip\"]"
+   ],
+   "count": 8
+  }
+ },
+ {
+  "screen": "tasks/lists",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "region",
+   "help": "All page content should be contained by landmarks",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/new-list-sheet",
+  "kind": "touch-target",
+  "detail": [
+   "button[Close] 32×32"
+  ]
+ },
+ {
+  "screen": "tasks/new-list-sheet",
+  "kind": "facts",
+  "detail": {
+   "interactive": 3,
+   "selectableChrome": 2,
+   "calloutNotNone": 3,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": [
+    "Name this list [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
+   ]
+  }
+ },
+ {
+  "screen": "tasks/emoji-picker",
+  "kind": "touch-target",
+  "detail": [
+   "button[Close] 32×32",
+   "input[Search emoji] 367×40"
+  ]
+ },
+ {
+  "screen": "tasks/emoji-picker",
+  "kind": "facts",
+  "detail": {
+   "interactive": 82,
+   "selectableChrome": 1,
+   "calloutNotNone": 82,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": [
+    "Name this list [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
+   ]
+  }
+ },
+ {
+  "screen": "tasks/emoji-picker",
+  "kind": "axe:critical",
+  "detail": {
+   "id": "aria-valid-attr-value",
+   "help": "ARIA attributes must conform to valid values",
+   "nodes": [
+    "div[aria-rowindex=\"0\"]",
+    "button[aria-label=\"Grinning face\"]",
+    "button[aria-label=\"Slightly smiling face\"]",
+    "button[aria-label=\"Star-struck\"]"
+   ],
+   "count": 11
+  }
+ },
+ {
+  "screen": "tasks/list-detail",
+  "kind": "touch-target",
+  "detail": [
+   "button[Back to tasks] 40×40",
+   "button[Edit list] 40×40",
+   "button[Description] 124×36",
+   "button[Show completed] 51×31"
+  ]
+ },
+ {
+  "screen": "tasks/list-detail",
+  "kind": "facts",
+  "detail": {
+   "interactive": 18,
+   "selectableChrome": 9,
+   "calloutNotNone": 18,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/list-detail",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "aria-prohibited-attr",
+   "help": "Elements must only use permitted ARIA attributes",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/list-detail",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "label-content-name-mismatch",
+   "help": "Elements must have their visible text as part of their accessible name",
+   "nodes": [
+    "button[aria-label=\"Edit “A item 3”\"]"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/list-detail",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "region",
+   "help": "All page content should be contained by landmarks",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "goals",
+  "kind": "touch-target",
+  "detail": [
+   "button[New goal list] 36×36",
+   "button[Reorder Health] 36×36",
+   "button[Reorder Reading] 36×36",
+   "button[Reorder Finished things] 36×36",
+   "button[Reorder Not started] 36×36",
+   "button[Reorder Money with a long list name that has to tr] 36×36",
+   "button[Reorder Empty list] 36×36"
+  ]
+ },
+ {
+  "screen": "goals",
+  "kind": "facts",
+  "detail": {
+   "interactive": 18,
+   "selectableChrome": 18,
+   "calloutNotNone": 18,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "goals",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "aria-prohibited-attr",
+   "help": "Elements must only use permitted ARIA attributes",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "goals",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "label-content-name-mismatch",
+   "help": "Elements must have their visible text as part of their accessible name",
+   "nodes": [
+    "button[aria-label=\"Open Health\"]",
+    "button[aria-label=\"Open Reading\"]",
+    "button[aria-label=\"Open Finished things\"]",
+    "button[aria-label=\"Open Not started\"]"
+   ],
+   "count": 6
+  }
+ },
+ {
+  "screen": "goals",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "region",
+   "help": "All page content should be contained by landmarks",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "goals/list-detail",
+  "kind": "touch-target",
+  "detail": [
+   "button[Back to goals] 40×40",
+   "button[Edit goal list] 40×40",
+   "button[Add goal] 106×36",
+   "button[Edit “Write the long-form retrospective for the au] 220×22",
+   "button[Write the long-form retrospective for the autumn l] 19×38",
+   "button[Edit “Max out retirement contributions”] 220×22",
+   "button[Max out retirement contributions: 0.5 of 1. Tap to] 34×38",
+   "button[Edit “Cancel three subscriptions”] 203×22",
+   "button[Cancel three subscriptions: 2 of 3. Tap to type a ] 19×38"
+  ]
+ },
+ {
+  "screen": "goals/list-detail",
+  "kind": "facts",
+  "detail": {
+   "interactive": 20,
+   "selectableChrome": 13,
+   "calloutNotNone": 20,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "goals/list-detail",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "aria-prohibited-attr",
+   "help": "Elements must only use permitted ARIA attributes",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "goals/list-detail",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "region",
+   "help": "All page content should be contained by landmarks",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "goals/goal-sheet",
+  "kind": "touch-target",
+  "detail": [
+   "button[Close] 32×32",
+   "button[Todo, done or not done] 158×38",
+   "button[Progress, counts towards a total] 185×38"
+  ]
+ },
+ {
+  "screen": "goals/goal-sheet",
+  "kind": "facts",
+  "detail": {
+   "interactive": 5,
+   "selectableChrome": 3,
+   "calloutNotNone": 5,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": [
+    "What do you want to achieve? [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]",
+    "TEXTAREA [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
+   ]
+  }
+ },
+ {
+  "screen": "routines",
+  "kind": "touch-target",
+  "detail": [
+   "button[Previous month] 40×40",
+   "button[Next month] 40×40",
+   "button[Drink water: 8 of 8 glasses. Tap to type a value] 19×38"
+  ]
+ },
+ {
+  "screen": "routines",
+  "kind": "facts",
+  "detail": {
+   "interactive": 43,
+   "selectableChrome": 41,
+   "calloutNotNone": 43,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "routines",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "aria-prohibited-attr",
+   "help": "Elements must only use permitted ARIA attributes",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "routines",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "region",
+   "help": "All page content should be contained by landmarks",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "routines/manage+sheet",
+  "kind": "touch-target",
+  "detail": [
+   "button[Close] 32×32",
+   "button[Todo] 162×38",
+   "button[Progress] 190×38",
+   "button[Starts: Today] 88×36",
+   "button[Ends (optional)] 148×36",
+   "button[Every day] 109×38",
+   "button[Weekdays] 112×38",
+   "button[Every N days] 131×38"
+  ]
+ },
+ {
+  "screen": "routines/manage+sheet",
+  "kind": "facts",
+  "detail": {
+   "interactive": 11,
+   "selectableChrome": 9,
+   "calloutNotNone": 11,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": [
+    "Meditate, read, stretch… [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]",
+    "TEXTAREA [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
+   ]
+  }
+ },
+ {
+  "screen": "focus",
+  "kind": "touch-target",
+  "detail": [
+   "button[Edit lists] 75×36",
+   "button[Social, 8 sites, on] 148×36",
+   "button[Video, 6 sites, on] 146×36",
+   "button[News, 6 sites, off] 87×36",
+   "button[7 days] 73×32",
+   "button[30 days] 81×32"
+  ]
+ },
+ {
+  "screen": "focus",
+  "kind": "facts",
+  "detail": {
+   "interactive": 14,
+   "selectableChrome": 12,
+   "calloutNotNone": 14,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "focus",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "aria-prohibited-attr",
+   "help": "Elements must only use permitted ARIA attributes",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "focus",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "region",
+   "help": "All page content should be contained by landmarks",
+   "nodes": [
+    ".pointer-events-none"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "focus/settings-sheet",
+  "kind": "touch-target",
+  "detail": [
+   "button[Close] 32×32",
+   "button[Start breaks automatically] 51×31",
+   "button[Start focus automatically] 51×31"
+  ]
+ },
+ {
+  "screen": "focus/settings-sheet",
+  "kind": "facts",
+  "detail": {
+   "interactive": 15,
+   "selectableChrome": 3,
+   "calloutNotNone": 15,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "focus/block-lists",
+  "kind": "touch-target",
+  "detail": [
+   "button[Close] 32×32",
+   "button[Edit Social] 40×40",
+   "button[Edit Video] 40×40",
+   "button[Edit News] 40×40"
+  ]
+ },
+ {
+  "screen": "focus/block-lists",
+  "kind": "facts",
+  "detail": {
+   "interactive": 8,
+   "selectableChrome": 7,
+   "calloutNotNone": 8,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "focus/block-lists",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "label-content-name-mismatch",
+   "help": "Elements must have their visible text as part of their accessible name",
+   "nodes": [
+    "button[aria-label=\"Social, 8 sites\"]",
+    "button[aria-label=\"Video, 6 sites\"]",
+    "button[aria-label=\"News, 6 sites\"]"
+   ],
+   "count": 3
+  }
+ },
+ {
+  "screen": "settings",
+  "kind": "touch-target",
+  "detail": [
+   "a[General] 77×36",
+   "a[Appearance] 106×36",
+   "a[Quotes] 74×36",
+   "a[Notifications] 110×36",
+   "a[Security] 81×36",
+   "a[Extension] 90×36",
+   "a[Connection] 102×36",
+   "a[Data] 57×36",
+   "a[About] 66×36",
+   "button[Mon] 59×32",
+   "button[Sun] 56×32"
+  ]
+ },
+ {
+  "screen": "settings",
+  "kind": "facts",
+  "detail": {
+   "interactive": 27,
+   "selectableChrome": 23,
+   "calloutNotNone": 27,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": [
+    "INPUT [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]",
+    "INPUT [enterkeyhint=null, autocomplete=null, inputmode=numeric, autocapitalize=null]",
+    "A line worth remembering [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]",
+    "Who said it (optional) [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
+   ]
+  }
+ },
+ {
+  "screen": "settings",
+  "kind": "axe:serious",
+  "detail": {
+   "id": "aria-prohibited-attr",
+   "help": "Elements must only use permitted ARIA attributes",
+   "nodes": [
+    ".inset-x-0"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "settings",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "region",
+   "help": "All page content should be contained by landmarks",
+   "nodes": [
+    ".inset-x-0"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "lock",
+  "kind": "facts",
+  "detail": {
+   "interactive": 10,
+   "selectableChrome": 10,
+   "calloutNotNone": 10,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ }
+]

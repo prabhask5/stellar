@@ -1,0 +1,14 @@
+{
+ "S:3": {
+  "status": "Open",
+  "severity": "P2"
+ },
+ "C:19": {
+  "status": "Open",
+  "severity": "P1"
+ },
+ "X:E28": {
+  "status": "Won't fix",
+  "note": "Not a bug: the redirect works in a real Firefox (see evidence)"
+ }
+}

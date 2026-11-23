@@ -1,0 +1,85 @@
+{
+ "/": {
+  "performance": 73,
+  "accessibility": 95,
+  "bestPractices": 100,
+  "lcpMs": 776,
+  "fcpMs": 776,
+  "tbtMs": 1712,
+  "cls": 0.045,
+  "failedA11y": [
+   "aria-prohibited-attr"
+  ],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/tasks": {
+  "performance": 54,
+  "accessibility": 96,
+  "bestPractices": 100,
+  "lcpMs": 7532,
+  "fcpMs": 783,
+  "tbtMs": 1010,
+  "cls": 0.035,
+  "failedA11y": [
+   "aria-prohibited-attr",
+   "label-content-name-mismatch"
+  ],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/goals": {
+  "performance": 64,
+  "accessibility": 96,
+  "bestPractices": 100,
+  "lcpMs": 3645,
+  "fcpMs": 768,
+  "tbtMs": 1500,
+  "cls": 0,
+  "failedA11y": [
+   "aria-prohibited-attr",
+   "label-content-name-mismatch"
+  ],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/routines": {
+  "performance": 81,
+  "accessibility": 96,
+  "bestPractices": 100,
+  "lcpMs": 784,
+  "fcpMs": 784,
+  "tbtMs": 813,
+  "cls": 0.019,
+  "failedA11y": [
+   "aria-prohibited-attr"
+  ],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/focus": {
+  "performance": 47,
+  "accessibility": 96,
+  "bestPractices": 100,
+  "lcpMs": 7526,
+  "fcpMs": 771,
+  "tbtMs": 2075,
+  "cls": 0.005,
+  "failedA11y": [
+   "aria-prohibited-attr"
+  ],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/settings": {
+  "performance": 25,
+  "accessibility": 97,
+  "bestPractices": 100,
+  "lcpMs": 7430,
+  "fcpMs": 779,
+  "tbtMs": 1677,
+  "cls": 0.839,
+  "failedA11y": [
+   "aria-prohibited-attr"
+  ],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/lock": {
+  "error": "Lighthouse could not measure this route (see AUDIT.md)"
+ }
+}

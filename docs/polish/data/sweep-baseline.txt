@@ -1,0 +1,270 @@
+1051 entries, 134 distinct
+
+ 110 × console.error | Failed to load resource: net::ERR_INTERNET_DISCONNECTED |  | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+ 107 × console.error | Failed to load resource: WebKit encountered an internal error |  | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+  79 × console.warning | [JavaScript Warning: "WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER." {file: "/_next/static/… line: 1}] |  | 
+         projects: firefox-desktop · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+  79 × console.warning | [JavaScript Warning: "WebGL context was lost." {file: "/_next/static/… line: 1}] |  | 
+         projects: firefox-desktop · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+  52 × console.warning | [JavaScript Warning: "Ignoring unsupported entryTypes: layout-shift." {file: "debugger eval code" line: 12}] |  | 
+         projects: firefox-desktop · e.g. an unconfigured instance sends every route to /setup ; full flow: connect, migrate, PIN, profile, done
+  48 × console.warning | THREE.Clock: This module has been deprecated. Please use THREE.Timer instead. |  | 
+         projects: webkit-iphone-15-pro, firefox-desktop, webkit-iphone-15-pro-landscape, webkit-iphone-se, iphone-15-pro, iphone-se, desktop · e.g. the 3D scene loads after first paint and never blocks the interface ; the canvas persists across navigation and dims behind other pages
+  37 × console.error | Failed to load resource: the server responded with a status of 401 (Unauthorized) |  | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se, iphone-15-pro, iphone-se, desktop · e.g. signed-out visitors land on the lock screen and can unlock ; five wrong PINs lock sign-in for 30 seconds, then it doubles
+  35 × http |  | POST /api/v1/auth/pin | 401
+         projects: webkit-iphone-15-pro, firefox-desktop, webkit-iphone-15-pro-landscape, webkit-iphone-se, iphone-15-pro, iphone-se, desktop · e.g. signed-out visitors land on the lock screen and can unlock ; five wrong PINs lock sign-in for 30 seconds, then it doubles
+  34 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /api/v1/auth/session | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+  31 × requestfailed | WebKit encountered an internal error | GET /api/v1/auth/session | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+  20 × cls |  |  |  max 0.7008
+         projects: iphone-15-pro, iphone-se, desktop · e.g. manual path: copy the SQL, run it, verify ; export downloads everything and import merges it back
+  15 × requestfailed | NS_ERROR_OFFLINE | GET /api/v1/auth/session | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+  14 × requestfailed | cancelled | GET /_next/static/… | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. an unconfigured instance sends every route to /setup ; signed-out visitors land on the lock screen and can unlock
+  14 × pageerror | Error: Minified React error #418; visit /errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpfu |  | 
+         projects: webkit-iphone-15-pro, firefox-desktop, webkit-iphone-15-pro-landscape, webkit-iphone-se, iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+  10 × console.warning | [JavaScript Warning: "The resource at “/_next/static/… preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set  |  | 
+         projects: firefox-desktop · e.g. full flow: connect, migrate, PIN, profile, done ; five wrong PINs lock sign-in for 30 seconds, then it doubles
+   9 × requestfailed | WebKit encountered an internal error | GET /manifest.webmanifest | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   9 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET / | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   9 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /tasks | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   9 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /goals | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   9 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /routines | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   9 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /focus | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   7 × http |  | POST /api/v1/auth/pin | 423
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se, iphone-15-pro, iphone-se, desktop · e.g. five wrong PINs lock sign-in for 30 seconds, then it doubles
+   7 × console.error | Failed to load resource: the server responded with a status of 423 (Locked) |  | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se, iphone-15-pro, iphone-se, desktop · e.g. five wrong PINs lock sign-in for 30 seconds, then it doubles
+   7 × requestfailed | net::ERR_ABORTED | GET /lock | 
+         projects: iphone-15-pro, iphone-se · e.g. signed-out visitors land on the lock screen and can unlock
+   6 × requestfailed | WebKit encountered an internal error | GET / | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   6 × requestfailed | WebKit encountered an internal error | GET /tasks | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   6 × requestfailed | WebKit encountered an internal error | GET /goals | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   6 × requestfailed | WebKit encountered an internal error | GET /routines | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   6 × requestfailed | WebKit encountered an internal error | GET /focus | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   6 × requestfailed | net::ERR_ABORTED | POST /rest/v1/rpc/sp_universe_snapshot | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+   6 × requestfailed | net::ERR_ABORTED | POST /rest/v1/rpc/sp_bootstrap | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+   6 × requestfailed | net::ERR_ABORTED | GET /rest/v1/sp_tasks | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+   6 × requestfailed | net::ERR_ABORTED | POST /rest/v1/rpc/sp_focus_get | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+   6 × console.warning | Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: /multipage/canvas.html#concept-canvas-will-re |  | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. completing tasks plays one coalesced ignition that never blocks input, then clears ; Minimal and reduced motion keep a static sky and swap events for a soft glow
+   5 × requestfailed | cancelled | POST /rest/v1/rpc/sp_bootstrap | 
+         projects: webkit-iphone-15-pro, webkit-iphone-se · e.g. full flow: connect, migrate, PIN, profile, done ; manifest, icons and iOS meta are in place
+   5 × requestfailed | cancelled | GET /api/v1/auth/session | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. signed-out visitors land on the lock screen and can unlock ; opens offline from the service worker, queues changes, and replays them on reconnect
+   5 × requestfailed | WebKit encountered an internal error | POST /rest/v1/rpc/sp_focus_stats | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   5 × requestfailed | WebKit encountered an internal error | GET /rest/v1/sp_block_lists | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   5 × requestfailed | WebKit encountered an internal error | GET /rest/v1/sp_block_list_sites | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   5 × requestfailed | WebKit encountered an internal error | GET /rest/v1/sp_focus_sessions | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   5 × requestfailed | net::ERR_ABORTED | GET /_next/static/… | 
+         projects: iphone-15-pro, iphone-se · e.g. manifest, icons and iOS meta are in place
+   4 × http |  | GET /api/v1/auth/session | 401
+         projects: firefox-desktop, webkit-iphone-se, iphone-15-pro · e.g. signed-out visitors land on the lock screen and can unlock
+   4 × console.error | [JavaScript Error: "Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at /rest/v1/rpc/sp_focus_stats. (Reason: CORS request did n |  | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   4 × console.error | [JavaScript Error: "Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at /rest/v1/sp_block_lists?select=*&deleted_at=is.null. (Re |  | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   4 × console.error | [JavaScript Error: "Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at /rest/v1/sp_block_list_sites?select=*&limit=N. (Reason:  |  | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   4 × console.error | [JavaScript Error: "Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at /rest/v1/sp_focus_sessions?select=*&ended_at=gte.N-10-14 |  | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   4 × requestfailed | net::ERR_ABORTED | GET /goals | 
+         projects: iphone-15-pro, iphone-se · e.g. full flow: connect, migrate, PIN, profile, done ; manifest, icons and iOS meta are in place
+   4 × requestfailed | net::ERR_ABORTED | GET /rest/v1/sp_routines | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+   4 × requestfailed | net::ERR_ABORTED | GET /rest/v1/sp_routine_logs | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+   4 × requestfailed | net::ERR_ABORTED | GET /rest/v1/sp_focus_sessions | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+   4 × requestfailed | net::ERR_ABORTED | GET /api/v1/auth/session | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. signed-out visitors land on the lock screen and can unlock ; manifest, icons and iOS meta are in place
+   4 × requestfailed | net::ERR_ABORTED | GET /tasks | 
+         projects: iphone-15-pro, iphone-se · e.g. manifest, icons and iOS meta are in place ; full flow: connect, migrate, PIN, profile, done
+   3 × console.error | WebSocket connection to 'ws://127.0.0.1:N/realtime/v1/websocket?apikey=…&eventsPerSecond=20&vsn=2.0.0' failed: WebSocket is closed before the connection is established. |  | 
+         projects: webkit-iphone-15-pro, webkit-iphone-se · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+   3 × requestfailed | cancelled | GET /settings | 
+         projects: webkit-iphone-15-pro, webkit-iphone-se · e.g. manifest, icons and iOS meta are in place ; full flow: connect, migrate, PIN, profile, done
+   3 × requestfailed | cancelled | GET /routines | 
+         projects: webkit-iphone-15-pro, webkit-iphone-se · e.g. manifest, icons and iOS meta are in place ; full flow: connect, migrate, PIN, profile, done
+   3 × pageerror | Fetch API cannot load http: /127.0.0.1:N/?_rsc=… due to access control checks. |  | 
+         projects: webkit-iphone-15-pro, webkit-iphone-se · e.g. manifest, icons and iOS meta are in place ; full flow: connect, migrate, PIN, profile, done
+   3 × requestfailed | WebKit encountered an internal error | HEAD /extension/stellar-planner-chrome.zip | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | WebKit encountered an internal error | HEAD /extension/stellar-planner-firefox.zip | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | WebKit encountered an internal error | GET /api/v1/devices | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | WebKit encountered an internal error | GET /api/setup/connection | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | WebKit encountered an internal error | GET /api/health | 
+         projects: webkit-iphone-15-pro, webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | cancelled | GET /api/setup/state | 
+         projects: webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. an unconfigured instance sends every route to /setup
+   3 × requestfailed | cancelled | POST /rest/v1/rpc/sp_universe_snapshot | 
+         projects: webkit-iphone-se · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+   3 × requestfailed | cancelled | POST /rest/v1/rpc/sp_focus_get | 
+         projects: webkit-iphone-se · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+   3 × requestfailed | net::ERR_ABORTED | GET /settings | 
+         projects: iphone-15-pro, iphone-se · e.g. full flow: connect, migrate, PIN, profile, done ; manifest, icons and iOS meta are in place
+   3 × requestfailed | net::ERR_ABORTED | GET /routines | 
+         projects: iphone-15-pro, iphone-se · e.g. full flow: connect, migrate, PIN, profile, done ; manifest, icons and iOS meta are in place
+   3 × console.warning | [.WebGL-0xNa00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels |  | 
+         projects: iphone-15-pro · e.g. settings persist, and Undo restores a removed quote
+   3 × requestfailed | net::ERR_INTERNET_DISCONNECTED | HEAD /extension/stellar-planner-chrome.zip | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | net::ERR_INTERNET_DISCONNECTED | HEAD /extension/stellar-planner-firefox.zip | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /api/v1/devices | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /api/setup/connection | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /api/health | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /rest/v1/sp_focus_sessions | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /rest/v1/sp_block_list_sites | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | net::ERR_INTERNET_DISCONNECTED | POST /rest/v1/rpc/sp_focus_stats | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /rest/v1/sp_block_lists | 
+         projects: iphone-15-pro, iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   3 × console.warning | [.WebGL-0x12cNb200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels |  | 
+         projects: iphone-se · e.g. settings persist, and Undo restores a removed quote
+   3 × console.warning | [.WebGL-0x13cNdc00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels |  | 
+         projects: desktop · e.g. settings persist, and Undo restores a removed quote
+   3 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /settings | 
+         projects: desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   2 × console.error | [JavaScript Error: "Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at /rest/v1/rpc/sp_universe_snapshot. (Reason: CORS request |  | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   2 × requestfailed | NS_BINDING_ABORTED | GET /_next/static/… | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   2 × console.warning | [JavaScript Warning: "Loading failed for the <script> with source “/_next/static/… {file: "/settings" line: 1}] |  | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   2 × requestfailed | NS_ERROR_DOM_BAD_URI | POST /rest/v1/rpc/sp_focus_stats | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   2 × requestfailed | NS_ERROR_DOM_BAD_URI | GET /rest/v1/sp_block_lists | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   2 × requestfailed | NS_ERROR_DOM_BAD_URI | GET /rest/v1/sp_block_list_sites | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   2 × requestfailed | NS_ERROR_DOM_BAD_URI | GET /rest/v1/sp_focus_sessions | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   2 × pageerror | Cannot load http: /127.0.0.1:N/sw.js due to access control checks. |  | 
+         projects: webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. an unconfigured instance sends every route to /setup
+   2 × console.warning | [sw] registration failed SecurityError: Script /sw.js load failed |  | 
+         projects: webkit-iphone-15-pro-landscape, webkit-iphone-se · e.g. an unconfigured instance sends every route to /setup
+   2 × requestfailed | WebKit encountered an internal error | GET /settings | 
+         projects: webkit-iphone-15-pro-landscape · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   2 × requestfailed | cancelled | GET /goals | 
+         projects: webkit-iphone-se · e.g. full flow: connect, migrate, PIN, profile, done ; manifest, icons and iOS meta are in place
+   2 × requestfailed | cancelled | GET /rest/v1/sp_tasks | 
+         projects: webkit-iphone-se · e.g. full flow: connect, migrate, PIN, profile, done ; signed-out visitors land on the lock screen and can unlock
+   2 × requestfailed | cancelled | GET /tasks | 
+         projects: webkit-iphone-se · e.g. full flow: connect, migrate, PIN, profile, done ; manifest, icons and iOS meta are in place
+   2 × pageerror | Fetch API cannot load http: /127.0.0.1:N/focus?_rsc=… due to access control checks. |  | 
+         projects: webkit-iphone-se · e.g. full flow: connect, migrate, PIN, profile, done ; manifest, icons and iOS meta are in place
+   2 × requestfailed | net::ERR_ABORTED | GET / | 
+         projects: iphone-15-pro, iphone-se · e.g. manifest, icons and iOS meta are in place
+   2 × requestfailed | net::ERR_ABORTED | GET /rest/v1/sp_quotes | 
+         projects: iphone-se, desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | cancelled | GET /focus | 
+         projects: webkit-iphone-15-pro · e.g. manifest, icons and iOS meta are in place
+   1 × pageerror | Fetch API cannot load http: /127.0.0.1:N/tasks?_rsc=… due to access control checks. |  | 
+         projects: webkit-iphone-15-pro · e.g. manifest, icons and iOS meta are in place
+   1 × pageerror | Fetch API cannot load http: /127.0.0.1:N/goals?_rsc=… due to access control checks. |  | 
+         projects: webkit-iphone-15-pro · e.g. manifest, icons and iOS meta are in place
+   1 × console.error | [JavaScript Error: "The connection to ws://127.0.0.1:N/realtime/v1/websocket?apikey=…&eventsPerSecond=20&vsn=2.0.0 was interrupted while the page was loading." {file: "/_ |  | 
+         projects: firefox-desktop · e.g. full flow: connect, migrate, PIN, profile, done
+   1 × requestfailed | NS_BINDING_ABORTED | GET /icons/icon-192.png | 
+         projects: firefox-desktop · e.g. signed-out visitors land on the lock screen and can unlock
+   1 × requestfailed | NS_BINDING_ABORTED | GET /icons/favicon-32.png | 
+         projects: firefox-desktop · e.g. signed-out visitors land on the lock screen and can unlock
+   1 × console.error | [JavaScript Error: "Failed to load ‘/icons/icon-192.png’. A ServiceWorker intercepted the request and encountered an unexpected error." {file: "/sw.js" line: 2}] |  | 
+         projects: firefox-desktop · e.g. signed-out visitors land on the lock screen and can unlock
+   1 × console.error | [JavaScript Error: "Failed to load ‘/icons/favicon-32.png’. A ServiceWorker intercepted the request and encountered an unexpected error." {file: "/sw.js" line: 2}] |  | 
+         projects: firefox-desktop · e.g. signed-out visitors land on the lock screen and can unlock
+   1 × console.warning | [JavaScript Warning: "Exited fullscreen because fullscreen element was removed from document." {file: "/_next/static/… line: 1}] |  | 
+         projects: firefox-desktop · e.g. timer settings, keyboard control and fullscreen
+   1 × console.warning | [JavaScript Warning: "WebGL context was lost." {file: "/_next/static/… line: 347}] |  | 
+         projects: firefox-desktop · e.g. crossing a threshold announces the new Era
+   1 × requestfailed | NS_ERROR_DOM_BAD_URI | POST /rest/v1/rpc/sp_universe_snapshot | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | NS_ERROR_OFFLINE | HEAD /extension/stellar-planner-chrome.zip | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | NS_ERROR_OFFLINE | HEAD /extension/stellar-planner-firefox.zip | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | NS_ERROR_OFFLINE | GET /api/v1/devices | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | NS_ERROR_OFFLINE | GET /api/setup/connection | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | NS_ERROR_OFFLINE | GET /api/health | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × console.error | [JavaScript Error: "Failed to load ‘/_next/static/… A ServiceWorker intercepted the request and encountered an unexpected error." {file: "/sw.js" line: 2}] |  | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | NS_ERROR_OFFLINE | GET / | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | NS_ERROR_OFFLINE | GET /tasks | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | NS_ERROR_OFFLINE | GET /goals | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | NS_ERROR_OFFLINE | GET /routines | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | NS_ERROR_OFFLINE | GET /focus | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | NS_ERROR_OFFLINE | GET /settings | 
+         projects: firefox-desktop · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | cancelled | GET /rest/v1/sp_quotes | 
+         projects: webkit-iphone-15-pro-landscape · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | cancelled | GET /sw.js | 
+         projects: webkit-iphone-se · e.g. an unconfigured instance sends every route to /setup
+   1 × console.warning | [sw] registration failed TypeError: Script /sw.js load failed |  | 
+         projects: webkit-iphone-se · e.g. an unconfigured instance sends every route to /setup
+   1 × requestfailed | cancelled | GET /rest/v1/sp_routine_logs | 
+         projects: webkit-iphone-se · e.g. full flow: connect, migrate, PIN, profile, done
+   1 × requestfailed | cancelled | GET /rest/v1/sp_routines | 
+         projects: webkit-iphone-se · e.g. full flow: connect, migrate, PIN, profile, done
+   1 × requestfailed | cancelled | GET /rest/v1/sp_focus_sessions | 
+         projects: webkit-iphone-se · e.g. full flow: connect, migrate, PIN, profile, done
+   1 × requestfailed | cancelled | GET /rest/v1/sp_task_lists | 
+         projects: webkit-iphone-se · e.g. signed-out visitors land on the lock screen and can unlock
+   1 × requestfailed | cancelled | GET / | 
+         projects: webkit-iphone-se · e.g. manifest, icons and iOS meta are in place
+   1 × pageerror | Fetch API cannot load http: /127.0.0.1:N/api/v1/auth/session due to access control checks. |  | 
+         projects: webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × pageerror | Fetch API cannot load http: /127.0.0.1:N/rest/v1/sp_quotes?select=*&limit=N due to access control checks. |  | 
+         projects: webkit-iphone-se · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × requestfailed | net::ERR_ABORTED | GET /focus | 
+         projects: iphone-15-pro · e.g. full flow: connect, migrate, PIN, profile, done
+   1 × requestfailed | net::ERR_ABORTED | GET /rest/v1/sp_task_lists | 
+         projects: iphone-15-pro · e.g. signed-out visitors land on the lock screen and can unlock
+   1 × console.warning | [.WebGL-0xNa00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat) |  | 
+         projects: iphone-15-pro · e.g. settings persist, and Undo restores a removed quote
+   1 × requestfailed | net::ERR_INTERNET_DISCONNECTED | GET /rest/v1/sp_quotes | 
+         projects: iphone-15-pro · e.g. opens offline from the service worker, queues changes, and replays them on reconnect
+   1 × console.warning | [.WebGL-0x12cNb200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat) |  | 
+         projects: iphone-se · e.g. settings persist, and Undo restores a removed quote
+   1 × console.warning | [.WebGL-0x13cNdc00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat) |  | 
+         projects: desktop · e.g. settings persist, and Undo restores a removed quote

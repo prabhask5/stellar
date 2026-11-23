@@ -34,7 +34,7 @@ for (const file of readdirSync(D)
     else if (r.kind === "scan-error")
       errors.push(
         `${r.screen}: ${String(r.detail)
-          .replace(/\u001b\[\d+m/g, "")
+          .replaceAll(String.fromCharCode(27), "").replace(/\[\d+m/g, "")
           .slice(0, 160)}`,
       );
     else if (r.kind === "facts") {
@@ -90,5 +90,5 @@ writeFileSync(
   `${out.join("\n")}\n`,
 );
 console.info(
-  out.filter((l) => /^## |^- (Screens|Distinct|Horizontal|Interactive)|^  - /.test(l)).join("\n"),
+  out.filter((l) => /^## |^- (Screens|Distinct|Horizontal|Interactive)|^ {2}- /.test(l)).join("\n"),
 );

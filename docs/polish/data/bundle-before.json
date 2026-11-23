@@ -1,0 +1,34 @@
+{
+ "/": {
+  "kb": 199.2,
+  "limit": 200
+ },
+ "/tasks": {
+  "kb": 224.3,
+  "limit": 230
+ },
+ "/goals": {
+  "kb": 218.6,
+  "limit": 230
+ },
+ "/routines": {
+  "kb": 203.5,
+  "limit": 230
+ },
+ "/focus": {
+  "kb": 222.4,
+  "limit": 230
+ },
+ "/settings": {
+  "kb": 201.1,
+  "limit": 230
+ },
+ "/lock": {
+  "kb": 153.2,
+  "limit": 200
+ },
+ "/setup": {
+  "kb": 166,
+  "limit": 200
+ }
+}
