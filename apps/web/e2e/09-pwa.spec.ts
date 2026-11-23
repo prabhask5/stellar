@@ -3,6 +3,7 @@ import {
   applyInsets,
   ensureConfigured,
   expect,
+  isTouch,
   type Insets,
   signIn,
   sql,
@@ -88,7 +89,7 @@ test.describe("PWA", () => {
     expect((await request.get(first!)).ok()).toBe(true);
     // The "Add to Home Screen" hint is for iOS Safari only, and stays gone once dismissed.
     const hint = page.getByTestId("install-hint");
-    if (info.project.name.startsWith("iphone")) {
+    if (isTouch(info.project.name)) {
       await expect(hint).toContainText("Add to Home Screen");
       await hint.getByRole("button", { name: "Dismiss" }).click();
       await expect(hint).toHaveCount(0);

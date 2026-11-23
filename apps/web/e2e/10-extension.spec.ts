@@ -18,6 +18,7 @@ const OWNER = "(select id from auth.users where email = 'owner@stellar.local')";
 const EXTENSION = path.resolve(import.meta.dirname, "../../extension/.output/chrome-mv3");
 // *.localhost resolves to this machine, which gives us a "site" to block that is really reachable.
 const SITE = "blocked.localhost";
+const PORT = process.env.E2E_PORT ?? "3100";
 
 async function launch(
   baseURL: string,
@@ -129,7 +130,7 @@ test.describe("browser extension", () => {
 
       // A tab already open on a site that is about to be blocked.
       const open = await context.newPage();
-      await open.goto(`http://${SITE}:3100/api/health`);
+      await open.goto(`http://${SITE}:${PORT}/api/health`);
       await expect(open.locator("body")).toContainText('"status":"ok"');
 
       // Start from the popup: every device follows, and blocking begins.
@@ -144,7 +145,7 @@ test.describe("browser extension", () => {
       // The already-open tab was redirected to the block page, which counts down live.
       await expect(open).toHaveURL(
         new RegExp(
-          `^chrome-extension://${id}/blocked\\.html\\?site=${SITE.replace(".", "\\.")}#http://${SITE.replace(".", "\\.")}:3100/api/health$`,
+          `^chrome-extension://${id}/blocked\\.html\\?site=${SITE.replace(".", "\\.")}#http://${SITE.replace(".", "\\.")}:${PORT}/api/health$`,
         ),
       );
       await expect(open.getByRole("heading", { name: "This orbit is closed." })).toBeVisible();
@@ -153,7 +154,7 @@ test.describe("browser extension", () => {
       const first = await open.getByTestId("countdown").innerText();
       await expect(open.getByTestId("countdown")).not.toHaveText(first, { timeout: 3000 });
       await expect(
-        open.getByText(/Synced with 127\.0\.0\.1:3100 · Blocking Social, News/),
+        open.getByText(`Synced with 127.0.0.1:${PORT} · Blocking Social, News`),
       ).toBeVisible();
       await open.screenshot({ path: `${SHOTS_DIR}/desktop/extension-blocked.png` });
       // No bypass is offered.
@@ -180,7 +181,7 @@ test.describe("browser extension", () => {
       await expect(open.getByText("paused", { exact: true })).toBeVisible({ timeout: 8000 });
       await expect(popup.getByRole("button", { name: "Resume" })).toBeVisible();
       expect(await rules(popup)).toBe(3);
-      await fresh.goto(`http://${SITE}:3100/api/health`).catch(() => undefined);
+      await fresh.goto(`http://${SITE}:${PORT}/api/health`).catch(() => undefined);
       await expect(fresh).toHaveURL(/blocked\.html/);
 
       // Removing a list's site on another device updates the rules live.
@@ -193,7 +194,7 @@ test.describe("browser extension", () => {
       await expect.poll(() => rules(popup)).toBe(0);
       await expect(open.getByRole("heading", { name: "Focus complete" })).toBeVisible();
       const link = open.getByRole("link", { name: `Continue to ${SITE}` });
-      await expect(link).toHaveAttribute("href", `http://${SITE}:3100/api/health`);
+      await expect(link).toHaveAttribute("href", `http://${SITE}:${PORT}/api/health`);
       await link.click();
       await expect(open.locator("body")).toContainText('"status":"ok"');
       expect(await badge(popup)).toBe("");

@@ -20,3 +20,4 @@ apps/web/playwright-report
 apps/web/e2e/.tmp
 next-env.d.ts
 .claude/settings.local.json
+dev/supabase-official/official.env

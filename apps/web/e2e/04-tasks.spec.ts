@@ -3,6 +3,7 @@ import {
   ensureConfigured,
   expect,
   isPhone,
+  isTouch,
   signIn,
   sql,
   swipe as touchSwipe,
@@ -437,7 +438,7 @@ test.describe("tasks", () => {
   });
 
   test("swipe right completes, swipe left offers Reschedule and Delete", async ({ page }, info) => {
-    test.skip(!isPhone(info.project.name), "swipe actions are for touch devices");
+    test.skip(!isTouch(info.project.name), "swipe actions are for touch devices");
     await seedMockup();
     await page.goto("/tasks");
     const swipe = async (text: string, dx: number) => {

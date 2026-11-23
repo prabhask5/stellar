@@ -10,7 +10,8 @@
     "zip": "wxt zip && wxt zip -b firefox --mv3 && node scripts/publish-zips.mjs",
     "typecheck": "wxt prepare && tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "smoke:firefox": "node scripts/firefox-smoke.mjs"
   },
   "dependencies": {
     "@stellar/db": "workspace:*",
@@ -25,6 +26,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@wxt-dev/module-react": "^1.2.2",
+    "selenium-webdriver": "^4.53.0",
     "vitest": "^5.1.1",
     "wxt": "^0.21.5"
   }

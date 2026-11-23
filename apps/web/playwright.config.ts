@@ -4,11 +4,15 @@ const PORT = Number(process.env.E2E_PORT ?? 3100);
 const baseURL = `http://127.0.0.1:${PORT}`;
 
 /**
- * Projects cover the three primary targets. Extra viewports from the SPEC §9.1
- * device matrix are exercised inside e2e/safe-area.spec.ts via setViewportSize.
+ * Projects: the three original Chromium targets, plus WebKit with iPhone descriptors
+ * (the closest automated proxy for iOS Safari, and the primary mobile target) and
+ * Firefox on desktop. Extra viewports from the SPEC §9.1 device matrix are exercised
+ * inside e2e/09-pwa.spec.ts via setViewportSize.
  */
 export default defineConfig({
   testDir: "./e2e",
+  // The audit specs (POLISH_SPEC §2) measure and probe; they run only when asked for.
+  testIgnore: process.env.AUDIT ? [] : ["**/audit/**"],
   outputDir: "./test-results",
   fullyParallel: false,
   workers: 1,
@@ -36,6 +40,33 @@ export default defineConfig({
         defaultBrowserType: "chromium",
       },
     },
+    {
+      name: "webkit-iphone-15-pro",
+      use: { ...devices["iPhone 15 Pro"], browserName: "webkit", defaultBrowserType: "webkit" },
+    },
+    {
+      name: "webkit-iphone-se",
+      use: {
+        ...devices["iPhone SE"],
+        viewport: { width: 375, height: 667 },
+        browserName: "webkit",
+        defaultBrowserType: "webkit",
+      },
+    },
+    {
+      // The installed app in landscape: full 852×393 screen, insets left and right.
+      name: "webkit-iphone-15-pro-landscape",
+      use: {
+        ...devices["iPhone 15 Pro landscape"],
+        viewport: { width: 852, height: 393 },
+        browserName: "webkit",
+        defaultBrowserType: "webkit",
+      },
+    },
+    {
+      name: "firefox-desktop",
+      use: { ...devices["Desktop Firefox"], viewport: { width: 1280, height: 800 } },
+    },
   ],
   webServer: {
     command: process.env.E2E_DEV
@@ -45,7 +76,8 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
     env: {
-      STELLAR_DATA_DIR: new URL("./e2e/.tmp/data", import.meta.url).pathname,
+      STELLAR_DATA_DIR: new URL(`./e2e/${process.env.E2E_DATA_DIR ?? ".tmp/data"}`, import.meta.url)
+        .pathname,
       PORT: String(PORT),
       HOSTNAME: "127.0.0.1",
     },

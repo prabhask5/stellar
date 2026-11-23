@@ -1,8 +1,10 @@
 import {
   ensureConfigured,
   expect,
+  insetsFor,
   isPhone,
   signIn,
+  SUPABASE_URL,
   sql,
   test,
   uniqueIp,
@@ -40,7 +42,7 @@ test.describe("app shell", () => {
     if (isPhone(info.project.name)) {
       const box = (await nav.boundingBox())!;
       const viewport = page.viewportSize()!;
-      const bottomInset = info.project.name === "iphone-15-pro" ? 34 : 12;
+      const bottomInset = insetsFor(info.project.name) === "island" ? 34 : 12;
       expect(Math.round(viewport.height - (box.y + box.height))).toBe(bottomInset);
       // The Today card clears the tab bar.
       const cardBox = (await card.boundingBox())!;
@@ -98,7 +100,7 @@ test.describe("app shell", () => {
 
     await expect(page.getByTestId("devices")).toContainText("This device");
     await expect(page.getByTestId("connection")).toContainText("Connected");
-    await expect(page.getByTestId("connection")).toContainText("127.0.0.1:54321");
+    await expect(page.getByTestId("connection")).toContainText(new URL(SUPABASE_URL).host);
     await shot("settings");
 
     // Reload: everything comes back from the server (and from the persisted cache first).

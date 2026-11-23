@@ -4,10 +4,12 @@ import {
   uniqueIp,
   ensureConfigured,
   expect,
+  insetsFor,
   isPhone,
   PIN,
   resetInstance,
   signIn,
+  SUPABASE_URL,
   sql,
   test,
 } from "./helpers";
@@ -37,7 +39,7 @@ test.describe("PIN login", () => {
         bottom: parseFloat(cs.getPropertyValue("--sab")) || 0,
       };
     });
-    if (info.project.name === "iphone-15-pro") expect(insets.top).toBe(59);
+    if (insetsFor(info.project.name) === "island") expect(insets.top).toBe(59);
     expect(box!.y).toBeGreaterThanOrEqual(insets.top);
     const unlock = await page.getByRole("button", { name: "Unlock" }).boundingBox();
     const viewport = page.viewportSize()!;
@@ -214,7 +216,7 @@ test.describe("PIN login", () => {
     const session = await (await a.request.get("/api/v1/auth/session")).json();
     expect(session.access_token).toBeTruthy();
     expect(session.refresh_token).toBeUndefined();
-    expect(session.supabase_url).toContain("54321");
+    expect(session.supabase_url).toBe(SUPABASE_URL);
 
     expect((await a.request.post("/api/v1/auth/logout-everywhere")).ok()).toBe(true);
     expect((await a.request.get("/api/v1/auth/session")).status()).toBe(401);
