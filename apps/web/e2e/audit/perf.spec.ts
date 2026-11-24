@@ -264,6 +264,8 @@ test.describe("perf", () => {
     const minutes = Number(process.env.AUDIT_MEMORY_MIN ?? 0);
     test.skip(!minutes, "set AUDIT_MEMORY_MIN (30 for the full run)");
     test.setTimeout((minutes + 5) * 60_000);
+    // A step that cannot find its control fails within seconds, not at the end of the session.
+    page.setDefaultTimeout(15_000);
     await sql(`update sp_settings set quality_tier = 'balanced'`);
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Performance.enable");
@@ -302,7 +304,9 @@ test.describe("perf", () => {
           await page.keyboard.press("Escape");
         }
         if (name === "Goals") {
-          await page.getByRole("button", { name: /^Open Health/ }).click();
+          // The tab remembers an open list, so from the second round it is already open.
+          const open = page.getByRole("button", { name: /^Open Health/ });
+          if (await open.count()) await open.click();
           await page.getByRole("button", { name: "Increase Workouts this quarter" }).click();
           await page.waitForTimeout(300);
           await page.getByRole("button", { name: "Decrease Workouts this quarter" }).click();

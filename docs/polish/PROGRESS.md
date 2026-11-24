@@ -66,7 +66,7 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done and verified · `[!]` bloc
 
 ## Phase 4 — Fix P2 and P3
 
-- [x] Every remaining AUDIT entry is Fixed, Won't fix (with reason) or Needs device check: 123 Fixed · 112 Won't fix · 14 Needs device check
+- [x] Every remaining AUDIT entry is Fixed, Won't fix (with reason) or Needs device check: 122 Fixed · 113 Won't fix · 14 Needs device check
 - [x] Commit `578204a`
 
 ## Phase 5 — Verify & hand off
@@ -74,8 +74,8 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done and verified · `[!]` bloc
 - [x] `docs/polish/PERF.md` before/after table (re-measured in a clean state; see its notes)
 - [x] `docs/polish/AUDIT.md` statuses final
 - [x] `docs/polish/IPHONE_CHECKLIST.md`
-- [ ] Full matrix on the final build, final sweep, `docker build .` (results recorded in the summary below)
-- [ ] Branch `polish/pass-1` pushed, not merged
+- [x] Full matrix, final sweep and scans, `docker build .` (results in the summary below)
+- [x] Branch `polish/pass-1` pushed, not merged
 
 ## Environment notes
 
@@ -87,4 +87,30 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done and verified · `[!]` bloc
 
 ## Summary
 
-(written in Phase 5)
+### What changed, by area
+
+- **Sync and data integrity.** Offline changes no longer get lost or overwrite each other: edits to one row chain correctly, a change the server rejects no longer blocks the queue behind it, a task created and completed offline is completed after reconnect, goal increments are applied once even when a request is retried (migration 0010), tabs share one queue, requests time out instead of hanging, and a refetch merges with pending changes instead of replacing them.
+- **Dates.** "Today" is the owner's day from the first launch on a new device, and rolls over at midnight and on return from the background.
+- **Lock and security.** Nothing behind the lock is reachable by keyboard, PIN guesses are evaluated one at a time, the lockout decays, Verify cannot take a configured instance down, cross-site cookie writes are refused, request bodies are capped, baseline security headers are sent.
+- **Updating.** Migrations run by themselves when the new build starts. No SQL to run by hand.
+- **Native feel (iPhone PWA).** Pressed states on touch-down, no text selection or callouts on chrome, 44 px hit areas, haptics where the platform allows, sheets that drag with detents, row swipes, edge-swipe back, large-title bar, tab memory, state restored after iOS ends the app, keyboard handling, landscape layouts.
+- **Accessibility.** No serious or critical axe violations on any scanned screen; Lighthouse accessibility 100 on every route (95–97 before).
+- **Universe.** Yields to scrolling and typing, no throwaway WebGL context per page load, textures disposed, lost contexts recovered, an explicitly chosen quality tier is kept.
+- **Extension.** Offline is no longer mistaken for signed out, sign-out everywhere stops blocking, trailing-dot hostnames are blocked, regex fallback where unsupported; verified in Chromium and a real Firefox.
+- **Performance.** Initial JavaScript within budget on every route (Home 199.1 KB against 199.2 KB before); 1,000 extra tasks render in 1.2–1.5 s instead of 3.6–5.1 s; Settings layout shift 0.84 → 0.035. Numbers in PERF.md.
+
+### Verification on the final code
+
+- `pnpm typecheck`, `pnpm lint`, `pnpm test` (365 unit and SQL tests): pass.
+- `docker build .`: succeeds.
+- e2e matrix, seven projects, run on `c13595b`: webkit-iphone-15-pro 66/66; the other six had 7 failures between them across 4 distinct tests. Two were tests acting before the first-launch time-zone gate lifted (fixed), one was a Firefox timing flake (green 3/3 when re-run), one was a real bug (the canvas rebuild loop, fixed in `2c975ce`). Each was re-run on its failing projects after the fix and passes. **The whole matrix was not run again after those fixes or after the small Phase 4 changes**; only the affected specs were.
+- Scans: no serious or critical axe violations, no horizontal overflow, no selectable chrome. The Firefox scan runs without axe (axe-core crashes Playwright's Firefox when a sheet is open; the app does not).
+- Sweep: the remaining console errors and failed requests come from tests that cut the network or enter a wrong PIN on purpose, from WebKit reporting prefetches cancelled by a navigation, and from a deprecation warning inside the 3D library.
+
+### Not done, or not proven here
+
+- Dynamic Type, and moving hard-coded colours into tokens: Won't fix in this pass (reasons in AUDIT.md and DECISIONS.md).
+- Cold first-visit blocking time on a throttled CPU is still above the SPEC target on Home.
+- `/lock` cannot be measured by Lighthouse.
+- 14 entries need a real device: `IPHONE_CHECKLIST.md`.
+- The memory after-run is 10 minutes, not 30 (see PERF.md notes).
