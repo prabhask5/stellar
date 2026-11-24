@@ -145,11 +145,14 @@ export function describeTest(r: TestPushResult): { message: string; ok: boolean 
   if (r.sent > 0 && r.failed === 0 && r.removed === 0)
     return { ok: true, message: `Test sent to ${devices(r.sent)}` };
   const parts = [`Sent to ${devices(r.sent)}`];
-  if (r.removed) parts.push(`${devices(r.removed)} no longer subscribed (removed)`);
+  if (r.removed)
+    parts.push(
+      `${devices(r.removed)} had an outdated registration, now removed. If one of yours got nothing, open the app there and turn notifications off and on`,
+    );
   if (r.failed) {
     const e = r.errors[0];
     parts.push(
-      `${devices(r.failed)} refused${e ? ` by ${e.service}${e.status ? ` (${e.status})` : ""}` : ""}. Turn notifications off and on again there`,
+      `${devices(r.failed)} refused${e ? ` by ${e.service}${e.status ? ` (${e.status})` : ""}${e.message ? `: ${e.message.slice(0, 80)}` : ""}` : ""}. Turn notifications off and on again there`,
     );
   }
   return { ok: r.sent > 0, message: parts.join(". ") };

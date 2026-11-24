@@ -61,6 +61,9 @@ export async function sendPush(
     url: message.url ?? "/",
   });
   const gone: string[] = [];
+  // Push services that accepted our signature in this batch, and the subscriptions each refused.
+  const accepted = new Set<string>();
+  const refused: { id: string; service: string }[] = [];
   await Promise.all(
     subs.map(async (s) => {
       try {
@@ -78,6 +81,7 @@ export async function sendPush(
           },
         );
         result.sent++;
+        accepted.add(new URL(s.endpoint).host);
       } catch (err) {
         const status = (err as { statusCode?: number }).statusCode;
         if (status === 404 || status === 410) gone.push(s.id);
@@ -89,11 +93,21 @@ export async function sendPush(
             200,
           );
           result.errors.push({ service, status: status ?? null, message });
+          if (status === 403) refused.push({ id: s.id, service });
           console.warn("[push] delivery failed", service, status ?? "", message);
         }
       }
     }),
   );
+  // A 403 means the subscription was made for other keys than ours. When the same service
+  // accepted another of our pushes just now, our keys and signature are fine, so that
+  // subscription belongs to keys this server no longer has and can never be delivered to.
+  // (If the service refused everything, the fault may be ours: nothing is removed.)
+  for (const r of refused) {
+    if (!accepted.has(r.service)) continue;
+    gone.push(r.id);
+    result.failed--;
+  }
   if (gone.length) {
     await admin.from("sp_push_subscriptions").delete().in("id", gone);
     result.removed = gone.length;

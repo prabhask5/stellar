@@ -34,7 +34,7 @@ describe("describeTest", () => {
       errors: [{ service: "web.push.apple.com", status: 403, message: "BadJwtToken" }],
     });
     expect(r.ok).toBe(false);
-    expect(r.message).toContain("refused by web.push.apple.com (403)");
+    expect(r.message).toContain("refused by web.push.apple.com (403): BadJwtToken");
   });
 
   it("reports a mix as partly delivered", () => {
@@ -47,6 +47,8 @@ describe("describeTest", () => {
       errors: [],
     });
     expect(r.ok).toBe(true);
-    expect(r.message).toMatch(/^Sent to 1 device\. 1 device no longer subscribed/);
+    expect(r.message).toMatch(
+      /^Sent to 1 device\. 1 device had an outdated registration, now removed/,
+    );
   });
 });
