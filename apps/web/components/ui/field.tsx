@@ -83,6 +83,7 @@ export function TextField({
         // Sensible defaults for a phone keyboard; a field can override any of them.
         autoComplete="off"
         enterKeyHint="done"
+        dir="auto"
         aria-invalid={error ? true : undefined}
         aria-describedby={error || hint ? `${fieldId}-msg` : undefined}
         className={cx(inputClass, mono && "font-mono text-[14px]", className)}
@@ -120,6 +121,7 @@ export function TextArea({
         autoComplete="off"
         autoCapitalize="sentences"
         enterKeyHint="enter"
+        dir="auto"
         aria-invalid={error ? true : undefined}
         aria-describedby={error || hint ? `${fieldId}-msg` : undefined}
         className={cx(

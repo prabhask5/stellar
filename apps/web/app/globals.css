@@ -80,6 +80,8 @@ html.sp-insets-landscape {
     touch-action: manipulation;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "cv11", "ss01";
+    /* A word longer than its container (a URL, a pasted token) wraps instead of overflowing. */
+    overflow-wrap: break-word;
   }
 
   @media (min-width: 1024px) {
@@ -635,7 +637,15 @@ html[data-sky="3d"] .sp-sky__nebula {
   backdrop-filter: var(--sp-glass-blur);
   pointer-events: none;
   white-space: nowrap;
+  /* A long goal-list or routine name stays on screen. */
+  max-width: min(80vw, 320px);
   animation: sp-fade 150ms ease-out both;
+}
+.sp-universe-label__title,
+.sp-universe-label__subtitle {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sp-universe-label__title {
   font-size: 13px;

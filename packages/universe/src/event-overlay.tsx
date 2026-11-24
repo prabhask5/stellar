@@ -99,6 +99,11 @@ export function EventOverlay() {
       director.reduced = isReduced();
       if (event.type === "task_completed" && event.id) sceneSignals.ignite.push(event.id);
       if (event.type === "streak_rekindled") sceneSignals.rekindle.push(event.routineId);
+      // Nothing drains these on the Minimal tier (no 3D scene): keep only the latest few.
+      if (sceneSignals.ignite.length > 64)
+        sceneSignals.ignite.splice(0, sceneSignals.ignite.length - 64);
+      if (sceneSignals.rekindle.length > 64)
+        sceneSignals.rekindle.splice(0, sceneSignals.rekindle.length - 64);
       const decision = director.push(event, performance.now());
       if (decision.action === "start") {
         signal(event);

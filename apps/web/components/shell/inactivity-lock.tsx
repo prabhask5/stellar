@@ -59,7 +59,10 @@ export function InactivityLock() {
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("pointerdown", onActivity, { passive: true });
     window.addEventListener("keydown", onActivity);
+    // Reading is activity too: scrolling a list must not let the lock fall mid-read.
+    window.addEventListener("scroll", onActivity, { passive: true, capture: true });
     return () => {
+      window.removeEventListener("scroll", onActivity, { capture: true });
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pointerdown", onActivity);

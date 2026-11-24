@@ -12,6 +12,9 @@ import "./globals.css";
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
+  // The fallback for platforms without a system font this good. Apple devices (the main
+  // target) never use it, so it is not preloaded for everyone.
+  preload: false,
   variable: "--font-inter",
   weight: ["200", "400", "500", "600", "700"],
 });

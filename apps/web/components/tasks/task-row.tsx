@@ -138,6 +138,7 @@ export const TaskRow = memo(function TaskRow({
             which is what voice control matches against. */}
         {onOpen && <span className="sr-only">Edit </span>}
         <span
+          dir="auto"
           className={cx(
             "block truncate transition-colors duration-200",
             done ? "text-fg-2 line-through decoration-fg-2/60" : "text-fg",
@@ -146,7 +147,9 @@ export const TaskRow = memo(function TaskRow({
           {task.name}
         </span>
         {!compact && task.description && (
-          <span className="mt-0.5 block truncate text-footnote text-fg-2">{task.description}</span>
+          <span dir="auto" className="mt-0.5 block truncate text-footnote text-fg-2">
+            {task.description}
+          </span>
         )}
       </button>
       {trailing}
