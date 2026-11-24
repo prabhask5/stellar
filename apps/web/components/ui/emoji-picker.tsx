@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { whenIdle } from "@/lib/client/idle";
 import { cx } from "./cx";
 import { Spinner } from "./button";
 import { Popover } from "./popover";
@@ -31,15 +32,29 @@ export function rememberEmoji(emoji: string): void {
   }
 }
 
-// The picker and its dataset load only when first opened.
-const EmojiGrid = dynamic(() => import("./emoji-grid").then((m) => m.EmojiGrid), {
+/** One height for the loading state and the loaded grid, so the popover never resizes (and never flips sides). */
+const EMOJI_BODY =
+  "h-[min(70dvh,440px)] md:h-[min(400px,var(--radix-popover-content-available-height,400px))]";
+
+const loadGrid = () => import("./emoji-grid").then((m) => m.EmojiGrid);
+const EmojiGrid = dynamic(loadGrid, {
   ssr: false,
   loading: () => (
-    <div className="flex h-[320px] items-center justify-center text-fg-2">
+    <div className={cx("flex items-center justify-center text-fg-2", EMOJI_BODY)}>
       <Spinner size={22} />
     </div>
   ),
 });
+
+let warmed = false;
+/** Fetches the picker and its emoji data ahead of the first open, so opening it is instant. */
+function warm(): void {
+  if (warmed) return;
+  warmed = true;
+  void loadGrid().catch(() => (warmed = false));
+  for (const file of ["data.json", "messages.json"])
+    void fetch(`/emoji/en/${file}`).catch(() => {});
+}
 
 export interface EmojiPickerProps {
   value: string | null;
@@ -68,6 +83,8 @@ export function EmojiPicker({
   useEffect(() => {
     if (open) setRecent(recentEmoji());
   }, [open]);
+  // A form with an emoji tile is on screen: get the picker ready while the name is typed.
+  useEffect(() => whenIdle(warm), []);
 
   const select = (emoji: string) => {
     rememberEmoji(emoji);
@@ -91,7 +108,7 @@ export function EmojiPicker({
     </button>
   );
 
-  const body = <EmojiGrid recent={recent} onSelect={select} />;
+  const body = <EmojiGrid recent={recent} onSelect={select} className={EMOJI_BODY} />;
 
   if (wide) {
     return (
@@ -100,7 +117,7 @@ export function EmojiPicker({
         onOpenChange={setOpen}
         trigger={trigger}
         label="Choose an emoji"
-        className="w-[340px] p-0"
+        className="w-[340px] !overflow-hidden p-0"
       >
         {open ? body : null}
       </Popover>

@@ -116,9 +116,16 @@ export function useToday(): DateStr {
 /** A fast clock for countdowns: re-renders every `intervalMs` while mounted and visible. */
 export function useTick(intervalMs = 250, active = true): number {
   const [now, setNow] = useState(() => serverNow());
+  // The clock is read again in the very render that turns ticking on. Otherwise the first
+  // frame after Start or Resume is drawn with the time this was last looked at, and the
+  // display jumps.
+  const [wasActive, setWasActive] = useState(active);
+  if (active !== wasActive) {
+    setWasActive(active);
+    setNow(serverNow());
+  }
   useEffect(() => {
     if (!active) return;
-    setNow(serverNow());
     const t = setInterval(() => setNow(serverNow()), intervalMs);
     return () => clearInterval(t);
   }, [intervalMs, active]);

@@ -294,6 +294,14 @@ html.sp-insets-landscape {
   backdrop-filter: var(--sp-glass-blur);
 }
 
+/* Sheets and dialogs are solid: what is behind them must not show through and compete with
+   the form, and a large blurred layer is the most expensive thing to animate. */
+.sp-sheet {
+  background: rgb(22, 18, 50);
+  border: 1px solid var(--sp-glass-border);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
 /* The Minimal tier and browsers without backdrop-filter get the opaque fill. */
 html[data-tier="minimal"] .glass,
 html[data-tier="minimal"] .glass-strong {
@@ -672,73 +680,4 @@ html[data-tier="minimal"] .sp-compact-bar {
   background: rgb(17, 14, 42);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-}
-
-/* ── Push / pop ──────────────────────────────────────────────────────────────
-   A pushed screen being dragged back by its edge is opaque, like a page lifted off the
-   one beneath it; at rest it is the same transparent page as everywhere else. */
-.sp-pushed--dragging {
-  margin: 0 calc(-1 * max(var(--page-pad), var(--sal))) 0
-    calc(-1 * max(var(--page-pad), var(--sal)));
-  padding: 0 max(var(--page-pad), var(--sar)) 0 max(var(--page-pad), var(--sal));
-  min-height: 100dvh;
-  background: var(--sp-bg-void);
-  box-shadow: -18px 0 40px rgba(0, 0, 0, 0.45);
-}
-
-/* View transitions for push and pop (browsers without the API simply swap). Only the page
-   moves: the sky stays put behind it and the tab bar stays put above it. */
-.sp-app {
-  view-transition-name: sp-page;
-}
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-}
-::view-transition-group(sp-page) {
-  animation-duration: 320ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-html[data-nav="push"]::view-transition-old(sp-page) {
-  animation: sp-vt-out-left 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-html[data-nav="push"]::view-transition-new(sp-page) {
-  animation: sp-vt-in-right 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-html[data-nav="pop"]::view-transition-old(sp-page) {
-  animation: sp-vt-out-right 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-html[data-nav="pop"]::view-transition-new(sp-page) {
-  animation: sp-vt-in-left 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@keyframes sp-vt-in-right {
-  from {
-    transform: translateX(28%);
-    opacity: 0;
-  }
-}
-@keyframes sp-vt-out-left {
-  to {
-    transform: translateX(-18%);
-    opacity: 0;
-  }
-}
-@keyframes sp-vt-in-left {
-  from {
-    transform: translateX(-18%);
-    opacity: 0;
-  }
-}
-@keyframes sp-vt-out-right {
-  to {
-    transform: translateX(28%);
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
-  }
 }

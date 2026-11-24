@@ -16,6 +16,7 @@ const SLOP = 10;
  *   cards) in the same frame, and loses it on release, on cancel, or as soon as the
  *   finger moves far enough to be scrolling.
  * - Dragging a list dismisses the keyboard, as it does in a native list.
+ * - Truncated text gets its full text as a tooltip on desktop.
  *
  * One passive listener set for the whole app; nothing is attached per element.
  */
@@ -62,11 +63,20 @@ export function TouchFeel() {
       touchY = null;
     };
 
+    // Text cut off with an ellipsis shows in full as a tooltip under the mouse.
+    const onOver = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      const el = (e.target as Element | null)?.closest<HTMLElement>(".truncate");
+      if (!el || el.title || el.scrollWidth <= el.clientWidth) return;
+      el.title = el.textContent?.trim() ?? "";
+    };
+
     const opts = { passive: true, capture: true } as const;
     // Loaded after first paint; until then controls fall back to their CSS :active state.
     document.documentElement.dataset.touchFeel = "on";
     window.addEventListener("pointerdown", onDown, opts);
     window.addEventListener("pointermove", onMove, opts);
+    window.addEventListener("pointerover", onOver, opts);
     window.addEventListener("pointerup", release, opts);
     window.addEventListener("pointercancel", release, opts);
     window.addEventListener("blur", release);
@@ -77,6 +87,7 @@ export function TouchFeel() {
       release();
       window.removeEventListener("pointerdown", onDown, opts);
       window.removeEventListener("pointermove", onMove, opts);
+      window.removeEventListener("pointerover", onOver, opts);
       window.removeEventListener("pointerup", release, opts);
       window.removeEventListener("pointercancel", release, opts);
       window.removeEventListener("blur", release);

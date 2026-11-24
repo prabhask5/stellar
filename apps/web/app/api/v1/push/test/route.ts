@@ -1,4 +1,5 @@
 import { api, clientIp, json, preflight, ApiError } from "@/lib/server/http";
+import { requireConfig } from "@/lib/server/config";
 import { sendPush } from "@/lib/server/push";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { authenticate } from "@/lib/server/supabase";
@@ -24,5 +25,5 @@ export const POST = api(async (req) => {
     tag: "test",
     url: "/focus",
   });
-  return json(result);
+  return json({ ...result, configured: Boolean(requireConfig().vapid) });
 });

@@ -2,7 +2,7 @@
 
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { type ReactNode, useEffect, useMemo } from "react";
-import { useKeyboardInset } from "@/components/ui/use-media";
+import { useKeyboardInset, useSettledViewport } from "@/components/ui/use-media";
 import { ApiRequestError } from "@/lib/client/api";
 import { queryClient } from "@/lib/client/cache";
 import "@/lib/client/data/core";
@@ -28,6 +28,7 @@ const RESUME_REFRESH_MS = 20_000;
 export function Providers({ children }: { children: ReactNode }) {
   const persister = useMemo(() => createIdbPersister(), []);
   useKeyboardInset();
+  useSettledViewport();
 
   useEffect(() => {
     let stopRealtime: (() => void) | null = null;

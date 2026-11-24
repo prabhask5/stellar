@@ -21,7 +21,13 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: [["list"]],
   globalSetup: "./e2e/global-setup.ts",
-  use: { baseURL, trace: "retain-on-failure", reducedMotion: "reduce" },
+  use: {
+    baseURL,
+    trace: "retain-on-failure",
+    // Animations ON, as on the owner's devices. The suite used to run with reduced motion,
+    // which skipped every animated path and let a navigation that froze the page through.
+    reducedMotion: "no-preference",
+  },
   projects: [
     {
       name: "desktop",

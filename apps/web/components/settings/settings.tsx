@@ -29,7 +29,7 @@ export function Settings({ notifications }: { notifications?: React.ReactNode })
       <PageHeader title="Settings" actions={<SyncIndicator />} />
       <nav
         aria-label="Settings sections"
-        className="no-scrollbar -mx-1 mb-6 flex gap-2 overflow-x-auto px-1"
+        className="no-scrollbar -mx-1 -mt-1 mb-5 flex gap-2 overflow-x-auto overflow-y-hidden px-1 py-1"
       >
         {SECTIONS.filter(([id]) => id !== "notifications" || notifications).map(([id, label]) => (
           <a

@@ -32,7 +32,24 @@ export interface SheetProps {
   className?: string;
 }
 
-const SPRING = { type: "spring", stiffness: 300, damping: 32 } as const;
+// Quick, with no overshoot: a sheet is something you asked for, so it should simply be there.
+const OPEN = { type: "tween", duration: 0.22, ease: [0.22, 1, 0.36, 1] } as const;
+const POP = { type: "tween", duration: 0.12, ease: "easeOut" } as const;
+
+/**
+ * iOS draws the caret where the field was when it took focus. A field focused while its
+ * sheet was still sliding up keeps a caret far below the text; re-stating the selection
+ * once the sheet has come to rest makes iOS place it again.
+ */
+function settleCaret(): void {
+  const el = document.activeElement;
+  if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return;
+  try {
+    el.setSelectionRange(el.selectionStart, el.selectionEnd);
+  } catch {
+    // Field types without a text selection (number, date) have no caret to move.
+  }
+}
 
 /** Far enough below the screen for any sheet, in pixels (a MotionValue animates numbers best). */
 const offscreen = () => (typeof window === "undefined" ? 1000 : window.innerHeight);
@@ -236,11 +253,11 @@ export function Sheet({
           <Dialog.Portal forceMount>
             <Dialog.Overlay asChild forceMount>
               <m.div
-                className="fixed inset-0 z-[60] bg-[rgba(4,3,14,0.62)]"
+                className="fixed inset-0 z-[60] bg-[rgba(4,3,14,0.72)]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.12 }}
               />
             </Dialog.Overlay>
             <Dialog.Content
@@ -251,14 +268,14 @@ export function Sheet({
               {wide ? (
                 <m.div
                   className={cx(
-                    "glass-strong fixed left-1/2 top-1/2 z-[61] flex max-h-[min(86dvh,760px)] w-[calc(100vw-48px)] flex-col rounded-hero outline-none",
+                    "sp-sheet fixed left-1/2 top-1/2 z-[61] flex max-h-[min(86dvh,760px)] w-[calc(100vw-48px)] flex-col rounded-hero outline-none",
                     className,
                   )}
                   style={{ maxWidth: width, x: "-50%", y: "-50%" }}
-                  initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+                  initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.97 }}
-                  transition={reduce ? { duration: 0.15 } : SPRING}
+                  exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
+                  transition={POP}
                 >
                   <ExitGuard>
                     <Header
@@ -276,7 +293,7 @@ export function Sheet({
               ) : (
                 <m.div
                   className={cx(
-                    "glass-strong fixed inset-x-0 bottom-0 z-[61] flex flex-col rounded-t-hero border-b-0 outline-none",
+                    "sp-sheet fixed inset-x-0 bottom-0 z-[61] flex flex-col rounded-t-hero border-b-0 outline-none",
                     detent === "large" ? "h-[92dvh]" : "max-h-[92dvh]",
                     className,
                   )}
@@ -290,7 +307,8 @@ export function Sheet({
                   initial={reduce ? { opacity: 0 } : { y: offscreen() }}
                   animate={reduce ? { opacity: 1 } : { y: 0 }}
                   exit={reduce ? { opacity: 0 } : { y: offscreen() }}
-                  transition={reduce ? { duration: 0.15 } : SPRING}
+                  transition={reduce ? POP : OPEN}
+                  onAnimationComplete={settleCaret}
                 >
                   <ExitGuard>
                     <div

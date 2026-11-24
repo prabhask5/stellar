@@ -26,32 +26,67 @@ const PHASES: {
   { phase: "long_break", label: "Long break", key: "long_break_min" },
 ];
 
-/** Focus 25 · Short break 5 · Long break 15, with the current phase highlighted. Display only. */
+/**
+ * The whole Pomodoro cycle at a glance: focus, short break, focus, short break … focus,
+ * long break. One bar per phase (long for focus, short for a break), filled up to where
+ * the session is now, with the three phase lengths named underneath. Display only.
+ */
 export function PhaseStrip({ state, settings }: { state: FocusState; settings: FocusSettings }) {
+  const rounds = Math.max(1, settings.rounds_before_long);
+  // A break belongs to the round it follows.
+  const round = Math.min(rounds, Math.max(1, ((state.round - 1) % rounds) + 1));
+  const current = (round - 1) * 2 + (state.phase === "focus" ? 0 : 1);
+  const started = state.status !== "idle";
+  const steps = Array.from({ length: rounds * 2 }, (_, i) => {
+    const phase: TimerPhase =
+      i % 2 === 0 ? "focus" : i === rounds * 2 - 1 ? "long_break" : "short_break";
+    return { phase, round: Math.floor(i / 2) + 1 };
+  });
   return (
-    <ol
-      aria-label="Phases"
-      className="glass flex w-full rounded-button p-[3px]"
-      data-testid="phase-strip"
-    >
-      {PHASES.map((p) => {
-        const active = state.phase === p.phase;
-        return (
+    <div className="w-full" data-testid="phase-strip">
+      <ol aria-label="Pomodoro cycle" className="flex w-full items-center gap-1">
+        {steps.map((step, i) => {
+          const here = i === current;
+          const done = started && i < current;
+          return (
+            <li
+              key={i}
+              aria-current={here ? "step" : undefined}
+              aria-label={`${phaseLabel(step.phase)}, round ${step.round}${done ? ", done" : here ? ", current" : ""}`}
+              title={`${phaseLabel(step.phase)} · round ${step.round}`}
+              data-step={step.phase}
+              data-state={here ? "current" : done ? "done" : "upcoming"}
+              className={cx(
+                "h-1.5 min-w-0 rounded-full transition-colors duration-300",
+                step.phase === "focus"
+                  ? "flex-[3]"
+                  : step.phase === "long_break"
+                    ? "flex-[2]"
+                    : "flex-1",
+                here ? "bg-accent" : done ? "bg-accent/45" : "bg-track",
+              )}
+            />
+          );
+        })}
+      </ol>
+      <ul
+        aria-label="Phase lengths in minutes"
+        className="mt-2.5 flex w-full items-center justify-between gap-2 text-footnote"
+      >
+        {PHASES.map((p) => (
           <li
             key={p.phase}
-            aria-current={active ? "step" : undefined}
             className={cx(
-              // Sized by content so "Short break" is never cut off, down to 320px-wide phones.
-              "flex h-[38px] min-w-0 flex-auto items-center justify-center gap-1 whitespace-nowrap rounded-thumb px-1 text-[13px] font-medium transition-colors duration-200 min-[360px]:px-2 min-[360px]:text-[15px]",
-              active ? "bg-fill-thumb text-fg" : "text-fg-2",
+              "flex min-w-0 items-center gap-1 whitespace-nowrap transition-colors duration-200",
+              state.phase === p.phase ? "font-medium text-accent" : "text-fg-2",
             )}
           >
             <span className="truncate">{p.label}</span>
             <span className="tnum">{settings[p.key]}</span>
           </li>
-        );
-      })}
-    </ol>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -74,8 +109,10 @@ export function TimerFace({ state, settings, size = 300 }: TimerFaceProps) {
   const now = useTick(250, running);
   const timer = toTimerState(state);
   const cfg = toTimerSettings(settings);
-  const remaining = remainingMs(timer, now, cfg);
   const total = state.phase_total_ms ?? phaseDurationMs(state.phase, cfg);
+  // Never more than the phase is long: this device's guess at the start time and the
+  // server's can differ by a moment, which showed "25:01" for an instant after Start.
+  const remaining = Math.min(remainingMs(timer, now, cfg), total > 0 ? total : Infinity);
   const fraction =
     state.status === "idle" || state.status === "awaiting" ? 1 : total > 0 ? remaining / total : 0;
   const caption =

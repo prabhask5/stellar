@@ -52,6 +52,48 @@ export async function pushStatus(): Promise<PushStatus> {
 
 export class PushError extends Error {}
 
+function sameKey(sub: PushSubscription, key: string): boolean {
+  const current = sub.options.applicationServerKey;
+  if (!current) return true; // the browser does not say; assume it is ours
+  const a = new Uint8Array(current);
+  const b = toBytes(key);
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
+async function register(sub: PushSubscription): Promise<void> {
+  const json = sub.toJSON();
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth)
+    throw new PushError("The browser returned an incomplete subscription.");
+  await api("/api/v1/push/subscriptions", {
+    body: { endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } },
+  });
+}
+
+/** A subscription for the server's current key, replacing one made for an older key. */
+async function subscribe(reg: ServiceWorkerRegistration, key: string): Promise<PushSubscription> {
+  const existing = await reg.pushManager.getSubscription();
+  if (existing && sameKey(existing, key)) return existing;
+  // Made for keys the server no longer has (it was set up again): the push service would
+  // refuse everything sent to it.
+  if (existing) await existing.unsubscribe().catch(() => {});
+  return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toBytes(key) });
+}
+
+/**
+ * Keeps a device that has notifications on actually reachable. The browser remembers its
+ * subscription for good, but the server can lose its copy (a restored database) or change
+ * its keys (set up again); either way the switch would say "on" and nothing would arrive.
+ * Runs quietly once per app start; never asks for permission.
+ */
+export async function syncPush(): Promise<void> {
+  if (pushSupport() !== "supported" || Notification.permission !== "granted") return;
+  const key = readMeta()?.vapidPublicKey;
+  const reg = await registration();
+  if (!key || !reg) return;
+  if (!(await reg.pushManager.getSubscription())) return; // off on this device
+  await register(await subscribe(reg, key));
+}
+
 /** Asks for permission (only ever from a button press), subscribes, and registers the subscription with the server. */
 export async function enablePush(): Promise<void> {
   if (pushSupport() !== "supported")
@@ -69,19 +111,7 @@ export async function enablePush(): Promise<void> {
   const reg = await registration();
   if (!reg)
     throw new PushError("The app is still installing itself. Reload the page and try again.");
-  const existing = await reg.pushManager.getSubscription();
-  const sub =
-    existing ??
-    (await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: toBytes(key),
-    }));
-  const json = sub.toJSON();
-  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth)
-    throw new PushError("The browser returned an incomplete subscription.");
-  await api("/api/v1/push/subscriptions", {
-    body: { endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } },
-  });
+  await register(await subscribe(reg, key));
 }
 
 export async function disablePush(): Promise<void> {
@@ -93,6 +123,34 @@ export async function disablePush(): Promise<void> {
   await api("/api/v1/push/subscriptions", { method: "DELETE", body: { endpoint } }).catch(() => {});
 }
 
-export async function sendTestPush(): Promise<{ sent: number }> {
-  return api<{ sent: number }>("/api/v1/push/test", { method: "POST" });
+export interface TestPushResult {
+  sent: number;
+  failed: number;
+  removed: number;
+  subscriptions: number;
+  configured: boolean;
+  errors: { service: string; status: number | null; message: string }[];
+}
+
+export async function sendTestPush(): Promise<TestPushResult> {
+  return api<TestPushResult>("/api/v1/push/test", { method: "POST" });
+}
+
+/** What a test did, in words the owner can act on. */
+export function describeTest(r: TestPushResult): { message: string; ok: boolean } {
+  const devices = (n: number) => `${n} ${n === 1 ? "device" : "devices"}`;
+  if (!r.configured) return { ok: false, message: "The server has no notification keys." };
+  if (r.subscriptions === 0)
+    return { ok: false, message: "No device is registered. Turn notifications off and on again." };
+  if (r.sent > 0 && r.failed === 0 && r.removed === 0)
+    return { ok: true, message: `Test sent to ${devices(r.sent)}` };
+  const parts = [`Sent to ${devices(r.sent)}`];
+  if (r.removed) parts.push(`${devices(r.removed)} no longer subscribed (removed)`);
+  if (r.failed) {
+    const e = r.errors[0];
+    parts.push(
+      `${devices(r.failed)} refused${e ? ` by ${e.service}${e.status ? ` (${e.status})` : ""}` : ""}. Turn notifications off and on again there`,
+    );
+  }
+  return { ok: r.sent > 0, message: parts.join(". ") };
 }

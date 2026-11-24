@@ -35,6 +35,33 @@ export function useMounted(): boolean {
 }
 
 /**
+ * An installed app on iOS can start with a viewport that is shorter than the screen (the
+ * translucent status bar is applied after the first layout, with no resize event), which
+ * leaves everything anchored to the bottom floating too high until something forces a
+ * new layout. Re-stating the viewport makes WebKit measure it again.
+ */
+export function useSettledViewport(): void {
+  useEffect(() => {
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+    if (!standalone || !meta || !/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)) return;
+    const content = meta.content;
+    const nudge = () => {
+      meta.content = `${content}, shrink-to-fit=no`;
+      requestAnimationFrame(() => (meta.content = content));
+    };
+    const timers = [0, 300, 1200].map((ms) => window.setTimeout(nudge, ms));
+    window.addEventListener("pageshow", nudge);
+    return () => {
+      timers.forEach(clearTimeout);
+      window.removeEventListener("pageshow", nudge);
+    };
+  }, []);
+}
+
+/**
  * Keeps `--kb` (on-screen keyboard height) current from visualViewport so
  * sheets and the quick-add bar stay above the iOS keyboard without layout jumps.
  */

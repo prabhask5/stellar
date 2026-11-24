@@ -21,40 +21,33 @@ export function Page({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLElement>(null);
-  const [title, setTitle] = useState("");
+  const titleEl = useRef<HTMLSpanElement>(null);
   const [compact, setCompact] = useState(false);
 
+  // Phones only; on wider screens the bar does not exist and nothing is observed. The heading
+  // is looked up again after each render of the page (a list opening swaps it), which costs
+  // one query; nothing watches the DOM in between.
+  const watched = useRef<Element | null>(null);
+  const observer = useRef<IntersectionObserver | null>(null);
   useEffect(() => {
     const main = ref.current;
     if (!main || typeof IntersectionObserver === "undefined") return;
-    let io: IntersectionObserver | null = null;
-    let watched: Element | null = null;
-    const watch = () => {
-      const h1 = main.querySelector("h1");
-      if (h1) setTitle((h1.textContent ?? "").trim());
-      if (!h1 || h1 === watched) return;
-      io?.disconnect();
-      watched = h1;
-      const inset =
-        parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sat")) || 0;
-      io = new IntersectionObserver(
-        ([entry]) =>
-          setCompact(
-            Boolean(entry) && !entry!.isIntersecting && entry!.boundingClientRect.top < 80,
-          ),
-        { rootMargin: `-${Math.round(inset) + 6}px 0px 0px 0px`, threshold: 0 },
-      );
-      io.observe(h1);
-    };
-    watch();
-    // Pushed screens (a list's detail) swap the heading without remounting the page.
-    const mo = new MutationObserver(watch);
-    mo.observe(main, { childList: true, subtree: true, characterData: true });
-    return () => {
-      io?.disconnect();
-      mo.disconnect();
-    };
-  }, []);
+    if (window.matchMedia("(min-width: 768px)").matches) return;
+    const h1 = main.querySelector("h1");
+    if (titleEl.current) titleEl.current.textContent = (h1?.textContent ?? "").trim();
+    if (!h1 || h1 === watched.current) return;
+    observer.current?.disconnect();
+    watched.current = h1;
+    const inset =
+      parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sat")) || 0;
+    observer.current = new IntersectionObserver(
+      ([entry]) =>
+        setCompact(Boolean(entry) && !entry!.isIntersecting && entry!.boundingClientRect.top < 80),
+      { rootMargin: `-${Math.round(inset) + 6}px 0px 0px 0px`, threshold: 0 },
+    );
+    observer.current.observe(h1);
+  });
+  useEffect(() => () => observer.current?.disconnect(), []);
 
   return (
     <>
@@ -64,8 +57,9 @@ export function Page({
         data-shown={compact || undefined}
         className={cx(
           "sp-compact-bar pointer-events-none fixed inset-x-0 top-0 z-30 flex items-end justify-center md:hidden",
-          "transition-[opacity,transform] duration-200 ease-out",
-          compact ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0",
+          // Hidden outright when not shown: an invisible blurred layer is still composited.
+          "transition-[opacity,transform,visibility] duration-200 ease-out",
+          compact ? "visible translate-y-0 opacity-100" : "invisible -translate-y-1 opacity-0",
         )}
         style={{
           height: "calc(max(8px, var(--sat)) + 44px)",
@@ -73,9 +67,10 @@ export function Page({
           paddingRight: "max(56px, var(--sar))",
         }}
       >
-        <span className="flex h-11 min-w-0 items-center truncate text-headline text-fg">
-          {title}
-        </span>
+        <span
+          ref={titleEl}
+          className="flex h-11 min-w-0 items-center truncate text-headline text-fg"
+        />
       </div>
       <main
         ref={ref}

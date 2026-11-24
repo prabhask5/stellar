@@ -155,17 +155,20 @@ export function FocusStats({ state, sessions }: FocusStatsProps) {
             );
           })}
         </div>
-        <table className="sr-only">
-          <caption>Focus minutes per day</caption>
-          <tbody>
-            {series.map((d) => (
-              <tr key={d.date}>
-                <th scope="row">{formatShortDate(d.date, today)}</th>
-                <td>{Math.round(d.minutes)} minutes</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* The wrapper is what hides this: a table's caption is not clipped by rules on the table itself. */}
+        <div className="sr-only">
+          <table>
+            <caption>Focus minutes per day</caption>
+            <tbody>
+              {series.map((d) => (
+                <tr key={d.date}>
+                  <th scope="row">{formatShortDate(d.date, today)}</th>
+                  <td>{Math.round(d.minutes)} minutes</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </GlassCard>
 
       <h3 className="mb-2 mt-6 px-1 text-[15px] font-semibold text-fg-2">Recent sessions</h3>

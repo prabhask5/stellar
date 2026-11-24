@@ -9,6 +9,16 @@ import { useSettings, useToday } from "@/lib/client/data/hooks";
 import { updateSettings } from "@/lib/client/data/settings";
 import { InlineSelect, rowInput, Section } from "./parts";
 
+/**
+ * City first ("Los Angeles · America"): in a narrow row the end of the label is what gets cut
+ * off, and the city is the part that tells two zones apart.
+ */
+function zoneLabel(zone: string): string {
+  const parts = zone.replace(/_/g, " ").split("/");
+  const city = parts.pop() ?? zone;
+  return parts.length ? `${city} · ${parts.join(" / ")}` : city;
+}
+
 function zones(current: string): { value: string; label: string }[] {
   const supported = (): string[] => {
     try {
@@ -19,7 +29,7 @@ function zones(current: string): { value: string; label: string }[] {
   };
   return [...new Set(["UTC", current, ...supported()])]
     .sort()
-    .map((z) => ({ value: z, label: z.replace(/_/g, " ") }));
+    .map((z) => ({ value: z, label: zoneLabel(z) }));
 }
 
 export function GeneralSection() {

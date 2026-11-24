@@ -50,7 +50,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={inter.variable} data-tier="auto">
+    // The colour is inline so the very first frame is already dark: a stylesheet that arrives a
+    // moment later would let the browser's white default show through on launch.
+    <html
+      lang="en"
+      className={inter.variable}
+      data-tier="auto"
+      style={{ backgroundColor: "#070615" }}
+    >
       <body>
         <Starfield />
         <UniverseHost />

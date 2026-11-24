@@ -14,8 +14,6 @@ import { useUi } from "@/lib/client/ui-store";
 import { CalendarTab } from "./calendar-tab";
 import { ListDetail } from "./list-detail";
 import { TaskListsPanel } from "./lists";
-import { PushedScreen } from "@/components/ui/pushed-screen";
-import { markPushed, navigateWithTransition, takePushed } from "@/lib/client/nav-transition";
 import { QuickAddBar } from "./quick-add";
 import { TaskSheet } from "./task-sheet";
 import { AllTab, TodayTab } from "./views";
@@ -72,19 +70,10 @@ export function TasksPage() {
         router.replace(url, { scroll: false });
         return;
       }
-      if (next.list) {
-        // Opening a list is a push onto the stack.
-        markPushed();
-        navigateWithTransition("push", () => router.push(url, { scroll: true }));
-      } else if (next.list === null) {
-        // Back pops what we pushed; arriving by a direct link, there is nothing to pop.
-        const pop = takePushed();
-        navigateWithTransition("pop", () =>
-          pop ? router.back() : router.replace(url, { scroll: false }),
-        );
-      } else {
-        router.push(url, { scroll: false });
-      }
+      // Opening a list is a new history entry (so Back, and the system's back swipe, return to
+      // the lists); everything else replaces nothing and scrolls nowhere.
+      if (next.list === null) router.replace(url, { scroll: false });
+      else router.push(url, { scroll: Boolean(next.list) });
     },
     [params, pathname, router],
   );
@@ -142,17 +131,15 @@ export function TasksPage() {
     if (new URLSearchParams(window.location.search).has("list")) navigate({ list: null });
   };
   const main = openList ? (
-    <PushedScreen onBack={goBack} underlay={rootMain}>
-      <ListDetail
-        list={openList}
-        tasks={tasks}
-        lists={sortedLists}
-        today={today}
-        weekStart={weekStart}
-        onBack={goBack}
-        onOpen={onOpen}
-      />
-    </PushedScreen>
+    <ListDetail
+      list={openList}
+      tasks={tasks}
+      lists={sortedLists}
+      today={today}
+      weekStart={weekStart}
+      onBack={goBack}
+      onOpen={onOpen}
+    />
   ) : (
     rootMain
   );

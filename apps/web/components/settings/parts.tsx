@@ -55,6 +55,8 @@ export function InlineSelect<T extends string>({
       <select
         id={id}
         aria-label={label}
+        // The full text of a value too long for the row.
+        title={options.find((o) => o.value === value)?.label}
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
         className="h-11 w-full cursor-pointer appearance-none truncate rounded-chip bg-transparent pl-2 pr-7 text-right text-fg-2 outline-none hover:text-fg focus-visible:outline-2 focus-visible:outline-accent"

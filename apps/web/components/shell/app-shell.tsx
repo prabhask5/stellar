@@ -7,7 +7,6 @@ import { Deferred } from "./deferred";
 import { InactivityLock } from "./inactivity-lock";
 import { SideNav, TabBar } from "./nav";
 import { Providers } from "./providers";
-import { StateRestore } from "./state-restore";
 import { ZoneGate } from "./zone-gate";
 
 // Not needed to paint or to take the first tap: fetched when the browser is idle.
@@ -35,7 +34,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Deferred load={loadFocusTicker} />
       <InactivityLock />
       <UniverseBridge />
-      <StateRestore />
     </Providers>
   );
 }

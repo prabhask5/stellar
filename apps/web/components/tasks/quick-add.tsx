@@ -54,28 +54,6 @@ export function QuickAddBar({
   const nonce = useUi((s) => s.quickAddNonce);
   const touched = useRef(false);
 
-  // A name typed but not yet added survives the app being closed (iOS ends background apps).
-  const draftKey = fixedListId ? `sp-draft-quickadd:${fixedListId}` : "sp-draft-quickadd";
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(draftKey) ?? "null") as {
-        name: string;
-        at: number;
-      } | null;
-      if (saved?.name && Date.now() - saved.at < 6 * 3_600_000) setName((n) => n || saved.name);
-    } catch {
-      // ignored
-    }
-  }, [draftKey]);
-  useEffect(() => {
-    try {
-      if (name.trim()) localStorage.setItem(draftKey, JSON.stringify({ name, at: Date.now() }));
-      else localStorage.removeItem(draftKey);
-    } catch {
-      // ignored
-    }
-  }, [name, draftKey]);
-
   // Follow the tab's default date until the user picks one themselves.
   useEffect(() => {
     if (!touched.current) setDue({ date: defaultDate, time: null });
@@ -249,7 +227,7 @@ export function QuickAddBar({
           </Button>
         </span>
       </div>
-      <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-1 pb-1 md:overflow-visible md:p-0">
+      <div className="no-scrollbar -mt-1 flex items-center gap-2 overflow-x-auto overflow-y-hidden px-1 pb-1 pt-1 md:mt-0 md:overflow-visible md:p-0">
         {!fixedListId && (
           <DateChip
             value={due}

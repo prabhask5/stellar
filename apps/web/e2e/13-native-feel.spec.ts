@@ -1,6 +1,6 @@
 // Native-feel behaviour from polish pass 1 (POLISH_SPEC §4): instant press feedback,
-// chrome that cannot be selected, 44px hit areas, tab memory, the large-title bar, sheet
-// and row gestures, edge-swipe back, the universe yielding to interaction, and coming
+// chrome that cannot be selected, 44px hit areas, the large-title bar, sheet and row
+// gestures, the universe yielding to interaction, and coming
 // back where you left off.
 import type { Page } from "@playwright/test";
 import {
@@ -129,7 +129,7 @@ test.describe("native feel", () => {
     expect(result.hits).toEqual([true, true]);
   });
 
-  test("tabs come back as they were left; tapping the current tab scrolls up, then goes to its root", async ({
+  test("tabs start fresh; tapping the current tab scrolls up, then goes to its root", async ({
     page,
   }, info) => {
     test.skip(!isPhone(info.project.name), "tab bar");
@@ -145,15 +145,19 @@ test.describe("native feel", () => {
     await expect(page.getByTestId("compact-title")).toHaveAttribute("data-shown", "true");
     await expect(page.getByTestId("compact-title")).toHaveText("Tasks");
 
+    // Switching tabs always starts the other tab at its first screen, at the top: nothing
+    // about where a tab was left is remembered.
     await tabBar(page).getByRole("link", { name: "Goals" }).click();
     await expect(page.getByRole("heading", { name: "Goals", level: 1 })).toBeVisible();
     expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(0);
-
     await tabBar(page).getByRole("link", { name: "Tasks" }).click();
-    await expect(page).toHaveURL(/\/tasks\?tab=all/);
-    await expect(page.getByTestId("all-tab")).toBeVisible();
-    await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(700);
+    await expect(page).toHaveURL(/\/tasks$/);
+    await expect(page.getByTestId("today-tab")).toBeVisible();
 
+    await page.getByRole("radio", { name: "All", exact: true }).click();
+    await expect(page.getByTestId("all-tab")).toContainText("Task 45");
+    await page.evaluate(() => window.scrollTo(0, 700));
+    await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(700);
     // Tap the tab you are on: to the top.
     await tabBar(page).getByRole("link", { name: "Tasks" }).click();
     await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(0);
@@ -213,39 +217,6 @@ test.describe("native feel", () => {
           (await sql(`select count(*)::int as n from sp_tasks where deleted_at is null`))[0]!.n,
       )
       .toBe(before - 1);
-  });
-
-  test("a swipe from the left edge goes back from a list, and a short one springs home", async ({
-    page,
-  }, info) => {
-    test.skip(!isPhone(info.project.name), "phone gesture");
-    await sql(
-      `insert into sp_task_lists (user_id, name, emoji) values (${OWNER}, 'Groceries', '🛒')`,
-    );
-    await page.goto("/tasks?tab=lists");
-    await page.getByRole("button", { name: "Open Groceries" }).click();
-    await expect(page.getByTestId("list-detail")).toBeVisible();
-    await expect(page).toHaveURL(/list=/);
-    const viewport = page.viewportSize()!;
-    const y = viewport.height / 2;
-
-    await swipe(page, { x: 6, y }, 70, 0, 8);
-    await page.waitForTimeout(700);
-    await expect(page.getByTestId("list-detail")).toBeVisible();
-    await expect(page).toHaveURL(/list=/);
-    expect(
-      await page
-        .locator(".sp-pushed")
-        .evaluate((el) => Math.round(new DOMMatrixReadOnly(getComputedStyle(el).transform).m41)),
-    ).toBe(0);
-
-    await swipe(page, { x: 6, y }, Math.round(viewport.width * 0.6), 0, 12);
-    await expect(page.getByTestId("list-detail")).toHaveCount(0, { timeout: 4000 });
-    await expect(page).not.toHaveURL(/list=/);
-    await expect(page.getByTestId("list-card")).toHaveCount(1);
-    // Back popped the entry that opening the list pushed: forward returns to the list.
-    await page.goForward();
-    await expect(page.getByTestId("list-detail")).toBeVisible();
   });
 
   test("a sheet follows the finger: scrolls inside first, then drags, and dismisses with a pull", async ({
@@ -321,36 +292,5 @@ test.describe("native feel", () => {
     await page.evaluate(() => window.scrollBy(0, 300));
     await expect.poll(yielding, { intervals: [10] }).toBeGreaterThan(0);
     await expect.poll(yielding, { timeout: 3000 }).toBe(0);
-  });
-
-  test("the installed app reopens where it was left, with the unsent draft", async ({
-    page,
-    context,
-  }, info) => {
-    test.skip(!isPhone(info.project.name), "home screen app");
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, "standalone", { value: true, configurable: true });
-    });
-    await seedTasks(45);
-    await page.goto("/tasks?tab=all");
-    await page.getByRole("radio", { name: "All", exact: true }).click();
-    await expect(page.getByTestId("all-tab")).toContainText("Task 45");
-    await page.getByLabel("Task name").fill("Half-typed thought");
-    await page.evaluate(() => window.scrollTo(0, 520));
-    // The app goes to the background; iOS later ends it.
-    await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
-    await page.close();
-
-    const relaunched = await context.newPage();
-    await relaunched.goto("/");
-    await expect(relaunched).toHaveURL(/\/tasks\?tab=all/);
-    await expect(relaunched.getByTestId("all-tab")).toContainText("Task 45");
-    await expect(relaunched.getByLabel("Task name")).toHaveValue("Half-typed thought");
-    await expect.poll(() => relaunched.evaluate(() => Math.round(window.scrollY))).toBe(520);
-
-    // In an ordinary browser tab the address is the truth: nothing is restored.
-    await relaunched.evaluate(() => {
-      Object.defineProperty(navigator, "standalone", { value: false, configurable: true });
-    });
   });
 });

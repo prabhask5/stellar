@@ -101,7 +101,7 @@ export function DatePicker({
 
   return (
     <div className="w-full select-none" data-testid="date-picker">
-      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-3">
+      <div className="no-scrollbar -mx-1 -mt-1 flex gap-2 overflow-x-auto overflow-y-hidden px-1 pb-3 pt-1">
         {quick.map((q) => (
           <Chip key={q.label} size="sm" active={q.date === value.date} onClick={() => pick(q.date)}>
             {q.label}
