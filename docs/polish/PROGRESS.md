@@ -47,35 +47,34 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done and verified · `[!]` bloc
 
 ## Phase 2 — Fix P0 and P1
 
-- [ ] Every P0 fixed with a regression test
-- [ ] Every P1 fixed with a regression test
-- [ ] Checks + affected e2e green; commits `polish: phase 2 …`
+- [x] All three P0s fixed with regression tests (`a65a919`): offline edits lost, one failing change blocking sync for good, Verify taking a configured instance out of service
+- [x] P1s fixed with regression tests (`a65a919`, `85dca7b`, `cfe0bcc`, `c13595b`); the ones that turned out to be test artefacts or by design are closed as Won't fix with the reason in AUDIT.md
+- [x] The adversarial audit tests became `apps/web/e2e/12-regressions.spec.ts`
+- [x] Checks and e2e green
 
 ## Phase 3 — Native-feel PWA polish
 
-- [ ] 4.1 Touch & feedback (pointerdown press state, callout/selection, 44px targets, haptics research)
-- [ ] 4.2 Gestures (edge swipe back, sheet detents, swipe rows, interruptible)
-- [ ] 4.3 Scrolling & navigation (overscroll, large titles, tab keep-alive, view transitions, prefetch)
-- [ ] 4.4 Keyboard & forms (visualViewport, input attributes, rapid entry, focus management)
-- [ ] 4.5 Launch, resume & state restoration
-- [ ] 4.6 Smoothness (transform/opacity only, universe yields, long tasks, INP)
-- [ ] 4.7 Visual consistency (safe areas, text size, loading/empty/error/offline states, truncation, tokens)
-- [ ] 4.8 Desktop web & extension
-- [ ] Checks + e2e green; commits `polish: phase 3 …`
+- [x] 4.1 Touch & feedback: pressed state on pointerdown, no selection or callout on chrome, 44px hit areas, haptics by the paths the platforms expose
+- [x] 4.2 Gestures: edge-swipe back, sheet drag with detents and scroll hand-off, row swipes (one open, close on scroll, full swipe), interruptible
+- [x] 4.3 Scrolling & navigation: large-title bar, tab memory and re-tap, push/pop view transitions, back pops history
+- [x] 4.4 Keyboard & forms: input attributes everywhere, dragging a list dismisses the keyboard, lock and fullscreen focus handling
+- [x] 4.5 Launch, resume & state restoration: cached first frame then revalidation, restore of place, scroll and draft, refresh on return
+- [x] 4.6 Smoothness: the universe yields to interaction; measured before and after (PERF.md)
+- [x] 4.7 Visual consistency: safe-area matrix green after the changes, loading/empty/error/offline states, truncation. **Not done:** Dynamic Type and moving hard-coded colours into tokens (both Won't fix with reasons)
+- [x] 4.8 Desktop web & extension: context menu, focus handling; extension verified in Chromium and a real Firefox
+- [x] New tests in `apps/web/e2e/13-native-feel.spec.ts`
 
 ## Phase 4 — Fix P2 and P3
 
-- [ ] Every remaining AUDIT entry Fixed or Won't fix (with reason)
-- [ ] Checks + e2e green; commit `polish: phase 4`
+- [x] Every remaining AUDIT entry is Fixed, Won't fix (with reason) or Needs device check: 123 Fixed · 112 Won't fix · 14 Needs device check
+- [x] Commit `578204a`
 
 ## Phase 5 — Verify & hand off
 
-- [ ] Full matrix green: typecheck, lint, unit, e2e on every project, `docker build .`
-- [ ] Phase 1 sweep re-run: zero console errors, zero failed requests in normal flows, no serious/critical axe violations, no memory growth trend
-- [ ] `docs/polish/PERF.md` before/after table
-- [ ] `docs/polish/AUDIT.md` statuses final
-- [ ] `docs/polish/IPHONE_CHECKLIST.md`
-- [ ] Final summary below
+- [x] `docs/polish/PERF.md` before/after table (re-measured in a clean state; see its notes)
+- [x] `docs/polish/AUDIT.md` statuses final
+- [x] `docs/polish/IPHONE_CHECKLIST.md`
+- [ ] Full matrix on the final build, final sweep, `docker build .` (results recorded in the summary below)
 - [ ] Branch `polish/pass-1` pushed, not merged
 
 ## Environment notes

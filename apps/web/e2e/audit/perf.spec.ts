@@ -302,7 +302,7 @@ test.describe("perf", () => {
           await page.keyboard.press("Escape");
         }
         if (name === "Goals") {
-          await page.getByRole("button", { name: "Open Health" }).click();
+          await page.getByRole("button", { name: /^Open Health/ }).click();
           await page.getByRole("button", { name: "Increase Workouts this quarter" }).click();
           await page.waitForTimeout(300);
           await page.getByRole("button", { name: "Decrease Workouts this quarter" }).click();

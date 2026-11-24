@@ -1,6 +1,8 @@
 {
  "S:3": {
-  "status": "Open",
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: PIN checks are queued, so parallel guesses are evaluated one at a time. Test: 12-regressions ADV-60",
   "severity": "P2"
  },
  "C:19": {
@@ -35,8 +37,8 @@
  },
  "D:land-lock": {
   "status": "Fixed",
-  "commit": "a65a919",
-  "note": "How: layout change; verified with the landscape project in the next batch"
+  "commit": "85dca7b",
+  "note": "Test: e2e/02-auth.spec.ts on webkit-iphone-15-pro-landscape (Unlock is inside the viewport)"
  },
  "C:2": {
   "status": "Fixed",
@@ -223,5 +225,905 @@
  "D:wk-manual-sql": {
   "status": "Won't fix",
   "note": "Not a product bug: WebKit does not offer requests to page.route once a service worker controls the page, so the stub never applied and the real migration ran. The test now runs without a worker. The wizard's stream handling was hardened anyway (no-stream fallback, trailing line, dropped connection)"
+ },
+ "D:ff-overlay": {
+  "status": "Won't fix",
+  "note": "Not a product bug: the test read the canvas after a fixed delay and Firefox starts the effect a frame later. The test now polls; passes on Firefox"
+ },
+ "D:wk-export": {
+  "status": "Won't fix",
+  "note": "Not reproducible: export downloads on all three WebKit projects in every run since the baseline (the landscape failure was a timeout in a run that was failing for other reasons)"
+ },
+ "D:ff-crash": {
+  "status": "Won't fix",
+  "note": "Tool artefact, isolated: axe-core crashes the Playwright Firefox page once a sheet is open. The same scan completes in Firefox without axe, and the Firefox e2e suite opens the same sheets without a crash. The Firefox scan now runs without axe; the other five projects run it"
+ },
+ "D:lh-perf": {
+  "status": "Fixed",
+  "commit": "c13595b",
+  "note": "How: a cached open (the SPEC §12 case) is LCP 0.4–0.8 s under 4× CPU throttle (PERF.md), and non-critical shell code loads after first paint. Cold first-visit blocking time on a throttled CPU is hydration plus the data layer and is unchanged; see PERF.md for the numbers"
+ },
+ "G:4.1:94": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/13-native-feel.spec.ts (pressed state in the same task as pointerdown)"
+ },
+ "G:4.1:96": {
+  "status": "Needs device check",
+  "note": "Fixed for selection (e2e/13-native-feel.spec.ts); the long-press callout only exists on iOS itself. Checklist step 5",
+  "commit": "85dca7b"
+ },
+ "G:4.1:97": {
+  "status": "Needs device check",
+  "note": "Same rules as above; real long-press behaviour is checklist step 5",
+  "commit": "85dca7b"
+ },
+ "G:4.1:98": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/13-native-feel.spec.ts (44px hit area on a 32px control); scan-summary-after.md counts controls by their real hit area"
+ },
+ "G:4.1:99": {
+  "status": "Needs device check",
+  "note": "Implemented by the only path iOS exposes (native switch) plus navigator.vibrate; cannot be felt in automation. Checklist step 7. See DECISIONS",
+  "commit": "85dca7b"
+ },
+ "G:4.2:100": {
+  "status": "Needs device check",
+  "note": "Test: e2e/13-native-feel.spec.ts (edge swipe, spring back, history pop). Coexistence with iOS's own back gesture is checklist step 11",
+  "commit": "85dca7b"
+ },
+ "G:4.2:101": {
+  "status": "Needs device check",
+  "note": "Test: e2e/13-native-feel.spec.ts with real touch input in Chromium (scroll hand-off, medium detent, dismiss). Feel on the device is checklist step 12",
+  "commit": "85dca7b"
+ },
+ "G:4.2:102": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/13-native-feel.spec.ts (one row open, closes on scroll, full swipe deletes) and 12-regressions ADV-50"
+ },
+ "G:4.2:103": {
+  "status": "Needs device check",
+  "note": "Sheets, rows and the edge swipe all take over from the current position on touch; judged by hand in checklist steps 8–12",
+  "commit": "85dca7b"
+ },
+ "G:4.3:104": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: sheets, popovers and the lock overlay contain their overscroll; the page itself is the only document scroller. Remaining inner scrollers (emoji grid, command list) already clip"
+ },
+ "G:4.3:105": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/13-native-feel.spec.ts (compact title appears and goes)"
+ },
+ "G:4.3:106": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/13-native-feel.spec.ts (segment, open list and scroll restored; re-tap scrolls up, then root). Done by remembering each tab's address and scroll, not by keeping five page trees alive; see DECISIONS"
+ },
+ "G:4.3:107": {
+  "status": "Needs device check",
+  "note": "View Transitions push/pop with a plain swap elsewhere; whether Safari on the device animates it is checklist step 17",
+  "commit": "85dca7b"
+ },
+ "G:4.3:108": {
+  "status": "Won't fix",
+  "note": "Already true for in-app navigation (Next Link prefetches). The remaining full loads are deliberate: signing in and out, finishing setup and activating a new version each need a clean document"
+ },
+ "G:4.4:109": {
+  "status": "Needs device check",
+  "note": "The visualViewport handling is unchanged and passes the keyboard-inset checks; a real iOS keyboard is checklist steps 18–20"
+ },
+ "G:4.4:110": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: every input carries enterkeyhint, autocomplete and, for notes, autocapitalize; amounts keep their decimal keypad. Listed per screen in scan-summary-after.md"
+ },
+ "G:4.4:111": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/13-native-feel.spec.ts (dragging a list blurs the field); quick add already kept focus after Enter"
+ },
+ "G:4.4:112": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: 12-regressions ADV-30 (nothing behind the lock is focusable); the fullscreen timer is modal and Space works in it"
+ },
+ "G:4.5:114": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: static skeleton rows only where a list has never been loaded; cached data paints first and is revalidated"
+ },
+ "G:4.5:115": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/13-native-feel.spec.ts (cold start of the installed app returns to the route, segment, scroll position and quick-add draft). An open task editor saves on the way to the background instead of being reopened"
+ },
+ "G:4.5:116": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: 12-regressions ADV-41 (midnight); providers.tsx revalidates on return and the focus state on every return"
+ },
+ "G:4.6:117": {
+  "status": "Won't fix",
+  "note": "Rows still collapse by animating height: a transform cannot close the gap a removed row leaves, and the measured cost is nil (PERF.md: 0 long tasks completing ten tasks). Blur layers are capped (one compact bar, none nested on the Minimal tier)"
+ },
+ "G:4.6:118": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/13-native-feel.spec.ts (the scene holds its frame during scroll)"
+ },
+ "G:4.6:119": {
+  "status": "Fixed",
+  "commit": "c13595b",
+  "note": "Measured: PERF.md before/after (long tasks, slowest interaction, frame timings) on iphone-15-pro and desktop with the CPU throttled 4×"
+ },
+ "G:4.6:120": {
+  "status": "Fixed",
+  "commit": "c13595b",
+  "note": "Measured: completing ten tasks rapidly produces 0 long tasks and no dropped frames on the Minimal tier before and after (PERF.md). The Balanced figures are software WebGL and not representative; checklist step 24"
+ },
+ "G:4.7:121": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "Test: the eight-size safe-area matrix in e2e/09-pwa.spec.ts passes on all seven projects after the gesture and sheet changes"
+ },
+ "G:4.7:122": {
+  "status": "Won't fix",
+  "note": "Dynamic Type needs every size moved to a capped, measured scale and every fixed-height control re-checked: a redesign-sized change. See DECISIONS"
+ },
+ "G:4.7:123": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: skeletons for never-loaded lists, one status pill for offline and failed first loads on every screen, existing empty states kept"
+ },
+ "G:4.7:124": {
+  "status": "Won't fix",
+  "note": "Truncation is fixed (long block-list names, hover labels, unbroken strings). Hard-coded colours remain in about 25 component files; moving them into ui-tokens changes no behaviour and touches most components, so it is left for a pass that is about the design system"
+ },
+ "G:4.8:125": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: right-click menu on task rows (loaded on demand), segmented controls keep focus with the arrow keys; hover, focus rings, ⌘K, shortcuts and drag reorder were already in place and stay covered by e2e/03 and e2e/04"
+ },
+ "G:4.8:126": {
+  "status": "Needs device check",
+  "note": "Unchanged code path: the popup renders from storage first. Verified by e2e/10-extension in Chromium and the Firefox smoke; perceived speed is checklist step 30"
+ },
+ "G:4.8:127": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "Verified: apps/extension/scripts/firefox-smoke.mjs in Firefox 159 (countdown 25:00 → 24:58 over 2.1 s, Continue handoff) and e2e/10-extension in Chromium"
+ },
+ "D:axe-contrast": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "Test: scan-summary-after.md (no serious or critical axe violations)"
+ },
+ "D:axe-emoji": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "Test: scan-summary-after.md"
+ },
+ "D:axe-name": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "Test: scan-summary-after.md; rows and cards are named by their content"
+ },
+ "D:axe-prohibited": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "Test: scan-summary-after.md; Lighthouse accessibility is 100 on every route"
+ },
+ "D:cls": {
+  "status": "Fixed",
+  "commit": "c13595b",
+  "note": "Measured: no layout shift above 0.01 on load on any route (Playwright, cold); the shifts logged in tasks tests are the row leaving after completion, which is the designed animation"
+ },
+ "D:lh-cls": {
+  "status": "Fixed",
+  "commit": "c13595b",
+  "note": "How: General and Appearance hold their place while the settings load, so the sections below no longer jump"
+ },
+ "D:hydration": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: no hydration error in the final sweep log; the sync indicator no longer reads navigator.onLine during the first render"
+ },
+ "D:land-suite": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: the landscape project passes the suite. Two real bugs were behind it (lock screen layout, pickers taller than the screen); the rest were tests assuming phone or desktop"
+ },
+ "D:overflow-routine": {
+  "status": "Fixed",
+  "commit": "c13595b",
+  "note": "Test: scan-summary-after.md (no horizontal overflow on the WebKit phones); the Routines grid column can now shrink"
+ },
+ "D:scan-landscape": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: the landscape scan completes (scan-summary-after.md)"
+ },
+ "D:sw-icons": {
+  "status": "Won't fix",
+  "note": "Not an error path: Firefox logs requests that were cancelled by the navigation from the PIN screen into the app. The icons load on the next page"
+ },
+ "D:wk-canvas": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/08-universe.spec.ts passes on webkit-iphone-se; an explicitly chosen tier is no longer stepped down and remounted"
+ },
+ "D:memory": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: window.__stellarUniverse.info() exposes renderer counts; the after-run records them (PERF.md)"
+ },
+ "C:16": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: the status pill shows 'Couldn't load your data. Retry' when a first load fails"
+ },
+ "C:17": {
+  "status": "Won't fix",
+  "note": "sp_settings and sp_quotes are not in the Realtime publication by SPEC §3.4. Both now refresh when the app returns to the foreground, which is when another device's change matters"
+ },
+ "C:22": {
+  "status": "Won't fix",
+  "note": "Views are filters on the due date by SPEC §5.1; 'completed today' would need the completion time in the owner's zone and changes what the Today tab means"
+ },
+ "C:26": {
+  "status": "Won't fix",
+  "note": "Cosmetic: after a rebalance the order is already correct locally; the timed refetch only fetches the respaced ranks"
+ },
+ "C:27": {
+  "status": "Won't fix",
+  "note": "A second celebration needs a timer button pressed within 20 s of a phase ending on another device; no data is affected"
+ },
+ "C:30": {
+  "status": "Won't fix",
+  "note": "The remaining skew error is network latency (tens of milliseconds); the countdown is derived from phase_ends_at and stays within a second, which is what the extension run measured"
+ },
+ "C:36": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: the pending cache write is flushed when the app is hidden"
+ },
+ "C:37": {
+  "status": "Won't fix",
+  "note": "Measured rather than assumed: no long task from the write in any scenario (PERF.md). It is throttled to once a second and the cache is a few hundred kilobytes"
+ },
+ "C:39": {
+  "status": "Won't fix",
+  "note": "The stale page is replaced as soon as the new worker activates (the fix for the Reload path); between the toast and the reload the old version keeps working online"
+ },
+ "C:40": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: a toast with Undo or an action is never evicted by plain messages"
+ },
+ "C:41": {
+  "status": "Won't fix",
+  "note": "Offline, a tab switch falls back to a full load of the cached shell, which opens from the device in a few hundred milliseconds with the cached data"
+ },
+ "C:42": {
+  "status": "Won't fix",
+  "note": "By design: signing in needs the server, so the PIN screen is not offered offline"
+ },
+ "C:44": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: a notification click only navigates when the open app is on a different screen"
+ },
+ "C:45": {
+  "status": "Won't fix",
+  "note": "Silent by SPEC ('No sound anywhere'). A changed push subscription is re-registered the next time the app opens"
+ },
+ "U:A09": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: toast.ts keeps offers (Undo, Reload)"
+ },
+ "U:A10": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: stepper stops repeating at the floor"
+ },
+ "U:A11": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/13-native-feel.spec.ts (forward after back returns to the list: back popped)"
+ },
+ "U:A12": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: skeletons instead of empty-state messages while loading"
+ },
+ "U:A13": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: Space works; the overlay covers the page and is modal"
+ },
+ "U:A14": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: long names truncate inside the chip"
+ },
+ "U:A15": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: Reschedule is shown as unavailable where there is no handler"
+ },
+ "U:A17": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/13-native-feel.spec.ts"
+ },
+ "U:A19": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "Test: lib/client/amount.test.ts"
+ },
+ "U:A21": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: a deleted list is deselected"
+ },
+ "U:A24": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: focus follows the selection"
+ },
+ "U:A25": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: a real link styled as the button"
+ },
+ "U:A27": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: Enter during composition is ignored"
+ },
+ "U:A28": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Measured: 1,000 extra tasks show in 1.2–1.5 s instead of 3.6–5.1 s, with 8,400 DOM nodes instead of 22,500 (PERF.md)"
+ },
+ "U:A32": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: a focus request is served once"
+ },
+ "U:A16": {
+  "status": "Won't fix",
+  "note": "The row needs an opaque face to hide the action tray beneath it; a translucent one shows Reschedule and Delete through the task"
+ },
+ "U:A18": {
+  "status": "Won't fix",
+  "note": "Needs a paused finger on a moving wheel within a 120 ms window; the wheel settles correctly on release"
+ },
+ "U:A20": {
+  "status": "Won't fix",
+  "note": "Goal, routine and list sheets reset only when the edited row changes on another device while the sheet is open; the task sheet, where this was reproduced, is fixed"
+ },
+ "U:A22": {
+  "status": "Won't fix",
+  "note": "By design: unlocking verifies the PIN on the server, so it needs a connection. The content shown for a moment on a cold start is the owner's own device before its settings load"
+ },
+ "U:A26": {
+  "status": "Won't fix",
+  "note": "The tab bar stays on screen in Settings, so every destination is one tap away; the OpenAPI document is a deliberate external link"
+ },
+ "S:5": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "Test: lib/server/crypto.test.ts (lockout decays after a quiet day)"
+ },
+ "S:6": {
+  "status": "Fixed",
+  "commit": "c13595b",
+  "note": "How: the routes that go on to act with the server's own credentials (push test, connection status) verify the token with the auth server; every other route hands the token to Supabase, which verifies it"
+ },
+ "S:8": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "Test: e2e/11-api.spec.ts (X-Frame-Options, nosniff); also Referrer-Policy, HSTS, Permissions-Policy. No CSP: static shells cannot carry the nonces Next's inline scripts need"
+ },
+ "S:9": {
+  "status": "Fixed",
+  "commit": "c13595b",
+  "note": "Test: e2e/11-api.spec.ts (a cookie-authenticated write from another origin is refused)"
+ },
+ "S:11": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "Test: lib/server/crypto.test.ts (PUBLIC_APP_URL without a scheme)"
+ },
+ "S:12": {
+  "status": "Fixed",
+  "commit": "c13595b",
+  "note": "Test: e2e/11-api.spec.ts (bodies over 1 MB are refused; import has its own limit)"
+ },
+ "S:4": {
+  "status": "Won't fix",
+  "note": "Rate limits by address need a trusted-proxy setting to be meaningful; the PIN lockout, which is what protects the owner, is global and does not depend on the address"
+ },
+ "S:7": {
+  "status": "Won't fix",
+  "note": "Inherent to stateless access tokens (at most an hour) and already documented in DECISIONS; the browser's own token fetch is verified, so web clients are cut off at their next refresh"
+ },
+ "S:10": {
+  "status": "Won't fix",
+  "note": "Changing the connection of a configured instance is a deliberate, rare admin action that asks for verification again by design; documented in SELF_HOSTING"
+ },
+ "S:13": {
+  "status": "Won't fix",
+  "note": "The owner would be gaming their own ledger; the ledger rule (DECISIONS) is that structural edits never claw points back"
+ },
+ "S:14": {
+  "status": "Won't fix",
+  "note": "REST facade only: the web app and the extension talk to Supabase directly and are not affected. Recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:15": {
+  "status": "Won't fix",
+  "note": "REST facade only: the web app and the extension talk to Supabase directly and are not affected. Recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:16": {
+  "status": "Won't fix",
+  "note": "REST facade only: the web app and the extension talk to Supabase directly and are not affected. Recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:17": {
+  "status": "Needs device check",
+  "note": "Use a session-mode or direct connection string, or none at all (the app then migrates through pg-meta). Listed under 'Not testable here' in IPHONE_CHECKLIST.md"
+ },
+ "S:18": {
+  "status": "Won't fix",
+  "note": "Needs both migration routes to be used on one database; boot now always prefers the connection string when there is one"
+ },
+ "S:19": {
+  "status": "Won't fix",
+  "note": "The fallback keeps a misconfigured container usable; the Dokploy guide tells the owner to mount /data and the Connection page shows where the configuration is stored"
+ },
+ "X:E10": {
+  "status": "Needs device check",
+  "note": "Could not be observed in automation (temporary add-on); the alarm re-sync covers a dropped socket within 30 s. Checklist step 34"
+ },
+ "X:E6": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: a press that lost a version race is applied to the current state when it still means the same thing"
+ },
+ "X:E7": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "Test: apps/extension/lib/logic.test.ts (trailing-dot hostname)"
+ },
+ "X:E8": {
+  "status": "Needs device check",
+  "note": "Depends on alarm timing in a packaged build; checklist step 32"
+ },
+ "X:E9": {
+  "status": "Needs device check",
+  "note": "Depends on the browser's back/forward cache; checklist step 31"
+ },
+ "X:E12": {
+  "status": "Won't fix",
+  "note": "Needs a disconnect and a reconnect to a different instance within one worker lifetime; the old client's refresh fails harmlessly against cleared storage"
+ },
+ "X:E14": {
+  "status": "Won't fix",
+  "note": "An http address that redirects is reported at the PIN step with the server's message; typing the https address works"
+ },
+ "X:E15": {
+  "status": "Won't fix",
+  "note": "Single-label and IPv6 hosts can be reached by typing the scheme explicitly"
+ },
+ "X:E4": {
+  "status": "Won't fix",
+  "note": "Rule installs are idempotent and are redone on the next 30 s alarm, which corrects any divergence"
+ },
+ "X:E5": {
+  "status": "Won't fix",
+  "note": "The next sync is at most 120 ms away (the Realtime debounce)"
+ },
+ "X:U10": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: a failed chunk download is retried; an error boundary keeps the CSS sky"
+ },
+ "X:U2": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: a lost context rebuilds the scene when the page is in front again. The first version of this rebuilt on the context loss of a canvas it had itself replaced, which looped; fixed and covered by e2e/08-universe.spec.ts (the canvas survives a tier change and navigation)"
+ },
+ "X:U3": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: glow textures are disposed with their materials"
+ },
+ "X:U6": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: only Auto is governed, a step-down is remembered for a week, an explicit tier is kept"
+ },
+ "X:U8": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "Test: e2e/13-native-feel.spec.ts"
+ },
+ "X:U11": {
+  "status": "Won't fix",
+  "note": "One extra resolve at start-up, before the canvas exists; no second context is created since the probe is cached"
+ },
+ "X:U12": {
+  "status": "Won't fix",
+  "note": "The tier is corrected by the frame governor within three seconds and the result is now remembered, which is the behaviour that matters on a device"
+ },
+ "X:U18": {
+  "status": "Won't fix",
+  "note": "The overlay canvas is cleared and its loop stopped when idle; the backing store is the price of drawing events at device resolution"
+ },
+ "X:U19": {
+  "status": "Won't fix",
+  "note": "Not measurable without a GPU; the large effects are rare (era change, first light) and are on the checklist's smoothness step"
+ },
+ "X:U21": {
+  "status": "Won't fix",
+  "note": "Zoom is a few steps over a small range by design; the stage does not scroll the page on touch"
+ },
+ "X:U4": {
+  "status": "Won't fix",
+  "note": "A snapshot arrives after something the owner did (a completion), not continuously; the rebuild was measured at 0 long tasks on the Minimal tier and cannot be judged on software WebGL"
+ },
+ "X:U9": {
+  "status": "Won't fix",
+  "note": "The host component re-renders, the canvas subtree does not: e2e/08-universe asserts the same canvas element survives navigation on every project"
+ },
+ "D:ff-webgl-warn": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: one probe per session, and Firefox reads RENDERER instead of the deprecated extension"
+ },
+ "D:three-clock": {
+  "status": "Won't fix",
+  "note": "Logged by the 3D library itself (react-three-fiber uses THREE.Clock); nothing in this codebase calls it"
+ },
+ "D:sw-setup": {
+  "status": "Won't fix",
+  "note": "Harmless: registration is retried on the next page once the instance is configured"
+ },
+ "D:rsc-abort": {
+  "status": "Won't fix",
+  "note": "WebKit reports route prefetches that a full navigation cancelled; they are Next's own requests and nothing is lost"
+ },
+ "D:font-preload": {
+  "status": "Fixed",
+  "commit": "578204a",
+  "note": "How: the fallback font is no longer preloaded"
+ },
+ "D:lock-nofcp": {
+  "status": "Won't fix",
+  "note": "Only Lighthouse's headless run fails to paint /lock; the page renders in every engine in e2e/02-auth, with screenshots"
+ },
+ "C:24": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: parseAmount rejects NaN and Infinity before they reach a setter; migration 0010 rejects them in the RPCs"
+ },
+ "C:25": {
+  "status": "Won't fix",
+  "note": "A float sum of user-entered amounts differs from numeric only beyond 15 significant digits"
+ },
+ "C:32": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: the fallback verifies a stale phase with the server before advancing"
+ },
+ "C:35": {
+  "status": "Fixed",
+  "commit": "578204a",
+  "note": "How: scrolling counts as activity"
+ },
+ "C:43": {
+  "status": "Won't fix",
+  "note": "The home shell boots any route from the cached data; the route then renders client-side"
+ },
+ "C:46": {
+  "status": "Won't fix",
+  "note": "The listeners belong to components mounted once for the life of the page (root layout, shell)"
+ },
+ "C:47": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: Enter during composition is ignored"
+ },
+ "C:48": {
+  "status": "Won't fix",
+  "note": "A version conflict means another device pressed first; the screen shows the resulting state within a second, which is the feedback"
+ },
+ "U:A29": {
+  "status": "Fixed",
+  "commit": "578204a",
+  "note": "How: the label has a maximum width and truncates"
+ },
+ "U:A30": {
+  "status": "Fixed",
+  "commit": "578204a",
+  "note": "How: long unbroken strings wrap"
+ },
+ "U:A31": {
+  "status": "Fixed",
+  "commit": "578204a",
+  "note": "How: task text and fields take their direction from their content (dir=auto)"
+ },
+ "U:A33": {
+  "status": "Won't fix",
+  "note": "Needs Enter held down across a sheet closing; the closing sheet is now inert, which removes the double submit"
+ },
+ "U:A34": {
+  "status": "Won't fix",
+  "note": "The headline figure above the chart does move; the two summary tiles update when the phase ends"
+ },
+ "U:A35": {
+  "status": "Won't fix",
+  "note": "One frame, on resume, before the first tick"
+ },
+ "U:A38": {
+  "status": "Won't fix",
+  "note": "Only when looking at a month more than 400 days back"
+ },
+ "U:A39": {
+  "status": "Won't fix",
+  "note": "Selecting any day in the new month replaces it"
+ },
+ "U:A40": {
+  "status": "Won't fix",
+  "note": "A no-op quick pick on a required date"
+ },
+ "U:A41": {
+  "status": "Won't fix",
+  "note": "A few frames during the close animation"
+ },
+ "U:A42": {
+  "status": "Won't fix",
+  "note": "Escape in the inline amount field closes the sheet as well as the field"
+ },
+ "U:A43": {
+  "status": "Won't fix",
+  "note": "Covered app-wide by the offline and failed-load status pill"
+ },
+ "U:A44": {
+  "status": "Won't fix",
+  "note": "The serious and critical findings are fixed (scan-summary-after.md: none left); what remains is advisory"
+ },
+ "U:A46": {
+  "status": "Won't fix",
+  "note": "Internal tidiness with no visible effect"
+ },
+ "U:A36": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: the check uses the server-corrected clock"
+ },
+ "U:A45": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: a PIN pad inside an inert subtree ignores keys"
+ },
+ "S:21": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: migration 0010 rejects NaN and Infinity in sp_goal_increment and sp_routine_log_set"
+ },
+ "S:27": {
+  "status": "Fixed",
+  "commit": "578204a",
+  "note": "How: a null body is handled"
+ },
+ "S:28": {
+  "status": "Fixed",
+  "commit": "578204a",
+  "note": "How: an empty update is a 400"
+ },
+ "S:42": {
+  "status": "Fixed",
+  "commit": "cfe0bcc",
+  "note": "How: migrations run beside the server starting, not before it"
+ },
+ "S:20": {
+  "status": "Won't fix",
+  "note": "REST facade or SQL detail with no effect on the web app or the extension; recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:22": {
+  "status": "Won't fix",
+  "note": "REST facade or SQL detail with no effect on the web app or the extension; recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:23": {
+  "status": "Won't fix",
+  "note": "REST facade or SQL detail with no effect on the web app or the extension; recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:24": {
+  "status": "Won't fix",
+  "note": "REST facade or SQL detail with no effect on the web app or the extension; recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:25": {
+  "status": "Won't fix",
+  "note": "REST facade or SQL detail with no effect on the web app or the extension; recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:26": {
+  "status": "Won't fix",
+  "note": "REST facade or SQL detail with no effect on the web app or the extension; recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:29": {
+  "status": "Won't fix",
+  "note": "REST facade or SQL detail with no effect on the web app or the extension; recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:38": {
+  "status": "Won't fix",
+  "note": "REST facade or SQL detail with no effect on the web app or the extension; recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:39": {
+  "status": "Won't fix",
+  "note": "REST facade or SQL detail with no effect on the web app or the extension; recorded for the pass that builds the iOS client against /api/v1"
+ },
+ "S:30": {
+  "status": "Won't fix",
+  "note": "The setup state is what lets the extension and the wizard discover an instance; it contains no secrets"
+ },
+ "S:31": {
+  "status": "Won't fix",
+  "note": "An extension origin cannot be known in advance (each install has its own id); the endpoints still require the owner's token"
+ },
+ "S:32": {
+  "status": "Won't fix",
+  "note": "A corrupt lockout file fails closed by design (DECISIONS)"
+ },
+ "S:33": {
+  "status": "Won't fix",
+  "note": "Bounded in practice by the single owner; entries expire with their window"
+ },
+ "S:34": {
+  "status": "Won't fix",
+  "note": "The scheduler's requests go to the owner's own Supabase; a hang there is visible as the timer not advancing and clears on restart"
+ },
+ "S:35": {
+  "status": "Won't fix",
+  "note": "Device rows are a sign-in history; old ones can be revoked in Settings → Security"
+ },
+ "S:36": {
+  "status": "Won't fix",
+  "note": "The owner deleting their own settings row is recreated by sp_bootstrap on the next load"
+ },
+ "S:37": {
+  "status": "Won't fix",
+  "note": "They return the caller's own time zone and date; other users have no rows"
+ },
+ "S:40": {
+  "status": "Won't fix",
+  "note": "Set PUBLIC_APP_URL to the address you actually use; documented in SELF_HOSTING"
+ },
+ "S:41": {
+  "status": "Won't fix",
+  "note": "The message points at the right place (the connection); the log has the detail"
+ },
+ "S:43": {
+  "status": "Won't fix",
+  "note": "Only before setup has completed, and rate limited"
+ },
+ "X:E11": {
+  "status": "Won't fix",
+  "note": "The 30 s alarm re-syncs and rebuilds the channel"
+ },
+ "X:E13": {
+  "status": "Won't fix",
+  "note": "Both clients read the same stored session; a refresh race costs one retry"
+ },
+ "X:E16": {
+  "status": "Won't fix",
+  "note": "The message asks the owner to check the address, which is the action either way"
+ },
+ "X:E17": {
+  "status": "Won't fix",
+  "note": "The server's message already says how long to wait"
+ },
+ "X:E18": {
+  "status": "Won't fix",
+  "note": "Connecting again completes it"
+ },
+ "X:E19": {
+  "status": "Won't fix",
+  "note": "The keypad button that has focus is pressed, which enters one more digit"
+ },
+ "X:E20": {
+  "status": "Won't fix",
+  "note": "The popup re-reads storage on the next open"
+ },
+ "X:E21": {
+  "status": "Won't fix",
+  "note": "The badge is refreshed by the 30 s alarm; the popup and the block page count live"
+ },
+ "X:E22": {
+  "status": "Won't fix",
+  "note": "Far beyond any real block list; browsers cap dynamic rules anyway"
+ },
+ "X:E23": {
+  "status": "Won't fix",
+  "note": "Type the punycode form; the web app shows the same normalised name"
+ },
+ "X:E24": {
+  "status": "Won't fix",
+  "note": "The block page only ever links back to the blocked site itself (DECISIONS)"
+ },
+ "X:E25": {
+  "status": "Won't fix",
+  "note": "Resolves on the first successful sync"
+ },
+ "X:E26": {
+  "status": "Won't fix",
+  "note": "Cosmetic"
+ },
+ "X:E27": {
+  "status": "Needs device check",
+  "note": "Firefox 159 reports <all_urls> granted for a temporary add-on; a signed build may prompt. Checklist step 34"
+ },
+ "X:U5": {
+  "status": "Fixed",
+  "commit": "85dca7b",
+  "note": "How: sprite geometry is no longer disposed"
+ },
+ "X:U15": {
+  "status": "Fixed",
+  "commit": "578204a",
+  "note": "How: the queues are bounded"
+ },
+ "X:U7": {
+  "status": "Won't fix",
+  "note": "A few frames on a tier change"
+ },
+ "X:U13": {
+  "status": "Won't fix",
+  "note": "An explicit tier is the owner's choice; reduced motion already stops the ambient loops on Auto"
+ },
+ "X:U14": {
+  "status": "Won't fix",
+  "note": "Only beyond 240 recent stars, by a pixel or two"
+ },
+ "X:U16": {
+  "status": "Won't fix",
+  "note": "The idle loop draws nothing and stops itself"
+ },
+ "X:U17": {
+  "status": "Won't fix",
+  "note": "Events while hidden are rare (another device) and settle on return"
+ },
+ "X:U20": {
+  "status": "Won't fix",
+  "note": "Needs the overlay chunk to take over four seconds on the very first launch"
+ },
+ "X:U22": {
+  "status": "Won't fix",
+  "note": "The label is re-evaluated on the next tap or hover"
+ },
+ "X:U23": {
+  "status": "Won't fix",
+  "note": "The stage is the universe's drag area by design; the Today card below scrolls"
+ },
+ "X:U24": {
+  "status": "Won't fix",
+  "note": "Redrawn on the next frame after resume"
+ },
+ "X:U25": {
+  "status": "Won't fix",
+  "note": "Pausing while typing is the intended trade on phones"
+ },
+ "X:U26": {
+  "status": "Won't fix",
+  "note": "Library default; no measurable cost in PERF.md"
+ },
+ "X:U27": {
+  "status": "Won't fix",
+  "note": "Micro-allocations with no measured effect"
  }
 }

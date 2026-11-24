@@ -43,6 +43,8 @@ test.describe("native feel", () => {
     await expect(add).toBeVisible();
     // The touch behaviour loads when the browser is idle, just after first paint.
     await expect(page.locator("html")).toHaveAttribute("data-touch-feel", "on");
+    // On a first launch the page cannot be acted on until the owner's time zone is known.
+    await expect(page.locator('[data-zone="pending"]')).toHaveCount(0);
     const state = await add.evaluate((el) => {
       const r = el.getBoundingClientRect();
       const at = { clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };

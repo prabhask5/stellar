@@ -528,6 +528,9 @@ test.describe("regressions", () => {
     );
     await page.goto("/tasks");
     const row = page.getByTestId("task-row").filter({ hasText: "Swipe me" });
+    await expect(row).toBeVisible();
+    // On a first launch the page cannot be acted on until the owner's time zone is known.
+    await expect(page.locator('[data-zone="pending"]')).toHaveCount(0);
     const box = (await row.boundingBox())!;
     const y = box.y + box.height / 2;
     await swipe(page, { x: box.x + box.width - 60, y }, -150);

@@ -139,13 +139,17 @@ export default function UniverseCanvas() {
       onCreated={({ gl }) => {
         const canvas = gl.domElement;
         canvas.addEventListener("webglcontextlost", (e) => {
+          // A canvas that was replaced (a tier change, an earlier rebuild) loses its context
+          // when it is disposed. That is not a loss to recover from: rebuilding here would
+          // dispose the current canvas in turn, and so on without end.
+          if (!canvas.isConnected) return;
           e.preventDefault();
           universeStore.setState({ ready: false });
           // Rebuild once the page is in front again; nothing can be drawn before that.
           const rebuild = () => {
             if (document.hidden) return;
             document.removeEventListener("visibilitychange", rebuild);
-            setEpoch((n) => n + 1);
+            if (canvas.isConnected) setEpoch((n) => n + 1);
           };
           if (document.hidden) document.addEventListener("visibilitychange", rebuild);
           else setTimeout(rebuild, 400);

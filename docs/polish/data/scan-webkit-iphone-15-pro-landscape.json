@@ -1,0 +1,280 @@
+[
+ {
+  "screen": "home",
+  "kind": "facts",
+  "detail": {
+   "interactive": 8,
+   "selectableChrome": 0,
+   "calloutNotNone": 8,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "home",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "landmark-one-main",
+   "help": "Document should have one main landmark",
+   "nodes": [
+    "html"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "home",
+  "kind": "axe:moderate",
+  "detail": {
+   "id": "page-has-heading-one",
+   "help": "Page should contain a level-one heading",
+   "nodes": [
+    "html"
+   ],
+   "count": 1
+  }
+ },
+ {
+  "screen": "tasks/today",
+  "kind": "facts",
+  "detail": {
+   "interactive": 41,
+   "selectableChrome": 0,
+   "calloutNotNone": 41,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/task-sheet",
+  "kind": "facts",
+  "detail": {
+   "interactive": 7,
+   "selectableChrome": 0,
+   "calloutNotNone": 7,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/date-picker",
+  "kind": "facts",
+  "detail": {
+   "interactive": 51,
+   "selectableChrome": 0,
+   "calloutNotNone": 51,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/all",
+  "kind": "facts",
+  "detail": {
+   "interactive": 40,
+   "selectableChrome": 0,
+   "calloutNotNone": 40,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/calendar",
+  "kind": "facts",
+  "detail": {
+   "interactive": 117,
+   "selectableChrome": 0,
+   "calloutNotNone": 117,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/lists",
+  "kind": "facts",
+  "detail": {
+   "interactive": 27,
+   "selectableChrome": 0,
+   "calloutNotNone": 27,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/new-list-sheet",
+  "kind": "facts",
+  "detail": {
+   "interactive": 3,
+   "selectableChrome": 0,
+   "calloutNotNone": 3,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/emoji-picker",
+  "kind": "touch-target",
+  "detail": [
+   "input[Search emoji] 406×40"
+  ]
+ },
+ {
+  "screen": "tasks/emoji-picker",
+  "kind": "facts",
+  "detail": {
+   "interactive": 58,
+   "selectableChrome": 0,
+   "calloutNotNone": 58,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "tasks/list-detail",
+  "kind": "facts",
+  "detail": {
+   "interactive": 23,
+   "selectableChrome": 0,
+   "calloutNotNone": 23,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "goals",
+  "kind": "facts",
+  "detail": {
+   "interactive": 19,
+   "selectableChrome": 0,
+   "calloutNotNone": 19,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "goals/list-detail",
+  "kind": "facts",
+  "detail": {
+   "interactive": 24,
+   "selectableChrome": 0,
+   "calloutNotNone": 24,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "goals/goal-sheet",
+  "kind": "facts",
+  "detail": {
+   "interactive": 5,
+   "selectableChrome": 0,
+   "calloutNotNone": 5,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "routines",
+  "kind": "facts",
+  "detail": {
+   "interactive": 46,
+   "selectableChrome": 0,
+   "calloutNotNone": 46,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "routines/manage+sheet",
+  "kind": "facts",
+  "detail": {
+   "interactive": 11,
+   "selectableChrome": 0,
+   "calloutNotNone": 11,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "focus",
+  "kind": "facts",
+  "detail": {
+   "interactive": 15,
+   "selectableChrome": 0,
+   "calloutNotNone": 15,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "focus/settings-sheet",
+  "kind": "facts",
+  "detail": {
+   "interactive": 15,
+   "selectableChrome": 0,
+   "calloutNotNone": 15,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "focus/block-lists",
+  "kind": "facts",
+  "detail": {
+   "interactive": 11,
+   "selectableChrome": 0,
+   "calloutNotNone": 11,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ },
+ {
+  "screen": "settings",
+  "kind": "facts",
+  "detail": {
+   "interactive": 26,
+   "selectableChrome": 0,
+   "calloutNotNone": 26,
+   "blurLayers": 1,
+   "smallInputs": [],
+   "missingHints": [
+    "INPUT [enterkeyhint=null, autocomplete=off, inputmode=null, autocapitalize=null]"
+   ]
+  }
+ },
+ {
+  "screen": "command-bar",
+  "kind": "scan-error",
+  "detail": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByLabel('Command')\nExpected: visible\nError: strict mode violation: getByLabel('Command') resolved to 3 elements:\n    1) <div role=\"dialog\" tabindex=\"-1\" id=\"radix-_r_2_\" data-state=\"open\" aria-labe"
+ },
+ {
+  "screen": "lock",
+  "kind": "facts",
+  "detail": {
+   "interactive": 10,
+   "selectableChrome": 0,
+   "calloutNotNone": 10,
+   "blurLayers": 0,
+   "smallInputs": [],
+   "missingHints": []
+  }
+ }
+]

@@ -190,10 +190,15 @@ test.describe("scan", () => {
     test.setTimeout(300_000);
     const out: Finding[] = [];
     const phone = isPhone(info.project.name);
+    // axe-core crashes the Playwright Firefox page as soon as a sheet is open (the same
+    // screens open and close without trouble in the Firefox e2e suite, and this scan
+    // completes in Firefox without axe). The DOM axe checks is the same in every engine,
+    // so the five other projects cover it.
+    const axeHere = info.project.name !== "firefox-desktop";
     const step = async (screen: string, fn: () => Promise<void>, axe = true) => {
       try {
         await fn();
-        await measure(page, screen, out, axe);
+        await measure(page, screen, out, axe && axeHere);
       } catch (err) {
         out.push({ screen, kind: "scan-error", detail: String(err).slice(0, 300) });
       }

@@ -98,12 +98,17 @@ test.describe("universe", () => {
     await seedUniverse(1500);
     await sql(`update sp_settings set quality_tier = 'balanced'`);
     await page.goto("/");
+    // A first launch starts on Auto until the settings arrive; the chosen tier's canvas is the
+    // one that must then survive.
+    await expect(page.locator("html")).toHaveAttribute("data-tier", "balanced");
     await waitForScene(page);
     await page.evaluate(() => {
       (
         document.querySelector(".sp-universe canvas") as HTMLCanvasElement & { __mark?: string }
       ).__mark = "same-canvas";
     });
+    // Polish pass 1: replacing a canvas (here Auto → Balanced) must not start a rebuild loop.
+    await page.waitForTimeout(1500);
     await expect(page.locator(".sp-universe")).toHaveAttribute("data-mode", "home");
 
     await page

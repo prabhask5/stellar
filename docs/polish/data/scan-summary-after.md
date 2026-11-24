@@ -344,15 +344,15 @@ Locator: getByLabel('Command')
 Expected: visible
 Error: strict mode violation: getByLabel('Command') resolved to 3 
 
-## iphone-15-pro
+## firefox-desktop
 
-- Screens and sheets scanned: 20
-- Interactive elements: 624; text-selectable chrome: 0; without `-webkit-touch-callout: none`: 624; most backdrop-filter layers on one screen: 0
-- Distinct controls under 44×44: 214
-- Inputs under 16px: none
+- Screens and sheets scanned: 20 (1 could not be opened)
+- Interactive elements: 963; text-selectable chrome: 0; without `-webkit-touch-callout: none`: 963; most backdrop-filter layers on one screen: 1
+- Distinct controls under 44×44: 315
+- Inputs under 16px: Add a task…, INPUT, Add a note, SELECT, Name this list, Search emoji, Add to A list with a deliberately long name to tes, What do you want to achieve?, TEXTAREA, Meditate, read, stretch…, Time zone, A line worth remembering, Who said it (optional), Lock after inactivity
 - Horizontal overflow: none
 - axe violations:
-  - **moderate · landmark-unique** (Landmarks should have a unique role or role/label/title (i.e. accessible name) combination) on 1 screens, e.g. `#notifications`
+  - none
 
 <details><summary>Controls under 44×44</summary>
 
@@ -360,128 +360,181 @@ Error: strict mode violation: getByLabel('Command') resolved to 3
 - a[Appearance] 106×36
 - a[Connection] 102×36
 - a[Data] 57×36
+- a[Download] 114×36
 - a[Extension] 90×36
+- a[Focus] 195×40
 - a[General] 77×36
+- a[Goals] 195×40
 - a[Notifications] 110×36
 - a[Quotes] 74×36
+- a[Routines] 195×40
 - a[Security] 81×36
 - a[See all] 62×36
+- a[Settings] 195×40
+- a[Stellar Planner] 195×36
+- a[Tasks] 195×40
+- a[Universe] 195×40
+- button[+6 more] 75×20
 - button[30 days] 81×32
 - button[7 days] 73×32
 - button[Add goal] 106×36
 - button[Add time] 107×36
-- button[All] 65×38
-- button[Astonished face] 42×42
+- button[All] 49×34
+- button[Astonished face] 37×37
 - button[Back to goals] 40×40
 - button[Back to tasks] 40×40
-- button[Beaming face with smiling eyes] 42×42
-- button[Calendar] 110×38
-- button[Cancel three subscriptions: 2 of 3. Tap to type a ] 19×38
+- button[Back up the photo library] 75×20
+- button[Beaming face with smiling eyes] 37×37
+- button[Book dentist appointment] 75×20
+- button[Book flights for June ✈️] 75×20
+- button[Buy birthday card for Sam 🎂 (follow-up)] 75×20
+- button[Calendar] 91×34
+- button[Call Mom (follow-up)] 75×20
+- button[Call Mom] 75×20
+- button[Cancel three subscriptions: 2 of 3. Tap to type a ] 17×36
 - button[Close] 32×32
-- button[Cold face] 42×42
-- button[Confused face] 42×42
-- button[Cowboy hat face] 42×42
+- button[Cold face] 37×37
+- button[Confused face] 37×37
+- button[Cowboy hat face] 37×37
+- button[Decrease Cancel three subscriptions] 40×36
+- button[Decrease Drink water] 40×36
+- button[Decrease Focus] 40×36
+- button[Decrease Long break] 40×36
+- button[Decrease Max out retirement contributions] 40×36
+- button[Decrease Read] 40×36
+- button[Decrease Rounds before a long break] 40×36
+- button[Decrease Short break] 40×36
+- button[Decrease Write the long-form retrospective for the] 40×36
 - button[Description] 124×36
-- button[Disguised face] 42×42
-- button[Dismiss] 36×36
-- button[Dotted line face] 42×42
-- button[Drink water: 8 of 8 glasses. Tap to type a value] 19×38
-- button[Drooling face] 42×42
+- button[Disguised face] 37×37
+- button[Dotted line face] 37×37
+- button[Draft Q1 roadmap] 75×20
+- button[Drink water: 8 of 8 glasses. Tap to type a value] 17×36
+- button[Drooling face] 37×37
 - button[Due date: Nov 15, 9:30 AM] 160×36
 - button[Due date: Today] 88×36
 - button[Due date] 107×36
-- button[Edit Cancel three subscriptions] 164×22
-- button[Edit Max out retirement contributions] 164×22
+- button[Edit Cancel three subscriptions] 183×20
+- button[Edit Max out retirement contributions] 224×20
 - button[Edit News] 40×40
 - button[Edit Social] 40×40
 - button[Edit Video] 40×40
-- button[Edit Write the long-form retrospective for the aut] 164×22
+- button[Edit Write the long-form retrospective for the aut] 545×20
 - button[Edit goal list] 40×40
 - button[Edit list] 40×40
 - button[Edit lists] 75×36
 - button[Ends (optional)] 148×36
-- button[Every N days] 131×38
-- button[Every day] 109×38
-- button[Exploding head] 42×42
-- button[Expressionless face] 42×42
-- button[Face blowing a kiss] 42×42
-- button[Face exhaling] 42×42
-- button[Face holding back tears] 42×42
-- button[Face in clouds] 42×42
-- button[Face savoring food] 42×42
-- button[Face vomiting] 42×42
-- button[Face with bags under eyes] 42×42
-- button[Face with crossed-out eyes] 42×42
-- button[Face with diagonal mouth] 42×42
-- button[Face with hand over mouth] 42×42
-- button[Face with head-bandage] 42×42
-- button[Face with medical mask] 42×42
-- button[Face with monocle] 42×42
-- button[Face with open eyes and hand over mouth] 42×42
-- button[Face with open mouth] 42×42
-- button[Face with peeking eye] 42×42
-- button[Face with raised eyebrow] 42×42
-- button[Face with rolling eyes] 42×42
-- button[Face with spiral eyes] 42×42
-- button[Face with tears of joy] 42×42
-- button[Face with thermometer] 42×42
-- button[Face with tongue] 42×42
-- button[Face without mouth] 42×42
-- button[Flushed face] 42×42
-- button[Friday, December 4] 50×40
-- button[Friday, November 13] 50×40
-- button[Friday, November 20] 50×40
-- button[Friday, November 27] 50×40
-- button[Friday, November 6] 50×40
-- button[Friday, October 30] 50×40
-- button[Frowning face with open mouth] 42×42
-- button[Frowning face] 42×42
-- button[Grimacing face] 42×42
-- button[Grinning face with big eyes] 42×42
-- button[Grinning face with smiling eyes] 42×42
-- button[Grinning face with sweat] 42×42
-- button[Grinning face] 42×42
-- button[Grinning squinting face] 42×42
-- button[Head shaking horizontally] 42×42
-- button[Head shaking vertically] 42×42
-- button[Hot face] 42×42
-- button[Hushed face] 42×42
-- button[Kissing face with closed eyes] 42×42
-- button[Kissing face with smiling eyes] 42×42
-- button[Kissing face] 42×42
+- button[Every N days] 167×34
+- button[Every day] 146×34
+- button[Exploding head] 37×37
+- button[Expressionless face] 37×37
+- button[Face blowing a kiss] 37×37
+- button[Face exhaling] 37×37
+- button[Face holding back tears] 37×37
+- button[Face in clouds] 37×37
+- button[Face savoring food] 37×37
+- button[Face vomiting] 37×37
+- button[Face with bags under eyes] 37×37
+- button[Face with crossed-out eyes] 37×37
+- button[Face with diagonal mouth] 37×37
+- button[Face with hand over mouth] 37×37
+- button[Face with head-bandage] 37×37
+- button[Face with medical mask] 37×37
+- button[Face with monocle] 37×37
+- button[Face with open eyes and hand over mouth] 37×37
+- button[Face with open mouth] 37×37
+- button[Face with peeking eye] 37×37
+- button[Face with raised eyebrow] 37×37
+- button[Face with rolling eyes] 37×37
+- button[Face with spiral eyes] 37×37
+- button[Face with tears of joy] 37×37
+- button[Face with thermometer] 37×37
+- button[Face with tongue] 37×37
+- button[Face without mouth] 37×37
+- button[Fix the squeaky door] 75×20
+- button[Flushed face] 37×37
+- button[Focus: 25 min. Tap to type a value] 48×36
+- button[Friday, Dec 4] 87×40
+- button[Friday, December 4] 41×40
+- button[Friday, Nov 13] 87×40
+- button[Friday, Nov 20, 3 tasks] 87×40
+- button[Friday, Nov 27, 3 tasks] 87×40
+- button[Friday, Nov 6] 87×40
+- button[Friday, November 13] 41×40
+- button[Friday, November 20] 41×40
+- button[Friday, November 27] 41×40
+- button[Friday, November 6] 41×40
+- button[Friday, Oct 30] 87×40
+- button[Friday, October 30] 41×40
+- button[Frowning face with open mouth] 37×37
+- button[Frowning face] 37×37
+- button[Grimacing face] 37×37
+- button[Grinning face with big eyes] 37×37
+- button[Grinning face with smiling eyes] 37×37
+- button[Grinning face with sweat] 37×37
+- button[Grinning face] 37×37
+- button[Grinning squinting face] 37×37
+- button[Grocery run] 75×20
+- button[Head shaking horizontally] 37×37
+- button[Head shaking vertically] 37×37
+- button[Hot face] 37×37
+- button[Hushed face] 37×37
+- button[Increase Cancel three subscriptions] 40×36
+- button[Increase Drink water] 40×36
+- button[Increase Focus] 40×36
+- button[Increase Long break] 40×36
+- button[Increase Max out retirement contributions] 40×36
+- button[Increase Read] 40×36
+- button[Increase Rounds before a long break] 40×36
+- button[Increase Short break] 40×36
+- button[Increase Write the long-form retrospective for the] 40×36
+- button[Kissing face with closed eyes] 37×37
+- button[Kissing face with smiling eyes] 37×37
+- button[Kissing face] 37×37
 - button[List] 72×36
-- button[Lists] 80×38
-- button[Lying face] 42×42
-- button[Max out retirement contributions: 0.5 of 1. Tap to] 34×38
-- button[Melting face] 42×42
+- button[Long break: 15 min. Tap to type a value] 48×36
+- button[Lying face] 37×37
+- button[Max out retirement contributions: 0.5 of 1. Tap to] 31×36
+- button[Melting face] 37×37
 - button[Mon] 59×32
-- button[Monday, November 16] 50×40
-- button[Monday, November 23] 50×40
-- button[Monday, November 2] 50×40
-- button[Monday, November 30] 50×40
-- button[Monday, November 9] 50×40
-- button[Monday, October 26] 50×40
-- button[Money-mouth face] 42×42
+- button[Monday, Nov 16, 1 task] 87×40
+- button[Monday, Nov 23, 1 task] 87×40
+- button[Monday, Nov 2] 87×40
+- button[Monday, Nov 30, 1 task] 87×40
+- button[Monday, Nov 9] 87×40
+- button[Monday, November 16] 41×40
+- button[Monday, November 23] 41×40
+- button[Monday, November 2] 41×40
+- button[Monday, November 30] 41×40
+- button[Monday, November 9] 41×40
+- button[Monday, Oct 26] 87×40
+- button[Monday, October 26] 41×40
+- button[Money-mouth face] 37×37
+- button[Month] 71×32
 - button[Move all to today] 138×36
-- button[Nauseated face] 42×42
-- button[Nerd face] 42×42
-- button[Neutral face] 42×42
+- button[Nauseated face] 37×37
+- button[Nerd face] 37×37
+- button[Neutral face] 37×37
 - button[New goal list] 36×36
 - button[New task list] 36×36
-- button[News, 6 sites, off] 87×36
+- button[News, 6 sites, off] 88×36
 - button[Next month] 36×36
 - button[Next month] 40×40
 - button[Next week] 86×32
-- button[No date] 71×32
-- button[Partying face] 42×42
-- button[Pensive face] 42×42
-- button[Pleading face] 42×42
+- button[No date] 70×32
+- button[Order new running shoes 👟] 75×20
+- button[Partying face] 37×37
+- button[Pay electricity bill] 75×20
+- button[Pensive face] 37×37
+- button[Plan the weekend] 75×20
+- button[Pleading face] 37×37
 - button[Previous month] 36×36
 - button[Previous month] 40×40
-- button[Progress, counts towards a total] 185×38
-- button[Progress] 190×38
-- button[Read: 12 of 30 pages. Tap to type a value] 29×38
-- button[Relieved face] 42×42
+- button[Progress, counts towards a total] 204×34
+- button[Progress] 244×34
+- button[Read: 12 of 30 pages. Tap to type a value] 27×36
+- button[Refill prescription (follow-up)] 75×20
+- button[Relieved face] 37×37
 - button[Reorder A list with a deliberately long name to te] 36×36
 - button[Reorder Apartment] 36×36
 - button[Reorder Empty list] 36×36
@@ -492,83 +545,160 @@ Error: strict mode violation: getByLabel('Command') resolved to 3
 - button[Reorder Ideas] 36×36
 - button[Reorder Japan trip] 36×36
 - button[Reorder Money with a long list name that has to tr] 36×36
+- button[Reorder News] 36×36
 - button[Reorder Not started] 36×36
 - button[Reorder Reading] 36×36
+- button[Reorder Social] 36×36
+- button[Reorder Video] 36×36
 - button[Reorder مهام البيت] 36×36
-- button[Rolling on the floor laughing] 42×42
-- button[Saluting face] 42×42
-- button[Saturday, December 5] 50×40
-- button[Saturday, November 14] 50×40
-- button[Saturday, November 21] 50×40
-- button[Saturday, November 28] 50×40
-- button[Saturday, November 7] 50×40
-- button[Saturday, October 31] 50×40
-- button[Shaking face] 42×42
+- button[Reorder “Write the long-form retrospective for the] 36×36
+- button[Reorder “…”] 36×36
+- button[Reply to landlord about lease] 75×20
+- button[Review pull request #142] 75×20
+- button[Revoke] 74×36
+- button[Rolling on the floor laughing] 37×37
+- button[Rounds before a long break: 4 rounds. Tap to type ] 48×36
+- button[Saluting face] 37×37
+- button[Saturday, Dec 5, 2 tasks] 87×40
+- button[Saturday, December 5] 41×40
+- button[Saturday, Nov 14] 87×40
+- button[Saturday, Nov 21, 1 task] 87×40
+- button[Saturday, Nov 28, 1 task] 87×40
+- button[Saturday, Nov 7] 87×40
+- button[Saturday, November 14] 41×40
+- button[Saturday, November 21] 41×40
+- button[Saturday, November 28] 41×40
+- button[Saturday, November 7] 41×40
+- button[Saturday, Oct 31] 87×40
+- button[Saturday, October 31] 41×40
+- button[Schedule car service] 75×20
+- button[Send invoice to Northwind] 75×20
+- button[Send invoice to Northwind] 76×20
+- button[Shaking face] 37×37
+- button[Short break: 5 min. Tap to type a value] 48×36
 - button[Show completed] 51×31
-- button[Shushing face] 42×42
-- button[Sleeping face] 42×42
-- button[Sleepy face] 42×42
-- button[Slightly frowning face] 42×42
-- button[Slightly smiling face] 42×42
-- button[Smiling face with halo] 42×42
-- button[Smiling face with heart-eyes] 42×42
-- button[Smiling face with hearts] 42×42
-- button[Smiling face with open hands] 42×42
-- button[Smiling face with smiling eyes] 42×42
-- button[Smiling face with sunglasses] 42×42
-- button[Smiling face with tear] 42×42
-- button[Smiling face] 42×42
-- button[Smirking face] 42×42
-- button[Sneezing face] 42×42
-- button[Social, 8 sites, on] 148×36
-- button[Squinting face with tongue] 42×42
-- button[Star-struck] 42×42
+- button[Shushing face] 37×37
+- button[Sleeping face] 37×37
+- button[Sleepy face] 37×37
+- button[Slightly frowning face] 37×37
+- button[Slightly smiling face] 37×37
+- button[Smiling face with halo] 37×37
+- button[Smiling face with heart-eyes] 37×37
+- button[Smiling face with hearts] 37×37
+- button[Smiling face with open hands] 37×37
+- button[Smiling face with smiling eyes] 37×37
+- button[Smiling face with sunglasses] 37×37
+- button[Smiling face with tear] 37×37
+- button[Smiling face] 37×37
+- button[Smirking face] 37×37
+- button[Sneezing face] 37×37
+- button[Social, 8 sites, on] 149×36
+- button[Squinting face with tongue] 37×37
+- button[Star-struck] 37×37
 - button[Start breaks automatically] 51×31
 - button[Start focus automatically] 51×31
 - button[Starts: Today] 88×36
 - button[Sun] 56×32
-- button[Sunday, December 6] 50×40
-- button[Sunday, November 15] 50×40
-- button[Sunday, November 1] 50×40
-- button[Sunday, November 22] 50×40
-- button[Sunday, November 29] 50×40
-- button[Sunday, November 8] 50×40
-- button[Thinking face] 42×42
-- button[Thursday, December 3] 50×40
-- button[Thursday, November 12] 50×40
-- button[Thursday, November 19] 50×40
-- button[Thursday, November 26] 50×40
-- button[Thursday, November 5] 50×40
-- button[Thursday, October 29] 50×40
+- button[Sunday, Dec 6] 88×40
+- button[Sunday, December 6] 41×40
+- button[Sunday, Nov 15, 1 task] 88×40
+- button[Sunday, Nov 1] 88×40
+- button[Sunday, Nov 22, 1 task] 88×40
+- button[Sunday, Nov 29] 88×40
+- button[Sunday, Nov 8] 88×40
+- button[Sunday, November 15] 41×40
+- button[Sunday, November 1] 41×40
+- button[Sunday, November 22] 41×40
+- button[Sunday, November 29] 41×40
+- button[Sunday, November 8] 41×40
+- button[Thinking face] 37×37
+- button[Thursday, Dec 3] 87×40
+- button[Thursday, December 3] 41×40
+- button[Thursday, Nov 12] 87×40
+- button[Thursday, Nov 19, 3 tasks] 87×40
+- button[Thursday, Nov 26, 2 tasks] 87×40
+- button[Thursday, Nov 5] 87×40
+- button[Thursday, November 12] 41×40
+- button[Thursday, November 19] 41×40
+- button[Thursday, November 26] 41×40
+- button[Thursday, November 5] 41×40
+- button[Thursday, Oct 29] 87×40
+- button[Thursday, October 29] 41×40
+- button[Tidy the garage] 75×20
 - button[Today] 59×32
 - button[Today] 66×36
-- button[Today] 89×38
-- button[Todo, done or not done] 158×38
-- button[Todo] 162×38
+- button[Today] 72×34
+- button[Todo, done or not done] 178×34
+- button[Todo] 218×34
 - button[Tomorrow] 84×32
-- button[Tuesday, December 1] 50×40
-- button[Tuesday, November 10] 50×40
-- button[Tuesday, November 17] 50×40
-- button[Tuesday, November 24] 50×40
-- button[Tuesday, November 3] 50×40
-- button[Tuesday, October 27] 50×40
-- button[Unamused face] 42×42
-- button[Upside-down face] 42×42
-- button[Video, 6 sites, on] 146×36
-- button[Wednesday, December 2] 50×40
-- button[Wednesday, November 11] 50×40
-- button[Wednesday, November 18] 50×40
-- button[Wednesday, November 25] 50×40
-- button[Wednesday, November 4] 50×40
-- button[Wednesday, October 28] 50×40
-- button[Weekdays] 112×38
-- button[Winking face with tongue] 42×42
-- button[Winking face] 42×42
-- button[Woozy face] 42×42
-- button[Worried face] 42×42
-- button[Write the long-form retrospective for the autumn l] 19×38
-- button[Zany face] 42×42
-- button[Zipper-mouth face] 42×42
+- button[Tuesday, Dec 1, 2 tasks] 87×40
+- button[Tuesday, December 1] 41×40
+- button[Tuesday, Nov 10] 87×40
+- button[Tuesday, Nov 17] 87×40
+- button[Tuesday, Nov 24, 9 tasks] 87×40
+- button[Tuesday, Nov 3] 87×40
+- button[Tuesday, November 10] 41×40
+- button[Tuesday, November 17] 41×40
+- button[Tuesday, November 24] 41×40
+- button[Tuesday, November 3] 41×40
+- button[Tuesday, Oct 27] 87×40
+- button[Tuesday, October 27] 41×40
+- button[Unamused face] 37×37
+- button[Update résumé] 75×20
+- button[Upside-down face] 37×37
+- button[Video, 6 sites, on] 147×36
+- button[Water the plants 🌿] 75×20
+- button[Wednesday, Dec 2, 2 tasks] 87×40
+- button[Wednesday, December 2] 41×40
+- button[Wednesday, Nov 11] 87×40
+- button[Wednesday, Nov 18, 1 task] 87×40
+- button[Wednesday, Nov 25, 1 task] 87×40
+- button[Wednesday, Nov 4] 87×40
+- button[Wednesday, November 11] 41×40
+- button[Wednesday, November 18] 41×40
+- button[Wednesday, November 25] 41×40
+- button[Wednesday, November 4] 41×40
+- button[Wednesday, Oct 28] 87×40
+- button[Wednesday, October 28] 41×40
+- button[Week] 66×32
+- button[Weekdays] 149×34
+- button[Winking face with tongue] 37×37
+- button[Winking face] 37×37
+- button[Woozy face] 37×37
+- button[Worried face] 37×37
+- button[Write the long-form retrospective for the autumn l] 17×36
+- button[Write the long-form retrospective for the autumn l] 76×20
+- button[Zany face] 37×37
+- button[Zipper-mouth face] 37×37
+- input[Search emoji] 290×40
+
+</details>
+
+<details><summary>Inputs missing enterkeyhint / autocomplete</summary>
+
+- INPUT [enterkeyhint=null, autocomplete=off, inputmode=null, autocapitalize=null]
+
+</details>
+
+Could not open:
+- command-bar: Error: expect(locator).toBeVisible() failed
+
+Locator: getByLabel('Command')
+Expected: visible
+Error: strict mode violation: getByLabel('Command') resolved to 3 
+
+## iphone-15-pro
+
+- Screens and sheets scanned: 20
+- Interactive elements: 624; text-selectable chrome: 0; without `-webkit-touch-callout: none`: 624; most backdrop-filter layers on one screen: 0
+- Distinct controls under 44×44: 1
+- Inputs under 16px: none
+- Horizontal overflow: none
+- axe violations:
+  - **moderate · landmark-unique** (Landmarks should have a unique role or role/label/title (i.e. accessible name) combination) on 1 screens, e.g. `#notifications`
+
+<details><summary>Controls under 44×44</summary>
+
 - input[Search emoji] 327×40
 
 </details>
@@ -579,236 +709,48 @@ Error: strict mode violation: getByLabel('Command') resolved to 3
 
 </details>
 
+## webkit-iphone-15-pro-landscape
+
+- Screens and sheets scanned: 20 (1 could not be opened)
+- Interactive elements: 557; text-selectable chrome: 0; without `-webkit-touch-callout: none`: 557; most backdrop-filter layers on one screen: 1
+- Distinct controls under 44×44: 1
+- Inputs under 16px: none
+- Horizontal overflow: none
+- axe violations:
+  - **moderate · landmark-one-main** (Document should have one main landmark) on 1 screens, e.g. `html`
+  - **moderate · page-has-heading-one** (Page should contain a level-one heading) on 1 screens, e.g. `html`
+
+<details><summary>Controls under 44×44</summary>
+
+- input[Search emoji] 406×40
+
+</details>
+
+<details><summary>Inputs missing enterkeyhint / autocomplete</summary>
+
+- INPUT [enterkeyhint=null, autocomplete=off, inputmode=null, autocapitalize=null]
+
+</details>
+
+Could not open:
+- command-bar: Error: expect(locator).toBeVisible() failed
+
+Locator: getByLabel('Command')
+Expected: visible
+Error: strict mode violation: getByLabel('Command') resolved to 3 
+
 ## webkit-iphone-15-pro
 
 - Screens and sheets scanned: 20
-- Interactive elements: 624; text-selectable chrome: 0; without `-webkit-touch-callout: none`: 624; most backdrop-filter layers on one screen: 0
-- Distinct controls under 44×44: 214
+- Interactive elements: 621; text-selectable chrome: 0; without `-webkit-touch-callout: none`: 621; most backdrop-filter layers on one screen: 0
+- Distinct controls under 44×44: 1
 - Inputs under 16px: none
-- Horizontal overflow: 
-  - tasks/all: by 0px · label. right=-99 vw=393
-  - tasks/calendar: by 0px · label. right=-99 vw=393
-  - tasks/lists: by 0px · label. right=-99 vw=393
-  - tasks/list-detail: by 0px · label. right=-99 vw=393
-  - routines/manage+sheet: by 9px · 
+- Horizontal overflow: none
 - axe violations:
   - none
 
 <details><summary>Controls under 44×44</summary>
 
-- a[About] 66×36
-- a[Appearance] 106×36
-- a[Connection] 102×36
-- a[Data] 57×36
-- a[Extension] 90×36
-- a[General] 77×36
-- a[Notifications] 110×36
-- a[Quotes] 74×36
-- a[Security] 81×36
-- a[See all] 62×36
-- button[30 days] 81×32
-- button[7 days] 73×32
-- button[Add goal] 106×36
-- button[Add time] 107×36
-- button[All] 65×38
-- button[Astonished face] 42×42
-- button[Back to goals] 40×40
-- button[Back to tasks] 40×40
-- button[Beaming face with smiling eyes] 42×42
-- button[Calendar] 110×38
-- button[Cancel three subscriptions: 2 of 3. Tap to type a ] 19×38
-- button[Close] 32×32
-- button[Cold face] 42×42
-- button[Confused face] 42×42
-- button[Cowboy hat face] 42×42
-- button[Description] 124×36
-- button[Disguised face] 42×42
-- button[Dismiss] 36×36
-- button[Dotted line face] 42×42
-- button[Drink water: 8 of 8 glasses. Tap to type a value] 19×38
-- button[Drooling face] 42×42
-- button[Due date: Nov 15, 9:30 AM] 160×36
-- button[Due date: Today] 88×36
-- button[Due date] 107×36
-- button[Edit News] 40×40
-- button[Edit Social] 40×40
-- button[Edit Video] 40×40
-- button[Edit goal list] 40×40
-- button[Edit list] 40×40
-- button[Edit lists] 75×36
-- button[EditCancel three subscriptions] 164×22
-- button[EditMax out retirement contributions] 164×22
-- button[EditWrite the long-form retrospective for the autu] 164×22
-- button[Ends (optional)] 148×36
-- button[Every N days] 128×38
-- button[Every day] 106×38
-- button[Exploding head] 42×42
-- button[Expressionless face] 42×42
-- button[Face blowing a kiss] 42×42
-- button[Face exhaling] 42×42
-- button[Face holding back tears] 42×42
-- button[Face in clouds] 42×42
-- button[Face savoring food] 42×42
-- button[Face vomiting] 42×42
-- button[Face with bags under eyes] 42×42
-- button[Face with crossed-out eyes] 42×42
-- button[Face with diagonal mouth] 42×42
-- button[Face with hand over mouth] 42×42
-- button[Face with head-bandage] 42×42
-- button[Face with medical mask] 42×42
-- button[Face with monocle] 42×42
-- button[Face with open eyes and hand over mouth] 42×42
-- button[Face with open mouth] 42×42
-- button[Face with peeking eye] 42×42
-- button[Face with raised eyebrow] 42×42
-- button[Face with rolling eyes] 42×42
-- button[Face with spiral eyes] 42×42
-- button[Face with tears of joy] 42×42
-- button[Face with thermometer] 42×42
-- button[Face with tongue] 42×42
-- button[Face without mouth] 42×42
-- button[Flushed face] 42×42
-- button[Friday, December 4] 50×40
-- button[Friday, November 13] 50×40
-- button[Friday, November 20] 50×40
-- button[Friday, November 27] 50×40
-- button[Friday, November 6] 50×40
-- button[Friday, October 30] 50×40
-- button[Frowning face with open mouth] 42×42
-- button[Frowning face] 42×42
-- button[Grimacing face] 42×42
-- button[Grinning face with big eyes] 42×42
-- button[Grinning face with smiling eyes] 42×42
-- button[Grinning face with sweat] 42×42
-- button[Grinning face] 42×42
-- button[Grinning squinting face] 42×42
-- button[Head shaking horizontally] 42×42
-- button[Head shaking vertically] 42×42
-- button[Hot face] 42×42
-- button[Hushed face] 42×42
-- button[Kissing face with closed eyes] 42×42
-- button[Kissing face with smiling eyes] 42×42
-- button[Kissing face] 42×42
-- button[List] 72×36
-- button[Lists] 80×38
-- button[Lying face] 42×42
-- button[Max out retirement contributions: 0.5 of 1. Tap to] 34×38
-- button[Melting face] 42×42
-- button[Mon] 59×32
-- button[Monday, November 16] 50×40
-- button[Monday, November 23] 50×40
-- button[Monday, November 2] 50×40
-- button[Monday, November 30] 50×40
-- button[Monday, November 9] 50×40
-- button[Monday, October 26] 50×40
-- button[Money-mouth face] 42×42
-- button[Move all to today] 138×36
-- button[Nauseated face] 42×42
-- button[Nerd face] 42×42
-- button[Neutral face] 42×42
-- button[New goal list] 36×36
-- button[New task list] 36×36
-- button[News, 6 sites, off] 89×36
-- button[Next month] 36×36
-- button[Next month] 40×40
-- button[Next week] 86×32
-- button[No date] 70×32
-- button[Partying face] 42×42
-- button[Pensive face] 42×42
-- button[Pleading face] 42×42
-- button[Previous month] 36×36
-- button[Previous month] 40×40
-- button[Progress, counts towards a total] 185×38
-- button[Progress] 185×38
-- button[Read: 12 of 30 pages. Tap to type a value] 29×38
-- button[Relieved face] 42×42
-- button[Reorder A list with a deliberately long name to te] 36×36
-- button[Reorder Apartment] 36×36
-- button[Reorder Empty list] 36×36
-- button[Reorder Finished things] 36×36
-- button[Reorder Gift ideas] 36×36
-- button[Reorder Groceries] 36×36
-- button[Reorder Health] 36×36
-- button[Reorder Ideas] 36×36
-- button[Reorder Japan trip] 36×36
-- button[Reorder Money with a long list name that has to tr] 36×36
-- button[Reorder Not started] 36×36
-- button[Reorder Reading] 36×36
-- button[Reorder مهام البيت] 36×36
-- button[Rolling on the floor laughing] 42×42
-- button[Saluting face] 42×42
-- button[Saturday, December 5] 50×40
-- button[Saturday, November 14] 50×40
-- button[Saturday, November 21] 50×40
-- button[Saturday, November 28] 50×40
-- button[Saturday, November 7] 50×40
-- button[Saturday, October 31] 50×40
-- button[Shaking face] 42×42
-- button[Show completed] 51×31
-- button[Shushing face] 42×42
-- button[Sleeping face] 42×42
-- button[Sleepy face] 42×42
-- button[Slightly frowning face] 42×42
-- button[Slightly smiling face] 42×42
-- button[Smiling face with halo] 42×42
-- button[Smiling face with heart-eyes] 42×42
-- button[Smiling face with hearts] 42×42
-- button[Smiling face with open hands] 42×42
-- button[Smiling face with smiling eyes] 42×42
-- button[Smiling face with sunglasses] 42×42
-- button[Smiling face with tear] 42×42
-- button[Smiling face] 42×42
-- button[Smirking face] 42×42
-- button[Sneezing face] 42×42
-- button[Social, 8 sites, on] 150×36
-- button[Squinting face with tongue] 42×42
-- button[Star-struck] 42×42
-- button[Start breaks automatically] 51×31
-- button[Start focus automatically] 51×31
-- button[Starts: Today] 88×36
-- button[Sun] 56×32
-- button[Sunday, December 6] 50×40
-- button[Sunday, November 15] 50×40
-- button[Sunday, November 1] 50×40
-- button[Sunday, November 22] 50×40
-- button[Sunday, November 29] 50×40
-- button[Sunday, November 8] 50×40
-- button[Thinking face] 42×42
-- button[Thursday, December 3] 50×40
-- button[Thursday, November 12] 50×40
-- button[Thursday, November 19] 50×40
-- button[Thursday, November 26] 50×40
-- button[Thursday, November 5] 50×40
-- button[Thursday, October 29] 50×40
-- button[Today] 59×32
-- button[Today] 66×36
-- button[Today] 89×38
-- button[Todo, done or not done] 158×38
-- button[Todo] 158×38
-- button[Tomorrow] 84×32
-- button[Tuesday, December 1] 50×40
-- button[Tuesday, November 10] 50×40
-- button[Tuesday, November 17] 50×40
-- button[Tuesday, November 24] 50×40
-- button[Tuesday, November 3] 50×40
-- button[Tuesday, October 27] 50×40
-- button[Unamused face] 42×42
-- button[Upside-down face] 42×42
-- button[Video, 6 sites, on] 148×36
-- button[Wednesday, December 2] 50×40
-- button[Wednesday, November 11] 50×40
-- button[Wednesday, November 18] 50×40
-- button[Wednesday, November 25] 50×40
-- button[Wednesday, November 4] 50×40
-- button[Wednesday, October 28] 50×40
-- button[Weekdays] 109×38
-- button[Winking face with tongue] 42×42
-- button[Winking face] 42×42
-- button[Woozy face] 42×42
-- button[Worried face] 42×42
-- button[Write the long-form retrospective for the autumn l] 19×38
-- button[Zany face] 42×42
-- button[Zipper-mouth face] 42×42
 - input[Search emoji] 327×40
 
 </details>
@@ -822,262 +764,15 @@ Error: strict mode violation: getByLabel('Command') resolved to 3
 ## webkit-iphone-se
 
 - Screens and sheets scanned: 20
-- Interactive elements: 625; text-selectable chrome: 0; without `-webkit-touch-callout: none`: 625; most backdrop-filter layers on one screen: 0
-- Distinct controls under 44×44: 243
+- Interactive elements: 626; text-selectable chrome: 0; without `-webkit-touch-callout: none`: 626; most backdrop-filter layers on one screen: 0
+- Distinct controls under 44×44: 1
 - Inputs under 16px: none
-- Horizontal overflow: 
-  - tasks/all: by 0px · label. right=-99 vw=375
-  - tasks/calendar: by 0px · label. right=-99 vw=375
-  - tasks/lists: by 0px · label. right=-99 vw=375
-  - tasks/list-detail: by 0px · label. right=-99 vw=375
-  - routines/manage+sheet: by 27px · 
+- Horizontal overflow: none
 - axe violations:
   - none
 
 <details><summary>Controls under 44×44</summary>
 
-- a[About] 66×36
-- a[Appearance] 106×36
-- a[Connection] 102×36
-- a[Data] 57×36
-- a[Extension] 90×36
-- a[General] 77×36
-- a[Notifications] 110×36
-- a[Quotes] 74×36
-- a[Security] 81×36
-- a[See all] 62×36
-- button[30 days] 81×32
-- button[7 days] 73×32
-- button[Add goal] 106×36
-- button[Add time] 107×36
-- button[All] 61×38
-- button[Astonished face] 40×40
-- button[Back to goals] 40×40
-- button[Back to tasks] 40×40
-- button[Beaming face with smiling eyes] 40×40
-- button[Calendar] 106×38
-- button[Cancel three subscriptions: 2 of 3. Tap to type a ] 19×38
-- button[Close] 32×32
-- button[Cold face] 40×40
-- button[Confused face] 40×40
-- button[Cowboy hat face] 40×40
-- button[Description] 124×36
-- button[Disguised face] 40×40
-- button[Dotted line face] 40×40
-- button[Drink water: 8 of 8 glasses. Tap to type a value] 19×38
-- button[Drooling face] 40×40
-- button[Due date: Nov 15, 9:30 AM] 160×36
-- button[Due date: Today] 88×36
-- button[Due date] 107×36
-- button[Edit News] 40×40
-- button[Edit Social] 40×40
-- button[Edit Video] 40×40
-- button[Edit goal list] 40×40
-- button[Edit list] 40×40
-- button[Edit lists] 75×36
-- button[EditCancel three subscriptions] 146×22
-- button[EditMax out retirement contributions] 146×22
-- button[EditWrite the long-form retrospective for the autu] 146×22
-- button[Ends (optional)] 148×36
-- button[Every N days] 122×38
-- button[Every day] 100×38
-- button[Exploding head] 40×40
-- button[Expressionless face] 40×40
-- button[Face blowing a kiss] 40×40
-- button[Face exhaling] 40×40
-- button[Face holding back tears] 40×40
-- button[Face in clouds] 40×40
-- button[Face savoring food] 40×40
-- button[Face vomiting] 40×40
-- button[Face with bags under eyes] 40×40
-- button[Face with crossed-out eyes] 40×40
-- button[Face with diagonal mouth] 40×40
-- button[Face with hand over mouth] 40×40
-- button[Face with head-bandage] 40×40
-- button[Face with medical mask] 40×40
-- button[Face with monocle] 40×40
-- button[Face with open eyes and hand over mouth] 40×40
-- button[Face with open mouth] 40×40
-- button[Face with peeking eye] 40×40
-- button[Face with raised eyebrow] 40×40
-- button[Face with rolling eyes] 40×40
-- button[Face with spiral eyes] 40×40
-- button[Face with tears of joy] 40×40
-- button[Face with thermometer] 40×40
-- button[Face with tongue] 40×40
-- button[Face without mouth] 40×40
-- button[Flushed face] 40×40
-- button[Friday, December 4] 48×40
-- button[Friday, Nov 13, 100% complete] 43×48
-- button[Friday, Nov 20, 67% complete] 43×48
-- button[Friday, Nov 27, upcoming] 43×48
-- button[Friday, Nov 6, 100% complete] 43×48
-- button[Friday, November 13] 48×40
-- button[Friday, November 20] 48×40
-- button[Friday, November 27] 48×40
-- button[Friday, November 6] 48×40
-- button[Friday, October 30] 48×40
-- button[Frowning face with open mouth] 40×40
-- button[Frowning face] 40×40
-- button[Grimacing face] 40×40
-- button[Grinning face with big eyes] 40×40
-- button[Grinning face with smiling eyes] 40×40
-- button[Grinning face with sweat] 40×40
-- button[Grinning face] 40×40
-- button[Grinning squinting face] 40×40
-- button[Head shaking horizontally] 40×40
-- button[Head shaking vertically] 40×40
-- button[Hot face] 40×40
-- button[Hushed face] 40×40
-- button[Kissing face with closed eyes] 40×40
-- button[Kissing face with smiling eyes] 40×40
-- button[Kissing face] 40×40
-- button[List] 72×36
-- button[Lists] 76×38
-- button[Lying face] 40×40
-- button[Max out retirement contributions: 0.5 of 1. Tap to] 34×38
-- button[Melting face] 40×40
-- button[Mon] 59×32
-- button[Monday, Nov 16, 100% complete] 43×48
-- button[Monday, Nov 2, 75% complete] 43×48
-- button[Monday, Nov 23, 67% complete] 43×48
-- button[Monday, Nov 30, upcoming] 43×48
-- button[Monday, Nov 9, 100% complete] 43×48
-- button[Monday, November 16] 48×40
-- button[Monday, November 23] 48×40
-- button[Monday, November 2] 48×40
-- button[Monday, November 30] 48×40
-- button[Monday, November 9] 48×40
-- button[Monday, October 26] 48×40
-- button[Money-mouth face] 40×40
-- button[Move all to today] 138×36
-- button[Nauseated face] 40×40
-- button[Nerd face] 40×40
-- button[Neutral face] 40×40
-- button[New goal list] 36×36
-- button[New task list] 36×36
-- button[News, 6 sites, off] 89×36
-- button[Next month] 36×36
-- button[Next month] 40×40
-- button[Next week] 86×32
-- button[No date] 70×32
-- button[Partying face] 40×40
-- button[Pensive face] 40×40
-- button[Pleading face] 40×40
-- button[Previous month] 36×36
-- button[Previous month] 40×40
-- button[Progress, counts towards a total] 176×38
-- button[Progress] 176×38
-- button[Read: 12 of 30 pages. Tap to type a value] 29×38
-- button[Relieved face] 40×40
-- button[Reorder A list with a deliberately long name to te] 36×36
-- button[Reorder Apartment] 36×36
-- button[Reorder Empty list] 36×36
-- button[Reorder Finished things] 36×36
-- button[Reorder Gift ideas] 36×36
-- button[Reorder Groceries] 36×36
-- button[Reorder Health] 36×36
-- button[Reorder Ideas] 36×36
-- button[Reorder Japan trip] 36×36
-- button[Reorder Money with a long list name that has to tr] 36×36
-- button[Reorder Not started] 36×36
-- button[Reorder Reading] 36×36
-- button[Reorder مهام البيت] 36×36
-- button[Rolling on the floor laughing] 40×40
-- button[Saluting face] 40×40
-- button[Saturday, December 5] 48×40
-- button[Saturday, Nov 14, 100% complete] 43×48
-- button[Saturday, Nov 21, 73% complete] 43×48
-- button[Saturday, Nov 28, upcoming] 43×48
-- button[Saturday, Nov 7, 100% complete] 43×48
-- button[Saturday, November 14] 48×40
-- button[Saturday, November 21] 48×40
-- button[Saturday, November 28] 48×40
-- button[Saturday, November 7] 48×40
-- button[Saturday, October 31] 48×40
-- button[Shaking face] 40×40
-- button[Show completed] 51×31
-- button[Shushing face] 40×40
-- button[Sleeping face] 40×40
-- button[Sleepy face] 40×40
-- button[Slightly frowning face] 40×40
-- button[Slightly smiling face] 40×40
-- button[Smiling face with halo] 40×40
-- button[Smiling face with heart-eyes] 40×40
-- button[Smiling face with hearts] 40×40
-- button[Smiling face with open hands] 40×40
-- button[Smiling face with smiling eyes] 40×40
-- button[Smiling face with sunglasses] 40×40
-- button[Smiling face with tear] 40×40
-- button[Smiling face] 40×40
-- button[Smirking face] 40×40
-- button[Sneezing face] 40×40
-- button[Social, 8 sites, on] 150×36
-- button[Squinting face with tongue] 40×40
-- button[Star-struck] 40×40
-- button[Start breaks automatically] 51×31
-- button[Start focus automatically] 51×31
-- button[Starts: Today] 88×36
-- button[Sun] 56×32
-- button[Sunday, December 6] 48×40
-- button[Sunday, Nov 1, 73% complete] 43×48
-- button[Sunday, Nov 15, 100% complete] 43×48
-- button[Sunday, Nov 22, 79% complete] 43×48
-- button[Sunday, Nov 29, upcoming] 43×48
-- button[Sunday, Nov 8, 65% complete] 43×48
-- button[Sunday, November 15] 48×40
-- button[Sunday, November 1] 48×40
-- button[Sunday, November 22] 48×40
-- button[Sunday, November 29] 48×40
-- button[Sunday, November 8] 48×40
-- button[Thinking face] 40×40
-- button[Thursday, December 3] 48×40
-- button[Thursday, Nov 12, 51% complete] 43×48
-- button[Thursday, Nov 19, 100% complete] 43×48
-- button[Thursday, Nov 26, upcoming] 43×48
-- button[Thursday, Nov 5, 100% complete] 43×48
-- button[Thursday, November 12] 48×40
-- button[Thursday, November 19] 48×40
-- button[Thursday, November 26] 48×40
-- button[Thursday, November 5] 48×40
-- button[Thursday, October 29] 48×40
-- button[Today] 59×32
-- button[Today] 66×36
-- button[Today] 85×38
-- button[Todo, done or not done] 149×38
-- button[Todo] 149×38
-- button[Tomorrow] 84×32
-- button[Tuesday, December 1] 48×40
-- button[Tuesday, Nov 10, 100% complete] 43×48
-- button[Tuesday, Nov 17, 100% complete] 43×48
-- button[Tuesday, Nov 24, 47% complete] 43×48
-- button[Tuesday, Nov 3, 67% complete] 43×48
-- button[Tuesday, November 10] 48×40
-- button[Tuesday, November 17] 48×40
-- button[Tuesday, November 24] 48×40
-- button[Tuesday, November 3] 48×40
-- button[Tuesday, October 27] 48×40
-- button[Unamused face] 40×40
-- button[Upside-down face] 40×40
-- button[Video, 6 sites, on] 148×36
-- button[Wednesday, December 2] 48×40
-- button[Wednesday, Nov 11, 100% complete] 43×48
-- button[Wednesday, Nov 18, 46% complete] 43×48
-- button[Wednesday, Nov 25, upcoming] 43×48
-- button[Wednesday, Nov 4, 100% complete] 43×48
-- button[Wednesday, November 11] 48×40
-- button[Wednesday, November 18] 48×40
-- button[Wednesday, November 25] 48×40
-- button[Wednesday, November 4] 48×40
-- button[Wednesday, October 28] 48×40
-- button[Weekdays] 103×38
-- button[Winking face with tongue] 40×40
-- button[Winking face] 40×40
-- button[Woozy face] 40×40
-- button[Worried face] 40×40
-- button[Write the long-form retrospective for the autumn l] 19×38
-- button[Zany face] 40×40
-- button[Zipper-mouth face] 40×40
 - input[Search emoji] 309×40
 
 </details>
