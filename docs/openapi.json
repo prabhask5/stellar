@@ -7292,52 +7292,6 @@
       "UniverseSnapshot": {
         "type": "object",
         "properties": {
-          "total": {
-            "type": "number"
-          },
-          "era": {
-            "type": "object",
-            "properties": {
-              "index": {
-                "type": "integer",
-                "minimum": -9007199254740991,
-                "maximum": 9007199254740991
-              },
-              "name": {
-                "type": "string"
-              },
-              "threshold": {
-                "type": "number"
-              },
-              "next_name": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "next_threshold": {
-                "type": [
-                  "number",
-                  "null"
-                ]
-              },
-              "remaining": {
-                "type": "number"
-              },
-              "fraction": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "index",
-              "name",
-              "threshold",
-              "next_name",
-              "next_threshold",
-              "remaining",
-              "fraction"
-            ]
-          },
           "stars": {
             "type": "object",
             "properties": {
@@ -7523,34 +7477,16 @@
               ]
             }
           },
-          "focus": {
-            "type": "object",
-            "properties": {
-              "minutes": {
-                "type": "number"
-              },
-              "phases": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "minutes",
-              "phases"
-            ]
-          },
           "server_time": {
             "type": "string",
             "description": "ISO 8601 timestamp"
           }
         },
         "required": [
-          "total",
-          "era",
           "stars",
           "lists",
           "planets",
           "constellations",
-          "focus",
           "server_time"
         ]
       }

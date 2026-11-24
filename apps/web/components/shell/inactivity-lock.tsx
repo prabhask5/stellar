@@ -1,8 +1,9 @@
 "use client";
 
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useSettings } from "@/lib/client/data/hooks";
+import { preloadable } from "@/lib/client/preloadable";
 import { useUi } from "@/lib/client/ui-store";
 
 const KEY = "sp-last-active";
@@ -28,8 +29,8 @@ function touch(): void {
  * the app is covered by the PIN screen until the PIN is entered again.
  */
 // The PIN screen is fetched when a lock timeout is set, not with every page.
-const LockScreen = lazy(() =>
-  import("@/components/auth/lock-screen").then((m) => ({ default: m.LockScreen })),
+const { Component: LockScreen, preload: preloadLockScreen } = preloadable(() =>
+  import("@/components/auth/lock-screen").then((m) => m.LockScreen),
 );
 
 export function InactivityLock() {
@@ -40,7 +41,7 @@ export function InactivityLock() {
   useEffect(() => {
     if (!minutes) return;
     // Have the PIN screen ready before it is needed (it must also open offline).
-    void import("@/components/auth/lock-screen").catch(() => {});
+    void preloadLockScreen().catch(() => {});
     const limit = minutes * 60_000;
     const check = () => {
       if (!useUi.getState().locked && Date.now() - lastActive() > limit) setLocked(true);

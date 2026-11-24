@@ -1,6 +1,5 @@
 "use client";
 
-import { eraLabel, eraProgress } from "@stellar/shared";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType, MouseEvent } from "react";
@@ -14,8 +13,6 @@ import {
   TasksIcon,
   UniverseIcon,
 } from "@/components/ui/icons";
-import { ProgressBar } from "@/components/ui/progress";
-import { useUniverse } from "@/lib/client/data/hooks";
 
 export interface NavItem {
   href: string;
@@ -82,24 +79,7 @@ export function TabBar() {
   );
 }
 
-function EraCard() {
-  const universe = useUniverse();
-  const total = universe?.total ?? 0;
-  const p = eraProgress(total);
-  return (
-    <div className="glass rounded-list p-3" data-testid="era-card">
-      <p className="text-caption text-fg-2">{eraLabel(p.era)}</p>
-      <ProgressBar value={p.fraction} label="Progress to the next era" className="my-2" />
-      <p className="text-caption text-fg-2 tnum">
-        {p.next
-          ? `${p.remaining.toLocaleString("en-US")} stars to ${p.next.name}`
-          : "The final era"}
-      </p>
-    </div>
-  );
-}
-
-/** Tablet: icon rail. Desktop: sidebar with labels and Era progress at the bottom. */
+/** Tablet: icon rail. Desktop: sidebar with labels. */
 export function SideNav() {
   const pathname = usePathname();
   const settingsActive = isActive(pathname, "/settings");
@@ -168,9 +148,6 @@ export function SideNav() {
           <GearIcon size={20} className={settingsActive ? "text-accent" : undefined} />
           <span className="hidden lg:inline">Settings</span>
         </Link>
-        <div className="hidden lg:block">
-          <EraCard />
-        </div>
       </div>
     </nav>
   );

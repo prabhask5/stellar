@@ -88,19 +88,3 @@ export async function asUser<R>(
     throw err;
   }
 }
-
-export async function points(admin: pg.Client, userId: string): Promise<number> {
-  const r = await admin.query(
-    "select coalesce(sum(points), 0)::int as p from public.sp_universe_events where user_id = $1",
-    [userId],
-  );
-  return r.rows[0].p as number;
-}
-
-export async function kinds(admin: pg.Client, userId: string): Promise<string[]> {
-  const r = await admin.query(
-    "select kind from public.sp_universe_events where user_id = $1 order by created_at, id",
-    [userId],
-  );
-  return r.rows.map((x) => x.kind as string);
-}

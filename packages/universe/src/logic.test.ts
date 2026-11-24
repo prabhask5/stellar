@@ -4,7 +4,6 @@ import { DURATIONS, EventDirector, GLOW_MS } from "./director.ts";
 import {
   constellationBrightness,
   CONSTELLATION_MAX_STARS,
-  dustCount,
   litStars,
   placeClusters,
   placeConstellation,
@@ -190,15 +189,15 @@ describe("event director", () => {
   it("plays big cinematic events one after another", () => {
     const d = new EventDirector();
     expect(d.push({ type: "focus_complete" }, 0).action).toBe("start");
-    expect(d.push({ type: "new_era", index: 2, name: "Nebula" }, 100).action).toBe("queued");
-    expect(d.push({ type: "new_era", index: 2, name: "Nebula" }, 150).action).toBe("queued");
+    expect(d.push({ type: "goal_list_completed", listId: "l" }, 100).action).toBe("queued");
+    expect(d.push({ type: "goal_list_completed", listId: "l" }, 150).action).toBe("queued");
     expect(d.tick(1000)).toEqual([]);
     const started = d.tick(DURATIONS.focus_complete + 1);
     expect(started).toHaveLength(1);
     expect(started[0]).toMatchObject({
-      type: "new_era",
-      detail: { index: 2, name: "Nebula" },
-      duration: 6000,
+      type: "goal_list_completed",
+      detail: { listId: "l" },
+      duration: 3500,
     });
     expect(d.tick(DURATIONS.focus_complete + 2)).toEqual([]);
   });
@@ -215,8 +214,6 @@ describe("event director", () => {
       streak_rekindled: 1500,
       focus_start: 1500,
       focus_complete: 3000,
-      new_era: 6000,
-      first_light: 4000,
     });
     const d = new EventDirector();
     const r = d.push({ type: "overdue_postponed", count: 7 }, 0);
@@ -228,20 +225,20 @@ describe("event director", () => {
     d.reduced = true;
     const r = d.push({ type: "focus_complete" }, 0);
     expect(r.action === "start" && r.effect.duration).toBe(GLOW_MS);
-    const era = d.push({ type: "new_era", index: 1, name: "First Light" }, GLOW_MS + 1);
-    expect(era.action === "start" && era.effect.duration).toBe(GLOW_MS);
+    const next = d.push({ type: "goal_list_completed", listId: "l" }, GLOW_MS + 1);
+    expect(next.action === "start" && next.effect.duration).toBe(GLOW_MS);
   });
 });
 
 describe("event bus", () => {
   it("replays recent events to a late listener and then delivers live", () => {
     resetCosmicBus();
-    emitCosmic({ type: "first_light" });
+    emitCosmic({ type: "focus_complete" });
     const seen: string[] = [];
     const off = onCosmic((e) => seen.push(e.type));
-    expect(seen).toEqual(["first_light"]);
+    expect(seen).toEqual(["focus_complete"]);
     emitCosmic({ type: "focus_start" });
-    expect(seen).toEqual(["first_light", "focus_start"]);
+    expect(seen).toEqual(["focus_complete", "focus_start"]);
     off();
     emitCosmic({ type: "focus_complete" });
     expect(seen).toHaveLength(2);
@@ -295,17 +292,12 @@ describe("deterministic placement", () => {
     expect(starSeeds(recent, months, 9, 100)).toEqual(seeds);
   });
 
-  it("unlocks a new layer with each era", () => {
-    expect(dustCount(0, 10_000)).toBeLessThan(dustCount(2, 10_000));
-    expect(dustCount(6, 1000)).toBe(1000);
-    expect(placeClusters(2)).toEqual([]);
-    expect(placeClusters(3).length).toBeGreaterThan(0);
-    expect(placeNeighbours(4)).toEqual([]);
-    expect(placeNeighbours(5).length).toBeGreaterThan(0);
-    expect(placeWeb(5).nodes).toEqual([]);
-    const web = placeWeb(6);
+  it("places the background layers deterministically", () => {
+    expect(placeClusters()).toHaveLength(6);
+    expect(placeNeighbours()).toHaveLength(9);
+    const web = placeWeb();
     expect(web.nodes.length).toBeGreaterThan(20);
     expect(web.edges.length).toBeGreaterThan(20);
-    expect(placeWeb(6)).toEqual(web);
+    expect(placeWeb()).toEqual(web);
   });
 });

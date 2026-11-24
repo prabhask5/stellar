@@ -158,7 +158,7 @@ export function setDragging(dragging: boolean): void {
 
 /** Moments the 3D scene reacts to (set by the event overlay). Seconds on the scene clock; -1 = never. */
 export const sceneSignals = {
-  /** Core flash: supernova, first light, new era. */
+  /** Core flash: supernova, system blossom. */
   flashAt: -1,
   flashStrength: 0,
   /** Warp jump burst at the start of a focus phase. */

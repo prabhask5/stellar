@@ -32,6 +32,5 @@ describe("token generators", () => {
 
   it("carries the spec palette", () => {
     expect(tokens.color["text.primary"]).toBe("#F5F3FF");
-    expect(tokens.era.map((e) => e.threshold)).toEqual([0, 100, 1000, 5000, 15000, 40000, 100000]);
   });
 });

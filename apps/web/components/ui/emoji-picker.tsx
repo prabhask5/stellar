@@ -1,8 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { whenIdle } from "@/lib/client/idle";
+import { preloadable } from "@/lib/client/preloadable";
 import { cx } from "./cx";
 import { Spinner } from "./button";
 import { Popover } from "./popover";
@@ -36,15 +36,14 @@ export function rememberEmoji(emoji: string): void {
 const EMOJI_BODY =
   "h-[min(70dvh,440px)] md:h-[min(400px,var(--radix-popover-content-available-height,400px))]";
 
-const loadGrid = () => import("./emoji-grid").then((m) => m.EmojiGrid);
-const EmojiGrid = dynamic(loadGrid, {
-  ssr: false,
-  loading: () => (
-    <div className={cx("flex items-center justify-center text-fg-2", EMOJI_BODY)}>
-      <Spinner size={22} />
-    </div>
-  ),
-});
+const { Component: EmojiGrid, preload: loadGrid } = preloadable(() =>
+  import("./emoji-grid").then((m) => m.EmojiGrid),
+);
+const loading = (
+  <div className={cx("flex items-center justify-center text-fg-2", EMOJI_BODY)}>
+    <Spinner size={22} />
+  </div>
+);
 
 let warmed = false;
 /** Fetches the picker and its emoji data ahead of the first open, so opening it is instant. */
@@ -108,7 +107,11 @@ export function EmojiPicker({
     </button>
   );
 
-  const body = <EmojiGrid recent={recent} onSelect={select} className={EMOJI_BODY} />;
+  const body = (
+    <Suspense fallback={loading}>
+      <EmojiGrid recent={recent} onSelect={select} className={EMOJI_BODY} />
+    </Suspense>
+  );
 
   if (wide) {
     return (

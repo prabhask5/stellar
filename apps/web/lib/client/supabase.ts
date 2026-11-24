@@ -1,6 +1,7 @@
 import type { Database } from "@stellar/db";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAccessToken, readMeta } from "./session";
+import { recordRequest } from "./diagnostics";
 
 export type Db = SupabaseClient<Database>;
 
@@ -47,7 +48,9 @@ export function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): 
     if (outer.aborted) controller.abort(outer.reason);
     else outer.addEventListener("abort", () => controller.abort(outer.reason), { once: true });
   }
-  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+  return recordRequest(input, init, () =>
+    fetch(input, { ...init, signal: controller.signal }),
+  ).finally(() => clearTimeout(timer));
 }
 
 export function hasSupabase(): boolean {

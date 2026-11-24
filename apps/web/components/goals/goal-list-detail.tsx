@@ -282,7 +282,7 @@ export function GoalListDetail({ list, index, goals, onBack }: GoalListDetailPro
         deleteWarning={
           sorted.length === 0
             ? "The list is empty."
-            : `Its ${sorted.length === 1 ? "goal is" : `${sorted.length} goals are`} deleted with it. Stardust you already earned stays.`
+            : `Its ${sorted.length === 1 ? "goal is" : `${sorted.length} goals are`} deleted with it.`
         }
       />
     </div>

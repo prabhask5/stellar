@@ -30,7 +30,7 @@ The setup wizard asks for your Supabase URL and keys, creates the `sp_` tables, 
 apps/web          Next.js app: UI, PWA service worker, setup wizard, /api/v1
 apps/extension    WXT (Manifest V3) extension for Chrome and Firefox
 packages/db       SQL migrations (idempotent, sp_ prefixed), migration runner, generated types
-packages/shared   Dates, recurrence, timer state machine, scoring, zod schemas, OpenAPI builder
+packages/shared   Dates, recurrence, timer state machine, zod schemas, OpenAPI builder
 packages/ui-tokens  Design tokens → CSS variables, Tailwind theme, SwiftUI file
 packages/universe The 3D universe (three.js), 2D event overlay, cosmic event bus
 dev/supabase      A small Supabase-compatible stack for local development and tests
@@ -39,7 +39,7 @@ docs              Guides, decisions, progress, API description, design mockups
 
 How it fits together:
 
-- **Rules live in Postgres.** Recurrence, streaks, scoring and the focus timer's state machine are SQL functions and triggers, so the web app, the extension and any future client always agree. `packages/shared` mirrors them in TypeScript for instant optimistic UI, and parity tests run both against the same fixtures.
+- **Rules live in Postgres.** Recurrence, streaks and the focus timer's state machine are SQL functions and triggers, so the web app, the extension and any future client always agree. `packages/shared` mirrors them in TypeScript for instant optimistic UI, and parity tests run both against the same fixtures.
 - **The browser talks to Supabase directly** for data and Realtime with a short-lived token. The refresh token never reaches page JavaScript: it stays in httpOnly cookies and is exchanged by the server.
 - **Optimistic and offline.** Every change is applied locally at once and sent from an ordered outbox stored in IndexedDB, which survives reloads and loss of connectivity.
 - **The universe** is a lazily loaded three.js scene behind every page. Completing things adds stars, planets and events; nothing in it blocks the interface.

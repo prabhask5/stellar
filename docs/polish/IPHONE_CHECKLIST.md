@@ -14,9 +14,7 @@ Write anything that feels off into `docs/polish/FRICTION_LOG.md`. Each step says
 
 1. Swipe the app away in the app switcher, then tap the icon.
    **Good:** no white flash at any point; the dark sky and your real lists are there at once, not a spinner or an empty page.
-2. Open Tasks → All, scroll half way down, type a few letters into quick add without adding. Go to the Home Screen, wait a minute, open three other heavy apps, come back by tapping the icon.
-   **Good:** you are back on Tasks → All, at the same scroll position, with your letters still in quick add. (If iOS kept the app alive, force it: swipe it away, then tap the icon. Same result expected.)
-3. Leave the app in the background past midnight once this week, or change the phone's clock forward a day and back.
+2. Leave the app in the background past midnight once this week, or change the phone's clock forward a day and back.
    **Good:** on return, yesterday's tasks are under Overdue and the date at the top is right, without a reload.
 
 ## 2. Touch and feedback (3 min)
@@ -37,9 +35,9 @@ Write anything that feels off into `docs/polish/FRICTION_LOG.md`. Each step says
 9. Swipe a row left all the way across.
    **Good:** Delete takes over the whole tray and the task is deleted on release, with an Undo toast. Tap Undo.
 10. Swipe a row right. **Good:** it completes. Then open a row to the left and push it back to the right to close it. **Good:** it closes and does **not** complete.
-11. Open a task list (Tasks → Lists → any list), then drag from the very left edge of the screen to the right.
-    **Good:** the page follows your finger with the lists showing beneath it; a short drag springs back, a long one or a flick goes back. Watch for iOS's own back gesture joining in: you should end up one screen back, not two. Repeat on Goals → a goal list.
-12. Open a task (tap its name). Drag the sheet down from its middle, not the grabber.
+11. Open a task list (Tasks → Lists → any list), then go back with the Back button, and again with iOS's own swipe from the left edge.
+    **Good:** the list opens at once and the app stays usable after going back (this froze in QA round 1). Repeat on Goals → a goal list.
+12. Open a task (tap its name). **Good:** the sheet is solid (nothing shows through), arrives in about a fifth of a second, and the cursor sits inside the focused field, not below it. Drag the sheet down from its middle, not the grabber.
     **Good:** it follows and dismisses. Open Routines → Manage routines → Add routine (a tall sheet): scroll inside it, then pull down. **Good:** the content scrolls first; only at its top does the sheet itself start to move, and it rests half way before dismissing on a further pull. Catch it mid-bounce: it stays under your finger, no jump.
 13. Hold a list card's 6-dot handle for a moment, then drag. **Good:** it lifts and reorders. Same for tasks inside a list and goals inside a goal list.
 
@@ -47,8 +45,8 @@ Write anything that feels off into `docs/polish/FRICTION_LOG.md`. Each step says
 
 14. Scroll any long page. **Good:** the system's own momentum and bounce, no stutter, and the background universe does not hitch the scroll.
 15. On Tasks, scroll down. **Good:** the large "Tasks" title gives way to a small centred title in a glass bar at the top; scrolling back restores the large one.
-16. Tasks → All, scroll down, tap Goals, tap Tasks. **Good:** Tasks is exactly as you left it (All, same position), instantly, with no flash of empty content. Tap Tasks again: it scrolls to the top. Again: back to Today.
-17. Open and close a task list a few times with the buttons. **Good:** the list slides in from the right and back out; the tab bar and the sky stay still. Switching tabs does **not** slide.
+16. Tasks → All, scroll down, tap Goals, tap Tasks. **Good:** Tasks opens on Today at the top (tabs no longer remember where they were). Scroll down and tap Tasks again: it scrolls to the top.
+17. Cold-start the app from the Home Screen on the Universe tab. **Good:** no white flash, and the tab bar sits at the bottom from the first frame (in QA round 1 it floated too high until the first navigation; the fix could not be verified off-device).
 
 ## 5. Keyboard and forms (2 min)
 

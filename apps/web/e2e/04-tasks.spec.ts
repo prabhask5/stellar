@@ -192,12 +192,6 @@ test.describe("tasks", () => {
           (await sql(`select completed from sp_tasks where name = 'Grocery run'`))[0]?.completed,
       )
       .toBe(true);
-    await expect
-      .poll(
-        async () =>
-          (await sql(`select coalesce(sum(points), 0)::int as p from sp_universe_events`))[0]?.p,
-      )
-      .toBe(10);
 
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(row).toBeVisible();
@@ -205,9 +199,9 @@ test.describe("tasks", () => {
     await expect
       .poll(
         async () =>
-          (await sql(`select coalesce(sum(points), 0)::int as p from sp_universe_events`))[0]?.p,
+          (await sql(`select completed from sp_tasks where name = 'Grocery run'`))[0]?.completed,
       )
-      .toBe(0);
+      .toBe(false);
 
     // "Show completed" reveals finished tasks, struck through.
     await row.getByRole("checkbox").click();

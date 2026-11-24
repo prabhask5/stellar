@@ -93,7 +93,7 @@ function sparkle(f: Frame, x: number, y: number, size: number, rgb: string, alph
   glow(f, x, y, size * 0.5, NEBULA_RGBA.white, alpha);
 }
 
-const { gold, core: coreRgb, white, violet, magenta, blue } = NEBULA_RGBA;
+const { gold, core: coreRgb, white, violet } = NEBULA_RGBA;
 
 // ── individual events ───────────────────────────────────────────────────────
 
@@ -363,7 +363,7 @@ function warpJump(f: Frame, e: Effect, now: number): void {
   glow(f, f.core.x, f.core.y, 80 + 120 * envelope, white, 0.18 * envelope);
 }
 
-/** Supernova when a focus phase completes: bright bloom, expanding shell, stardust swirling into the core. ~3s. */
+/** Supernova when a focus phase completes: bright bloom, expanding shell, dust swirling into the core. ~3s. */
 function supernova(f: Frame, e: Effect, now: number): void {
   const p = (now - e.startedAt) / 3000;
   if (p > 1) return;
@@ -405,83 +405,13 @@ function supernova(f: Frame, e: Effect, now: number): void {
   }
 }
 
-/** A new Era: the sky dims as if the camera pulls back, a new layer forms in widening rings. The name is shown by the DOM layer. ~6s. */
-function newEra(f: Frame, e: Effect, now: number): void {
-  const p = (now - e.startedAt) / 6000;
-  if (p > 1) return;
-  const size = Math.max(f.w, f.h);
-  const veil = bell(p, 0.35);
-  f.ctx.globalCompositeOperation = "source-over";
-  f.ctx.fillStyle = `rgba(7,6,21,${0.42 * veil})`;
-  f.ctx.fillRect(0, 0, f.w, f.h);
-  f.ctx.globalCompositeOperation = "lighter";
-  const c = { x: f.w / 2, y: f.h * 0.42 };
-  for (let k = 0; k < 4; k++) {
-    const q = span(p, 0.05 + k * 0.12, 0.6 + k * 0.12);
-    ring(f, c.x, c.y, size * 0.75 * easeOut(q), k % 2 ? violet : gold, (1 - q) * 0.5, 2, 0.5);
-  }
-  const rand = seededRandom(e.id * 271);
-  const form = span(p, 0.15, 0.75);
-  for (let k = 0; k < 90; k++) {
-    const a = rand() * TAU;
-    const r = size * (0.08 + rand() * 0.5) * easeOut(form);
-    const tint = [gold, violet, magenta, blue][k % 4] as string;
-    glow(
-      f,
-      c.x + Math.cos(a) * r,
-      c.y + Math.sin(a) * r * 0.5,
-      2 + rand() * 3,
-      tint,
-      bell(p, 0.5) * 0.7,
-    );
-  }
-  glow(f, c.x, c.y, size * 0.3, gold, 0.3 * veil);
-}
-
-/** First Light: the core ignites from the void. ~4s. */
-function firstLight(f: Frame, e: Effect, now: number): void {
-  const p = (now - e.startedAt) / 4000;
-  if (p > 1) return;
-  const size = Math.max(f.w, f.h);
-  f.ctx.globalCompositeOperation = "source-over";
-  f.ctx.fillStyle = `rgba(4,3,12,${0.7 * (1 - easeInOut(span(p, 0.1, 0.8)))})`;
-  f.ctx.fillRect(0, 0, f.w, f.h);
-  f.ctx.globalCompositeOperation = "lighter";
-  const c = f.core;
-  const ignite = easeInOut(span(p, 0.12, 0.7));
-  const settle = 1 - span(p, 0.75, 1) * 0.75;
-  glow(f, c.x, c.y, size * 0.5 * ignite, coreRgb, 0.5 * ignite * settle);
-  glow(f, c.x, c.y, size * 0.16 * ignite, white, 0.9 * ignite * settle);
-  const rand = seededRandom(e.id * 83);
-  for (let k = 0; k < 14; k++) {
-    const a = rand() * TAU;
-    const len = size * (0.12 + rand() * 0.3) * ignite;
-    line(
-      f,
-      c.x,
-      c.y,
-      c.x + Math.cos(a) * len,
-      c.y + Math.sin(a) * len,
-      coreRgb,
-      0.5 * ignite * settle,
-      0,
-      1.5,
-    );
-  }
-  ring(f, c.x, c.y, size * 0.5 * easeOut(span(p, 0.45, 1)), gold, (1 - span(p, 0.45, 1)) * 0.6, 2);
-}
-
 /** Reduced motion and the Minimal tier: every event is a brief soft glow at its source. */
 function softGlow(f: Frame, e: Effect, now: number): void {
   for (const o of e.origins) {
     const p = (now - o.at) / 450;
     if (p < 0 || p > 1) continue;
     const c = o.point ?? f.core;
-    const big =
-      e.type === "focus_complete" ||
-      e.type === "new_era" ||
-      e.type === "first_light" ||
-      e.type === "goal_list_completed";
+    const big = e.type === "focus_complete" || e.type === "goal_list_completed";
     glow(
       f,
       c.x,
@@ -504,8 +434,6 @@ const PAINTERS: Record<Effect["type"], (f: Frame, e: Effect, now: number) => voi
   streak_rekindled: rekindle,
   focus_start: warpJump,
   focus_complete: supernova,
-  new_era: newEra,
-  first_light: firstLight,
 };
 
 export class OverlayRenderer {

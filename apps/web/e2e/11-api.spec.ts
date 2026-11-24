@@ -309,8 +309,9 @@ test.describe("REST API v1", () => {
     // Completing things shows up in the universe.
     const universe = await api.get("/universe/snapshot");
     expect(universe.status).toBe(200);
-    expect(universe.body.total).toBeGreaterThan(0);
-    expect(universe.body.era.name).toBeTruthy();
+    expect(universe.body.planets).toHaveLength(1);
+    expect(universe.body).not.toHaveProperty("era");
+    expect(universe.body).not.toHaveProperty("total");
   });
 
   test("routines: schedule, per-day instances, logging", async ({ request }) => {

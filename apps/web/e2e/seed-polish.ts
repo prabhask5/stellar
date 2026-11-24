@@ -125,8 +125,6 @@ const BLOCK_LISTS: [string, string, string[]][] = [
 export interface SeedResult {
   owner: string;
   tasks: number;
-  stardust: number;
-  era: number;
 }
 
 export async function seedPolish(
@@ -162,7 +160,6 @@ export async function seedPolish(
         "sp_routines",
         "sp_block_lists",
         "sp_focus_sessions",
-        "sp_universe_events",
         "sp_tombstones",
       ])
         await q(`delete from public.${t} where user_id = $1`, [owner]);
@@ -252,12 +249,6 @@ export async function seedPolish(
         [owner, `${pick(TASK_NAMES)}`, ago, Math.floor(rand() * 600)],
       );
     }
-    await q(
-      `update public.sp_universe_events e set created_at = t.completed_at
-         from public.sp_tasks t
-        where e.user_id = $1 and e.kind = 'task_completed' and e.ref_id = t.id and t.completed_at is not null`,
-      [owner],
-    );
 
     // ── Goals: 6 lists with every state ──────────────────────────────────────
     type G = [
@@ -468,15 +459,12 @@ export async function seedPolish(
         const amount =
           r.type === "progress" ? (done ? r.total! : Math.floor(rand() * r.total!)) : 0;
         if (!done && amount === 0 && rand() < 0.5) continue;
-        // Older history is recorded without stardust so the total lands in Era III.
-        await q(`select set_config('sp.skip_scoring', $1, true)`, [ago > 10 ? "1" : ""]);
         await q(
           "insert into public.sp_routine_logs (routine_id, date, user_id, completed, amount) values ($1, $2, $3, $4, $5)",
           [id, d, owner, done, amount],
         );
       }
     }
-    await q(`select set_config('sp.skip_scoring', '', true)`);
 
     // ── Focus: 60 days of sessions ───────────────────────────────────────────
     for (let ago = 60; ago >= 0; ago--) {
@@ -484,7 +472,6 @@ export async function seedPolish(
       const rounds = 1 + Math.floor(rand() * 5);
       let minute = 9 * 60 + Math.floor(rand() * 90);
       const session = (await q<{ id: string }>("select gen_random_uuid() as id"))[0]!.id;
-      await q(`select set_config('sp.skip_scoring', $1, true)`, [ago > 6 ? "1" : ""]);
       for (let r = 1; r <= rounds; r++) {
         const abandoned = rand() < 0.12;
         const focusSeconds = abandoned ? 300 + Math.floor(rand() * 900) : 1500;
@@ -508,7 +495,6 @@ export async function seedPolish(
         minute += long ? 15 : 5;
       }
     }
-    await q(`select set_config('sp.skip_scoring', '', true)`);
     await q(`delete from public.sp_focus_sessions where user_id = $1 and ended_at > now()`, [
       owner,
     ]);
@@ -541,21 +527,13 @@ export async function seedPolish(
       [owner],
     );
 
-    const totals = (
-      await q<{ total: string; era: number; tasks: string }>(
-        `select coalesce(sum(points), 0) as total, sp_era_index(coalesce(sum(points), 0)) as era,
-                (select count(*) from public.sp_tasks t where t.user_id = $1) as tasks
-           from public.sp_universe_events where user_id = $1`,
-        [owner],
-      )
-    )[0]!;
+    const tasks = (
+      await q<{ n: string }>("select count(*) as n from public.sp_tasks where user_id = $1", [
+        owner,
+      ])
+    )[0]!.n;
     await q("commit");
-    return {
-      owner,
-      tasks: Number(totals.tasks),
-      stardust: Number(totals.total),
-      era: Number(totals.era),
-    };
+    return { owner, tasks: Number(tasks) };
   } catch (err) {
     await q("rollback").catch(() => {});
     throw err;
@@ -568,9 +546,7 @@ export async function seedPolish(
 export function runCli(): void {
   seedPolish({ keep: process.argv.includes("--keep") })
     .then((r) => {
-      console.info(
-        `Seeded ${r.tasks} tasks for ${r.owner}. Stardust ${r.stardust} → era index ${r.era} (Era III = index 2).`,
-      );
+      console.info(`Seeded ${r.tasks} tasks for ${r.owner}.`);
     })
     .catch((err: unknown) => {
       console.error(err instanceof Error ? err.message : err);

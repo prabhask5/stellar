@@ -68,7 +68,7 @@ Recommended sync model, mirroring the web app:
 - **Local store** (SwiftData or GRDB), one table per collection.
 - **Pull:** on launch and on foreground, call each list endpoint with `updated_since = last server_time`; upsert `data`, delete `deleted_ids`, store the new `server_time`.
 - **Push:** apply changes locally first, then send them from an ordered outbox. Creates carry a client-generated UUID in `id`, so a retried request can never duplicate a row. Drop an operation on `400`/`404`; retry on network errors and `5xx`.
-- **Do not reimplement rules.** Recurrence, streaks, day completion, goal completion and scoring are computed in Postgres. Read them from `/routines/days`, `/goals`, `/focus/stats` and `/universe/snapshot`. `packages/shared/src/fixtures.ts` holds the parity fixtures the web client is tested against if the app needs to predict a result optimistically.
+- **Do not reimplement rules.** Recurrence, streaks, day completion, goal completion and the universe snapshot are computed in Postgres. Read them from `/routines/days`, `/goals`, `/focus/stats` and `/universe/snapshot`. `packages/shared/src/fixtures.ts` holds the parity fixtures the web client is tested against if the app needs to predict a result optimistically.
 - **"Today"** follows the owner's `timezone` setting, not the device's.
 
 ## 4. Design tokens
@@ -92,7 +92,6 @@ Button("Start focus") { … }
 - The app is dark only: set `.preferredColorScheme(.dark)` at the root.
 - Text styles use the system font (SF Pro) with tabular digits, like the web app on Apple devices.
 - Use `StellarTokens.Motion.sheetSpring` and `thumbSpring` for transitions, and `pressScale` for pressed states. Honour `accessibilityReduceMotion` by switching to opacity-only transitions.
-- `StellarTokens.eras` lists the universe eras and their score thresholds.
 
 ## 5. Safe areas and the Dynamic Island
 

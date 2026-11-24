@@ -746,63 +746,13 @@ export type Database = {
         }
         Relationships: []
       }
-      sp_universe_events: {
-        Row: {
-          created_at: string
-          id: string
-          kind: string
-          points: number
-          ref_date: string | null
-          ref_id: string | null
-          user_id: string
-        }
-        ComputedFields: never
-        Insert: {
-          created_at?: string
-          id?: string
-          kind: string
-          points: number
-          ref_date?: string | null
-          ref_id?: string | null
-          user_id?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          kind?: string
-          points?: number
-          ref_date?: string | null
-          ref_id?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      sp__award: {
-        Args: {
-          p_date: string
-          p_kind: string
-          p_points: number
-          p_ref: string
-          p_user: string
-        }
-        Returns: undefined
-      }
       sp__blocking: { Args: { p_user: string }; Returns: Json }
-      sp__day_fraction: {
-        Args: { p_date: string; p_user: string }
-        Returns: number
-      }
-      sp__era_json: { Args: { p_total: number }; Returns: Json }
       sp__focus_ensure: { Args: { p_user: string }; Returns: undefined }
-      sp__goal_list_sync: {
-        Args: { p_list: string; p_user: string }
-        Returns: undefined
-      }
       sp__instance_progress: {
         Args: {
           p_amount: number
@@ -827,10 +777,6 @@ export type Database = {
           p_phase: string
         }
         Returns: number
-      }
-      sp__routine_day_sync: {
-        Args: { p_date: string; p_user: string }
-        Returns: undefined
       }
       sp__scheduled: {
         Args: {
@@ -860,15 +806,6 @@ export type Database = {
         Returns: Json
       }
       sp_device_seen: { Args: Record<PropertyKey, never>; Returns: undefined }
-      sp_era_index: { Args: { p_total: number }; Returns: number }
-      sp_eras: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          idx: number
-          name: string
-          threshold: number
-        }[]
-      }
       sp_export: { Args: Record<PropertyKey, never>; Returns: Json }
       sp_focus_get: { Args: Record<PropertyKey, never>; Returns: Json }
       sp_focus_stats: { Args: { p_days?: number }; Returns: Json }

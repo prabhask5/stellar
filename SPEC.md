@@ -6,7 +6,7 @@
 
 1. **Speed first.** Every interaction feels instant. Optimistic UI everywhere: nothing the user taps waits on the network. The cosmic visuals must never delay first paint, input, or navigation.
 2. **Clean where you touch, cosmic where you look.** Interactive UI follows Apple's design language: calm, minimal, precise, system font, generous touch targets. The maximalist cosmos lives in the persistent background universe and in full-screen *events*. Events never block input.
-3. **Your universe grows with you.** Every completed task, goal, routine and focus session permanently adds to a personal, cumulative 3D universe. Progress compounds visually over months.
+3. **Your universe reflects you.** Every completed task is a star, every goal a planet and every routine a constellation in a personal 3D universe. The galaxy itself is at full richness from the first launch: there are no levels to unlock.
 
 Single user, self-hosted, deployed as a Docker container on Dokploy, backed by the owner's existing self-hosted Supabase. Dark theme only. **No sound anywhere.**
 
@@ -34,7 +34,7 @@ stellar-planner/
 │  └─ extension/           # WXT extension (chrome + firefox targets)
 ├─ packages/
 │  ├─ shared/              # Pure TS: zod schemas, types, timer state machine, recurrence,
-│  │                       # progress math, universe scoring, date utils (timezone aware)
+│  │                       # progress math, date utils (timezone aware)
 │  ├─ db/                  # SQL migrations (numbered), migration runner, generated DB types
 │  ├─ ui-tokens/           # Design tokens (tokens.json) → CSS vars, Tailwind theme, Swift file
 │  └─ universe/            # React Three Fiber scene + cosmic event system (lazy-loaded)
@@ -110,7 +110,7 @@ Persistent volume: **`/data`** (config, generated secrets). Document mounting it
    - Otherwise show the full migration SQL with a copy button and "Open your Supabase Studio SQL editor, paste, run", then a **Verify** button that checks the `sp_schema_version` table.
 4. **Create your PIN.** 6–12 digits, entered twice. Large iOS-style keypad on touch devices, keyboard on desktop.
 5. **About you** (optional, editable later): birthdate + expected lifespan (default 85) for the life progress bar, timezone (auto-detected), week start (Mon/Sun).
-6. **Done.** Triggers the first cosmic event ("First Light"), then lands on Universe home.
+6. **Done.** Lands on Universe home.
 
 During setup the server also:
 - Generates `APP_SECRET` if not provided and writes it to `/data/secret` (warn in the UI that setting it via env is more secure).
@@ -250,26 +250,20 @@ sp_quotes (text, author, is_builtin bool)       -- seed ~100 short, attributed, 
 sp_devices (name, kind, last_seen_at, auth_session_id uuid null, revoked_at)
 sp_push_subscriptions (endpoint unique, p256dh, auth, device_id, created_at)
 sp_auth_events (kind, device_kind, ip, created_at)
-sp_universe_events (kind text, ref_id uuid null, points int, created_at)  -- append-only ledger
 sp_schema_version (version int, applied_at)
 ```
 
-### 5.6 Universe scoring ("stardust")
-Postgres triggers append to `sp_universe_events`. Reversals (uncomplete) append negative points, so the ledger stays honest.
+### 5.6 Universe snapshot
+There is no score, no levels and no ledger: the universe is drawn from the owner's own rows. (Eras and "stardust" scoring existed until migration 0011, which removed them and dropped `sp_universe_events`.)
 
-| Event | Points | Visual unit |
-|---|---|---|
-| Task completed | 10 | 1 star ignites |
-| Routine instance completed (todo done / progress hits total) | 5 | constellation star lights |
-| Routine day reaches 100% | +20 | constellation line draws |
-| Focus phase completed | 25 per 25 focus-minutes (pro-rated) | stardust swirl into the core |
-| Progress goal increment | proportional: 50 × Δ fraction | planet accretes |
-| Goal completed | 100 | planet fully forms |
-| Goal list 100% | 250 | planetary system gets rings/moons |
+| Data | Visual unit |
+|---|---|
+| Completed task (not deleted) | 1 star |
+| Goal | planet, sized by progress; a completed goal glows |
+| Goal list at 100% | planetary system gets rings/moons |
+| Routine | constellation; stars are completed days, brightness follows the streak |
 
-**Eras** (total stardust): Void 0 · First Light 100 · Nebula 1,000 · Star Cluster 5,000 · Galaxy 15,000 · Supercluster 40,000 · Cosmic Web 100,000.
-
-RPC `sp_universe_snapshot()` returns: totals, era, progress to next era, and compact entity arrays (tasks-completed count + recent star seeds, goal planets with progress, routine constellations with streak/dim state). Keep the payload small: aggregate old stars into counts per month instead of sending rows.
+RPC `sp_universe_snapshot()` returns `stars` (count, the most recent star seeds, counts per month), `lists`, `planets` (with progress), `constellations` (with streak/dim state) and `server_time`. Keep the payload small: aggregate old stars into counts per month instead of sending rows.
 
 ---
 
@@ -372,7 +366,7 @@ All numbers that change use `font-variant-numeric: tabular-nums`. Inputs are ≥
   - **Stars:** one per completed task, laid out along a slowly rotating spiral galaxy. Instanced points with a custom shader (size, twinkle phase, color temperature). Older stars aggregate into dense dust lanes, so tens of thousands stay cheap.
   - **Planets:** one per goal, grouped into planetary systems per goal list, orbiting the core. Planet radius/brightness scale with progress; a completed goal gets atmosphere + glow; a 100% list gets rings/moons. Planet hue varies by list (gold/violet/rose/blue families).
   - **Constellations:** one per routine. Stars are scheduled-day completions linked by lines. Brightness tracks the current streak. **Gentle dimming:** a broken streak dims the constellation to ~35% (never removed); the next completion triggers a rekindle animation.
-  - **Galactic core + nebulae:** core brightness and nebula richness scale with the Era. Each Era unlocks new layers: Void (sparse dark), First Light (first core glow), Nebula (colored gas volumes), Star Cluster (globular clusters), Galaxy (full spiral arms + bloom), Supercluster (neighbouring galaxies in the distance), Cosmic Web (filament web across the sky).
+  - **Galactic core + backdrop:** always at full richness, independent of the owner's data: bright core, coloured nebulae, ambient dust, globular clusters, neighbouring galaxies in the distance and a filament web across the sky. Only the particle counts vary, by quality tier.
 - **Camera:** slow drift. Universe home allows gentle drag/pinch to orbit and zoom, with an inertial return to the default framing. Other pages use a fixed, slightly blurred, darker framing so content stays readable.
 - **Quality tiers** (Settings, default Auto):
   - **Cinematic:** full scene, bloom, DPR ≤2, 60fps.
@@ -395,9 +389,7 @@ An **EventDirector** queue renders events on an overlay layer (`pointer-events: 
 | Routine day 100% | Constellation draws itself line by line, flare | ~2s |
 | Streak rekindled | Dim constellation flickers back to full | ~1.5s |
 | Focus phase start | **Warp jump:** star streaks radiate from the center, stars stretch into lines, then settle into a calm "warp tunnel" ambient state that persists subtly during focus | ~1.5s + ambient |
-| Focus phase complete | **Supernova:** bright bloom, expanding shell, stardust swirls into the core | ~3s |
-| New Era reached | Galaxy-scale cinematic: camera pulls back, new layer forms, Era name in large title | ~6s |
-| Setup complete | "First Light": the core ignites from the void | ~4s |
+| Focus phase complete | **Supernova:** bright bloom, expanding shell, dust swirls into the core | ~3s |
 
 Minimal tier and reduced motion swap every event for a brief soft glow/flash at the source.
 
@@ -405,7 +397,7 @@ Minimal tier and reduced motion swap every event for a brief soft glow/flash at 
 
 ## 8. Screens & functionality
 
-Navigation: phone = floating tab bar (Universe, Tasks, Goals, Routines, Focus) + Settings via the gear on Universe home. Tablet = icon rail. Desktop = sidebar showing Era progress at the bottom (e.g. "716 stars to Star Cluster").
+Navigation: phone = floating tab bar (Universe, Tasks, Goals, Routines, Focus) + Settings via the gear on Universe home. Tablet = icon rail. Desktop = sidebar with labels.
 
 Global:
 - **⌘K / Ctrl+K** command bar (desktop) to add a task, jump to a page, start/pause focus.
@@ -414,7 +406,7 @@ Global:
 - Copy voice: warm, calm, second person, sentence case, no exclamation marks, no space puns in errors.
 
 ### 8.1 Universe home
-- Eyebrow date, greeting by time of day ("Good evening"), Era badge (gold soft pill "Era III · Nebula") + "1,284 stars ignited".
+- Eyebrow date and greeting by time of day ("Good evening").
 - The interactive universe fills the screen. Tap/hover on a planet shows its goal name + progress; tap on a constellation shows the routine + streak.
 - Bottom glass **Today** card:
   - three stat tiles (Tasks done/total today, Routines % today, Focus time today)
@@ -622,7 +614,7 @@ Endpoints:
 - Unit (Vitest) in `packages/shared`:
   - recurrence (daily/weekdays/interval, start/end bounds, timezone/DST edges)
   - timer state machine (all transitions, version conflicts, pause blocking rule, auto-start on/off, long-break cadence)
-  - progress math, era thresholds, site-pattern normalization, URL normalization
+  - progress math, site-pattern normalization, URL normalization
 - SQL parity: tests that run the SQL functions (when a Postgres is available, e.g. Docker or `DATABASE_URL`) against the same fixtures as the TS versions.
 - E2E (Playwright), desktop + iPhone 15 Pro + iPhone SE projects:
   - setup wizard (mocked Supabase where needed)

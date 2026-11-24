@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ERA_FIXTURES, SITE_FIXTURES } from "./fixtures.ts";
+import { SITE_FIXTURES } from "./fixtures.ts";
 import { hash32, randomFor, seededRandom, unitFor } from "./hash.ts";
 import {
   hostMatchesPattern,
@@ -19,15 +19,6 @@ import {
   toPercent,
 } from "./progress.ts";
 import { needsRebalance, rankAtEnd, rankBetween, rankForMove, rebalancedRanks } from "./rank.ts";
-import {
-  eraFor,
-  eraLabel,
-  eraProgress,
-  ERAS,
-  focusPoints,
-  goalProgressPoints,
-  POINTS,
-} from "./scoring.ts";
 
 describe("goal progress", () => {
   it("scores todo goals as 0 or 1", () => {
@@ -117,49 +108,6 @@ describe("time progress", () => {
     expect(formatDuration(0)).toBe("0m");
     expect(formatAmount(2.5)).toBe("2.5");
     expect(formatAmount(12.0000001)).toBe("12");
-  });
-});
-
-describe("scoring", () => {
-  it.each(ERA_FIXTURES)("era for $total is $name", ({ total, index, name }) => {
-    expect(eraFor(total).index).toBe(index);
-    expect(eraFor(total).name).toBe(name);
-  });
-
-  it("uses the spec thresholds", () => {
-    expect(ERAS.map((e) => e.threshold)).toEqual([0, 100, 1000, 5000, 15000, 40000, 100000]);
-    expect(POINTS).toMatchObject({
-      task: 10,
-      routineInstance: 5,
-      routineDay: 20,
-      goalComplete: 100,
-      goalList: 250,
-    });
-  });
-
-  it("reports progress to the next era", () => {
-    const p = eraProgress(4284);
-    expect(p.era.name).toBe("Nebula");
-    expect(p.next?.name).toBe("Star Cluster");
-    expect(p.remaining).toBe(716);
-    expect(p.fraction).toBeCloseTo(3284 / 4000);
-    expect(eraProgress(250000)).toMatchObject({ next: null, fraction: 1, remaining: 0 });
-    expect(eraLabel(eraFor(1284))).toBe("Era III · Nebula");
-  });
-
-  it("pro-rates focus points", () => {
-    expect(focusPoints(1500)).toBe(25);
-    expect(focusPoints(3000)).toBe(50);
-    expect(focusPoints(600)).toBe(10);
-    expect(focusPoints(0)).toBe(0);
-  });
-
-  it("telescopes goal progress points", () => {
-    expect(goalProgressPoints(0, 1)).toBe(50);
-    expect(goalProgressPoints(0.5, 0.25)).toBe(-12);
-    let total = 0;
-    for (let i = 0; i < 100; i++) total += goalProgressPoints(i / 100, (i + 1) / 100);
-    expect(total).toBe(50);
   });
 });
 

@@ -57,7 +57,6 @@ export type Quote = Row<"sp_quotes">;
 export type Device = Narrow<Row<"sp_devices">, { kind: "web" | "pwa" | "extension" | "ios" }>;
 export type PushSubscriptionRow = Row<"sp_push_subscriptions">;
 export type AuthEvent = Row<"sp_auth_events">;
-export type UniverseEvent = Row<"sp_universe_events">;
 
 /** Tables published to Supabase Realtime (SPEC §3.4). */
 export const REALTIME_TABLES = [

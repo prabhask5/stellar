@@ -20,11 +20,6 @@ async function seedMockup(): Promise<void> {
   }
 }
 
-const points = async () =>
-  (
-    await sql<{ p: number }>(`select coalesce(sum(points), 0)::int as p from sp_universe_events`)
-  )[0]!.p;
-
 test.describe("goals", () => {
   test.beforeAll(async ({ request }) => {
     await ensureConfigured(request);
@@ -39,7 +34,6 @@ test.describe("goals", () => {
     await sql(
       `update sp_settings set birthdate = (sp__today(user_id) - interval '30 years')::date, lifespan_years = 90`,
     );
-    await sql(`delete from sp_universe_events`);
     await page.goto("/goals");
     await expect(page.getByRole("heading", { name: "Goals", level: 1 })).toBeVisible();
 
@@ -82,7 +76,7 @@ test.describe("goals", () => {
     await expect(page).toHaveURL(/\/settings#general$/);
   });
 
-  test("todo and progress goals drive list progress and stardust", async ({ page, shot }) => {
+  test("todo and progress goals drive list progress", async ({ page, shot }) => {
     await page.goto("/goals");
     await expect(page.getByText("No planets yet.")).toBeVisible();
     await page.getByRole("button", { name: "New goal list" }).click();
@@ -117,16 +111,13 @@ test.describe("goals", () => {
     await books.getByLabel("Read books amount").press("Enter");
     await expect(books).toContainText("10 / 20 books");
     await expect(detail.getByTestId("list-progress")).toContainText("25%");
-    await expect.poll(points).toBe(25);
     await books.getByRole("button", { name: "Decrease Read books" }).click();
     await expect(books).toContainText("9 / 20 books");
-    await expect.poll(points).toBe(23);
 
     // Completing the todo goal: mean progress = (1 + 0.45) / 2.
     await detail.getByRole("checkbox", { name: "Complete “Join a book club”" }).click();
     await expect(detail.getByTestId("list-progress")).toContainText("1 of 2 complete");
     await expect(detail.getByTestId("list-progress")).toContainText("73%");
-    await expect.poll(points).toBe(123);
     await shot("goal-list-detail");
 
     // Reaching the total completes the goal, and with it the whole list.
@@ -135,14 +126,12 @@ test.describe("goals", () => {
     await books.getByLabel("Read books amount").press("Enter");
     await expect(detail.getByTestId("list-progress")).toContainText("2 of 2 complete");
     await expect(detail.getByTestId("list-progress")).toContainText("100%");
-    await expect.poll(points).toBe(50 + 100 + 100 + 250);
     expect(
       (await sql(`select completed from sp_goals where name = 'Read books'`))[0]?.completed,
     ).toBe(true);
 
     // Un-completing reverses honestly.
     await detail.getByRole("checkbox", { name: /Join a book club/ }).click();
-    await expect.poll(points).toBe(150);
 
     // Back on the overview the card shows the same numbers.
     await detail.getByRole("button", { name: "Back to goals" }).click();

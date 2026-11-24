@@ -51,8 +51,6 @@ interface Check {
   hint?: string;
 }
 
-export const FIRST_LIGHT_KEY = "sp-first-light";
-
 export function SetupWizard() {
   const [state, setState] = useState<SetupState | null>(null);
   const [step, setStep] = useState<Step>("welcome");
@@ -959,15 +957,7 @@ function Profile({ onNext }: { onNext: () => void }) {
 
 // ── 6. done ─────────────────────────────────────────────────────────────────
 function Done({ state }: { state: SetupState }) {
-  const enter = () => {
-    try {
-      // The Universe home plays "First Light" once when it sees this flag.
-      if (state.firstRun || !state.pinReset) sessionStorage.setItem(FIRST_LIGHT_KEY, "1");
-    } catch {
-      // storage unavailable: skip the event
-    }
-    window.location.replace("/");
-  };
+  const enter = () => window.location.replace("/");
   return (
     <div>
       <div className="text-center">
@@ -976,8 +966,8 @@ function Done({ state }: { state: SetupState }) {
         </span>
         <h1 className="text-title1">You&rsquo;re all set</h1>
         <p className="mx-auto mt-2 max-w-[340px] text-subhead text-fg-2">
-          Your universe starts empty. Every task, goal, routine and focus session you finish adds to
-          it.
+          Your galaxy is waiting. Every task you finish becomes a star, every goal a planet and
+          every routine a constellation.
         </p>
       </div>
       <div className="mt-6 flex flex-col gap-3">

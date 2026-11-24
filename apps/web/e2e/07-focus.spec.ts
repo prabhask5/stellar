@@ -145,10 +145,6 @@ test.describe("focus", () => {
       (await sql(`select notified_phase_end_at is not null as notified from sp_focus_state`))[0]
         ?.notified,
     ).toBe(true);
-    // 25 focus minutes = 25 stardust.
-    expect(
-      (await sql(`select coalesce(sum(points), 0)::int as p from sp_universe_events`))[0]?.p,
-    ).toBe(25);
     const health = await (await page.request.get("/api/health")).json();
     expect(health.scheduler).toBe(true);
 

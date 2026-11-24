@@ -1,3 +1,4 @@
+import { findProblems } from "./invariants";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import {
@@ -71,7 +72,6 @@ export async function wipeData(): Promise<void> {
       delete from public.sp_routines where user_id = uid;
       delete from public.sp_block_lists where user_id = uid;
       delete from public.sp_focus_sessions where user_id = uid;
-      delete from public.sp_universe_events where user_id = uid;
       delete from public.sp_quotes where user_id = uid;
       delete from public.sp_tombstones where user_id = uid;
       delete from public.sp_push_subscriptions where user_id = uid;
@@ -256,6 +256,12 @@ export const test = base.extend<{ shot: (name: string) => Promise<void> }>({
       test: testInfo.titlePath.slice(1).join(" › "),
     });
     await use(page);
+    // Whatever the test was about, the screen it ended on must be sound (see invariants.ts).
+    // Only for tests that passed: a failing test is already reported, on a half-finished screen.
+    if (testInfo.status === "passed" && !page.isClosed() && process.env.INVARIANTS !== "0") {
+      const problems = await page.evaluate(findProblems).catch(() => [] as string[]);
+      expect(problems, "UX invariants on the screen this test ended on").toEqual([]);
+    }
     await finish();
   },
   shot: async ({ page }, use, testInfo) => {

@@ -172,7 +172,7 @@ For live updates, subscribe to Supabase Realtime on `sp_focus_state` instead of 
 
 | Method       | Path                  | Notes                                                   |
 | ------------ | --------------------- | ------------------------------------------------------- |
-| GET          | `/universe/snapshot`  | Score, era, and the bodies earned so far                |
+| GET          | `/universe/snapshot`  | Stars, planets and constellations to draw               |
 | GET          | `/quotes/random`      |                                                         |
 | GET, POST    | `/quotes`             | Built-in quotes plus your own                           |
 | DELETE       | `/quotes?id=`         | Your own quotes only                                    |

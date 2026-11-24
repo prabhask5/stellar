@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  eraLabel,
-  eraProgress,
   formatDuration,
   formatLongDate,
   greetingFor,
@@ -12,7 +10,6 @@ import {
   todayStats,
   zonedParts,
 } from "@stellar/shared";
-import { emitCosmic } from "@stellar/universe/bus";
 import { clearHover, orbitBy, pickAt, setDragging, zoomBy } from "@stellar/universe/store";
 import Link from "next/link";
 import { type ComponentType, useEffect, useMemo, useRef, useState } from "react";
@@ -22,19 +19,10 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { GearIcon } from "@/components/ui/icons";
 import { useMounted } from "@/components/ui/use-media";
 import { withLingering } from "@/lib/client/complete";
-import {
-  useCollection,
-  useFocus,
-  useMinute,
-  useTimeZone,
-  useToday,
-  useUniverse,
-} from "@/lib/client/data/hooks";
+import { useCollection, useFocus, useMinute, useTimeZone, useToday } from "@/lib/client/data/hooks";
 import { dayFraction } from "@/lib/client/data/routines";
 import { serverNow } from "@/lib/client/session";
 import { useUi } from "@/lib/client/ui-store";
-
-const FIRST_LIGHT_KEY = "sp-first-light";
 
 function StatTile({
   label,
@@ -63,7 +51,7 @@ function StatTile({
 
 const small = "text-[13px] font-medium text-fg-2";
 
-/** Universe home: greeting, Era badge, and the glass Today card over the interactive sky. */
+/** Universe home: greeting and the glass Today card over the interactive sky. */
 export function Home() {
   // The "Add to Home Screen" hint only exists for iOS Safari, so only iOS fetches it, and
   // straight away rather than when idle (it is the largest text on a first visit).
@@ -78,25 +66,12 @@ export function Home() {
   const tz = useTimeZone();
   const today = useToday();
   const minute = useMinute();
-  const universe = useUniverse();
   const { rows: tasks, loading: tasksLoading } = useCollection("sp_tasks");
   const { rows: routines, loading: routinesLoading } = useCollection("sp_routines");
   const { rows: logs } = useCollection("sp_routine_logs");
   const { rows: sessions } = useCollection("sp_focus_sessions");
   const focus = useFocus();
   const lingering = useUi((s) => s.lingering);
-
-  // "First Light" plays once, right after setup.
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem(FIRST_LIGHT_KEY)) {
-        sessionStorage.removeItem(FIRST_LIGHT_KEY);
-        emitCosmic({ type: "first_light" });
-      }
-    } catch {
-      // storage unavailable
-    }
-  }, []);
 
   const now = minute || serverNow();
   const hour = zonedParts(now, tz).hour;
@@ -136,9 +111,6 @@ export function Home() {
     return seconds / 60;
   }, [sessions, focus, tz, today, now]);
 
-  const era = eraProgress(universe?.total ?? 0);
-  const stars = universe?.stars.count ?? 0;
-
   return (
     <main
       className="flex min-h-dvh flex-col px-safe"
@@ -151,17 +123,6 @@ export function Home() {
         <div className="min-w-0">
           <p className="eyebrow text-fg-2">{mounted ? formatLongDate(today) : " "}</p>
           <h1 className="mt-1 text-large-title">{mounted ? greetingFor(hour) : " "}</h1>
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <span
-              className="inline-flex h-7 items-center rounded-full border border-accent-line bg-accent-soft px-3 text-[13px] font-medium text-accent"
-              data-testid="era-badge"
-            >
-              {eraLabel(era.era)}
-            </span>
-            <span className="text-[13px] text-fg-2 tnum">
-              {stars === 1 ? "1 star ignited" : `${stars.toLocaleString("en-US")} stars ignited`}
-            </span>
-          </div>
         </div>
         <Link
           href="/settings"

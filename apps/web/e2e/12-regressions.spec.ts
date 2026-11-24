@@ -76,9 +76,6 @@ test.describe("regressions", () => {
     expect((await sql(`select completed from sp_tasks where name = 'Twice'`))[0]?.completed).toBe(
       false,
     );
-    expect(
-      (await sql(`select coalesce(sum(points), 0)::int as p from sp_universe_events`))[0]?.p,
-    ).toBe(0);
   });
 
   test("ADV-03 ten rapid + taps on a progress goal add exactly ten and never step back", async ({

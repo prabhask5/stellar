@@ -577,58 +577,6 @@ html[data-sky="3d"] .sp-sky__nebula {
   height: 100%;
 }
 
-.sp-era {
-  position: absolute;
-  left: 50%;
-  top: 42%;
-  width: min(90vw, 560px);
-  transform: translate(-50%, -50%);
-  text-align: center;
-  animation: sp-era 6s ease-in-out both;
-}
-.sp-era--reduced {
-  animation: sp-fade 300ms ease-out both;
-}
-.sp-era__eyebrow {
-  font-size: 13px;
-  line-height: 16px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--sp-accent);
-}
-.sp-era__name {
-  margin-top: 8px;
-  font-size: clamp(34px, 9vw, 64px);
-  line-height: 1.05;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--sp-text-primary);
-  text-shadow: 0 0 40px rgba(246, 199, 110, 0.55);
-}
-.sp-era__line {
-  margin-top: 10px;
-  font-size: 15px;
-  line-height: 20px;
-  color: var(--sp-text-secondary);
-}
-@keyframes sp-era {
-  0%,
-  12% {
-    opacity: 0;
-    transform: translate(-50%, -46%) scale(0.94);
-  }
-  30%,
-  78% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -52%) scale(1.03);
-  }
-}
-
 .sp-universe-label {
   position: fixed;
   z-index: 3;

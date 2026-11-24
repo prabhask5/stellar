@@ -20,13 +20,11 @@ test.describe("app shell", () => {
     await signIn(context);
   });
 
-  test("home shows the greeting, era and an empty Today card", async ({ page, shot }, info) => {
+  test("home shows the greeting and an empty Today card", async ({ page, shot }, info) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       /Good (morning|afternoon|evening|night)/,
     );
-    await expect(page.getByTestId("era-badge")).toHaveText("Era I · Void");
-    await expect(page.getByText("0 stars ignited")).toBeVisible();
     const card = page.getByTestId("today-card");
     await expect(card.getByText("Clear skies. Nothing left in orbit today.")).toBeVisible();
     await expect(card.getByText("None today")).toBeVisible();
@@ -49,8 +47,6 @@ test.describe("app shell", () => {
       await card.scrollIntoViewIfNeeded();
       expect(cardBox.height).toBeGreaterThan(100);
       await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
-    } else {
-      await expect(page.getByTestId("era-card")).toContainText("100 stars to First Light");
     }
   });
 
@@ -228,6 +224,5 @@ test.describe("app shell", () => {
     await expect(card2.getByText("Synced task")).toBeVisible({ timeout: 4000 });
     await other.close();
     await sql("delete from sp_tasks where name = 'Synced task'");
-    await sql("delete from sp_universe_events");
   });
 });

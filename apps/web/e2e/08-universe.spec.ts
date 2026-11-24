@@ -5,8 +5,8 @@ const OWNER = "(select id from auth.users where email = 'owner@stellar.local')";
 // The universe animates, so these tests run with motion allowed.
 test.use({ reducedMotion: "no-preference" });
 
-async function seedUniverse(stardust: number): Promise<void> {
-  // Completed tasks become stars; the ledger is topped up to the requested total.
+async function seedUniverse(): Promise<void> {
+  // Completed tasks become stars, goals planets, routines constellations.
   await sql(
     `insert into sp_tasks (user_id, name, completed, due_date) select ${OWNER}, 'Star ' || g, true, sp__today(${OWNER}) - (g % 40) from generate_series(1, 120) g`,
   );
@@ -22,14 +22,6 @@ async function seedUniverse(stardust: number): Promise<void> {
   );
   await sql(
     `insert into sp_routine_logs (routine_id, date, user_id, completed) select r.id, d::date, r.user_id, true from sp_routines r, generate_series(sp__today(${OWNER}) - 9, sp__today(${OWNER}) - 1, interval '1 day') d where r.name = 'Meditate' or extract(day from d)::int % 3 = 0`,
-  );
-  await sql(`delete from sp_universe_events`);
-  await sql(
-    `insert into sp_universe_events (user_id, kind, points) values (${OWNER}, 'focus_phase', $1)`,
-    [stardust - 1200],
-  );
-  await sql(
-    `insert into sp_universe_events (user_id, kind, ref_id, points) select ${OWNER}, 'task_completed', id, 10 from sp_tasks`,
   );
 }
 
@@ -63,14 +55,15 @@ test.describe("universe", () => {
     page,
     shot,
   }) => {
-    await seedUniverse(4284);
+    await seedUniverse();
     await sql(`update sp_settings set quality_tier = 'balanced'`);
     const requests: string[] = [];
     page.on("request", (r) => r.resourceType() === "script" && requests.push(r.url()));
     await page.goto("/");
     // The interface is usable on the CSS sky straight away.
-    await expect(page.getByTestId("era-badge")).toHaveText("Era III · Nebula");
-    await expect(page.getByText("120 stars ignited")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      /Good (morning|afternoon|evening|night)/,
+    );
     await expect(page.locator(".sp-sky")).toBeAttached();
     await waitForScene(page);
 
@@ -95,7 +88,7 @@ test.describe("universe", () => {
   test("the canvas persists across navigation and dims behind other pages", async ({
     page,
   }, info) => {
-    await seedUniverse(1500);
+    await seedUniverse();
     await sql(`update sp_settings set quality_tier = 'balanced'`);
     await page.goto("/");
     // A first launch starts on Auto until the settings arrive; the chosen tier's canvas is the
@@ -204,31 +197,7 @@ test.describe("universe", () => {
     await card.getByRole("checkbox", { name: "Complete “Task 2”" }).click();
     await card.getByRole("checkbox", { name: "Complete “Task 3”" }).click();
     await expect(page.getByText("3 tasks completed")).toBeVisible();
-    await expect(page.getByText("3 stars ignited")).toBeVisible({ timeout: 6000 });
     await expect.poll(() => overlayInk(page), { timeout: 8000 }).toBe(0);
-  });
-
-  test("crossing a threshold announces the new Era", async ({ page }) => {
-    await sql(
-      `insert into sp_universe_events (user_id, kind, points) values (${OWNER}, 'focus_phase', 95)`,
-    );
-    await sql(
-      `insert into sp_tasks (user_id, name, due_date) values (${OWNER}, 'The last step', sp__today(${OWNER}))`,
-    );
-    await sql(`update sp_settings set quality_tier = 'balanced'`);
-    await page.goto("/");
-    await expect(page.getByTestId("era-badge")).toHaveText("Era I · Void");
-    await waitForScene(page);
-    await page
-      .getByTestId("today-card")
-      .getByRole("checkbox", { name: "Complete “The last step”" })
-      .click();
-    const title = page.getByTestId("era-title");
-    await expect(title).toBeVisible({ timeout: 8000 });
-    await expect(title).toContainText("Era II");
-    await expect(title).toContainText("First Light");
-    await expect(page.getByTestId("era-badge")).toHaveText("Era II · First Light");
-    await expect(title).toBeHidden({ timeout: 9000 });
   });
 
   test("Minimal and reduced motion keep a static sky and swap events for a soft glow", async ({

@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { available, asUser, createUser, dropUser, kinds, open, points } from "./helpers.ts";
+import { available, asUser, createUser, dropUser, open } from "./helpers.ts";
 
 describe.skipIf(!available)("database behaviour", () => {
   let db: pg.Client;
@@ -61,7 +62,6 @@ describe.skipIf(!available)("database behaviour", () => {
         "sp_focus_state",
         "sp_focus_settings",
         "sp_focus_sessions",
-        "sp_universe_events",
         "sp_settings",
         "sp_devices",
         "sp_auth_events",
@@ -107,11 +107,6 @@ describe.skipIf(!available)("database behaviour", () => {
       ).rejects.toThrow(/row-level security/);
       await expect(
         asUser(db, a, (q) => q("update sp_focus_state set status = 'running'")),
-      ).rejects.toThrow(/permission denied/);
-      await expect(
-        asUser(db, a, (q) =>
-          q("insert into sp_universe_events (kind, points) values ('task_completed', 99999)"),
-        ),
       ).rejects.toThrow(/permission denied/);
       await expect(
         asUser(db, a, (q) => q("select sp__timer_apply($1, 'start', 0, now())", [b])),
@@ -534,130 +529,12 @@ describe.skipIf(!available)("database behaviour", () => {
         expect(stones.map((s) => s.table_name)).toEqual(["sp_routine_logs", "sp_routines"]);
         return r!.id;
       });
-      expect(await points(db, u)).toBe(25); // earned stardust is kept
       expect(id).toBeTruthy();
     });
   });
 
-  describe("stardust ledger", () => {
-    it("task: +10, reversal −10", async () => {
-      const u = await newUser();
-      await asUser(db, u, async (q) => {
-        const [t] = await q<{ id: string }>(
-          "insert into sp_tasks (name) values ('t') returning id",
-        );
-        await q("update sp_tasks set completed = true where id = $1", [t!.id]);
-        await q("update sp_tasks set name = 'renamed' where id = $1", [t!.id]);
-        await q("update sp_tasks set completed = false where id = $1", [t!.id]);
-        await q("update sp_tasks set completed = true where id = $1", [t!.id]);
-        await q("update sp_tasks set deleted_at = now() where id = $1", [t!.id]);
-      });
-      expect(await kinds(db, u)).toEqual(["task_completed", "task_uncompleted", "task_completed"]);
-      expect(await points(db, u)).toBe(10);
-    });
-
-    it("routine: +5 per instance, +20 when the day reaches 100%, reversed when it drops", async () => {
-      const u = await newUser();
-      await asUser(db, u, async (q) => {
-        await q(
-          `insert into sp_routines (name, type, total_amount, start_date) values
-            ('A', 'todo', null, '2026-03-01'), ('B', 'progress', 8, '2026-03-01')`,
-        );
-        await q(
-          "select sp_routine_log_set(id, '2026-03-01', true) from sp_routines where name = 'A'",
-        );
-      });
-      expect(await points(db, u)).toBe(5);
-      await asUser(db, u, (q) =>
-        q("select sp_routine_log_set(id, '2026-03-01', null, 7) from sp_routines where name = 'B'"),
-      );
-      expect(await points(db, u)).toBe(5);
-      await asUser(db, u, (q) =>
-        q("select sp_routine_log_set(id, '2026-03-01', null, 8) from sp_routines where name = 'B'"),
-      );
-      expect(await points(db, u)).toBe(5 + 5 + 20);
-      await asUser(db, u, (q) =>
-        q("select sp_routine_log_set(id, '2026-03-01', false) from sp_routines where name = 'A'"),
-      );
-      expect(await points(db, u)).toBe(5);
-      expect(await kinds(db, u)).toEqual([
-        "routine_instance",
-        "routine_instance",
-        "routine_day",
-        "routine_instance_reversed",
-        "routine_day_reversed",
-      ]);
-      await asUser(db, u, (q) =>
-        q("select sp_routine_log_set(id, '2026-03-01', true) from sp_routines where name = 'A'"),
-      );
-      expect(await points(db, u)).toBe(30);
-      // Rewrites are structural: resetting logs does not claw points back or double-award later.
-      await asUser(db, u, (q) => q("update sp_routines set total_amount = 4 where name = 'B'"));
-      expect(await points(db, u)).toBe(30);
-    });
-
-    it("goals: 50 × Δfraction, +100 on completion, +250 when the list is complete", async () => {
-      const u = await newUser();
-      const ids = await asUser(db, u, async (q) => {
-        const [list] = await q<{ id: string }>(
-          "insert into sp_goal_lists (name) values ('L') returning id",
-        );
-        const [p] = await q<{ id: string }>(
-          "insert into sp_goals (list_id, name, type, total_amount) values ($1, 'P', 'progress', 10) returning id",
-          [list!.id],
-        );
-        const [t] = await q<{ id: string }>(
-          "insert into sp_goals (list_id, name) values ($1, 'T') returning id",
-          [list!.id],
-        );
-        return { list: list!.id, p: p!.id, t: t!.id };
-      });
-      expect(await points(db, u)).toBe(0);
-      await asUser(db, u, (q) => q("select sp_goal_increment($1, 5)", [ids.p]));
-      expect(await points(db, u)).toBe(25);
-      await asUser(db, u, (q) => q("select sp_goal_increment($1, -2)", [ids.p]));
-      expect(await points(db, u)).toBe(15);
-      await asUser(db, u, (q) => q("select sp_goal_increment($1, 7)", [ids.p]));
-      expect(await points(db, u)).toBe(50 + 100);
-      await asUser(db, u, (q) => q("update sp_goals set completed = true where id = $1", [ids.t]));
-      expect(await points(db, u)).toBe(150 + 100 + 250);
-      await asUser(db, u, (q) => q("update sp_goals set completed = false where id = $1", [ids.t]));
-      expect(await points(db, u)).toBe(150);
-      await asUser(db, u, (q) => q("update sp_goals set completed = true where id = $1", [ids.t]));
-      expect(await points(db, u)).toBe(500);
-      // Adding an unfinished goal means the list is no longer 100%.
-      await asUser(db, u, (q) =>
-        q("insert into sp_goals (list_id, name) values ($1, 'New')", [ids.list]),
-      );
-      expect(await points(db, u)).toBe(250);
-      // Deleting the list keeps what was earned.
-      await asUser(db, u, (q) =>
-        q("update sp_goal_lists set deleted_at = now() where id = $1", [ids.list]),
-      );
-      expect(await points(db, u)).toBe(250);
-    });
-
-    it("focus: 25 per 25 minutes for completed focus phases only", async () => {
-      const u = await newUser();
-      const t0 = Date.UTC(2026, 0, 5, 9);
-      const at = (min: number) => new Date(t0 + min * 60_000).toISOString();
-      await db.query("select sp__timer_apply($1, 'start', 0, $2)", [u, at(0)]);
-      await db.query("select sp__timer_apply($1, 'advance', 1, $2)", [u, at(25)]);
-      expect(await points(db, u)).toBe(25);
-      await db.query("select sp__timer_apply($1, 'start', 2, $2)", [u, at(26)]);
-      await db.query("select sp__timer_apply($1, 'advance', 3, $2)", [u, at(31)]);
-      expect(await points(db, u)).toBe(25); // breaks earn nothing
-      await db.query("select sp__timer_apply($1, 'start', 4, $2)", [u, at(32)]);
-      await db.query("select sp__timer_apply($1, 'skip', 5, $2)", [u, at(40)]);
-      expect(await points(db, u)).toBe(25); // abandoned focus earns nothing
-      await db.query("update sp_focus_settings set focus_min = 50 where user_id = $1", [u]);
-      await db.query("select sp__timer_apply($1, 'skip', 6, $2)", [u, at(41)]);
-      await db.query("select sp__timer_apply($1, 'start', 7, $2)", [u, at(42)]);
-      await db.query("select sp__timer_apply($1, 'advance', 8, $2)", [u, at(92)]);
-      expect(await points(db, u)).toBe(75);
-    });
-
-    it("builds a compact snapshot with era progress", async () => {
+  describe("universe", () => {
+    it("builds a compact snapshot from the owner's rows", async () => {
       const u = await newUser();
       await asUser(db, u, async (q) => {
         await q(
@@ -682,27 +559,19 @@ describe.skipIf(!available)("database behaviour", () => {
         async (q) =>
           (await q<{ s: Record<string, never> }>("select sp_universe_snapshot() as s"))[0]!
             .s as unknown as {
-            total: number;
-            era: {
-              index: number;
-              name: string;
-              remaining: number;
-              next_name: string;
-              fraction: number;
-            };
             stars: { count: number; recent: unknown[]; months: { month: string; count: number }[] };
             lists: { name: string; total: number; all_complete: boolean }[];
             planets: { name: string; progress: number; completed: boolean }[];
             constellations: { name: string; streak: number; broken: boolean; stars: number }[];
           },
       );
-      expect(snap.total).toBe(120 + 20 + 10 + 40);
-      expect(snap.era).toMatchObject({
-        index: 1,
-        name: "First Light",
-        next_name: "Nebula",
-        remaining: 810,
-      });
+      expect(Object.keys(snap).sort()).toEqual([
+        "constellations",
+        "lists",
+        "planets",
+        "server_time",
+        "stars",
+      ]);
       expect(snap.stars.count).toBe(12);
       expect(snap.stars.recent).toHaveLength(12);
       expect(snap.stars.months).toHaveLength(1);
@@ -713,6 +582,48 @@ describe.skipIf(!available)("database behaviour", () => {
         { name: "Meditate", streak: 2, broken: false, stars: 2 },
       ]);
       expect(JSON.stringify(snap).length).toBeLessThan(4000);
+    });
+
+    it("counts a star for each completed task that still exists", async () => {
+      const u = await newUser();
+      const count = () =>
+        asUser(
+          db,
+          u,
+          async (q) =>
+            (
+              await q<{ n: number }>(
+                "select (sp_universe_snapshot() -> 'stars' ->> 'count')::int as n",
+              )
+            )[0]!.n,
+        );
+      const ids = await asUser(db, u, (q) =>
+        q<{ id: string }>(
+          "insert into sp_tasks (name, completed) values ('a', true), ('b', true), ('c', false) returning id",
+        ),
+      );
+      expect(await count()).toBe(2);
+      await asUser(db, u, (q) =>
+        q("update sp_tasks set completed = false where id = $1", [ids[0]!.id]),
+      );
+      expect(await count()).toBe(1);
+      await asUser(db, u, (q) =>
+        q("update sp_tasks set deleted_at = now() where id = $1", [ids[1]!.id]),
+      );
+      expect(await count()).toBe(0);
+    });
+
+    it("has no ledger, scoring triggers or era functions left", async () => {
+      const r = await db.query(
+        `select to_regclass('public.sp_universe_events') as ledger,
+                (select count(*)::int from pg_trigger where not tgisinternal and tgname ~ '^sp_.*_score$') as triggers,
+                (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                  where n.nspname = 'public'
+                    and (p.proname ~ '^sp_.*_score$'
+                         or p.proname in ('sp__award', 'sp__goal_list_sync', 'sp__routine_day_sync',
+                                          'sp__day_fraction', 'sp_eras', 'sp_era_index', 'sp__era_json'))) as functions`,
+      );
+      expect(r.rows[0]).toEqual({ ledger: null, triggers: 0, functions: 0 });
     });
   });
 
@@ -888,7 +799,7 @@ describe.skipIf(!available)("database behaviour", () => {
       );
     });
 
-    it("exports everything and imports it into another account without double counting", async () => {
+    it("exports everything and imports it into another account", async () => {
       const a = await newUser("Europe/Paris");
       await asUser(db, a, async (q) => {
         const [list] = await q<{ id: string }>(
@@ -917,14 +828,17 @@ describe.skipIf(!available)("database behaviour", () => {
         );
         await q("insert into sp_quotes (text, author) values ('Stay curious.', 'Me')");
       });
-      const total = await points(db, a);
-      expect(total).toBe(10 + 100 + 250 + 5 + 20);
       const dump = await asUser(
         db,
         a,
         async (q) => (await q<{ d: Record<string, unknown> }>("select sp_export() as d"))[0]!.d,
       );
       expect(dump.format).toBe("stellar-planner-export");
+      expect(dump).not.toHaveProperty("universe_events");
+      // Exports made before migration 0011 still carry the ledger; it is ignored.
+      dump.universe_events = [
+        { id: randomUUID(), kind: "task_completed", ref_id: null, ref_date: null, points: 10 },
+      ];
       expect(JSON.stringify(dump)).not.toContain(a);
 
       const b = await newUser();
@@ -951,11 +865,10 @@ describe.skipIf(!available)("database behaviour", () => {
         block_list_sites: 1,
         quotes: 1,
       });
-      expect(await points(db, b)).toBe(total);
+      expect(res.imported).not.toHaveProperty("universe_events");
       const tz = await db.query("select timezone from sp_settings where user_id = $1", [b]);
       expect(tz.rows[0].timezone).toBe("Europe/Paris");
       await asUser(db, b, (q) => q("select sp_import($1::jsonb)", [JSON.stringify(dump)]));
-      expect(await points(db, b)).toBe(total);
       const n = await db.query("select count(*)::int as n from sp_tasks where user_id = $1", [b]);
       expect(n.rows[0].n).toBe(2);
       await expect(

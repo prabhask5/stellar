@@ -513,16 +513,6 @@ export const zSitesRemove = z.object({
 
 // ── universe ────────────────────────────────────────────────────────────────
 export const zUniverseSnapshot = z.object({
-  total: z.number(),
-  era: z.object({
-    index: z.number().int(),
-    name: z.string(),
-    threshold: z.number(),
-    next_name: z.string().nullable(),
-    next_threshold: z.number().nullable(),
-    remaining: z.number(),
-    fraction: z.number(),
-  }),
   stars: z.object({
     count: z.number(),
     recent: z.array(z.object({ id: zId, at: zTimestamp.nullable() })),
@@ -559,7 +549,6 @@ export const zUniverseSnapshot = z.object({
       broken: z.boolean(),
     }),
   ),
-  focus: z.object({ minutes: z.number(), phases: z.number() }),
   server_time: zTimestamp,
 });
 export type UniverseSnapshot = z.infer<typeof zUniverseSnapshot>;

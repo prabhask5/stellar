@@ -73,21 +73,6 @@ public enum StellarTokens {
         public static let sheetSpring = Animation.interpolatingSpring(stiffness: 300, damping: 32)
         public static let pressScale: CGFloat = 0.97
     }
-
-    public struct Era {
-        public let name: String
-        public let threshold: Int
-    }
-
-    public static let eras: [Era] = [
-        Era(name: "Void", threshold: 0),
-        Era(name: "First Light", threshold: 100),
-        Era(name: "Nebula", threshold: 1000),
-        Era(name: "Star Cluster", threshold: 5000),
-        Era(name: "Galaxy", threshold: 15000),
-        Era(name: "Supercluster", threshold: 40000),
-        Era(name: "Cosmic Web", threshold: 100000),
-    ]
 }
 
 public struct StellarTextStyle {

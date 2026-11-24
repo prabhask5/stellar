@@ -3,20 +3,21 @@
 import {
   cloneElement,
   isValidElement,
-  lazy,
   type MouseEvent,
   type ReactNode,
   Suspense,
-  useEffect,
   useState,
 } from "react";
 import { whenIdle } from "@/lib/client/idle";
+import { preloadable } from "@/lib/client/preloadable";
 import type { PopoverProps } from "./popover-impl";
 
 export type { PopoverProps };
 
-const load = () => import("./popover-impl");
-const PopoverImpl = lazy(() => load().then((m) => ({ default: m.Popover })));
+const { Component: PopoverImpl, preload } = preloadable<PopoverProps>(() =>
+  import("./popover-impl").then((m) => m.Popover),
+);
+if (typeof window !== "undefined") whenIdle(() => void preload().catch(() => {}));
 
 /**
  * Glass popover for desktop pickers. Until it is first opened only the trigger
@@ -26,7 +27,6 @@ const PopoverImpl = lazy(() => load().then((m) => ({ default: m.Popover })));
 export function Popover(props: PopoverProps) {
   const [used, setUsed] = useState(props.open);
   if (props.open && !used) setUsed(true);
-  useEffect(() => whenIdle(() => void load()), []);
 
   const bare: ReactNode = isValidElement<{ onClick?: (e: MouseEvent) => void }>(props.trigger)
     ? cloneElement(props.trigger, {

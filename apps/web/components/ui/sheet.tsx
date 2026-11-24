@@ -1,13 +1,18 @@
 "use client";
 
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { whenIdle } from "@/lib/client/idle";
+import { preloadable } from "@/lib/client/preloadable";
 import type { SheetProps } from "./sheet-impl";
 
 export type { SheetProps };
 
-const load = () => import("./sheet-impl");
-const SheetImpl = lazy(() => load().then((m) => ({ default: m.Sheet })));
+const { Component: SheetImpl, preload } = preloadable<SheetProps>(() =>
+  import("./sheet-impl").then((m) => m.Sheet),
+);
+// Fetched as soon as the browser is idle on any page that can open a sheet, so the first
+// open is as immediate as every later one.
+if (typeof window !== "undefined") whenIdle(() => void preload().catch(() => {}));
 
 /**
  * Bottom sheet on phones, centred dialog on wide screens. The dialog machinery
@@ -17,7 +22,6 @@ const SheetImpl = lazy(() => load().then((m) => ({ default: m.Sheet })));
 export function Sheet(props: SheetProps) {
   const [used, setUsed] = useState(props.open);
   if (props.open && !used) setUsed(true);
-  useEffect(() => whenIdle(() => void load()), []);
   if (!used) return null;
   return (
     <Suspense fallback={null}>

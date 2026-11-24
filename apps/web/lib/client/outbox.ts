@@ -1,5 +1,6 @@
 import { createStore, del, entries, set, setMany } from "idb-keyval";
 import type { CollectionTable } from "./cache";
+import { recordSync } from "./diagnostics";
 import { getSession, serverNow } from "./session";
 import { getSupabase } from "./supabase";
 import { useSync } from "./sync-store";
@@ -463,6 +464,7 @@ async function run(): Promise<void> {
       retryDelay = 2000;
       authRetried = false;
       if (!useSync.getState().online) useSync.setState({ online: true });
+      recordSync(result === CONFLICT ? "conflict" : "ok");
       if (result === CONFLICT) settle(item, "conflict");
       else settle(item, "ok", result);
     } catch (err) {
@@ -495,6 +497,7 @@ async function run(): Promise<void> {
           return;
         }
       }
+      recordSync(failure === "gone" ? "conflict" : "rejected");
       if (failure === "gone") settle(item, "conflict");
       // The server refused this change for good: drop it and let the caller roll back.
       else settle(item, "error", null, err);

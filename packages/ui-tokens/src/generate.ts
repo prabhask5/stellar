@@ -25,7 +25,6 @@ export interface Tokens {
     pressScale: number;
   };
   layout: Record<string, number>;
-  era: { name: string; threshold: number }[];
 }
 
 const HEADER = "Generated from packages/ui-tokens/tokens.json. Do not edit by hand.";
@@ -177,11 +176,7 @@ export function generateSwift(t: Tokens): string {
     );
   }
   out.push(`        public static let pressScale: CGFloat = ${t.motion.pressScale}`);
-  out.push("    }", "", "    public struct Era {", "        public let name: String");
-  out.push("        public let threshold: Int", "    }", "");
-  out.push("    public static let eras: [Era] = [");
-  for (const e of t.era) out.push(`        Era(name: "${e.name}", threshold: ${e.threshold}),`);
-  out.push("    ]", "}", "");
+  out.push("    }", "}", "");
 
   out.push("public struct StellarTextStyle {");
   out.push("    public let size: CGFloat");

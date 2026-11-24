@@ -18,6 +18,7 @@ import {
   upsertRow,
 } from "./cache";
 import { SCORING_TABLES } from "./data/core";
+import { recordRealtimeEvent, recordRealtimeStatus } from "./diagnostics";
 import { hasPending } from "./outbox";
 import { readMeta, type SessionMeta } from "./session";
 import { type Db, getSupabase } from "./supabase";
@@ -51,6 +52,7 @@ function applyFocusState(row: Row): void {
 }
 
 function applyChange(table: RealtimeTable, payload: RealtimePostgresChangesPayload<Row>): void {
+  recordRealtimeEvent(table);
   if (table === "sp_focus_state") {
     if (payload.eventType !== "DELETE") applyFocusState(payload.new);
     return;
@@ -170,6 +172,7 @@ function subscribe(db: Db, meta: SessionMeta, deviceKind: "web" | "pwa"): () => 
       ch.subscribe((status) => {
         if (status === "SUBSCRIBED") {
           useSync.setState({ realtime: "connected", online: true });
+          recordRealtimeStatus(true);
           void ch.track({
             device: `${deviceKind}:${meta.deviceId ?? presenceKey}`,
             kind: deviceKind,
@@ -179,6 +182,7 @@ function subscribe(db: Db, meta: SessionMeta, deviceKind: "web" | "pwa"): () => 
           hadConnection = true;
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
           useSync.setState({ realtime: "disconnected", devices: 1 });
+          recordRealtimeStatus(false);
         }
       });
     });

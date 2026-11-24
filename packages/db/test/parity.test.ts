@@ -1,17 +1,10 @@
 import {
-  ERA_FIXTURES,
   RECURRENCE_FIXTURES,
   SITE_FIXTURES,
   STREAK_FIXTURES,
   TIMER_FIXTURES,
 } from "@stellar/shared/fixtures";
-import {
-  eraFor,
-  focusPoints,
-  goalProgressPoints,
-  isScheduled,
-  normalizeSitePattern,
-} from "@stellar/shared";
+import { isScheduled, normalizeSitePattern } from "@stellar/shared";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { available, asUser, createUser, dropUser, open } from "./helpers.ts";
@@ -214,42 +207,6 @@ describe.skipIf(!available)("TS ↔ SQL parity", () => {
       expect(r.rows[0].s).toBe(expected);
       const ts = normalizeSitePattern(input);
       expect(ts.ok ? ts.value : null).toBe(expected);
-    });
-  });
-
-  describe("eras and points", () => {
-    it.each(ERA_FIXTURES)("era for $total", async ({ total, index, name }) => {
-      const r = await db.query("select public.sp__era_json($1::bigint) as era", [total]);
-      expect(r.rows[0].era.index).toBe(index);
-      expect(r.rows[0].era.name).toBe(name);
-      expect(eraFor(total).index).toBe(index);
-    });
-
-    it("rounds focus points the same way", async () => {
-      for (const seconds of [
-        0, 59, 60, 61, 89, 90, 91, 150, 449, 450, 1499, 1500, 1530, 2700, 3000, 5399,
-      ]) {
-        const r = await db.query("select round(25 * $1::int / 1500.0)::int as p", [seconds]);
-        expect(r.rows[0].p, `seconds=${seconds}`).toBe(focusPoints(seconds));
-      }
-    });
-
-    it("rounds goal progress points the same way", async () => {
-      for (const [a, b] of [
-        [0, 0.01],
-        [0.01, 0.02],
-        [0.49, 0.5],
-        [0.5, 0.51],
-        [0.25, 0.75],
-        [1, 0.33],
-        [0.99, 1],
-      ] as const) {
-        const r = await db.query(
-          "select (round(50 * $2::numeric) - round(50 * $1::numeric))::int as p",
-          [a, b],
-        );
-        expect(r.rows[0].p, `${a}→${b}`).toBe(goalProgressPoints(a, b));
-      }
     });
   });
 });

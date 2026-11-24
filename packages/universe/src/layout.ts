@@ -201,24 +201,16 @@ export function constellationBrightness(streak: number, broken: boolean): number
 }
 
 // ── background layers ───────────────────────────────────────────────────────
-/** Ambient dust for an era, independent of the owner's own stars. Sparse in the Void, rich by Galaxy. */
-export function dustCount(eraIndex: number, cap: number): number {
-  const table = [140, 320, 700, 1300, 2600, 3600, 4800];
-  return Math.min(cap, table[Math.min(eraIndex, table.length - 1)] ?? 140);
-}
-
 export interface ClusterPlacement {
   center: Vec3;
   radius: number;
   stars: number;
 }
 
-/** Globular clusters appear from the Star Cluster era. */
-export function placeClusters(eraIndex: number): ClusterPlacement[] {
-  if (eraIndex < 3) return [];
+/** Globular clusters around the galaxy. */
+export function placeClusters(): ClusterPlacement[] {
   const rand = seededRandom(9001);
-  const n = eraIndex >= 5 ? 6 : eraIndex >= 4 ? 5 : 3;
-  return Array.from({ length: n }, () => {
+  return Array.from({ length: 6 }, () => {
     const a = rand() * TAU;
     const r = 0.75 + rand() * 0.55;
     return {
@@ -229,13 +221,10 @@ export function placeClusters(eraIndex: number): ClusterPlacement[] {
   });
 }
 
-/** Distant neighbouring galaxies appear from the Supercluster era. */
-export function placeNeighbours(
-  eraIndex: number,
-): { position: Vec3; scale: number; tilt: number }[] {
-  if (eraIndex < 5) return [];
+/** Distant neighbouring galaxies. */
+export function placeNeighbours(): { position: Vec3; scale: number; tilt: number }[] {
   const rand = seededRandom(9002);
-  return Array.from({ length: eraIndex >= 6 ? 9 : 6 }, () => {
+  return Array.from({ length: 9 }, () => {
     const a = rand() * TAU;
     const e = (rand() - 0.35) * 1.1;
     return {
@@ -246,9 +235,8 @@ export function placeNeighbours(
   });
 }
 
-/** The Cosmic Web: filaments between far nodes across the sky (final era). */
-export function placeWeb(eraIndex: number): { nodes: Vec3[]; edges: [number, number][] } {
-  if (eraIndex < 6) return { nodes: [], edges: [] };
+/** The cosmic web: filaments between far nodes across the sky. */
+export function placeWeb(): { nodes: Vec3[]; edges: [number, number][] } {
   const rand = seededRandom(9003);
   const nodes: Vec3[] = Array.from({ length: 42 }, () =>
     onDome(rand() * TAU, (rand() - 0.3) * 1.3, SKY_RADIUS * 1.9),

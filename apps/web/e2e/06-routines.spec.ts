@@ -92,7 +92,7 @@ test.describe("routines", () => {
     await shot("routines");
   });
 
-  test("the day percentage updates live and the ledger follows", async ({ page }) => {
+  test("the day percentage updates live", async ({ page }) => {
     await sql(`
       insert into sp_routines (user_id, name, type, total_amount, unit, start_date, sort_order) values
         (${OWNER}, 'Meditate', 'todo', null, null, ${TODAY} - 3, 1),
@@ -121,23 +121,10 @@ test.describe("routines", () => {
     await panel.getByLabel("Water amount").press("Enter");
     await expect(panel.getByTestId("day-percent")).toHaveText("100%");
     await expect(ring).toHaveAttribute("data-percent", "100");
-    // 5 + 5 for the instances, +20 for the complete day.
-    await expect
-      .poll(
-        async () =>
-          (await sql(`select coalesce(sum(points), 0)::int as p from sp_universe_events`))[0]?.p,
-      )
-      .toBe(30);
 
-    // Un-checking drops the day below 100% and reverses the bonus.
+    // Un-checking drops the day below 100%.
     await panel.getByRole("checkbox", { name: /Meditate/ }).click();
     await expect(panel.getByTestId("day-percent")).toHaveText("50%");
-    await expect
-      .poll(
-        async () =>
-          (await sql(`select coalesce(sum(points), 0)::int as p from sp_universe_events`))[0]?.p,
-      )
-      .toBe(5);
   });
 
   test("past days are editable; phones use a sheet, desktop an inline panel", async ({
