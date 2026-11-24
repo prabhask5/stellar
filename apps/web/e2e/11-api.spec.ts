@@ -100,7 +100,10 @@ test.describe("REST API v1", () => {
     );
   });
 
-  test("CORS allows extension origins and the app itself, and nobody else", async ({ request }) => {
+  test("CORS allows extension origins and the app itself, and nobody else", async ({
+    request,
+    baseURL,
+  }) => {
     const ext = await request.fetch(`${V1}/tasks`, {
       method: "OPTIONS",
       headers: { Origin: "chrome-extension://abcdefghijklmnopabcdefghijklmnop" },
@@ -119,6 +122,27 @@ test.describe("REST API v1", () => {
       headers: { Origin: "https://evil.example" },
     });
     expect(evil.headers()["access-control-allow-origin"]).toBeUndefined();
+
+    // Polish pass 1: a write carrying the session cookie from another site is refused,
+    // the app's own origin is not, and every response carries the baseline headers.
+    const forged = await request.post(`${V1}/auth/unlock`, {
+      headers: { Origin: "https://evil.example" },
+      data: { pin: "000000" },
+    });
+    expect(forged.status()).toBe(403);
+    expect((await forged.json()).error.code).toBe("forbidden");
+    const own = await request.post(`${V1}/auth/unlock`, {
+      headers: { Origin: new URL(baseURL!).origin },
+      data: { pin: "000000" },
+    });
+    expect(own.status()).not.toBe(403);
+    const page = await request.get("/lock");
+    expect(page.headers()["x-frame-options"]).toBe("DENY");
+    expect(page.headers()["x-content-type-options"]).toBe("nosniff");
+    const big = await request.post(`${V1}/auth/pin`, {
+      data: { pin: "0".repeat(1_100_000), device: { name: "x", kind: "ios" } },
+    });
+    expect(big.status()).toBe(400);
   });
 
   test("refresh returns a new session", async ({ request }) => {

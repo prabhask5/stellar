@@ -6,7 +6,7 @@ import { type PanInfo, useMotionValue, useTransform } from "motion/react";
 import * as m from "motion/react-m";
 import { memo, useEffect, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useContextMenu } from "@/components/ui/context-menu";
+import { useLazyContextMenu } from "@/components/ui/context-menu-lazy";
 import { cx } from "@/components/ui/cx";
 import { CalendarIcon, CheckIcon, TrashIcon } from "@/components/ui/icons";
 import { useIsTouch } from "@/components/ui/use-media";
@@ -64,7 +64,7 @@ export const TaskRow = memo(function TaskRow({
   const trayWidth = useTransform(x, (v) => Math.max(ACTIONS_WIDTH, -v));
   const rescheduleOpacity = useTransform(x, [-FULL_SWIPE, -FULL_SWIPE + 40], [0, 1]);
   const checkbox = useRef<HTMLButtonElement>(null);
-  const rowMenu = useContextMenu();
+  const rowMenu = useLazyContextMenu();
   const completeOpacity = useTransform(x, [0, 28, COMPLETE_AT], [0, 0.5, 1]);
   const completeScale = useTransform(x, [0, COMPLETE_AT], [0.6, 1]);
 

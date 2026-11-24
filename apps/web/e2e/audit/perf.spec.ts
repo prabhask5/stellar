@@ -184,6 +184,43 @@ test.describe("perf", () => {
           .pressSequentially("Measure typing latency here", { delay: 35 });
       });
 
+      // A cached open, the case SPEC §12 budgets (LCP < 1.5 s): the service worker and the
+      // persisted cache are warm, the app is reloaded and timed with the CPU still throttled.
+      await page.goto("/tasks");
+      await expect(page.getByTestId("today-tab")).toBeVisible();
+      await page.waitForFunction(() => navigator.serviceWorker?.controller != null, null, {
+        timeout: 15_000,
+      });
+      await page.waitForTimeout(2500);
+      await page.reload();
+      await expect(page.getByTestId("task-row").first()).toBeVisible();
+      await page.waitForTimeout(2500);
+      out.cachedOpen = await page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            let lcp = 0;
+            new PerformanceObserver((l) => {
+              for (const e of l.getEntries()) lcp = Math.max(lcp, e.startTime);
+            }).observe({ type: "largest-contentful-paint", buffered: true });
+            const nav = performance.getEntriesByType(
+              "navigation",
+            )[0] as PerformanceNavigationTiming;
+            const paint = performance.getEntriesByName("first-contentful-paint")[0];
+            const long = (window as unknown as { __perf: { long: number[] } }).__perf.long;
+            setTimeout(
+              () =>
+                resolve({
+                  fcpMs: Math.round(paint?.startTime ?? 0),
+                  lcpMs: Math.round(lcp),
+                  domInteractiveMs: Math.round(nav?.domInteractive ?? 0),
+                  longTasks: long.length,
+                  blockingMs: long.reduce((n, d) => n + Math.max(0, d - 50), 0),
+                }),
+              300,
+            );
+          }),
+      );
+
       // 1000 tasks in All.
       await sql(`insert into sp_tasks (user_id, name, due_date)
         select ${OWNER}, 'Bulk task ' || g, sp__today(${OWNER}) + (g % 60) from generate_series(1, 1000) g`);

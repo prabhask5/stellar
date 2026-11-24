@@ -1,0 +1,71 @@
+{
+ "/": {
+  "performance": 52,
+  "accessibility": 100,
+  "bestPractices": 100,
+  "lcpMs": 6522,
+  "fcpMs": 926,
+  "tbtMs": 1292,
+  "cls": 0,
+  "failedA11y": [],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/tasks": {
+  "performance": 49,
+  "accessibility": 100,
+  "bestPractices": 100,
+  "lcpMs": 6536,
+  "fcpMs": 917,
+  "tbtMs": 1937,
+  "cls": 0.028,
+  "failedA11y": [],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/goals": {
+  "performance": 61,
+  "accessibility": 100,
+  "bestPractices": 100,
+  "lcpMs": 3281,
+  "fcpMs": 972,
+  "tbtMs": 2343,
+  "cls": 0,
+  "failedA11y": [],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/routines": {
+  "performance": 77,
+  "accessibility": 100,
+  "bestPractices": 100,
+  "lcpMs": 925,
+  "fcpMs": 925,
+  "tbtMs": 1066,
+  "cls": 0.018,
+  "failedA11y": [],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/focus": {
+  "performance": 53,
+  "accessibility": 100,
+  "bestPractices": 100,
+  "lcpMs": 7828,
+  "fcpMs": 924,
+  "tbtMs": 1036,
+  "cls": 0.005,
+  "failedA11y": [],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/settings": {
+  "performance": 31,
+  "accessibility": 100,
+  "bestPractices": 100,
+  "lcpMs": 4812,
+  "fcpMs": 917,
+  "tbtMs": 1960,
+  "cls": 0.822,
+  "failedA11y": [],
+  "installableManifest": "n/a (audit removed from Lighthouse)"
+ },
+ "/lock": {
+  "error": "Lighthouse could not measure this route (see AUDIT.md)"
+ }
+}

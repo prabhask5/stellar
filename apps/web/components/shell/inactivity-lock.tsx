@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { LockScreen } from "@/components/auth/lock-screen";
 import { useSettings } from "@/lib/client/data/hooks";
 import { useUi } from "@/lib/client/ui-store";
 
@@ -28,6 +27,11 @@ function touch(): void {
  * "Lock after inactivity" (off / 5 min / 1 h / 1 day). When the limit passes,
  * the app is covered by the PIN screen until the PIN is entered again.
  */
+// The PIN screen is fetched when a lock timeout is set, not with every page.
+const LockScreen = lazy(() =>
+  import("@/components/auth/lock-screen").then((m) => ({ default: m.LockScreen })),
+);
+
 export function InactivityLock() {
   const minutes = useSettings()?.lock_after_minutes ?? null;
   const locked = useUi((s) => s.locked);
@@ -35,6 +39,8 @@ export function InactivityLock() {
 
   useEffect(() => {
     if (!minutes) return;
+    // Have the PIN screen ready before it is needed (it must also open offline).
+    void import("@/components/auth/lock-screen").catch(() => {});
     const limit = minutes * 60_000;
     const check = () => {
       if (!useUi.getState().locked && Date.now() - lastActive() > limit) setLocked(true);
@@ -85,13 +91,15 @@ export function InactivityLock() {
       data-testid="inactivity-lock"
       data-inactivity-lock=""
     >
-      <LockScreen
-        mode="unlock"
-        onSuccess={() => {
-          touch();
-          setLocked(false);
-        }}
-      />
+      <Suspense fallback={null}>
+        <LockScreen
+          mode="unlock"
+          onSuccess={() => {
+            touch();
+            setLocked(false);
+          }}
+        />
+      </Suspense>
     </div>,
     document.body,
   );

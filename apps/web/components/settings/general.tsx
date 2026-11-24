@@ -1,5 +1,6 @@
 "use client";
 
+import { RowsSkeleton } from "@/components/ui/skeleton";
 import { isDateStr } from "@stellar/shared";
 import { useMemo } from "react";
 import { GroupedList, ListRow } from "@/components/ui/grouped-list";
@@ -25,7 +26,13 @@ export function GeneralSection() {
   const settings = useSettings();
   const today = useToday();
   const zoneOptions = useMemo(() => zones(settings?.timezone ?? "UTC"), [settings?.timezone]);
-  if (!settings) return null;
+  // Hold the section's place while the settings load, so nothing below it shifts.
+  if (!settings)
+    return (
+      <Section id="general" title="General">
+        <RowsSkeleton rows={4} label="Loading settings" />
+      </Section>
+    );
 
   return (
     <Section id="general" title="General">

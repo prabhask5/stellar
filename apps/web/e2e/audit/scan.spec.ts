@@ -62,8 +62,18 @@ async function measure(page: Page, screen: string, out: Finding[], axe = true): 
         el.getAttribute("aria-hidden") !== "true" &&
         !el.closest('[aria-hidden="true"]'),
     );
+    // A control's touch target is its box or, where it has one, its extended ::after hit area.
+    const target = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      const after = getComputedStyle(el, "::after");
+      if (after.content === "none" || after.position !== "absolute") return r;
+      return {
+        width: Math.max(r.width, parseFloat(after.width) || 0),
+        height: Math.max(r.height, parseFloat(after.height) || 0),
+      };
+    };
     const small = interactive
-      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .map((el) => ({ el, r: target(el) }))
       .filter(({ r }) => r.width < 43.5 || r.height < 43.5)
       .map(
         ({ el, r }) =>

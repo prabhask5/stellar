@@ -63,6 +63,8 @@ export function TouchFeel() {
     };
 
     const opts = { passive: true, capture: true } as const;
+    // Loaded after first paint; until then controls fall back to their CSS :active state.
+    document.documentElement.dataset.touchFeel = "on";
     window.addEventListener("pointerdown", onDown, opts);
     window.addEventListener("pointermove", onMove, opts);
     window.addEventListener("pointerup", release, opts);

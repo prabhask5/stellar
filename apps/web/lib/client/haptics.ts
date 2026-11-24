@@ -32,7 +32,7 @@ function iosSwitch(): HTMLLabelElement | null {
   el.htmlFor = input.id;
   el.setAttribute("aria-hidden", "true");
   el.style.cssText =
-    "position:fixed;left:-100px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none";
+    "position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;clip-path:inset(50%)";
   el.append(input);
   document.body.append(el);
   label = el;

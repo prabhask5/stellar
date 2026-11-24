@@ -35,33 +35,11 @@ export function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Where each tab was left: its address (segment, open list) and how far it was scrolled. */
+/** Where each tab was left in this session: its address (segment, open list) and how far it was scrolled. */
 const tabMemory = new Map<string, { url: string; scroll: number }>();
-const MEMORY_KEY = "sp-tab-memory";
 
 function tabOf(pathname: string): string | null {
   return NAV.find((n) => isActive(pathname, n.href))?.href ?? null;
-}
-
-function loadMemory(): void {
-  if (tabMemory.size > 0) return;
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(MEMORY_KEY) ?? "{}") as Record<
-      string,
-      { url: string; scroll: number }
-    >;
-    for (const [k, v] of Object.entries(saved)) tabMemory.set(k, v);
-  } catch {
-    // nothing remembered
-  }
-}
-
-function saveMemory(): void {
-  try {
-    sessionStorage.setItem(MEMORY_KEY, JSON.stringify(Object.fromEntries(tabMemory)));
-  } catch {
-    // ignored
-  }
 }
 
 /**
@@ -92,7 +70,6 @@ function useTabs(pathname: string) {
   return (e: MouseEvent<HTMLAnchorElement>, href: string) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
     e.preventDefault();
-    loadMemory();
     const here = window.location.pathname + window.location.search;
     const current = tabOf(window.location.pathname);
     if (current === href) {
@@ -101,14 +78,12 @@ function useTabs(pathname: string) {
         window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
       } else if (here !== href) {
         tabMemory.delete(href);
-        saveMemory();
         router.push(href, { scroll: false });
       }
       return;
     }
     if (current) tabMemory.set(current, { url: here, scroll: window.scrollY });
     const back = tabMemory.get(href);
-    saveMemory();
     pending.current = back?.scroll ?? 0;
     router.push(back?.url ?? href, { scroll: false });
   };

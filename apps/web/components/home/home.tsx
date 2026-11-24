@@ -15,8 +15,7 @@ import {
 import { emitCosmic } from "@stellar/universe/bus";
 import { clearHover, orbitBy, pickAt, setDragging, zoomBy } from "@stellar/universe/store";
 import Link from "next/link";
-import { useEffect, useMemo, useRef } from "react";
-import { InstallHint } from "@/components/shell/install-hint";
+import { type ComponentType, useEffect, useMemo, useRef, useState } from "react";
 import { TaskRow } from "@/components/tasks/task-row";
 import { cx } from "@/components/ui/cx";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -66,6 +65,15 @@ const small = "text-[13px] font-medium text-fg-2";
 
 /** Universe home: greeting, Era badge, and the glass Today card over the interactive sky. */
 export function Home() {
+  // The "Add to Home Screen" hint only exists for iOS Safari, so only iOS fetches it, and
+  // straight away rather than when idle (it is the largest text on a first visit).
+  const [Hint, setHint] = useState<ComponentType | null>(null);
+  useEffect(() => {
+    if (!/iP(hone|ad|od)/.test(navigator.userAgent)) return;
+    void import("@/components/shell/install-hint")
+      .then((m) => setHint(() => m.InstallHint))
+      .catch(() => {});
+  }, []);
   const mounted = useMounted();
   const tz = useTimeZone();
   const today = useToday();
@@ -167,7 +175,7 @@ export function Home() {
       {/* The sky fills this space; it is interactive on this page only. */}
       <UniverseStage />
 
-      <InstallHint />
+      {Hint && <Hint />}
       <GlassCard
         radius="hero"
         as="section"

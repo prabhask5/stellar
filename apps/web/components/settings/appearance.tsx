@@ -34,8 +34,9 @@ const TIERS: { value: Tier; label: string; body: string }[] = [
 
 /** The universe behind this page is the live preview: it changes as soon as a tier is chosen. */
 export function AppearanceSection() {
+  // Rendered before the settings arrive too (nothing selected yet), so the sections below
+  // do not jump down when they do.
   const settings = useSettings();
-  if (!settings) return null;
   return (
     <Section
       id="appearance"
@@ -44,7 +45,7 @@ export function AppearanceSection() {
     >
       <div role="radiogroup" aria-label="Universe quality" className="grid gap-2 sm:grid-cols-2">
         {TIERS.map((t) => {
-          const active = settings.quality_tier === t.value;
+          const active = settings?.quality_tier === t.value;
           return (
             <GlassCard
               key={t.value}

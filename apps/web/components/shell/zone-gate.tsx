@@ -9,9 +9,9 @@ import { whenZoneKnown, zoneKnown } from "@/lib/client/data/core";
  * dated "today" in that window (a task, a routine tick, a new routine's start) could
  * land on the device's day instead.
  *
- * Until the settings arrive, the page is kept out of reach: rendered (so nothing shifts
- * when it appears) but hidden and inert. Every later launch remembers the zone and never
- * waits here.
+ * Until the settings arrive, the page is shown but cannot be acted on (inert). It is not
+ * hidden: on a slow first load that would leave the screen empty for seconds. Every later
+ * launch remembers the zone and never waits here.
  */
 export function ZoneGate({ children }: { children: ReactNode }) {
   // The first render matches the server's; the gate is decided after mount.
@@ -26,12 +26,7 @@ export function ZoneGate({ children }: { children: ReactNode }) {
     };
   }, []);
   return (
-    <div
-      className="contents"
-      inert={waiting}
-      style={waiting ? { visibility: "hidden" } : undefined}
-      data-zone={waiting ? "pending" : undefined}
-    >
+    <div className="contents" inert={waiting} data-zone={waiting ? "pending" : undefined}>
       {children}
     </div>
   );

@@ -18,35 +18,11 @@
   "kind": "facts",
   "detail": {
    "interactive": 11,
-   "selectableChrome": 11,
+   "selectableChrome": 0,
    "calloutNotNone": 11,
    "blurLayers": 1,
    "smallInputs": [],
    "missingHints": []
-  }
- },
- {
-  "screen": "home",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
-  "screen": "home",
-  "kind": "axe:moderate",
-  "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
   }
  },
  {
@@ -84,52 +60,13 @@
   "kind": "facts",
   "detail": {
    "interactive": 75,
-   "selectableChrome": 73,
+   "selectableChrome": 0,
    "calloutNotNone": 75,
    "blurLayers": 1,
    "smallInputs": [
     "Add a task…"
    ],
    "missingHints": []
-  }
- },
- {
-  "screen": "tasks/today",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
-  "screen": "tasks/today",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "label-content-name-mismatch",
-   "help": "Elements must have their visible text as part of their accessible name",
-   "nodes": [
-    "div[aria-label=\"Overdue tasks\"] > .overflow-hidden[role=\"listitem\"]:nth-child(1) > .hover\\:bg-fill-hover.duration-100[data-testid=\"task-row\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.disabled\\:cursor-default",
-    "div[data-task=\"Reply to landlord about lease\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.disabled\\:cursor-default",
-    "button[aria-label=\"Edit “Draft Q1 roadmap”\"]",
-    "div[data-task=\"Review pull request #142\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.disabled\\:cursor-default"
-   ],
-   "count": 14
-  }
- },
- {
-  "screen": "tasks/today",
-  "kind": "axe:moderate",
-  "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
   }
  },
  {
@@ -145,7 +82,7 @@
   "kind": "facts",
   "detail": {
    "interactive": 7,
-   "selectableChrome": 2,
+   "selectableChrome": 0,
    "calloutNotNone": 7,
    "blurLayers": 1,
    "smallInputs": [
@@ -154,10 +91,7 @@
     "Add a note",
     "No list 🛒 Groceries 📚 Reading 🏠 Apartment ✈️ Ja"
    ],
-   "missingHints": [
-    "INPUT [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]",
-    "Add a note [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
-   ]
+   "missingHints": []
   }
  },
  {
@@ -244,52 +178,13 @@
   "kind": "facts",
   "detail": {
    "interactive": 124,
-   "selectableChrome": 73,
+   "selectableChrome": 0,
    "calloutNotNone": 124,
    "blurLayers": 1,
    "smallInputs": [
     "Add a task…"
    ],
    "missingHints": []
-  }
- },
- {
-  "screen": "tasks/date-picker",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
-  "screen": "tasks/date-picker",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "label-content-name-mismatch",
-   "help": "Elements must have their visible text as part of their accessible name",
-   "nodes": [
-    "div[aria-label=\"Overdue tasks\"] > .overflow-hidden[role=\"listitem\"]:nth-child(1) > .hover\\:bg-fill-hover.transition-colors[data-testid=\"task-row\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.disabled\\:cursor-default",
-    "div[data-task=\"Reply to landlord about lease\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.disabled\\:cursor-default",
-    "button[aria-label=\"Edit “Draft Q1 roadmap”\"]",
-    "div[data-task=\"Review pull request #142\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.disabled\\:cursor-default"
-   ],
-   "count": 14
-  }
- },
- {
-  "screen": "tasks/date-picker",
-  "kind": "axe:moderate",
-  "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
   }
  },
  {
@@ -325,7 +220,7 @@
   "kind": "facts",
   "detail": {
    "interactive": 87,
-   "selectableChrome": 86,
+   "selectableChrome": 0,
    "calloutNotNone": 87,
    "blurLayers": 1,
    "smallInputs": [
@@ -335,45 +230,6 @@
   }
  },
  {
-  "screen": "tasks/all",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
-  "screen": "tasks/all",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "label-content-name-mismatch",
-   "help": "Elements must have their visible text as part of their accessible name",
-   "nodes": [
-    "div[aria-label=\"Overdue tasks\"] > .overflow-hidden[role=\"listitem\"]:nth-child(1) > .hover\\:bg-fill-hover.duration-100[data-testid=\"task-row\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.disabled\\:cursor-default",
-    ".border-t.border-separator[role=\"listitem\"]:nth-child(2) > .hover\\:bg-fill-hover[data-task=\"Reply to landlord about lease\"][data-testid=\"task-row\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.disabled\\:cursor-default",
-    "button[aria-label=\"Edit “Draft Q1 roadmap”\"]",
-    ".border-t.border-separator[role=\"listitem\"]:nth-child(9) > .hover\\:bg-fill-hover[data-task=\"Review pull request #142\"][data-testid=\"task-row\"] > .pl-1\\.5.pr-4.min-h-\\[60px\\] > .min-h-11.py-2.disabled\\:cursor-default"
-   ],
-   "count": 22
-  }
- },
- {
-  "screen": "tasks/all",
-  "kind": "axe:moderate",
-  "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
   "screen": "tasks/calendar",
   "kind": "touch-target",
   "detail": [
@@ -477,67 +333,13 @@
   "kind": "facts",
   "detail": {
    "interactive": 169,
-   "selectableChrome": 167,
+   "selectableChrome": 0,
    "calloutNotNone": 169,
    "blurLayers": 1,
    "smallInputs": [
     "Add a task…"
    ],
    "missingHints": []
-  }
- },
- {
-  "screen": "tasks/calendar",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
-  "screen": "tasks/calendar",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "color-contrast",
-   "help": "Elements must meet minimum color contrast ratio thresholds",
-   "nodes": [
-    "button[aria-label=\"Monday, Oct 26\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Tuesday, Oct 27\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Wednesday, Oct 28\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Thursday, Oct 29\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]"
-   ],
-   "count": 6
-  }
- },
- {
-  "screen": "tasks/calendar",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "label-content-name-mismatch",
-   "help": "Elements must have their visible text as part of their accessible name",
-   "nodes": [
-    "button[aria-label=\"Edit “Schedule car service”\"]",
-    "button[aria-label=\"Open Groceries\"]",
-    "button[aria-label=\"Open Reading\"]",
-    "button[aria-label=\"Open Apartment\"]"
-   ],
-   "count": 9
-  }
- },
- {
-  "screen": "tasks/calendar",
-  "kind": "axe:moderate",
-  "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
   }
  },
  {
@@ -644,67 +446,13 @@
   "kind": "facts",
   "detail": {
    "interactive": 169,
-   "selectableChrome": 167,
+   "selectableChrome": 0,
    "calloutNotNone": 169,
    "blurLayers": 1,
    "smallInputs": [
     "Add a task…"
    ],
    "missingHints": []
-  }
- },
- {
-  "screen": "tasks/lists",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
-  "screen": "tasks/lists",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "color-contrast",
-   "help": "Elements must meet minimum color contrast ratio thresholds",
-   "nodes": [
-    "button[aria-label=\"Monday, Oct 26\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Tuesday, Oct 27\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Wednesday, Oct 28\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Thursday, Oct 29\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]"
-   ],
-   "count": 6
-  }
- },
- {
-  "screen": "tasks/lists",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "label-content-name-mismatch",
-   "help": "Elements must have their visible text as part of their accessible name",
-   "nodes": [
-    "button[aria-label=\"Edit “Schedule car service”\"]",
-    "button[aria-label=\"Open Groceries\"]",
-    "button[aria-label=\"Open Reading\"]",
-    "button[aria-label=\"Open Apartment\"]"
-   ],
-   "count": 9
-  }
- },
- {
-  "screen": "tasks/lists",
-  "kind": "axe:moderate",
-  "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
   }
  },
  {
@@ -719,31 +467,14 @@
   "kind": "facts",
   "detail": {
    "interactive": 3,
-   "selectableChrome": 2,
+   "selectableChrome": 0,
    "calloutNotNone": 3,
    "blurLayers": 1,
    "smallInputs": [
     "Add a task…",
     "Name this list"
    ],
-   "missingHints": [
-    "Name this list [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
-   ]
-  }
- },
- {
-  "screen": "tasks/new-list-sheet",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "color-contrast",
-   "help": "Elements must meet minimum color contrast ratio thresholds",
-   "nodes": [
-    "button[aria-label=\"Monday, Oct 26\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Tuesday, Oct 27\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Wednesday, Oct 28\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Thursday, Oct 29\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]"
-   ],
-   "count": 6
+   "missingHints": []
   }
  },
  {
@@ -847,7 +578,7 @@
   "kind": "facts",
   "detail": {
    "interactive": 92,
-   "selectableChrome": 2,
+   "selectableChrome": 0,
    "calloutNotNone": 92,
    "blurLayers": 1,
    "smallInputs": [
@@ -855,39 +586,7 @@
     "Name this list",
     "Search emoji"
    ],
-   "missingHints": [
-    "Name this list [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
-   ]
-  }
- },
- {
-  "screen": "tasks/emoji-picker",
-  "kind": "axe:critical",
-  "detail": {
-   "id": "aria-valid-attr-value",
-   "help": "ARIA attributes must conform to valid values",
-   "nodes": [
-    "div[aria-rowindex=\"0\"]",
-    "button[aria-label=\"Grinning face\"]",
-    "button[aria-label=\"Slightly smiling face\"]",
-    "button[aria-label=\"Star-struck\"]"
-   ],
-   "count": 12
-  }
- },
- {
-  "screen": "tasks/emoji-picker",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "color-contrast",
-   "help": "Elements must meet minimum color contrast ratio thresholds",
-   "nodes": [
-    "button[aria-label=\"Monday, Oct 26\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Tuesday, Oct 27\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Wednesday, Oct 28\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]",
-    "button[aria-label=\"Thursday, Oct 29\"] > .text-fg-2\\/45.size-7.text-\\[14px\\]"
-   ],
-   "count": 6
+   "missingHints": []
   }
  },
  {
@@ -925,52 +624,13 @@
   "kind": "facts",
   "detail": {
    "interactive": 41,
-   "selectableChrome": 40,
+   "selectableChrome": 0,
    "calloutNotNone": 41,
    "blurLayers": 1,
    "smallInputs": [
     "Add to A list with a deliberately long name to tes"
    ],
    "missingHints": []
-  }
- },
- {
-  "screen": "tasks/list-detail",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
-  "screen": "tasks/list-detail",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "label-content-name-mismatch",
-   "help": "Elements must have their visible text as part of their accessible name",
-   "nodes": [
-    "button[aria-label=\"Edit “A item 3”\"]",
-    "button[aria-label=\"Open Groceries\"]",
-    "button[aria-label=\"Open Reading\"]",
-    "button[aria-label=\"Open Apartment\"]"
-   ],
-   "count": 9
-  }
- },
- {
-  "screen": "tasks/list-detail",
-  "kind": "axe:moderate",
-  "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
   }
  },
  {
@@ -998,50 +658,11 @@
   "kind": "facts",
   "detail": {
    "interactive": 20,
-   "selectableChrome": 20,
+   "selectableChrome": 0,
    "calloutNotNone": 20,
    "blurLayers": 1,
    "smallInputs": [],
    "missingHints": []
-  }
- },
- {
-  "screen": "goals",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
-  "screen": "goals",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "label-content-name-mismatch",
-   "help": "Elements must have their visible text as part of their accessible name",
-   "nodes": [
-    "button[aria-label=\"Open Health\"]",
-    "button[aria-label=\"Open Reading\"]",
-    "button[aria-label=\"Open Finished things\"]",
-    "button[aria-label=\"Open Not started\"]"
-   ],
-   "count": 6
-  }
- },
- {
-  "screen": "goals",
-  "kind": "axe:moderate",
-  "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
   }
  },
  {
@@ -1058,17 +679,17 @@
    "button[Back to goals] 40×40",
    "button[Edit goal list] 40×40",
    "button[Add goal] 106×36",
-   "button[Edit “Write the long-form retrospective for the au] 545×20",
+   "button[Edit Write the long-form retrospective for the aut] 545×20",
    "button[Write the long-form retrospective for the autumn l] 17×36",
    "button[Decrease Write the long-form retrospective for the] 40×36",
    "button[Increase Write the long-form retrospective for the] 40×36",
    "button[Reorder “Write the long-form retrospective for the] 36×36",
-   "button[Edit “Max out retirement contributions”] 224×20",
+   "button[Edit Max out retirement contributions] 224×20",
    "button[Max out retirement contributions: 0.5 of 1. Tap to] 31×36",
    "button[Decrease Max out retirement contributions] 40×36",
    "button[Increase Max out retirement contributions] 40×36",
    "button[Reorder “Max out retirement contributions”] 36×36",
-   "button[Edit “Cancel three subscriptions”] 183×20",
+   "button[Edit Cancel three subscriptions] 183×20",
    "button[Cancel three subscriptions: 2 of 3. Tap to type a ] 17×36",
    "button[Decrease Cancel three subscriptions] 40×36",
    "button[Increase Cancel three subscriptions] 40×36",
@@ -1080,35 +701,11 @@
   "kind": "facts",
   "detail": {
    "interactive": 25,
-   "selectableChrome": 18,
+   "selectableChrome": 0,
    "calloutNotNone": 25,
    "blurLayers": 1,
    "smallInputs": [],
    "missingHints": []
-  }
- },
- {
-  "screen": "goals/list-detail",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
-  "screen": "goals/list-detail",
-  "kind": "axe:moderate",
-  "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
   }
  },
  {
@@ -1125,17 +722,14 @@
   "kind": "facts",
   "detail": {
    "interactive": 5,
-   "selectableChrome": 3,
+   "selectableChrome": 0,
    "calloutNotNone": 5,
    "blurLayers": 1,
    "smallInputs": [
     "What do you want to achieve?",
     "TEXTAREA"
    ],
-   "missingHints": [
-    "What do you want to achieve? [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]",
-    "TEXTAREA [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
-   ]
+   "missingHints": []
   }
  },
  {
@@ -1164,35 +758,11 @@
   "kind": "facts",
   "detail": {
    "interactive": 47,
-   "selectableChrome": 43,
+   "selectableChrome": 0,
    "calloutNotNone": 47,
    "blurLayers": 1,
    "smallInputs": [],
    "missingHints": []
-  }
- },
- {
-  "screen": "routines",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
-  "screen": "routines",
-  "kind": "axe:moderate",
-  "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
   }
  },
  {
@@ -1214,17 +784,14 @@
   "kind": "facts",
   "detail": {
    "interactive": 11,
-   "selectableChrome": 9,
+   "selectableChrome": 0,
    "calloutNotNone": 11,
    "blurLayers": 1,
    "smallInputs": [
     "Meditate, read, stretch…",
     "TEXTAREA"
    ],
-   "missingHints": [
-    "Meditate, read, stretch… [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]",
-    "TEXTAREA [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
-   ]
+   "missingHints": []
   }
  },
  {
@@ -1251,35 +818,11 @@
   "kind": "facts",
   "detail": {
    "interactive": 16,
-   "selectableChrome": 14,
+   "selectableChrome": 0,
    "calloutNotNone": 16,
    "blurLayers": 1,
    "smallInputs": [],
    "missingHints": []
-  }
- },
- {
-  "screen": "focus",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
-  }
- },
- {
-  "screen": "focus",
-  "kind": "axe:moderate",
-  "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
-   "nodes": [
-    ".pointer-events-none"
-   ],
-   "count": 1
   }
  },
  {
@@ -1308,7 +851,7 @@
   "kind": "facts",
   "detail": {
    "interactive": 15,
-   "selectableChrome": 3,
+   "selectableChrome": 0,
    "calloutNotNone": 15,
    "blurLayers": 1,
    "smallInputs": [],
@@ -1333,25 +876,11 @@
   "kind": "facts",
   "detail": {
    "interactive": 11,
-   "selectableChrome": 10,
+   "selectableChrome": 0,
    "calloutNotNone": 11,
    "blurLayers": 1,
    "smallInputs": [],
    "missingHints": []
-  }
- },
- {
-  "screen": "focus/block-lists",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "label-content-name-mismatch",
-   "help": "Elements must have their visible text as part of their accessible name",
-   "nodes": [
-    "button[aria-label=\"Social, 8 sites\"]",
-    "button[aria-label=\"Video, 6 sites\"]",
-    "button[aria-label=\"News, 6 sites\"]"
-   ],
-   "count": 3
   }
  },
  {
@@ -1377,16 +906,17 @@
    "button[Mon] 59×32",
    "button[Sun] 56×32",
    "button[Phase-end notifications] 51×31",
-   "button[Revoke] 74×36"
+   "button[Revoke] 74×36",
+   "a[Download] 114×36"
   ]
  },
  {
   "screen": "settings",
   "kind": "facts",
   "detail": {
-   "interactive": 41,
-   "selectableChrome": 26,
-   "calloutNotNone": 41,
+   "interactive": 36,
+   "selectableChrome": 0,
+   "calloutNotNone": 36,
    "blurLayers": 1,
    "smallInputs": [
     "Time zone",
@@ -1397,33 +927,18 @@
     "Lock after inactivity"
    ],
    "missingHints": [
-    "INPUT [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]",
-    "INPUT [enterkeyhint=null, autocomplete=null, inputmode=numeric, autocapitalize=null]",
-    "A line worth remembering [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]",
-    "Who said it (optional) [enterkeyhint=null, autocomplete=null, inputmode=null, autocapitalize=null]"
+    "INPUT [enterkeyhint=null, autocomplete=off, inputmode=null, autocapitalize=null]"
    ]
-  }
- },
- {
-  "screen": "settings",
-  "kind": "axe:serious",
-  "detail": {
-   "id": "aria-prohibited-attr",
-   "help": "Elements must only use permitted ARIA attributes",
-   "nodes": [
-    ".inset-x-0"
-   ],
-   "count": 1
   }
  },
  {
   "screen": "settings",
   "kind": "axe:moderate",
   "detail": {
-   "id": "region",
-   "help": "All page content should be contained by landmarks",
+   "id": "landmark-unique",
+   "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination",
    "nodes": [
-    ".inset-x-0"
+    "#notifications"
    ],
    "count": 1
   }

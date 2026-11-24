@@ -41,6 +41,8 @@ test.describe("native feel", () => {
     await page.goto("/tasks");
     const add = page.getByRole("radio", { name: "All", exact: true });
     await expect(add).toBeVisible();
+    // The touch behaviour loads when the browser is idle, just after first paint.
+    await expect(page.locator("html")).toHaveAttribute("data-touch-feel", "on");
     const state = await add.evaluate((el) => {
       const r = el.getBoundingClientRect();
       const at = { clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };

@@ -10,7 +10,9 @@ export const dynamic = "force-dynamic";
 
 /** Settings → Connection: where the data lives and whether the schema is current. Never returns keys. */
 export const GET = api(async (req) => {
-  await authenticate(req);
+  // Acts with the server's own credentials afterwards, so the token is checked with the auth
+  // server here (a token that is merely well-formed is not enough).
+  await authenticate(req, { verify: true });
   const c = requireConfig();
   let schemaVersion: number | null = null;
   let reachable = true;
