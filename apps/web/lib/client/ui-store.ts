@@ -10,6 +10,9 @@ interface UiState {
   lingering: ReadonlySet<string>;
   linger: (id: string, ms?: number) => void;
   unlinger: (id: string) => void;
+  /** The task row whose swipe actions are showing; only one is open at a time. */
+  openRow: string | null;
+  setOpenRow: (id: string | null) => void;
   /** Inactivity lock overlay. */
   locked: boolean;
   setLocked: (locked: boolean) => void;
@@ -43,6 +46,8 @@ export const useUi = create<UiState>((set, get) => ({
     next.delete(id);
     set({ lingering: next });
   },
+  openRow: null,
+  setOpenRow: (openRow) => set({ openRow }),
   locked: false,
   setLocked: (locked) => set({ locked }),
 }));

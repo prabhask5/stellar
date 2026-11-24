@@ -191,8 +191,10 @@ test.describe("universe", () => {
 
     const card = page.getByTestId("today-card");
     await card.getByRole("checkbox", { name: "Complete “Task 1”" }).click();
-    await page.waitForTimeout(350);
-    expect(await overlayInk(page)).toBeGreaterThan(0);
+    // The effect starts on the next animation frame; how soon that is depends on the engine.
+    await expect
+      .poll(() => overlayInk(page), { timeout: 1500, intervals: [30] })
+      .toBeGreaterThan(0);
     // Taps keep working while the event plays.
     await card.getByRole("checkbox", { name: "Complete “Task 2”" }).click();
     await card.getByRole("checkbox", { name: "Complete “Task 3”" }).click();
@@ -247,8 +249,9 @@ test.describe("universe", () => {
       .getByTestId("today-card")
       .getByRole("checkbox", { name: "Complete “Quiet task”" })
       .click();
-    await page.waitForTimeout(150);
-    expect(await overlayInk(page)).toBeGreaterThan(0);
+    await expect
+      .poll(() => overlayInk(page), { timeout: 1500, intervals: [20] })
+      .toBeGreaterThan(0);
     // The glow lasts under half a second.
     await expect.poll(() => overlayInk(page), { timeout: 3000 }).toBe(0);
 

@@ -60,6 +60,18 @@ export function TaskSheet({ task: current, onClose, lists, today, weekStart }: T
     setDescription((mine) => (mine === was ? theirs : mine));
   }, [task?.description]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Going to the background may be the last thing this page does: save what was typed.
+  const commitRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const onHide = () => document.visibilityState === "hidden" && commitRef.current();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onHide);
+    };
+  }, []);
+
   if (!task) return null;
 
   const commitName = () => {
@@ -76,6 +88,10 @@ export function TaskSheet({ task: current, onClose, lists, today, weekStart }: T
       base.current.description = next;
       updateTask(task.id, { description: next || null });
     }
+  };
+  commitRef.current = () => {
+    commitName();
+    commitDescription();
   };
   const close = () => {
     commitName();
@@ -97,6 +113,9 @@ export function TaskSheet({ task: current, onClose, lists, today, weekStart }: T
         />
         <FieldShell label="Description" htmlFor="task-description" optional>
           <textarea
+            autoComplete="off"
+            enterKeyHint="enter"
+            autoCapitalize="sentences"
             id="task-description"
             rows={3}
             maxLength={5000}

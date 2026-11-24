@@ -1,5 +1,6 @@
 "use client";
 
+import { haptic } from "@/lib/client/haptics";
 import { cx } from "./cx";
 
 export interface SwitchProps {
@@ -20,7 +21,10 @@ export function Switch({ checked, onChange, label, id, disabled }: SwitchProps) 
       aria-checked={checked}
       aria-label={label}
       disabled={disabled}
-      onClick={() => onChange(!checked)}
+      onClick={() => {
+        haptic();
+        onChange(!checked);
+      }}
       className={cx(
         "relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-200 disabled:opacity-50",
         checked ? "bg-accent" : "bg-white/15",

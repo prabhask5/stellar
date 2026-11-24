@@ -102,6 +102,128 @@ html.sp-insets-landscape {
     cursor: pointer;
   }
 
+  /* ── Chrome is not content ───────────────────────────────────────────────
+     Controls, navigation, rows and cards never start a text selection and never
+     show the long-press callout (link preview, "Copy"); long-press belongs to our
+     own actions (reorder). Real content stays selectable: fields, notes, quotes
+     and anything marked .selectable. On touch screens the rule covers the whole
+     interface, because there a stray selection is always an accident. */
+  button,
+  a,
+  summary,
+  label,
+  nav,
+  [role="button"],
+  [role="radio"],
+  [role="switch"],
+  [role="checkbox"],
+  [role="tab"],
+  [role="option"],
+  [role="gridcell"],
+  [role="progressbar"],
+  [data-press],
+  .eyebrow {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  a,
+  img,
+  svg {
+    -webkit-user-drag: none;
+  }
+  @media (pointer: coarse) {
+    body {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+  }
+  input,
+  textarea,
+  select,
+  [contenteditable="true"],
+  .selectable,
+  .selectable * {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+
+  /* ── 44×44 targets ───────────────────────────────────────────────────────
+     A control may look smaller than 44px (a 32px close button, a 36px chip, a
+     31px switch), but on a touch screen its hit area never is: an invisible
+     pseudo-element extends it to at least 44×44, centred on the control.
+     :where() keeps this at zero specificity, so a control that positions itself
+     (absolute, fixed, sticky) keeps doing so. */
+  @media (pointer: coarse) {
+    :where(
+      button,
+      a[href],
+      summary,
+      [role="button"],
+      [role="radio"],
+      [role="switch"],
+      [role="checkbox"],
+      [role="tab"]
+    ) {
+      position: relative;
+    }
+    /* Leaf controls only: an extended hit area over a control that contains other controls
+       (a row that wraps a button, a link wrapped around a button) would swallow their taps.
+       display:contents wrappers have no box of their own, so they are left out too. */
+    :where(
+        button,
+        a[href],
+        summary,
+        [role="button"],
+        [role="radio"],
+        [role="switch"],
+        [role="checkbox"],
+        [role="tab"]
+      ):not(.no-hit, .contents):not(
+        :has(
+          button,
+          a[href],
+          input,
+          select,
+          textarea,
+          [role="button"],
+          [role="checkbox"],
+          [role="switch"]
+        )
+      )::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  /* ── Pressed, the moment a finger lands ──────────────────────────────────
+     Set on pointerdown by TouchFeel; no transition on the way in. */
+  [data-pressed="scale"] {
+    transform: scale(0.97);
+    filter: brightness(1.12);
+    transition: none !important;
+  }
+  /* An inset wash rather than a background change, so it works over any fill (glass, gold). */
+  [data-pressed="fill"] {
+    box-shadow: inset 0 0 0 100vmax var(--sp-fill-selected);
+    transition: none !important;
+  }
+  [data-pressed="none"] {
+    transition: none !important;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-pressed="scale"] {
+      transform: none;
+    }
+  }
+
   button:disabled {
     cursor: default;
   }
@@ -526,4 +648,87 @@ html[data-sky="3d"] .sp-sky__nebula {
   line-height: 16px;
   color: var(--sp-accent);
   font-variant-numeric: tabular-nums;
+}
+
+/* Compact title bar shown once a page's large title has scrolled away (phones). One blur
+   layer, fixed, so it costs nothing while it is transparent and never moves with scroll. */
+.sp-compact-bar {
+  background: var(--sp-glass-fill-strong);
+  border-bottom: 1px solid var(--sp-glass-border);
+  -webkit-backdrop-filter: var(--sp-glass-blur);
+  backdrop-filter: var(--sp-glass-blur);
+}
+html[data-tier="minimal"] .sp-compact-bar {
+  background: rgb(17, 14, 42);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ── Push / pop ──────────────────────────────────────────────────────────────
+   A pushed screen being dragged back by its edge is opaque, like a page lifted off the
+   one beneath it; at rest it is the same transparent page as everywhere else. */
+.sp-pushed--dragging {
+  margin: 0 calc(-1 * max(var(--page-pad), var(--sal))) 0
+    calc(-1 * max(var(--page-pad), var(--sal)));
+  padding: 0 max(var(--page-pad), var(--sar)) 0 max(var(--page-pad), var(--sal));
+  min-height: 100dvh;
+  background: var(--sp-bg-void);
+  box-shadow: -18px 0 40px rgba(0, 0, 0, 0.45);
+}
+
+/* View transitions for push and pop (browsers without the API simply swap). Only the page
+   moves: the sky stays put behind it and the tab bar stays put above it. */
+.sp-app {
+  view-transition-name: sp-page;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-group(sp-page) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+html[data-nav="push"]::view-transition-old(sp-page) {
+  animation: sp-vt-out-left 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html[data-nav="push"]::view-transition-new(sp-page) {
+  animation: sp-vt-in-right 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html[data-nav="pop"]::view-transition-old(sp-page) {
+  animation: sp-vt-out-right 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html[data-nav="pop"]::view-transition-new(sp-page) {
+  animation: sp-vt-in-left 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes sp-vt-in-right {
+  from {
+    transform: translateX(28%);
+    opacity: 0;
+  }
+}
+@keyframes sp-vt-out-left {
+  to {
+    transform: translateX(-18%);
+    opacity: 0;
+  }
+}
+@keyframes sp-vt-in-left {
+  from {
+    transform: translateX(-18%);
+    opacity: 0;
+  }
+}
+@keyframes sp-vt-out-right {
+  to {
+    transform: translateX(28%);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }

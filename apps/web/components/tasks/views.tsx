@@ -6,6 +6,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/grouped-list";
 import { EmptyState } from "@/components/ui/page";
+import { RowsSkeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { withLingering } from "@/lib/client/complete";
 import { postponeOverdue } from "@/lib/client/data/tasks";
@@ -91,6 +92,7 @@ export function TodayTab({ tasks, today, loading, onOpen, onReschedule }: TabPro
           />
         </section>
       )}
+      {empty && loading && <RowsSkeleton label="Loading tasks" />}
       {empty && !loading && <EmptyState title="Clear skies." body="Nothing left in orbit today." />}
       {showCompleted && view.completed.length > 0 && (
         <section aria-label="Completed today" className="mt-7">
@@ -186,6 +188,7 @@ export function AllTab({ tasks, today, loading, onOpen, onReschedule }: TabProps
         </section>
       ))}
       {sentinel}
+      {groups.length === 0 && loading && <RowsSkeleton rows={5} label="Loading tasks" />}
       {groups.length === 0 && !loading && (
         <EmptyState title="An open sky." body="Add a task above and it will appear here." />
       )}

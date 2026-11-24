@@ -56,7 +56,8 @@ test.describe("PIN login", () => {
     // The length is remembered on this device, so next time the PIN submits itself.
     expect(await page.evaluate(() => localStorage.getItem("sp-pin-length"))).toBe("6");
     await page.context().clearCookies();
-    await page.goto("/");
+    // The open page may notice the missing session and leave for the PIN screen at the same moment.
+    await page.goto("/").catch(() => undefined);
     await expect(page).toHaveURL(/\/lock$/);
     await enterPin(page, PIN, info.project.name);
     await expect(page).toHaveURL(/\/$/);

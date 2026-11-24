@@ -36,7 +36,10 @@ export function Popover({
           sideOffset={8}
           collisionPadding={12}
           aria-label={label}
+          // Never taller than the space the viewport leaves: scroll inside instead of running off screen.
+          style={{ maxHeight: "var(--radix-popover-content-available-height)" }}
           className={cx(
+            "overflow-y-auto overscroll-contain",
             "glass-strong z-[70] rounded-card p-3 shadow-[0_18px_50px_rgba(0,0,0,0.45)] outline-none animate-fade",
             className,
           )}

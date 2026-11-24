@@ -6,7 +6,7 @@ import { cx } from "./cx";
 import { Spinner } from "./button";
 import { Popover } from "./popover";
 import { Sheet } from "./sheet";
-import { useIsWide } from "./use-media";
+import { usePopoverFits } from "./use-media";
 
 const RECENT_KEY = "sp-recent-emoji";
 const RECENT_MAX = 16;
@@ -63,7 +63,7 @@ export function EmojiPicker({
 }: EmojiPickerProps) {
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
-  const wide = useIsWide();
+  const wide = usePopoverFits();
 
   useEffect(() => {
     if (open) setRecent(recentEmoji());

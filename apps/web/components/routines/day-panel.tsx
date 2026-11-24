@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cx } from "@/components/ui/cx";
 import { ProgressBar } from "@/components/ui/progress";
 import { Stepper } from "@/components/ui/stepper";
+import { useCollection } from "@/lib/client/data/hooks";
 import { setRoutineLog } from "@/lib/client/data/routines";
 import { type DayInstance, fractionFor, indexLogs, instancesFor } from "./model";
 
@@ -124,6 +125,7 @@ export interface DayPanelProps {
 
 /** One day's routine day-goals with a live completion percentage. Past days are editable; future days are a preview. */
 export function DayPanel({ date, today, routines, logs, bare }: DayPanelProps) {
+  const { loading } = useCollection("sp_routines");
   const index = useMemo(() => indexLogs(logs), [logs]);
   const instances = useMemo(() => instancesFor(routines, index, date), [routines, index, date]);
   const fraction = useMemo(() => fractionFor(routines, index, date), [routines, index, date]);
@@ -147,7 +149,12 @@ export function DayPanel({ date, today, routines, logs, bare }: DayPanelProps) {
           <span className="text-footnote text-fg-2">Scheduled</span>
         )}
       </div>
-      {instances.length === 0 ? (
+      {instances.length === 0 && loading ? (
+        <div role="status" aria-label="Loading routines" className="space-y-3 py-4">
+          <span className="block h-3 w-1/2 rounded-full bg-fill-selected" />
+          <span className="block h-3 w-1/3 rounded-full bg-fill-selected" />
+        </div>
+      ) : instances.length === 0 ? (
         <p className="py-4 text-subhead text-fg-2">
           {routines.length === 0
             ? "No routines yet. Add one below."

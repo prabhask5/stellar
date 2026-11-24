@@ -163,7 +163,7 @@ export function DatePicker({
                           ? "font-semibold text-accent"
                           : cell.inMonth
                             ? "text-fg hover:bg-fill-selected"
-                            : "text-fg-2/45 hover:bg-fill-hover",
+                            : "text-fg-2/80 hover:bg-fill-hover",
                     )}
                   >
                     {cell.day}

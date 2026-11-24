@@ -170,7 +170,7 @@ test.describe("perf", () => {
       await page.evaluate(() => window.scrollTo(0, 0));
       out.openSheet = await sample(page, async () => {
         await page
-          .getByRole("button", { name: /^Edit “/ })
+          .getByRole("button", { name: /^Edit / })
           .first()
           .click();
         await page.waitForTimeout(700);
@@ -258,7 +258,7 @@ test.describe("perf", () => {
             .first();
           if (await box.count()) await box.click();
           await page
-            .getByRole("button", { name: /^Edit “/ })
+            .getByRole("button", { name: /^Edit / })
             .first()
             .click();
           await page.waitForTimeout(400);

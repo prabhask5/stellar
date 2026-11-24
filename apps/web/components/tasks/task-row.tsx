@@ -4,13 +4,15 @@ import type { Task } from "@stellar/db";
 import { type DateStr, dueLabel } from "@stellar/shared";
 import { type PanInfo, useMotionValue, useTransform } from "motion/react";
 import * as m from "motion/react-m";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useContextMenu } from "@/components/ui/context-menu";
 import { cx } from "@/components/ui/cx";
 import { CalendarIcon, CheckIcon, TrashIcon } from "@/components/ui/icons";
 import { useIsTouch } from "@/components/ui/use-media";
 import { toggleTask } from "@/lib/client/complete";
 import { deleteTask } from "@/lib/client/data/tasks";
+import { haptic } from "@/lib/client/haptics";
 import { preloadAnimate, withAnimate } from "@/lib/client/motion-animate";
 import { useUi } from "@/lib/client/ui-store";
 
@@ -29,6 +31,9 @@ export interface TaskRowProps {
 
 const ACTIONS_WIDTH = 148;
 const COMPLETE_AT = 84;
+/** Dragging this far to the left on release deletes, like a full swipe in Mail. */
+const FULL_SWIPE = 232;
+const MAX_LEFT = 300;
 
 /**
  * One task: 22px circle checkbox, name, optional one-line description and a
@@ -52,8 +57,14 @@ export const TaskRow = memo(function TaskRow({
       ? null
       : dueLabel(lingering ? { ...task, completed: false } : task, today, context);
   const x = useMotionValue(0);
-  const [open, setOpen] = useState(false);
+  const open = useUi((s) => s.openRow === task.id);
+  const setOpenRow = useUi((s) => s.setOpenRow);
+  // The actions tray grows with the drag so nothing bare shows behind the row; past the
+  // full-swipe point the Delete side takes over, which is the cue that letting go deletes.
+  const trayWidth = useTransform(x, (v) => Math.max(ACTIONS_WIDTH, -v));
+  const rescheduleOpacity = useTransform(x, [-FULL_SWIPE, -FULL_SWIPE + 40], [0, 1]);
   const checkbox = useRef<HTMLButtonElement>(null);
+  const rowMenu = useContextMenu();
   const completeOpacity = useTransform(x, [0, 28, COMPLETE_AT], [0, 0.5, 1]);
   const completeScale = useTransform(x, [0, COMPLETE_AT], [0.6, 1]);
 
@@ -63,15 +74,38 @@ export const TaskRow = memo(function TaskRow({
     withAnimate((animate) => {
       void animate(x, to, { type: "spring", stiffness: 400, damping: 36 });
     });
-    setOpen(to !== 0);
+    const current = useUi.getState().openRow;
+    if (to !== 0) setOpenRow(task.id);
+    else if (current === task.id) setOpenRow(null);
   };
+
+  // Another row opened, or this one was closed from outside: slide back.
+  useEffect(() => {
+    if (!open && x.get() !== 0)
+      withAnimate((animate) => {
+        void animate(x, 0, { type: "spring", stiffness: 400, damping: 36 });
+      });
+  }, [open, x]);
+
+  // Scrolling the list puts an open row away.
+  useEffect(() => {
+    if (!open) return;
+    const close = () => useUi.getState().setOpenRow(null);
+    window.addEventListener("scroll", close, { passive: true, capture: true });
+    return () => window.removeEventListener("scroll", close, { capture: true });
+  }, [open]);
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
     // Decide from where the row ended up, not from how far the finger travelled: a row
     // that was open at −148 and is pushed back to rest has moved +148 without ever
     // showing the "complete" side.
     const at = x.get();
-    if (at > COMPLETE_AT && !done && !open) {
+    if (at < -FULL_SWIPE) {
+      // A full swipe commits the destructive action (with Undo, like the button).
+      haptic("success");
+      settle(0);
+      deleteTask(task.id);
+    } else if (at > COMPLETE_AT && !done && !open) {
       settle(0);
       toggleTask(task, checkbox.current);
     } else if (at < -64 && (open || info.offset.x < 0)) {
@@ -98,9 +132,11 @@ export const TaskRow = memo(function TaskRow({
         type="button"
         onClick={() => (open ? settle(0) : onOpen?.(task))}
         disabled={!onOpen}
-        aria-label={onOpen ? `Edit “${task.name}”` : undefined}
         className="flex min-h-11 min-w-0 flex-1 flex-col justify-center py-2 text-left disabled:cursor-default"
       >
+        {/* Named by its content ("Edit Call Mom …"): what is heard contains what is seen,
+            which is what voice control matches against. */}
+        {onOpen && <span className="sr-only">Edit </span>}
         <span
           className={cx(
             "block truncate transition-colors duration-200",
@@ -133,8 +169,34 @@ export const TaskRow = memo(function TaskRow({
         data-testid="task-row"
         data-task={task.name}
         className="transition-colors duration-100 hover:bg-fill-hover"
+        onContextMenu={(e) =>
+          rowMenu.onContextMenu(e, [
+            {
+              label: done ? "Mark as not done" : "Complete",
+              icon: <CheckIcon size={16} />,
+              run: () => toggleTask(task, checkbox.current),
+            },
+            ...(onOpen ? [{ label: "Edit", run: () => onOpen(task) }] : []),
+            ...(onReschedule && task.list_id === null
+              ? [
+                  {
+                    label: "Reschedule",
+                    icon: <CalendarIcon size={16} />,
+                    run: () => onReschedule(task),
+                  },
+                ]
+              : []),
+            {
+              label: "Delete",
+              icon: <TrashIcon size={16} />,
+              danger: true,
+              run: () => deleteTask(task.id),
+            },
+          ])
+        }
       >
         {body}
+        {rowMenu.menu}
       </div>
     );
   }
@@ -150,7 +212,7 @@ export const TaskRow = memo(function TaskRow({
           <CheckIcon size={24} strokeWidth={2.4} />
         </m.span>
       </m.div>
-      <div className="absolute inset-y-0 right-0 flex" style={{ width: ACTIONS_WIDTH }}>
+      <m.div className="absolute inset-y-0 right-0 flex" style={{ width: trayWidth }}>
         <button
           type="button"
           tabIndex={open ? 0 : -1}
@@ -161,10 +223,15 @@ export const TaskRow = memo(function TaskRow({
             settle(0);
             onReschedule?.(task);
           }}
-          className="flex flex-1 flex-col items-center justify-center gap-1 bg-[rgba(246,199,110,0.22)] text-[11px] font-medium text-accent disabled:opacity-40"
+          className="flex w-[74px] shrink-0 flex-col items-center justify-center gap-1 bg-[rgba(246,199,110,0.22)] text-[11px] font-medium text-accent disabled:opacity-40"
         >
-          <CalendarIcon size={20} />
-          Reschedule
+          <m.span
+            style={{ opacity: rescheduleOpacity }}
+            className="flex flex-col items-center gap-1"
+          >
+            <CalendarIcon size={20} />
+            Reschedule
+          </m.span>
         </button>
         <button
           type="button"
@@ -180,12 +247,12 @@ export const TaskRow = memo(function TaskRow({
           <TrashIcon size={20} />
           Delete
         </button>
-      </div>
+      </m.div>
       <m.div
         drag="x"
         dragDirectionLock
-        dragConstraints={{ left: -ACTIONS_WIDTH, right: done ? 0 : 120 }}
-        dragElastic={{ left: 0.08, right: 0.15 }}
+        dragConstraints={{ left: -MAX_LEFT, right: done ? 0 : 120 }}
+        dragElastic={{ left: 0.12, right: 0.15 }}
         dragMomentum={false}
         onDragEnd={onDragEnd}
         style={{ x, touchAction: "pan-y" }}

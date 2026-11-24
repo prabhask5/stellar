@@ -71,8 +71,8 @@ export function Home() {
   const today = useToday();
   const minute = useMinute();
   const universe = useUniverse();
-  const { rows: tasks } = useCollection("sp_tasks");
-  const { rows: routines } = useCollection("sp_routines");
+  const { rows: tasks, loading: tasksLoading } = useCollection("sp_tasks");
+  const { rows: routines, loading: routinesLoading } = useCollection("sp_routines");
   const { rows: logs } = useCollection("sp_routine_logs");
   const { rows: sessions } = useCollection("sp_focus_sessions");
   const focus = useFocus();
@@ -195,7 +195,11 @@ export function Home() {
             </span>
           </StatTile>
           <StatTile label="Routines">
-            {routinesFraction === null ? (
+            {routinesLoading ? (
+              <span className={small} aria-label="Loading">
+                –
+              </span>
+            ) : routinesFraction === null ? (
               <span className={small}>None today</span>
             ) : (
               <>
@@ -207,7 +211,12 @@ export function Home() {
           <StatTile label="Focus">{formatFocus(focusMinutes)}</StatTile>
         </div>
         <div className="-mx-2 mt-3 border-t border-separator [&>*+*]:border-t [&>*+*]:border-separator">
-          {upcoming.length === 0 ? (
+          {upcoming.length === 0 && tasksLoading ? (
+            <div role="status" aria-label="Loading tasks" className="space-y-3 px-2 pb-2 pt-4">
+              <span className="block h-3 w-3/5 rounded-full bg-fill-selected" />
+              <span className="block h-3 w-2/5 rounded-full bg-fill-selected" />
+            </div>
+          ) : upcoming.length === 0 ? (
             <p className="px-2 pb-1 pt-4 text-subhead text-fg-2">
               Clear skies. Nothing left in orbit today.
             </p>

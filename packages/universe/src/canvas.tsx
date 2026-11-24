@@ -7,7 +7,7 @@ import type { PerspectiveCamera } from "three";
 import { useStore } from "zustand";
 import { FrameGovernor, stepDown, TIERS, type TierProfile } from "./quality.ts";
 import { UniverseScene } from "./scene-core.ts";
-import { cameraInput, sceneSignals, universeStore } from "./store.ts";
+import { cameraInput, diagnostics, rememberTierCap, sceneSignals, universeStore } from "./store.ts";
 
 /** Seconds between the last two rendered frames, shared with the scene. */
 let frameDt = 0;
@@ -57,6 +57,19 @@ function Scene({ profile }: { profile: TierProfile }) {
  */
 function Loop({ profile }: { profile: TierProfile }) {
   const invalidate = useThree((s) => s.invalidate);
+  const gl = useThree((s) => s.gl);
+  // Read-only renderer statistics for diagnostics and the memory sweep.
+  useEffect(() => {
+    diagnostics.info = () => ({
+      geometries: gl.info.memory.geometries,
+      textures: gl.info.memory.textures,
+      programs: gl.info.programs?.length ?? 0,
+      calls: gl.info.render.calls,
+    });
+    return () => {
+      diagnostics.info = null;
+    };
+  }, [gl]);
   useEffect(() => {
     const governor = new FrameGovernor(profile.frameBudgetMs);
     let raf = 0;
@@ -70,9 +83,19 @@ function Loop({ profile }: { profile: TierProfile }) {
         lastTick = now;
         return;
       }
-      // Step-down decisions use the browser's own frame cadence, not our throttle.
-      if (lastTick && governor.frame(now - lastTick, now)) {
-        universeStore.setState({ tier: stepDown(s.tier) });
+      // The interface has the floor (scrolling, typing, a sheet moving): hold this frame.
+      // Frames skipped here say nothing about what the device can do, so the governor
+      // does not see them either.
+      if (now < sceneSignals.yieldUntil && !cameraInput.dragging) {
+        lastTick = 0;
+        return;
+      }
+      // Step-down decisions use the browser's own frame cadence, not our throttle. They
+      // apply to Auto only: a tier the owner chose in Settings is theirs to keep.
+      if (s.setting === "auto" && lastTick && governor.frame(now - lastTick, now)) {
+        const lower = stepDown(s.tier);
+        rememberTierCap(lower);
+        universeStore.setState({ tier: lower });
       }
       lastTick = now;
 

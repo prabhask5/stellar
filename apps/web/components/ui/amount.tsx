@@ -29,6 +29,8 @@ export function AmountLabel({ current, total, unit, label, onSet }: AmountLabelP
     <span className="whitespace-nowrap text-fg-2 tnum">
       {editing ? (
         <input
+          autoComplete="off"
+          enterKeyHint="done"
           ref={input}
           autoFocus
           inputMode="decimal"

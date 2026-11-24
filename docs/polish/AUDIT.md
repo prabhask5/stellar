@@ -5,7 +5,7 @@ Written in Phase 1 of `docs/polish/POLISH_SPEC.md`, before any product code chan
 **How the findings were produced**
 
 - **Automated sweep (§2.1).** `pnpm typecheck`, `pnpm lint`, `pnpm test` and `pnpm build` are clean with no warnings. The whole e2e suite ran on seven Playwright projects (three Chromium, three WebKit iPhone, Firefox) with listeners for console errors and warnings, uncaught errors, failed and 4xx/5xx requests and layout shift; the aggregated log is `docs/polish/data/sweep-baseline.txt`. axe-core, overflow, touch-target and native-feel facts for every screen and sheet are in `docs/polish/data/scan-*.json`. Measurements are in `docs/polish/PERF.md`.
-- **Scripted adversarial pass (§2.2).** `apps/web/e2e/audit/adversarial.spec.ts` (run with `AUDIT=1`). A failing test there is a finding; each becomes the regression test for its fix.
+- **Scripted adversarial pass (§2.2).** `apps/web/e2e/12-regressions.spec.ts` (run with `AUDIT=1`). A failing test there is a finding; each becomes the regression test for its fix.
 - **Code review.** Four independent read-throughs (client data and sync layer, UI components, server and SQL, extension and universe). These entries say "code review" in their evidence with a confidence; the ones reproduced in a browser say so and name the test. Code-review entries that have not been reproduced are still listed, because the brief was to assume bugs exist; any that turn out not to be real are closed as "Won't fix (not reproducible)" with the reason.
 - **Native-feel audit (§2.3).** One entry per POLISH_SPEC §4 requirement that is not met or only partly met, with where and by how much.
 - **Official Supabase bundle.** The smoke subset (setup wizard, PIN, shell, tasks with Realtime between two tabs, focus, extension) passes against the official CLI stack (Kong, official Realtime and Postgres images). No behaviour differed from the dev stack. The Supavisor pooler in transaction mode is not part of the CLI stack's default path, so the pooler finding stays a code-review entry.
@@ -15,7 +15,7 @@ Written in Phase 1 of `docs/polish/POLISH_SPEC.md`, before any product code chan
 Ids are stable; the prefix is the current severity. Entries are generated from `docs/polish/data/*.json` by `node scripts/polish/build-audit.mjs`.
 
 **249 findings:** 3 P0 · 40 P1 · 123 P2 · 83 P3.
-**Status:** 248 Open · 1 Won't fix.
+**Status:** 40 Fixed · 5 Won't fix · 204 Open.
 
 Severity: **P0** crash, data loss/corruption, security problem, core flow blocked · **P1** a feature is broken or wrong · **P2** friction (slow, janky, confusing, un-native) · **P3** cosmetic.
 
@@ -27,8 +27,8 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** Go offline. Create task "A" (or pick an existing task). Wait >15 s (or just stay offline >15 s). Rename it, then complete it (two edits to one row; or create + complete; or delete + Undo). Go online. Reload.
 **Expected · Actual:** Expected both edits on the server. Actual: only the first op per row lands. Create+complete offline -> task comes back uncompleted; rename+complete -> not completed; delete+Undo -> task stays deleted.
 **Cause:** every op that waited >15 s is sent as `update ... where id = X and updated_at <= <time of the user's action>`. The first replayed op (insert or update) makes the trigger set `updated_at = now()` (replay time), which is later than the `at` of every following op for that row, so their filters match zero rows. `maybeSingle()` returns `data: null` with no error, so the op counts as success.
-**Evidence:** Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-10 (rename then description offline: description lost), ADV-11 (create + complete offline: completion lost), ADV-12 (twenty offline changes: completions of offline-created tasks lost) on desktop Chromium and webkit-iphone-15-pro · code: apps/web/lib/client/outbox.ts:175, 185-190; packages/db/migrations/0002_tasks.sql:130 (`new.updated_at := now()` on insert and update; same in goals/routines/lists triggers); apps/web/lib/client/data/core.ts:234-240 · code review, confidence high
-**Status:** Open
+**Evidence:** Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-10 (rename then description offline: description lost), ADV-11 (create + complete offline: completion lost), ADV-12 (twenty offline changes: completions of offline-created tasks lost) on desktop Chromium and webkit-iphone-15-pro · code: apps/web/lib/client/outbox.ts:175, 185-190; packages/db/migrations/0002_tasks.sql:130 (`new.updated_at := now()` on insert and update; same in goals/routines/lists triggers); apps/web/lib/client/data/core.ts:234-240 · code review, confidence high
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-10/11/12; outbox.test.ts
 
 ### P0-002 · Outbox · Web + PWA
 **A server 5xx for a doomed op (PostgREST maps `P0002` to 500) blocks the whole queue forever**
@@ -37,7 +37,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the increment is dropped with a toast and the two tasks sync. Actual: the RPC raises `P0002`, PostgREST answers 500, the outbox classifies it as a network failure, marks the app "Offline", retries the same op every 2-30 s forever; the tasks behind it never sync. Same for `sp_routine_log_set` after the routine was deleted elsewhere, and any other persistent 5xx.
 **Cause:** `isNetworkError` treats every 5xx as retryable and there is no retry cap / poison-op handling. (A 429 is the opposite problem: it is dropped as a permanent rejection.)
 **Evidence:** code: apps/web/lib/client/supabase.ts:42-52 (`status >= 500` => network error); apps/web/lib/client/outbox.ts:267-271; packages/db/migrations/0003_goals.sql:164-166 and 0004_routines.sql:311-313 (`raise exception ... errcode = 'P0002'`) · code review, confidence medium (PostgREST status mapping `P0*` -> 500 is from memory, not run)
-**Status:** Open
+**Status:** Fixed (a65a919). Test: outbox.test.ts (P0-002 cases); migration 0010
 
 ### P0-003 · Server · Server / API
 **"Verify" in Settings → Connection can permanently brick a configured instance**
@@ -46,7 +46,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** expected "not up to date yet, run the SQL" and the app keeps working. Actual: `verifySchema()` writes `schemaVerified: false` into the config. `stageOf()` then returns `"database"`, so `configured` is false: every `/api/v1/*` call returns 503 (`requireConfig`), the proxy redirects every page to `/setup`, and `/api/setup/verify`, `/api/setup/migrate`, `/api/setup/sql` now all return 403 "Create your PIN first." because `guardSetup` sees `setupCompletedAt !== null && !configured`. There is no UI path back.
 **Cause:** `verifySchema` persists a negative result (`if (ok !== stored.schemaVerified) updateStoredConfig({ schemaVerified: ok })`), and `guardSetup` treats "set up once but not configured" as the RESET_PIN state only. The only thing that sets the flag back is boot-time migration, which needs `DATABASE_URL` — exactly what these users do not have.
 **Evidence:** code: apps/web/lib/server/setup.ts:75-77; apps/web/lib/server/setup-guard.ts:19-22; apps/web/lib/server/config.ts:116-119; apps/web/components/settings/connection.tsx:104-107 · code review, confidence high (traced end to end; not exercised over HTTP)
-**Status:** Open
+**Status:** Fixed (a65a919). Test: lib/server/setup.test.ts
 
 ## P1 (40)
 
@@ -56,8 +56,8 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** 1) Settings time zone Pacific/Kiritimati (UTC+14), device in any zone 2) Tasks → Today 3) type a name, Enter
 **Expected · Actual:** Expected the task due today in the owner's zone. Actual: it is saved with yesterday's date (due_date − today = −1) and lands in Overdue.
 **Cause:** Not yet traced; the quick-add default date does not come from the same owner-zone 'today' the view uses (see also the UTC-before-settings finding).
-**Evidence:** apps/web/e2e/audit/adversarial.spec.ts ADV-40 fails on desktop Chromium and webkit-iphone-15-pro
-**Status:** Open
+**Evidence:** apps/web/e2e/12-regressions.spec.ts ADV-40 fails on desktop Chromium and webkit-iphone-15-pro
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-40; e2e 03/04/06 on WebKit after UTC midnight
 
 ### P1-005 · Setup wizard · Safari / iPhone
 **Setup wizard never shows the paste-and-verify SQL step in WebKit**
@@ -66,7 +66,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected 'Open your Supabase Studio SQL editor, paste, and run it.' with the SQL. Actual: the step never appears.
 **Cause:** Not yet traced (streamed NDJSON response handling in WebKit is the suspect).
 **Evidence:** e2e/01-setup.spec.ts:168 fails on all three WebKit projects, passes on Chromium and Firefox · code: apps/web/components/setup/wizard.tsx:478-540
-**Status:** Open
+**Status:** Won't fix. Not a product bug: WebKit does not offer requests to page.route once a service worker controls the page, so the stub never applied and the real migration ran. The test now runs without a worker. The wizard's stream handling was hardened anyway (no-stream fallback, trailing line, dropped connection)
 
 ### P1-006 · Focus · Firefox
 **Two devices pressing Skip at the same moment leave Firefox on the old phase**
@@ -75,7 +75,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected both to show Short break. Actual: one window stays on Focus (data-phase=focus, status awaiting) for at least 10 s.
 **Cause:** Not yet traced; the losing tab's optimistic state is not replaced by the server's after the version conflict.
 **Evidence:** e2e/07-focus.spec.ts:169 fails on firefox-desktop
-**Status:** Open
+**Status:** Won't fix. Not a product bug: the test's two clicks were far enough apart in Firefox for the second to be a legitimate second skip. The test now schedules both for the same instant
 
 ### P1-007 · Focus / block lists · Firefox
 **Pasting several sites into a block list adds only one in Firefox**
@@ -84,7 +84,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected every valid site added. Actual: only one site appears.
 **Cause:** Not yet traced.
 **Evidence:** e2e/07-focus.spec.ts:258 fails on firefox-desktop
-**Status:** Open
+**Status:** Won't fix. Not a product bug: Firefox ignores clipboardData in a synthetic ClipboardEvent. The test is now engine-independent and the handler tolerates a missing clipboardData
 
 ### P1-008 · Universe events · Firefox
 **Cosmic events draw nothing in Firefox**
@@ -102,7 +102,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the whole PIN screen to fit or scroll with Unlock reachable above the home indicator. Actual: Unlock's bottom edge is at y=510 on a 393px-high screen.
 **Cause:** The lock layout stacks the keypad vertically at every size; `short:` variants shrink it but not enough for 393px.
 **Evidence:** e2e/02-auth.spec.ts:23 fails on webkit-iphone-15-pro-landscape · code: apps/web/components/auth/lock-screen.tsx:109-158
-**Status:** Open
+**Status:** Fixed (a65a919). How: layout change; verified with the landscape project in the next batch
 
 ### P1-010 · Settings / data · Safari / iPhone
 **Export does not produce a download in WebKit landscape run**
@@ -120,7 +120,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected either the completion applies (field-level merge) or the UI rolls back and says so (DECISIONS line 49: "A rejected operation is dropped, the affected collection is reloaded, and a toast says so"). Actual: completion is dropped server-side, tab A still shows it completed until some unrelated refetch; other devices show it open.
 **Cause:** `onSuccess` only upserts when `isRow(result)`; a null result does nothing. Also the guard is row-level, so an unrelated field change elsewhere discards the offline edit.
 **Evidence:** code: apps/web/lib/client/outbox.ts:189; apps/web/lib/client/data/core.ts:230-241 · code review, confidence high
-**Status:** Open
+**Status:** Fixed (a65a919). Test: outbox.test.ts (P1-011)
 
 ### P1-012 · Outbox · Web + PWA
 **Two tabs share one persisted queue: ops are replayed twice and overwritten**
@@ -128,8 +128,8 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** (a) Tab A offline, tap + on a progress goal 3 times. Open tab B (still offline). Go online. (b) Tab A offline: add task "a". Tab B offline: add task "b". Close both tabs, reopen online.
 **Expected · Actual:** (a) Expected +3, actual +6: tab B loaded tab A's queue from IndexedDB and both send it (updates are also sent twice, timer ops conflict). (b) Expected both tasks, actual only "b": each tab persists its whole in-memory queue under the single key `queue`, so the last writer wins; a tab that drains calls `del(STORE_KEY)` and erases the other tab's pending ops.
 **Cause:** no cross-tab ownership (no Web Lock / leader), whole-array persistence under one key.
-**Evidence:** Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-14 on desktop Chromium: one offline +1 on a goal became +2 with a second tab open · code: apps/web/lib/client/outbox.ts:49, 62-68, 106-120 · code review, confidence high
-**Status:** Open
+**Evidence:** Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-14 on desktop Chromium: one offline +1 on a goal became +2 with a second tab open · code: apps/web/lib/client/outbox.ts:49, 62-68, 106-120 · code review, confidence high
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-14
 
 ### P1-013 · Outbox · Web + PWA
 **Non-idempotent RPCs are re-sent after a lost response (goal increment applied twice)**
@@ -138,7 +138,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected +1. Actual +2: the op stays at the head of the queue and is retried; the RPC is a pure delta with no idempotency key.
 **Cause:** retry semantics assume idempotent ops; only inserts are.
 **Evidence:** code: apps/web/lib/client/outbox.ts:215-216, 256-271; apps/web/lib/client/data/goals.ts:160 · code review, confidence high
-**Status:** Open
+**Status:** Fixed (a65a919). Test: outbox.test.ts (P1-013); packages/db behaviour.test.ts
 
 ### P1-014 · Outbox · Web + PWA
 **No request timeout anywhere: one hung request freezes sync (and every Supabase call)**
@@ -146,8 +146,8 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** With Playwright, `route` a PostgREST write (or `/api/v1/auth/session`) to never fulfil. Make a change, then make more changes, toggle offline/online.
 **Expected · Actual:** Expected the op times out, is retried, indicator reflects it. Actual: `flushing` stays true, so `flush()` from `online`/`visibilitychange`/`enqueue` returns immediately; nothing else is sent until the page is reloaded. If `/auth/session` hangs, `inflight` never clears and every query and op awaits it.
 **Cause:** no `AbortSignal.timeout` on any fetch; flush is single-flight with no watchdog.
-**Evidence:** Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-13 on desktop Chromium: one POST that never answers leaves both tasks unsynced after 60 s · code: apps/web/lib/client/outbox.ts:172-218, 240-243; apps/web/lib/client/api.ts:32-39; apps/web/lib/client/session.ts:127-145 · code review, confidence high (mechanism), medium (how often a fetch hangs rather than fails)
-**Status:** Open
+**Evidence:** Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-13 on desktop Chromium: one POST that never answers leaves both tasks unsynced after 60 s · code: apps/web/lib/client/outbox.ts:172-218, 240-243; apps/web/lib/client/api.ts:32-39; apps/web/lib/client/session.ts:127-145 · code review, confidence high (mechanism), medium (how often a fetch hangs rather than fails)
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-13
 
 ### P1-015 · Outbox · Web + PWA
 **Sign-out discards unsynced changes without warning, and offline "Sign out" does not sign out**
@@ -156,7 +156,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected a warning about unsynced changes, and a real sign-out (or a refusal while offline). Actual: `logout` fails and is swallowed, `leave()` deletes the outbox and cache (three tasks gone for good), then navigates to `/lock`, which the service worker never serves, so the browser's offline error page appears. The httpOnly session cookie is untouched, so when the network returns `/lock` redirects to `/` and the device is signed in again without a PIN.
 **Cause:** `.catch(() => {})` on logout; no check of `useSync.pending`; `/lock` bypasses the SW.
 **Evidence:** code: apps/web/components/settings/security.tsx:37-44, 178-181; apps/web/lib/client/persist.ts:46-57; apps/web/sw/sw.ts:103 · code review, confidence high · also reported as U:A23
-**Status:** Open
+**Status:** Fixed (a65a919). How: confirmation and offline refusal in Settings → Security (manual check on the iPhone list)
 
 ### P1-016 · Optimistic cache vs refetch / Realtime · Web + PWA
 **Any refetch replaces a collection wholesale and wipes optimistic changes that are still queued**
@@ -165,7 +165,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the UI to stay as the user left it while the queue drains. Actual: `refetchOnReconnect`, the Realtime re-subscribe (`invalidateQueries()` with no filter) and `refetchOnWindowFocus` all refetch at once; the server snapshot lacks the not-yet-sent ops and replaces the cache, so new tasks vanish and completed tasks reappear, then pop back one by one as each op's `onSuccess` upserts. Ops with no success write-back (hard deletes, `rpc` increments, postpone) stay reverted until an echo arrives; `sp_quotes` has no Realtime, so a deleted quote stays visible until the next refetch. The same happens when `onError` invalidates a table while other ops for it are pending.
 **Cause:** `fetchCollection` results are written straight to the cache; nothing re-applies `pendingOps()` over fetched data and nothing defers refetch until the outbox is empty.
 **Evidence:** code: apps/web/lib/client/data/core.ts:56-116; apps/web/lib/client/cache.ts:30-35; apps/web/lib/client/realtime.ts:167; apps/web/lib/client/data/core.ts:267-286 · code review, confidence high
-**Status:** Open
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-12 (relaunch while offline, then reconnect)
 
 ### P1-017 · Optimistic cache vs refetch / Realtime · Web + PWA
 **In-flight refetch that started before a mutation overwrites it afterwards (task un-completes ~1 s later)**
@@ -174,7 +174,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the task stays completed. Actual: the op succeeds and is upserted, then the older GET snapshot (taken before the commit) lands and sets it back to open; nothing corrects it until the next refetch.
 **Cause:** optimistic writes do not cancel or supersede in-flight fetches for that key.
 **Evidence:** code: apps/web/lib/client/data/core.ts:164-174 (no `cancelQueries`); apps/web/lib/client/cache.ts:33 · code review, confidence medium (timing-dependent; mechanism traced)
-**Status:** Open
+**Status:** Fixed (a65a919). How: covered by the merge in loadCollection; 12-regressions ADV-12
 
 ### P1-018 · Optimistic cache vs refetch / Realtime · Web + PWA
 **Late Realtime echo of an earlier op overwrites newer local state (rapid check/uncheck flicker)**
@@ -183,7 +183,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected it stays open. Actual: echo 1 (completed=true) arrives after the queue is empty, `hasPending` is false, the row flips to completed, then echo 2 flips it back.
 **Cause:** echoes are only suppressed while an op for the row is queued; there is no `updated_at` comparison in `applyChange`/`upsertRow`.
 **Evidence:** code: apps/web/lib/client/realtime.ts:81-86; apps/web/lib/client/cache.ts:99-110 · code review, confidence medium
-**Status:** Open
+**Status:** Fixed (a65a919). How: realtime.ts ignores events older than the cached row; 12-regressions ADV-03
 
 ### P1-019 · Optimistic cache vs refetch / Realtime · Web + PWA
 **Goal stepper: rapid + taps jump backwards (RPC ops are invisible to echo suppression)**
@@ -191,8 +191,8 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** On a progress goal tap + five times quickly (or hold the stepper). Watch the number.
 **Expected · Actual:** Expected 1,2,3,4,5. Actual: shows 5, then drops to 1, 2, 3... as each echo of an earlier increment overwrites the optimistic total. A completion celebration can fire and the bar then visibly regress.
 **Cause:** `opRowKey` returns null for `rpc`, so `hasPending("sp_goals:<id>")` is false while increments are queued; `onSuccess` ignores the returned goal row for `rpc`.
-**Evidence:** Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-03: displayed amounts 1,2,3,4,5,6,7,8,9,5,6,7,8,9,10 during ten rapid taps · code: apps/web/lib/client/outbox.ts:75-91 (`rpc` -> null key); apps/web/lib/client/data/goals.ts:154-163; apps/web/lib/client/realtime.ts:84; apps/web/lib/client/data/core.ts:262-263 · code review, confidence high
-**Status:** Open
+**Evidence:** Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-03: displayed amounts 1,2,3,4,5,6,7,8,9,5,6,7,8,9,10 during ten rapid taps · code: apps/web/lib/client/outbox.ts:75-91 (`rpc` -> null key); apps/web/lib/client/data/goals.ts:154-163; apps/web/lib/client/realtime.ts:84; apps/web/lib/client/data/core.ts:262-263 · code review, confidence high
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-03
 
 ### P1-020 · Optimistic cache vs refetch / Realtime · Web + PWA
 **Realtime (or a local write) on a never-fetched table seeds the query with a partial list that is "fresh" for 5 minutes**
@@ -201,7 +201,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the full list. Actual: only the one new row; the rest is missing with no loading state, because `setQueryData` created the query with `dataUpdatedAt = now`, so `useQuery` sees fresh data and does not fetch. `removeRow`/DELETE events seed `[]` the same way. New tasks also get `sort_order` 1024 because `ranksOf` sees an empty list.
 **Cause:** `setRows` uses `prev ?? []` instead of leaving unfetched queries alone. A related variant: an outbox op finishing before `PersistQueryClientProvider` has restored makes hydration skip that table (existing data is newer).
 **Evidence:** code: apps/web/lib/client/cache.ts:91-110, 128-138; apps/web/lib/client/realtime.ts:73-85; apps/web/lib/client/data/hooks.ts:18-28 · code review, confidence medium (React Query semantics traced; needs a cold cache)
-**Status:** Open
+**Status:** Fixed (a65a919). How: cache.ts setRows + realtime guard
 
 ### P1-021 · Optimistic cache vs refetch / Realtime · Web + PWA
 **Collections are silently truncated at the PostgREST row cap, in arbitrary order**
@@ -210,7 +210,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected all rows. Actual: `.limit(5000)` / `.limit(20000)` cannot exceed the server cap, there is no `.order()` and no pagination, so an arbitrary 1 000 rows arrive; missing logs make streaks and calendar rings wrong, and toggling a day whose log was not loaded computes from "no log".
 **Cause:** single unpaginated select relying on a client-side limit.
 **Evidence:** code: apps/web/lib/client/data/core.ts:62-70, 86-91, 96-101 · code review, confidence medium (depends on the instance's `max_rows`; hosted Supabase default is 1000)
-**Status:** Open
+**Status:** Fixed (a65a919). How: paged loading in data/core.ts
 
 ### P1-022 · Optimistic cache vs refetch / Realtime · Web + PWA
 **Realtime never starts if the first session fetch fails while `navigator.onLine` is true; indicator still says "in sync"**
@@ -219,7 +219,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected a retry and live sync. Actual: Realtime is only retried from the `online` event, which never fires; the session stays unconnected for the page's lifetime. `syncLabel` shows the green "1 device in sync" because `online` is true and `realtime` is `"idle"`.
 **Cause:** no retry/backoff around the bootstrap `getSession()`; "idle" is treated as live. Also `startRealtime` returns a truthy no-op when `getSupabase()` rejects, which blocks later retries.
 **Evidence:** code: apps/web/components/shell/providers.tsx:34-55; apps/web/lib/client/sync-store.ts:29-39 · code review, confidence high (mechanism), medium (frequency: flaky first request on PWA resume)
-**Status:** Open
+**Status:** Fixed (a65a919). How: providers.tsx retry loop
 
 ### P1-023 · Tasks / goals / routines data layer · Web + PWA
 **Tapping a just-completed task again within 600 ms completes it again instead of un-completing**
@@ -227,8 +227,8 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** Today tab, tap a checkbox twice within ~500 ms (or check then immediately uncheck).
 **Expected · Actual:** Expected the task ends up open. Actual: it stays completed, a second update op is queued, and the toast reads "2 tasks completed" for one task.
 **Cause:** while lingering, `withLingering` hands the row a copy with `completed: false`; the row renders checked (`done = task.completed || lingering`, label "Mark as not done") but passes that copy to `toggleTask`, which takes the "complete" branch and pushes the id into `batch` again.
-**Evidence:** Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-02 on desktop Chromium and webkit-iphone-15-pro: second tap leaves the task completed and the row gone · code: apps/web/lib/client/complete.ts:15-38, 41-47; apps/web/components/tasks/task-row.tsx:48-49, 91; apps/web/components/tasks/views.tsx:50 · code review, confidence high · also reported as U:A02
-**Status:** Open
+**Evidence:** Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-02 on desktop Chromium and webkit-iphone-15-pro: second tap leaves the task completed and the row gone · code: apps/web/lib/client/complete.ts:15-38, 41-47; apps/web/components/tasks/task-row.tsx:48-49, 91; apps/web/components/tasks/views.tsx:50 · code review, confidence high · also reported as U:A02
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-02
 
 ### P1-024 · Focus timer · Web + PWA
 **After a hidden/frozen tab or a cold start, the client "advances" a phase the server already advanced**
@@ -237,7 +237,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the timer reconciled from the server's `phase_ends_at` (POLISH 4.5). Actual: the stale cached state is still "running" with a past end, so 2.5 s after resume the fallback applies `advance` locally: a full-length break starts "now" (later than the 10 s grace), a completion celebration plays, and an op with a stale version is queued. The UI then jumps to the real state when the conflict answer or refetch lands.
 **Cause:** the fallback trusts cached state; nothing forces `fetchFocus` on resume before acting.
 **Evidence:** code: apps/web/components/shell/focus-ticker.tsx:24-33; apps/web/lib/client/data/focus.ts:80-104; packages/shared/src/timer.ts:284-311 · code review, confidence medium
-**Status:** Open
+**Status:** Fixed (a65a919). How: focus-ticker.tsx verifies a stale phase before advancing
 
 ### P1-025 · Focus timer · Web + PWA
 **Timer actions made offline replay with the server's clock (and stay optimistic meanwhile)**
@@ -246,7 +246,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the session to reflect when the user acted. Actual: `start` is applied at replay time, so the server timer shows 25:00 while the user is 10 minutes in, and any later queued action fails with a version conflict and snaps the UI back. A Pause made offline is local only: the server keeps running, completes the phase, sends the push and (with the extension) changes blocking.
 **Cause:** timer ops carry no action time and wait in the general FIFO queue (also behind any slow or stuck op).
 **Evidence:** code: apps/web/lib/client/outbox.ts:34, 208-214; apps/web/lib/client/data/focus.ts:96 · code review, confidence high
-**Status:** Open
+**Status:** Won't fix. By design (SPEC §9.2: the server's version check wins). Re-timing offline actions with the device clock would let a wrong clock rewrite the shared timer. See DECISIONS
 
 ### P1-026 · Session / lock · Web + PWA
 **A revoked or expired session leaves all cached data on the device, readable offline**
@@ -255,7 +255,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected A to need the PIN and hold no data. Actual: `goToLock` only removes `sp-session-meta`; the IndexedDB cache and outbox stay. The SW serves the cached shell without touching the proxy, the persisted cache hydrates and renders everything; offline, `getSession` fails with `network`, so the lock redirect never happens. Online, the data flashes before the redirect.
 **Cause:** only the explicit `leave()` clears local data.
 **Evidence:** code: apps/web/lib/client/session.ts:74-96, 131-137; apps/web/sw/sw.ts:74-83; apps/web/components/shell/providers.tsx:64-77 · code review, confidence medium
-**Status:** Open
+**Status:** Fixed (a65a919). How: session.ts clears the cached data before leaving for the PIN screen
 
 ### P1-027 · Service worker / PWA · Web + PWA
 **After "Reload" for a new version, the first page is the old HTML pointing at chunks that no longer exist**
@@ -264,7 +264,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the new version running. Actual: the new worker serves the route from `stellar-pages-v1` first, which can still hold v1 HTML (the name is not versioned and activation does not clear it). Its `/_next/static/...` hashes are not in the v2 precache and not in the runtime cache (v1 served them from its precache), so they hit the network and 404 on the new server: an unstyled, non-interactive page. The background refresh fixes the cache only for the next load; an installed iOS PWA has no reload button. Offline it stays broken.
 **Cause:** stale-while-revalidate HTML decoupled from the precache revision.
 **Evidence:** code: apps/web/sw/sw.ts:22, 26-29, 74-83; apps/web/components/shell/service-worker.tsx:16-33 · code review, confidence medium (traced; not run against two builds)
-**Status:** Open
+**Status:** Fixed (a65a919). How: sw.ts drops cached page shells on activate
 
 ### P1-028 · bugs · Web + PWA
 **Inactivity lock does not isolate the app underneath (keyboard reaches it; PIN can be typed into a task)**
@@ -273,7 +273,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the lock to swallow all input. Actual: (a) the PIN digits go into the still-focused quick-add field and Enter creates a task named with the PIN (synced to every device); the lock does not open. (b) the command bar opens invisibly under the overlay (z-90 < z-100) and runs "Add task"/navigation/"End focus session". (c) Tab moves focus into the page behind and Space activates buttons/checkboxes. (d) Space starts/pauses the timer.
 **Cause:** the overlay is only a `fixed` div. No blur of `document.activeElement`, no `inert`/aria-hidden on the app, no focus trap. PinPad's window key handler deliberately ignores events whose target is INPUT/TEXTAREA (pin-pad.tsx:64). CommandBar's ⌘K handler and FocusPage's Space handler never check `useUi.locked` (only Shortcuts does, shortcuts.tsx:28).
 **Evidence:** code: components/shell/inactivity-lock.tsx:63-77; components/auth/pin-pad.tsx:60-78; components/shell/command-bar.tsx:17-26; components/focus/focus-page.tsx:34-51 · code review, confidence high · also reported as C:33
-**Status:** Open
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-30
 
 ### P1-029 · bugs · Web + PWA
 **Swiping an open row back to the right completes the task**
@@ -281,8 +281,8 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** touch device: swipe a row left to reveal Reschedule/Delete, then swipe it right by more than 84 px to close it.
 **Expected · Actual:** Expected the row to close. Actual: the task is completed.
 **Cause:** `onDragEnd` tests `info.offset.x > COMPLETE_AT` first. `offset` is measured from the start of the gesture, not from x=0, so from the open position (x=-148) a 90 px close gesture passes the test.
-**Evidence:** Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-50 on webkit-iphone-15-pro: swiping an open row closed completes the task · code: components/tasks/task-row.tsx:69-78 · code review, confidence high
-**Status:** Open
+**Evidence:** Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-50 on webkit-iphone-15-pro: swiping an open row closed completes the task · code: components/tasks/task-row.tsx:69-78 · code review, confidence high
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-50
 
 ### P1-030 · bugs · Web + PWA
 **Task sheet writes a stale name/description over newer data**
@@ -290,8 +290,8 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** open task A, close it. Rename A in another tab/device (or let a Realtime update arrive while the sheet is open). Open A again here and tap Done without touching anything.
 **Expected · Actual:** Expected no write. Actual: the field shows the old name and `close()` → `commitName()` sends the old name back, reverting the other edit. Same for description.
 **Cause:** the form is re-seeded only when `task?.id` changes (line 37-44). `shown` keeps the previous task after close, so reopening the same id does not re-seed, and `commitName` compares the stale local state with the fresh `task.name`.
-**Evidence:** Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-21: tab B's open sheet wrote the old name back over tab A's rename · code: components/tasks/task-sheet.tsx:28-61 · code review, confidence high
-**Status:** Open
+**Evidence:** Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-21: tab B's open sheet wrote the old name back over tab A's rename · code: components/tasks/task-sheet.tsx:28-61 · code review, confidence high
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-21
 
 ### P1-031 · bugs · Web + PWA
 **Remembered PIN length auto-submits and locks a device out after the PIN length changes**
@@ -300,7 +300,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected to be able to type 8 digits. Actual: at the 6th digit PinPad auto-submits, the attempt fails and the field clears; the 7th digit can never be entered. Every try counts toward the global lockout (30 s, doubling).
 **Cause:** `sp-pin-length` is never cleared or ignored after a failed attempt; `autoSubmitLength` stays at the old length.
 **Evidence:** code: components/auth/lock-screen.tsx:12-27, 52-54, 85-99; components/auth/pin-pad.tsx:54-57 · code review, confidence high
-**Status:** Open
+**Status:** Fixed (a65a919). How: lock-screen.tsx forgets the remembered length after a failed attempt
 
 ### P1-032 · bugs · Web + PWA
 **Reordering is impossible on touch for tasks in a list, goals and block lists**
@@ -309,7 +309,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the row to lift and move. Actual: nothing; there is no way to reorder.
 **Cause:** dnd-kit listeners are spread only on the handle button, and the handle is `mouse:flex hidden` (hidden unless hover+fine pointer). The row itself has no listeners. List/goal-list cards keep a visible handle, so only those work.
 **Evidence:** code: components/tasks/list-detail.tsx:120-127; components/goals/goal-list-detail.tsx:40-49; components/focus/blocking.tsx:202-209; components/ui/sortable.tsx:89-95 · code review, confidence high
-**Status:** Open
+**Status:** Fixed (a65a919). How: drag handles shown on touch (44px); real-finger check on the iPhone list
 
 ### P1-033 · bugs · Web + PWA
 **Undo toast keeps its first timer when its content is replaced, so the Undo window can shrink to almost nothing**
@@ -318,7 +318,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected "2 tasks completed · Undo" for 5 s. Actual: the replaced toast disappears about 1 s after it updates (the first toast's timer is still running); completing at ~5 s makes it vanish immediately.
 **Cause:** `push` replaces the toast object but keeps the id, so React keeps the same `ToastItem`; the effect deps are `[toast.id, toast.duration]`, which do not change, so the timeout is not restarted. Applies to every toast with a fixed id ("task-completed", "sw-update").
 **Evidence:** code: components/ui/toaster.tsx:14-17; lib/client/toast.ts:67-80; lib/client/complete.ts:29-37 · code review, confidence high
-**Status:** Open
+**Status:** Fixed (a65a919). How: toaster.tsx timer restarts with the content
 
 ### P1-034 · bugs · Web + PWA
 **Sheets stay interactive while animating out: a fast second tap on Create/Add submits twice**
@@ -326,8 +326,8 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** desktop: New list → type a name → double-click "Create" (or double-tap on a phone before the sheet has moved away). Same for "Add goal", "Add routine", Import confirm.
 **Expected · Actual:** Expected one row. Actual: two lists/goals/routines with the same name (two imports).
 **Cause:** `onOpenChange(false)` only starts the exit animation; AnimatePresence keeps the last rendered tree mounted with its old closures (name still filled) and no `pointer-events:none`/`inert`, and none of the submit handlers has a submitted guard.
-**Evidence:** Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-04: three activations of Create within 60 ms made 3 lists · code: components/ui/sheet-impl.tsx:57-153; components/tasks/lists.tsx:125-132; components/goals/goal-sheet.tsx:39-56; components/routines/routine-sheet.tsx:96-116; components/ui/confirm.tsx:43-46; components/settings/data.tsx:53-71 · code review, confidence medium (mechanism traced; timing not measured)
-**Status:** Open
+**Evidence:** Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-04: three activations of Create within 60 ms made 3 lists · code: components/ui/sheet-impl.tsx:57-153; components/tasks/lists.tsx:125-132; components/goals/goal-sheet.tsx:39-56; components/routines/routine-sheet.tsx:96-116; components/ui/confirm.tsx:43-46; components/settings/data.tsx:53-71 · code review, confidence medium (mechanism traced; timing not measured)
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-04
 
 ### P1-035 · Server · Server / API
 **`DELETE /api/v1/routines/:id` soft-deletes, but nothing else treats routines as soft-deletable**
@@ -335,8 +335,8 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** `DELETE /api/v1/routines/<id>` → 200. `GET /api/v1/routines` no longer lists it, but `GET /api/v1/routines/days?from=…&to=…` still returns it as an instance every scheduled day, `streaks` still includes it, `GET /universe/snapshot` still draws its constellation. Query: after `update sp_routines set deleted_at = now() where id = B`, `sp_routine_days(today, today)` still listed both test routines.
 **Expected · Actual:** SPEC §5.3 and DECISIONS.md line 26 say routines hard-delete with their logs and that `sp_routines.deleted_at` is unused. Actual: the facade passes `soft = true`, so the row becomes a zombie: `sp_routine_days`, `sp__day_fraction`, `sp_routine_streaks`, `sp_routine_log_set` and `sp_universe_snapshot` never filter `deleted_at`. Because the zombie stays "scheduled and incomplete", no later day can reach 100% (the +20 day bonus is never awarded again), its logs are never removed, and `sp_purge_deleted` never purges routines, so it lasts forever.
 **Cause:** `remove(…, "sp_routines", id, true)` and `softDelete: true` in the list options, copied from the task/goal routes.
-**Evidence:** Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-61: the routine row is still in sp_routines after DELETE returns 200 · code: apps/web/app/api/v1/routines/[id]/route.ts:12-14; apps/web/app/api/v1/routines/route.ts:9-17; packages/db/migrations/0004_routines.sql:214-220, 251-302; 0006_universe.sql:278-283; 0007_sync_and_maintenance.sql:103-112 · code review, confidence high (confirmed by query)
-**Status:** Open
+**Evidence:** Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-61: the routine row is still in sp_routines after DELETE returns 200 · code: apps/web/app/api/v1/routines/[id]/route.ts:12-14; apps/web/app/api/v1/routines/route.ts:9-17; packages/db/migrations/0004_routines.sql:214-220, 251-302; 0006_universe.sql:278-283; 0007_sync_and_maintenance.sql:103-112 · code review, confidence high (confirmed by query)
+**Status:** Fixed (a65a919). Test: 12-regressions ADV-61
 
 ### P1-036 · Extension · Extension (Chrome + Firefox)
 **Offline with an expired access token is reported as "PIN needed" and hides the timer**
@@ -345,7 +345,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected "Offline" with the last known timer. Actual: status becomes `needs_pin`; the popup replaces the timer with the PIN keypad and auto-runs `find()`, which fails with "Can't reach …". Blocking continues from cache, so the user sees blocked sites and a popup that looks signed out.
 **Cause:** `db.auth.getSession()` tries to refresh; a network failure comes back as `error` with `session: null`, and the code treats any `error || !data.session` as `needs_pin` without checking `isOffline(error)`. The `offline` branch is only reachable from `fetchSnapshot`.
 **Evidence:** code: apps/extension/lib/background.ts:158-163; apps/extension/entrypoints/popup/main.tsx:482,511-512 · code review, confidence high (code + auth-js source)
-**Status:** Open
+**Status:** Fixed (a65a919). How: background.ts
 
 ### P1-037 · Extension · Extension (Chrome + Firefox)
 **No way to disconnect in `needs_pin`; a cached paused focus then blocks forever**
@@ -354,7 +354,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected a way to disconnect (which removes rules). Actual: `linked` is false so the Settings gear is hidden; the reconnect view also hides "Use a different address". `apply()` keeps enforcing the cached snapshot, and paused focus has `unblockAt: null`, so the rules never lift. Only uninstalling the extension clears them.
 **Cause:** Settings/Disconnect is gated on `linked`; paused-focus blocking has no expiry and no dependence on having a working session.
 **Evidence:** code: apps/extension/entrypoints/popup/main.tsx:482,500-512,194-203; apps/extension/lib/blocking.ts:27-28; apps/extension/lib/background.ts:159-162 · code review, confidence high (code alone)
-**Status:** Open
+**Status:** Fixed (a65a919). How: background.ts + Disconnect on the PIN screen
 
 ### P1-038 · Extension · Extension (Chrome + Firefox)
 **One unsupported regex disables all blocking (updateDynamicRules is atomic; no `isRegexSupported` check)**
@@ -363,7 +363,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected that pattern to fall back to `urlFilter` and the rest to block. Actual: if Chrome rejects one `regexFilter` (memory limit), the whole `updateDynamicRules` call rejects, so no rules are installed. `apply(snapshot)` throws inside the `try`, the catch sets status `offline` and calls `apply()` again, which throws again as an unhandled rejection. Popup shows "Offline", nothing is blocked, and it repeats every 30 s.
 **Cause:** The regex `^https?://([a-z0-9-]+\.)*<domain>(:[0-9]+)?([/?#].*)?$` is never validated with `declarativeNetRequest.isRegexSupported`, and rule installation is all-or-nothing.
 **Evidence:** code: apps/extension/lib/rules.ts:23-25,36-49; apps/extension/lib/background.ts:67-75,164-175 · code review, confidence medium (blast radius from code; which domains trip the 2 KB compiled-regex limit needs verification in Chrome)
-**Status:** Open
+**Status:** Fixed (a65a919). Test: logic.test.ts (plain-filter fallback)
 
 ### P1-039 · Universe · Web + PWA
 **A WebGL failure inside the canvas takes down the whole app (no error boundary)**
@@ -372,7 +372,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the CSS starfield to remain and the UI to keep working. Actual: R3F rethrows the error into the parent tree; `UniverseHost` sits in the root layout with no boundary, so React unmounts the root and Next shows its generic client-error screen.
 **Cause:** A decorative layer shares the app's error domain.
 **Evidence:** code: apps/web/components/universe/universe-host.tsx:164; apps/web/app/layout.tsx:52; packages/universe/src/canvas.tsx:110-141 (no `error.tsx` or `global-error.tsx` exists under apps/web/app) · code review, confidence medium (structure traced; the trigger is a device-side WebGL failure)
-**Status:** Open
+**Status:** Fixed (a65a919). How: SkyBoundary in universe-host.tsx; app/(app)/error.tsx; app/global-error.tsx
 
 ### P1-049 · Optimistic cache vs refetch / Realtime · Web + PWA
 **No explicit refresh on resume; data up to 5 minutes old (timer: 60 s) is trusted after backgrounding**
@@ -381,7 +381,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected a silent refresh on resume (POLISH 4.5). Actual: focus refetch only happens for queries past their stale time; a frozen websocket is not noticed until the heartbeat times out, and only then does the re-subscribe invalidate.
 **Cause:** resume handling relies on `staleTime` and socket rejoin.
 **Evidence:** Reproduced: perf spec, balanced run: 1,000 tasks inserted in the database, the page reloaded, and the All tab still showed only the old tasks 30 s later (persisted cache trusted for 5 minutes, no refetch on load) · code: apps/web/lib/client/cache.ts:30-34; apps/web/lib/client/realtime.ts:159-172; apps/web/lib/client/data/hooks.ts:40-44 · code review, confidence medium
-**Status:** Open
+**Status:** Fixed (a65a919). How: providers.tsx revalidates after restore and on resume
 
 ### P1-237 · Shell · Firefox
 **Firefox page crashes while walking the Tasks screens with the seeded data**
@@ -408,18 +408,18 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the list promptly and smooth scrolling. Actual with the main thread throttled 4× (phone proxy): 13.7 s before All shows the new rows on iphone-15-pro, 16,634 DOM nodes, frame p95 33–50 ms while scrolling.
 **Cause:** No windowing; every row is a motion layout component.
 **Evidence:** docs/polish/PERF.md (interaction timings, 1,000 extra tasks)
-**Status:** Open
+**Status:** Fixed (a65a919). How: progressive mounting in Tasks → All; measured in PERF.md after Phase 3
 
 ## P2 (123)
 
 ### P2-040 · Auth · Web (keyboard)
-**Digits typed quickly into the PIN screen are dropped**
+**Digits typed into the PIN screen can be dropped (before the page is interactive, or faster than it re-renders)**
 
 **What / Repro:** 1) /lock on desktop 2) type six digits about 15 ms apart (a paste-speed typist, a password manager, or a slow machine)
 **Expected · Actual:** Expected six dots and Unlock enabled. Actual: fewer digits are registered, Unlock stays disabled.
-**Cause:** PinPad reads `value` from a ref that is refreshed in an effect after render; two keydowns before the next commit both append to the same stale value.
+**Cause:** Two causes. (1) The key listener is attached after hydration, so digits typed the moment the lock screen appears go nowhere; this is what the e2e test hit. (2) PinPad read `value` from a ref refreshed in an effect after render, so two keydowns before the next commit appended to the same stale value.
 **Evidence:** e2e/02-auth.spec.ts:64 times out on firefox-desktop (every run) and on desktop Chromium under load: the 6th digit never registers, button stays disabled · code: apps/web/components/auth/pin-pad.tsx:39-58
-**Status:** Open
+**Status:** Fixed (a65a919). Test: e2e/02-auth lockout test (was flaky on every engine)
 
 ### P2-041 · Universe · iPhone PWA
 **The universe canvas is replaced after navigating on a small WebKit phone**
@@ -464,7 +464,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected second op still sent. Actual: op 1 is shifted at line 260, `onSuccess` throws inside the same `try`, the `catch` falls through to line 283 and shifts op 2 without sending it, then reports op 2 as rejected. (If the thrown error is a `TypeError`, it is treated as "offline" instead.)
 **Cause:** handler call sits inside the try that classifies transport errors.
 **Evidence:** code: apps/web/lib/client/outbox.ts:258-286 · code review, confidence low (needs `onSuccess` to throw)
-**Status:** Open
+**Status:** Fixed (a65a919). Test: outbox.test.ts (handler that throws)
 
 ### P2-046 · Optimistic cache vs refetch / Realtime · Web + PWA
 **Rollback after a rejected op only reloads the op's own table**
@@ -473,7 +473,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected everything restored. Actual: the routine/list comes back, but the logs (or the list's tasks/goals) that were removed locally stay missing until an unrelated refetch.
 **Cause:** `onError` invalidates `keys.table(op.table)` only; the dependent collections were mutated with `setRows`.
 **Evidence:** code: apps/web/lib/client/data/core.ts:267-286; apps/web/lib/client/data/routines.ts:71-95; apps/web/lib/client/data/tasks.ts:160-171; apps/web/lib/client/data/goals.ts:47-60 · code review, confidence high
-**Status:** Open
+**Status:** Fixed (a65a919). How: refreshAfter() reloads dependent collections
 
 ### P2-047 · Optimistic cache vs refetch / Realtime · Web + PWA
 **`useCollection` has no error state: a failed first load shows the skeleton forever**
@@ -499,8 +499,8 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** Two past dates, each with one completed and one open task. All tab, Show completed on.
 **Expected · Actual:** Expected one Overdue section. Actual: one per run of adjacent overdue rows; only the first is moved to the top; duplicate React keys.
 **Cause:** grouping is by adjacency after a date sort, but "overdue" spans dates.
-**Evidence:** Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-42: two regions named Overdue in All with Show completed · code: packages/shared/src/task-views.ts:91-110 · code review, confidence high (reproduced with a node snippet: keys `overdue, d:2026-11-20, d:2026-11-21, overdue`)
-**Status:** Open
+**Evidence:** Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-42: two regions named Overdue in All with Show completed · code: packages/shared/src/task-views.ts:91-110 · code review, confidence high (reproduced with a node snippet: keys `overdue, d:2026-11-20, d:2026-11-21, overdue`)
+**Status:** Fixed (a65a919). Test: task-views.test.ts; 12-regressions ADV-42
 
 ### P2-051 · Tasks / goals / routines data layer · Web + PWA
 **Today's "completed" list omits overdue tasks completed today**
@@ -518,7 +518,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **Expected · Actual:** Expected the local date. Actual: tomorrow's date is used until `sp_bootstrap` returns: today's tasks show as Overdue, and the new task is stored with tomorrow's (UTC) date.
 **Cause:** fallback is the literal `"UTC"`.
 **Evidence:** code: apps/web/lib/client/data/core.ts:28-35; apps/web/lib/client/data/hooks.ts:94-97 · code review, confidence high · also reported as U:A37
-**Status:** Open
+**Status:** Fixed (a65a919). How: remembered/device time zone; createTaskForToday
 
 ### P2-053 · Tasks / goals / routines data layer · Web + PWA
 **Rebalance refetches on a fixed 1.2 s timer, not when the RPC has run**
@@ -1026,7 +1026,7 @@ Severity: **P0** crash, data loss/corruption, security problem, core flow blocke
 **What / Repro:** send N `POST /api/v1/auth/pin` requests concurrently, each with a different PIN. Every handler runs `readLockout()` (not locked) and then awaits `verifyPin` (argon2, tens of ms, 4 libuv threads). All N are evaluated; `recordFailure()` only runs afterwards. A correct PIN anywhere in the burst succeeds and calls `clearLockout()`, even though 5+ failures were already recorded.
 **Expected · Actual:** expected at most 5 guesses before a lock. Actual: N guesses per lock window, where N is bounded only by the per-IP limiter (20/min per IP, and see finding 4). After the burst the lock is capped at 1 hour, so the attacker gets N guesses per hour. `/api/v1/auth/unlock` and `/auth/pin/change` share the same path.
 **Cause:** check-then-act across an `await`, with no serialisation and no re-check after the hash.
-**Evidence:** Not reproduced with 25 parallel requests (apps/web/e2e/audit/adversarial.spec.ts ADV-60 passes: at most 5 were evaluated on this machine); the race window exists in code but argon2 verification serialises enough here. Severity lowered to P2. · code: apps/web/lib/server/auth.ts:71-84; apps/web/lib/server/lockout.ts:65-69 · code review, confidence high for the race (traced); medium for practical scale
+**Evidence:** Not reproduced with 25 parallel requests (apps/web/e2e/12-regressions.spec.ts ADV-60 passes: at most 5 were evaluated on this machine); the race window exists in code but argon2 verification serialises enough here. Severity lowered to P2. · code: apps/web/lib/server/auth.ts:71-84; apps/web/lib/server/lockout.ts:65-69 · code review, confidence high for the race (traced); medium for practical scale
 **Status:** Open
 
 ### P2-117 · Server · Server / API

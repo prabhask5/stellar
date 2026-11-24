@@ -274,6 +274,10 @@ export const isTouch = (projectName: string) => projectName.includes("iphone");
 /** A project that gets the phone layout (tab bar, sheets). Landscape is 852px wide: the rail layout. */
 export const isPhone = (projectName: string) =>
   isTouch(projectName) && !projectName.includes("landscape");
+/** Below 1024px the task lists are a segment of the Tasks page; from there up they are a column. */
+export const listsInTab = (projectName: string) => isTouch(projectName);
+/** Date and emoji pickers open in a sheet (with Done) on every iPhone project, sideways included. */
+export const pickersInSheet = (projectName: string) => isTouch(projectName);
 export const isWebKit = (projectName: string) => projectName.startsWith("webkit");
 
 /** Enters a PIN the way the device would: keypad taps on touch, typing with a keyboard. */

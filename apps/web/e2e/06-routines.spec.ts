@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { ensureConfigured, expect, isPhone, signIn, sql, test, wipeData } from "./helpers";
+import { ensureConfigured, expect, isTouch, signIn, sql, test, wipeData } from "./helpers";
 
 const OWNER = "(select id from auth.users where email = 'owner@stellar.local')";
 const TODAY = `sp__today(${OWNER})`;
@@ -152,7 +152,8 @@ test.describe("routines", () => {
     if (past.slice(0, 7) !== t.slice(0, 7))
       await page.getByRole("button", { name: "Previous month" }).click();
     await page.getByTestId("month-calendar").locator(`[data-date="${past}"]`).click();
-    const panel = isPhone(info.project.name)
+    // Below 1024px another day opens in a sheet; from there up it replaces the inline panel.
+    const panel = isTouch(info.project.name)
       ? page.getByRole("dialog").getByTestId("day-panel")
       : page.getByTestId("day-panel").first();
     await expect(panel).toHaveAttribute("data-date", past);

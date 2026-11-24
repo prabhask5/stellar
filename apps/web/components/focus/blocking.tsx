@@ -169,7 +169,6 @@ function ListEditor({
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
           className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left"
-          aria-label={`${list.name}, ${mine.length} ${mine.length === 1 ? "site" : "sites"}`}
         >
           <span
             className="flex size-9 shrink-0 items-center justify-center rounded-chip bg-fill-subtle text-[18px]"
@@ -221,6 +220,8 @@ function ListEditor({
               Websites to block in {list.name}
             </label>
             <textarea
+              autoComplete="off"
+              enterKeyHint="enter"
               id={`sites-${list.id}`}
               rows={text.includes("\n") ? 3 : 1}
               value={text}

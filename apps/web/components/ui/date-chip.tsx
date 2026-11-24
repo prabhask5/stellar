@@ -14,7 +14,7 @@ import { type DateValue, DatePicker } from "./date-picker";
 import { CalendarIcon } from "./icons";
 import { Popover } from "./popover";
 import { Sheet } from "./sheet";
-import { useIsWide } from "./use-media";
+import { usePopoverFits } from "./use-media";
 
 export function describeDate(value: DateValue, today: DateStr): string | null {
   if (!value.date) return null;
@@ -50,7 +50,7 @@ export function DateChip({
   size = "md",
 }: DateChipProps) {
   const [open, setOpen] = useState(false);
-  const wide = useIsWide();
+  const wide = usePopoverFits();
   const text = describeDate(value, today);
 
   const chip = (

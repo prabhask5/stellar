@@ -2,8 +2,8 @@
 
 import { eraLabel, eraProgress } from "@stellar/shared";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { ComponentType } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { type ComponentType, type MouseEvent, useEffect, useRef } from "react";
 import { cx } from "@/components/ui/cx";
 import {
   FocusIcon,
@@ -35,9 +35,89 @@ export function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Where each tab was left: its address (segment, open list) and how far it was scrolled. */
+const tabMemory = new Map<string, { url: string; scroll: number }>();
+const MEMORY_KEY = "sp-tab-memory";
+
+function tabOf(pathname: string): string | null {
+  return NAV.find((n) => isActive(pathname, n.href))?.href ?? null;
+}
+
+function loadMemory(): void {
+  if (tabMemory.size > 0) return;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(MEMORY_KEY) ?? "{}") as Record<
+      string,
+      { url: string; scroll: number }
+    >;
+    for (const [k, v] of Object.entries(saved)) tabMemory.set(k, v);
+  } catch {
+    // nothing remembered
+  }
+}
+
+function saveMemory(): void {
+  try {
+    sessionStorage.setItem(MEMORY_KEY, JSON.stringify(Object.fromEntries(tabMemory)));
+  } catch {
+    // ignored
+  }
+}
+
+/**
+ * Tab behaviour of a native app:
+ *  - switching tabs returns each one as it was left: same segment, same open list, same
+ *    scroll position (the data is already in memory, so there is nothing to wait for);
+ *  - tapping the tab you are on scrolls to the top, and from the top goes back to the
+ *    tab's first screen.
+ */
+function useTabs(pathname: string) {
+  const router = useRouter();
+  const pending = useRef<number | null>(null);
+
+  // After a tab switch, put the page back where it was.
+  useEffect(() => {
+    const target = pending.current;
+    pending.current = null;
+    if (target === null) return;
+    let tries = 0;
+    const restore = () => {
+      window.scrollTo(0, target);
+      // Content may still be laying out; try until the position holds or we run out of frames.
+      if (Math.abs(window.scrollY - target) > 2 && tries++ < 12) requestAnimationFrame(restore);
+    };
+    requestAnimationFrame(restore);
+  }, [pathname]);
+
+  return (e: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    loadMemory();
+    const here = window.location.pathname + window.location.search;
+    const current = tabOf(window.location.pathname);
+    if (current === href) {
+      if (window.scrollY > 4) {
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+      } else if (here !== href) {
+        tabMemory.delete(href);
+        saveMemory();
+        router.push(href, { scroll: false });
+      }
+      return;
+    }
+    if (current) tabMemory.set(current, { url: here, scroll: window.scrollY });
+    const back = tabMemory.get(href);
+    saveMemory();
+    pending.current = back?.scroll ?? 0;
+    router.push(back?.url ?? href, { scroll: false });
+  };
+}
+
 /** Phone: floating glass pill with five destinations. */
 export function TabBar() {
   const pathname = usePathname();
+  const onTab = useTabs(pathname);
   return (
     <nav
       aria-label="Main"
@@ -56,6 +136,9 @@ export function TabBar() {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
+            onClick={(e) => onTab(e, href)}
+            draggable={false}
+            data-press="scale"
             className={cx(
               "flex min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-[24px] transition-colors duration-200",
               active ? "bg-fill-selected text-accent" : "text-fg-2 active:bg-fill-hover",
@@ -90,6 +173,7 @@ function EraCard() {
 /** Tablet: icon rail. Desktop: sidebar with labels and Era progress at the bottom. */
 export function SideNav() {
   const pathname = usePathname();
+  const onTab = useTabs(pathname);
   const settingsActive = isActive(pathname, "/settings");
   return (
     <nav
@@ -124,6 +208,8 @@ export function SideNav() {
                 aria-current={active ? "page" : undefined}
                 aria-label={label}
                 title={label}
+                onClick={(e) => onTab(e, href)}
+                draggable={false}
                 className={cx(
                   "flex h-11 items-center justify-center gap-3 rounded-button px-0 text-[15px] transition-colors duration-100 lg:h-10 lg:justify-start lg:px-3",
                   active

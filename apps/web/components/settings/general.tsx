@@ -68,6 +68,7 @@ export function GeneralSection() {
           subtitle="Used for the Life progress bar."
           trailing={
             <input
+              autoComplete="off"
               id="set-birthdate"
               type="date"
               max={today}
@@ -88,6 +89,8 @@ export function GeneralSection() {
           subtitle="In years."
           trailing={
             <input
+              autoComplete="off"
+              enterKeyHint="done"
               id="set-lifespan"
               type="number"
               inputMode="numeric"

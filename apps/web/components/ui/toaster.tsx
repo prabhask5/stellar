@@ -67,6 +67,7 @@ export function Toaster() {
   const toasts = useToasts((s) => s.toasts);
   return (
     <div
+      role="region"
       aria-label="Notifications"
       className="pointer-events-none fixed inset-x-0 z-[80] flex flex-col items-center gap-2 md:items-end"
       style={{

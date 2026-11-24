@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import { ServiceWorker } from "@/components/shell/service-worker";
+import { TouchFeel } from "@/components/shell/touch-feel";
 import { Starfield } from "@/components/sky/starfield";
 import { MotionProvider } from "@/components/ui/motion-provider";
 import { UniverseHost } from "@/components/universe/universe-host";
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <div className="sp-shell">{children}</div>
         </MotionProvider>
         <ServiceWorker />
+        <TouchFeel />
       </body>
     </html>
   );

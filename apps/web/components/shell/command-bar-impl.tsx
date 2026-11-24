@@ -172,6 +172,8 @@ export function CommandBar() {
           <div className="flex items-center gap-3 border-b border-separator px-4">
             <SearchIcon size={18} className="shrink-0 text-fg-2" />
             <input
+              autoComplete="off"
+              enterKeyHint="done"
               autoFocus
               value={query}
               onChange={(e) => {

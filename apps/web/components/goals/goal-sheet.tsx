@@ -73,6 +73,9 @@ export function GoalSheet({ open, onOpenChange, listId, goal }: GoalSheetProps) 
         />
         <FieldShell label="Description" htmlFor="goal-description" optional>
           <textarea
+            autoComplete="off"
+            enterKeyHint="enter"
+            autoCapitalize="sentences"
             id="goal-description"
             rows={2}
             maxLength={5000}

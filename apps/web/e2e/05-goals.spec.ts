@@ -157,7 +157,7 @@ test.describe("goals", () => {
     );
     await page.goto("/goals");
     await page.getByRole("button", { name: "Open Health" }).click();
-    await page.getByRole("button", { name: "Edit “Run”" }).click();
+    await page.getByRole("button", { name: "Edit Run" }).click();
     const sheet = page.getByTestId("goal-sheet");
     await sheet.getByRole("textbox", { name: "Name", exact: true }).fill("Run this year");
     await sheet.getByRole("textbox", { name: "Total" }).fill("200");
@@ -169,7 +169,7 @@ test.describe("goals", () => {
       .poll(async () => (await sql(`select name, total_amount::int as total from sp_goals`))[0])
       .toEqual({ name: "Run this year", total: 200 });
 
-    await page.getByRole("button", { name: "Edit “Run this year”" }).click();
+    await page.getByRole("button", { name: "Edit Run this year" }).click();
     await sheet.getByRole("button", { name: "Delete" }).click();
     await expect(page.getByTestId("goal-row")).toHaveCount(0);
     await page.getByRole("button", { name: "Undo" }).click();

@@ -1,5 +1,6 @@
 "use client";
 
+import { haptic } from "@/lib/client/haptics";
 import { useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { useId } from "react";
@@ -73,7 +74,10 @@ export function SegmentedControl<T extends string>({
             aria-checked={active}
             aria-label={o.hint ? `${o.label}, ${o.hint}` : undefined}
             tabIndex={active ? 0 : -1}
-            onClick={() => onChange(o.value)}
+            onClick={() => {
+              if (!active) haptic();
+              onChange(o.value);
+            }}
             className={cx(
               "relative z-10 flex items-center justify-center whitespace-nowrap rounded-thumb font-medium transition-colors duration-200",
               size === "md" ? "h-[38px] text-[15px] lg:h-[34px] lg:text-[14px]" : "h-8 text-[13px]",

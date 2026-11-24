@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { cx } from "@/components/ui/cx";
 import { GroupedList } from "@/components/ui/grouped-list";
 import { DownloadIcon } from "@/components/ui/icons";
 import { Section } from "./parts";
@@ -68,16 +68,18 @@ export function ExtensionSection() {
               {available[p.id] === false ? (
                 <span className="text-footnote text-fg-2">Not included in this build</span>
               ) : (
-                <a href={p.file} download className="contents">
-                  <Button
-                    variant="tinted"
-                    size="sm"
-                    icon={<DownloadIcon size={16} />}
-                    tabIndex={-1}
-                    disabled={available[p.id] === undefined}
-                  >
-                    Download
-                  </Button>
+                <a
+                  href={available[p.id] ? p.file : undefined}
+                  download
+                  aria-disabled={available[p.id] === undefined || undefined}
+                  className={cx(
+                    "inline-flex h-9 min-h-9 shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-chip border border-accent-line bg-accent-soft px-3 text-[14px] font-medium text-accent",
+                    "transition-[transform,background-color,opacity] duration-100 ease-out hover:bg-[rgba(246,199,110,0.2)] active:scale-[0.97]",
+                    available[p.id] === undefined && "pointer-events-none opacity-45",
+                  )}
+                >
+                  <DownloadIcon size={16} />
+                  Download
                 </a>
               )}
             </div>

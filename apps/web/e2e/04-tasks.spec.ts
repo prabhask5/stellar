@@ -2,7 +2,8 @@ import type { Page } from "@playwright/test";
 import {
   ensureConfigured,
   expect,
-  isPhone,
+  listsInTab,
+  pickersInSheet,
   isTouch,
   signIn,
   sql,
@@ -73,7 +74,7 @@ test.describe("tasks", () => {
     await expect(page.getByTestId("today-tab")).not.toContainText("Groceries item");
     await shot("tasks-today");
 
-    if (isPhone(info.project.name)) {
+    if (listsInTab(info.project.name)) {
       await openTab(page, "Lists");
       await expect(page.getByTestId("list-card")).toHaveCount(6);
       await shot("tasks-lists");
@@ -102,7 +103,7 @@ test.describe("tasks", () => {
     await name.fill("Plan the weekend");
     await page.getByRole("button", { name: /Due date/ }).click();
     await page.getByRole("button", { name: "Tomorrow", exact: true }).click();
-    if (isPhone(info.project.name)) await page.getByRole("button", { name: "Done" }).click();
+    if (pickersInSheet(info.project.name)) await page.getByRole("button", { name: "Done" }).click();
     else await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Description" }).click();
     await page.getByRole("textbox", { name: "Description" }).fill("Check the forecast");
@@ -219,7 +220,7 @@ test.describe("tasks", () => {
   test("task detail: edit, move to a list (clears dates), delete with undo", async ({ page }) => {
     await seedMockup();
     await page.goto("/tasks");
-    await page.getByRole("button", { name: "Edit “Call Mom”" }).click();
+    await page.getByRole("button", { name: "Edit Call Mom" }).click();
     const sheet = page.getByTestId("task-sheet");
     await sheet.getByLabel("Name").fill("Call Mom and Dad");
     await sheet.getByLabel("Description").fill("Ask about the trip");
@@ -244,7 +245,7 @@ test.describe("tasks", () => {
         listed: true,
       });
 
-    await page.getByRole("button", { name: "Edit “Grocery run”" }).click();
+    await page.getByRole("button", { name: "Edit Grocery run" }).click();
     await page.getByTestId("task-sheet").getByRole("button", { name: "Delete" }).click();
     await expect(page.getByTestId("today-tab")).not.toContainText("Grocery run");
     await expect
@@ -275,7 +276,7 @@ test.describe("tasks", () => {
     page,
   }, info) => {
     await page.goto("/tasks");
-    if (isPhone(info.project.name)) await openTab(page, "Lists");
+    if (listsInTab(info.project.name)) await openTab(page, "Lists");
     const panel = page.getByTestId("task-lists").filter({ visible: true });
     await expect(panel.getByText("No lists yet.")).toBeVisible();
 
@@ -334,14 +335,14 @@ test.describe("tasks", () => {
 
     // The list's tasks are nowhere else.
     await page.goBack();
-    if (isPhone(info.project.name)) await openTab(page, "All");
+    if (listsInTab(info.project.name)) await openTab(page, "All");
     else await openTab(page, "All");
     await expect(page.getByTestId("all-tab")).not.toContainText("Oat milk");
     await openTab(page, "Calendar");
     await expect(page.getByTestId("calendar-tab")).not.toContainText("Oat milk");
 
     // Delete asks first, removes the list with its tasks, and can be undone.
-    if (isPhone(info.project.name)) await openTab(page, "Lists");
+    if (listsInTab(info.project.name)) await openTab(page, "Lists");
     await page
       .getByTestId("task-lists")
       .filter({ visible: true })
@@ -399,7 +400,7 @@ test.describe("tasks", () => {
       )
       .toBe(tomorrow);
 
-    if (!isPhone(info.project.name) && sameMonth) {
+    if (!isTouch(info.project.name) && sameMonth) {
       // Desktop: drag a pill onto another day.
       const pill = cal.getByTestId("calendar-pill").filter({ hasText: "Pack a picnic" });
       const target = cal.locator(`[data-date="${today}"]`).first();

@@ -63,9 +63,9 @@ function GoalRow({
         <button
           type="button"
           onClick={() => onEdit(goal)}
-          aria-label={`Edit “${goal.name}”`}
           className="flex min-h-11 min-w-0 flex-1 flex-col justify-center py-2 text-left"
         >
+          <span className="sr-only">Edit </span>
           <span
             className={cx(
               "block truncate transition-colors duration-200",
@@ -97,12 +97,12 @@ function GoalRow({
           <button
             type="button"
             onClick={() => onEdit(goal)}
-            aria-label={`Edit “${goal.name}”`}
             className={cx(
               "max-w-full truncate text-left",
               goal.completed ? "text-fg-2" : "text-fg",
             )}
           >
+            <span className="sr-only">Edit </span>
             {goal.name}
           </button>
           <AmountLabel

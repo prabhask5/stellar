@@ -58,9 +58,10 @@ export function ListCard({
       <button
         type="button"
         onClick={onOpen}
-        aria-label={`Open ${name}`}
         className="flex flex-1 flex-col items-start rounded-card p-4 text-left"
       >
+        {/* Named by its content ("Open Groceries 3 tasks"), so what is heard contains what is seen. */}
+        <span className="sr-only">Open </span>
         <span
           className="mb-3 flex size-11 items-center justify-center rounded-[14px] bg-fill-subtle text-[22px] leading-none"
           aria-hidden="true"

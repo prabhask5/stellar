@@ -15,8 +15,9 @@ export interface SyncState {
 }
 
 export const useSync = create<SyncState>(() => ({
-  // Node also defines `navigator` (without onLine), so test for the browser explicitly.
-  online: typeof window === "undefined" ? true : navigator.onLine !== false,
+  // Starts as the server rendered it ("online"), so hydration matches; the outbox sets the
+  // real value as soon as it starts (see startOutbox).
+  online: true,
   pending: 0,
   syncing: false,
   realtime: "idle",

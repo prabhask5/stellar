@@ -5,7 +5,8 @@ import type { BrowserContext, Page } from "@playwright/test";
 import {
   ensureConfigured,
   expect,
-  isPhone,
+  listsInTab,
+  pickersInSheet,
   isTouch,
   signIn,
   sql,
@@ -56,8 +57,19 @@ test.describe("regressions", () => {
     );
     await page.goto("/tasks");
     const box = page.getByTestId("task-row").filter({ hasText: "Twice" }).getByRole("checkbox");
-    await box.click();
-    await box.click({ delay: 0 });
+    // Two taps 150 ms apart, timed inside the page so a slow engine cannot stretch the gap
+    // past the 600 ms the row lingers.
+    await expect(box).toBeVisible();
+    await box.evaluate(
+      (el: HTMLElement) =>
+        new Promise<void>((resolve) => {
+          el.click();
+          setTimeout(() => {
+            document.querySelector<HTMLElement>('[data-task="Twice"] [role="checkbox"]')?.click();
+            resolve();
+          }, 150);
+        }),
+    );
     await page.waitForTimeout(1500);
     await expect(page.getByText("2 tasks completed")).toHaveCount(0);
     await expect(page.getByTestId("task-row").filter({ hasText: "Twice" })).toBeVisible();
@@ -103,7 +115,7 @@ test.describe("regressions", () => {
 
   test("ADV-04 double-activating Create makes one list", async ({ page }, info) => {
     await page.goto("/tasks");
-    if (isPhone(info.project.name))
+    if (listsInTab(info.project.name))
       await page.getByRole("radio", { name: "Lists", exact: true }).click();
     const panel = page.getByTestId("task-lists").filter({ visible: true });
     await panel.getByRole("button", { name: "New task list" }).click();
@@ -132,11 +144,11 @@ test.describe("regressions", () => {
     await page.goto("/tasks");
     await expect(page.getByTestId("today-tab")).toContainText("Edit me");
     await goOffline(context, page);
-    await page.getByRole("button", { name: "Edit “Edit me”" }).click();
+    await page.getByRole("button", { name: "Edit Edit me" }).click();
     const sheet = page.getByTestId("task-sheet");
     await sheet.getByLabel("Name").fill("Edited offline");
     await sheet.getByRole("button", { name: "Done" }).click();
-    await page.getByRole("button", { name: "Edit “Edited offline”" }).click();
+    await page.getByRole("button", { name: "Edit Edited offline" }).click();
     await sheet.getByLabel("Description").fill("Second edit");
     await sheet.getByRole("button", { name: "Done" }).click();
     // Offline long enough to count as an offline edit (the outbox guard starts at 15 s).
@@ -197,14 +209,14 @@ test.describe("regressions", () => {
       await page.getByRole("checkbox", { name: `Complete “Offline ${n}”` }).click();
     }
     for (const n of [4, 5]) {
-      await page.getByRole("button", { name: `Edit “Seed ${n}”` }).click();
+      await page.getByRole("button", { name: `Edit Seed ${n}` }).click();
       await page.getByTestId("task-sheet").getByLabel("Name").fill(`Renamed ${n}`);
       await page.getByTestId("task-sheet").getByRole("button", { name: "Done" }).click();
       await expect(page.getByRole("dialog")).toHaveCount(0);
     }
-    await page.getByRole("button", { name: "Edit “Seed 6”" }).click();
+    await page.getByRole("button", { name: "Edit Seed 6" }).click();
     await page.getByTestId("task-sheet").getByRole("button", { name: "Delete" }).click();
-    await page.getByRole("button", { name: "Edit “Offline 10”" }).click();
+    await page.getByRole("button", { name: "Edit Offline 10" }).click();
     await page.getByTestId("task-sheet").getByRole("button", { name: "Delete" }).click();
     await page.waitForTimeout(17_000);
     // The app is killed and relaunched before the network returns.
@@ -300,10 +312,10 @@ test.describe("regressions", () => {
     const errors: string[] = [];
     page2.on("pageerror", (e) => errors.push(e.message));
     await Promise.all([page.goto("/tasks"), page2.goto("/tasks")]);
-    await page2.getByRole("button", { name: "Edit “Shared”" }).click();
+    await page2.getByRole("button", { name: "Edit Shared" }).click();
     await expect(page2.getByTestId("task-sheet")).toBeVisible();
     await page.waitForTimeout(2500); // realtime joined
-    await page.getByRole("button", { name: "Edit “Shared”" }).click();
+    await page.getByRole("button", { name: "Edit Shared" }).click();
     await page.getByTestId("task-sheet").getByRole("button", { name: "Delete" }).click();
     await expect(page2.getByTestId("today-tab")).not.toContainText("Shared", { timeout: 8000 });
     // The other tab's open editor must not resurrect or keep editing a deleted task.
@@ -329,11 +341,11 @@ test.describe("regressions", () => {
     const page2 = await other.newPage();
     await Promise.all([page.goto("/tasks"), page2.goto("/tasks")]);
     await page.waitForTimeout(2500);
-    await page2.getByRole("button", { name: "Edit “Original”" }).click();
+    await page2.getByRole("button", { name: "Edit Original" }).click();
     const sheet2 = page2.getByTestId("task-sheet");
     await expect(sheet2).toBeVisible();
     // A renames while B's sheet is open.
-    await page.getByRole("button", { name: "Edit “Original”" }).click();
+    await page.getByRole("button", { name: "Edit Original" }).click();
     await page.getByTestId("task-sheet").getByLabel("Name").fill("Renamed in A");
     await page.getByTestId("task-sheet").getByRole("button", { name: "Done" }).click();
     await expect(page2.getByTestId("today-tab")).toContainText("Renamed in A", { timeout: 8000 });
@@ -455,7 +467,7 @@ test.describe("regressions", () => {
     await name.fill("Zone tomorrow");
     await page.getByRole("button", { name: /Due date/ }).click();
     await page.getByRole("button", { name: "Tomorrow", exact: true }).click();
-    if (isPhone(info.project.name)) await page.getByRole("button", { name: "Done" }).click();
+    if (pickersInSheet(info.project.name)) await page.getByRole("button", { name: "Done" }).click();
     else await page.keyboard.press("Escape");
     await name.press("Enter");
     await expect

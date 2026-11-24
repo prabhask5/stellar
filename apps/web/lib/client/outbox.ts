@@ -574,6 +574,7 @@ export function startOutbox(): () => void {
   window.addEventListener("online", onOnline);
   window.addEventListener("offline", onOffline);
   document.addEventListener("visibilitychange", onVisible);
+  if (navigator.onLine === false) onOffline();
   void loadOutbox().then(() => flush());
   return () => {
     window.removeEventListener("online", onOnline);

@@ -7,7 +7,7 @@ import {
   DATABASE_URL,
   enterPin,
   expect,
-  isPhone,
+  isTouch,
   PIN,
   resetInstance,
   SERVICE_KEY,
@@ -79,7 +79,7 @@ test.describe("setup wizard", () => {
 
     // PIN: entered twice; a mismatch starts over.
     await expect(page.getByRole("heading", { name: "Create your PIN" })).toBeVisible();
-    if (isPhone(info.project.name)) await expect(page.getByLabel("Keypad")).toBeVisible();
+    if (isTouch(info.project.name)) await expect(page.getByLabel("Keypad")).toBeVisible();
     else await expect(page.getByText("Type your PIN, then press Enter.")).toBeVisible();
     await shot("setup-4-pin");
     await enterPin(page, PIN, info.project.name);

@@ -4,11 +4,224 @@
   "severity": "P2"
  },
  "C:19": {
-  "status": "Open",
-  "severity": "P1"
+  "status": "Fixed",
+  "severity": "P1",
+  "commit": "a65a919",
+  "note": "How: providers.tsx revalidates after restore and on resume"
  },
  "X:E28": {
   "status": "Won't fix",
   "note": "Not a bug: the redirect works in a real Firefox (see evidence)"
+ },
+ "C:1": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-10/11/12; outbox.test.ts"
+ },
+ "C:3": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: outbox.test.ts (P0-002 cases); migration 0010"
+ },
+ "S:1": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: lib/server/setup.test.ts"
+ },
+ "D:tz-today": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-40; e2e 03/04/06 on WebKit after UTC midnight"
+ },
+ "D:land-lock": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: layout change; verified with the landscape project in the next batch"
+ },
+ "C:2": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: outbox.test.ts (P1-011)"
+ },
+ "C:4": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-14"
+ },
+ "C:5": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: outbox.test.ts (P1-013); packages/db behaviour.test.ts"
+ },
+ "C:6": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-13"
+ },
+ "C:8": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: confirmation and offline refusal in Settings → Security (manual check on the iPhone list)"
+ },
+ "C:9": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-12 (relaunch while offline, then reconnect)"
+ },
+ "C:10": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: covered by the merge in loadCollection; 12-regressions ADV-12"
+ },
+ "C:11": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: realtime.ts ignores events older than the cached row; 12-regressions ADV-03"
+ },
+ "C:12": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-03"
+ },
+ "C:13": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: cache.ts setRows + realtime guard"
+ },
+ "C:15": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: paged loading in data/core.ts"
+ },
+ "C:18": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: providers.tsx retry loop"
+ },
+ "C:20": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-02"
+ },
+ "C:28": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: focus-ticker.tsx verifies a stale phase before advancing"
+ },
+ "C:34": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: session.ts clears the cached data before leaving for the PIN screen"
+ },
+ "C:38": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: sw.ts drops cached page shells on activate"
+ },
+ "U:A01": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-30"
+ },
+ "U:A03": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-50"
+ },
+ "U:A04": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-21"
+ },
+ "U:A05": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: lock-screen.tsx forgets the remembered length after a failed attempt"
+ },
+ "U:A06": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: drag handles shown on touch (44px); real-finger check on the iPhone list"
+ },
+ "U:A07": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: toaster.tsx timer restarts with the content"
+ },
+ "U:A08": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-04"
+ },
+ "S:2": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: 12-regressions ADV-61"
+ },
+ "X:E1": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: background.ts"
+ },
+ "X:E2": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: background.ts + Disconnect on the PIN screen"
+ },
+ "X:E3": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: logic.test.ts (plain-filter fallback)"
+ },
+ "X:U1": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: SkyBoundary in universe-host.tsx; app/(app)/error.tsx; app/global-error.tsx"
+ },
+ "D:pin-fast": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: e2e/02-auth lockout test (was flaky on every engine)"
+ },
+ "C:21": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: task-views.test.ts; 12-regressions ADV-42"
+ },
+ "C:7": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "Test: outbox.test.ts (handler that throws)"
+ },
+ "C:14": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: refreshAfter() reloads dependent collections"
+ },
+ "C:23": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: remembered/device time zone; createTaskForToday"
+ },
+ "D:thousand": {
+  "status": "Fixed",
+  "commit": "a65a919",
+  "note": "How: progressive mounting in Tasks → All; measured in PERF.md after Phase 3"
+ },
+ "C:29": {
+  "status": "Won't fix",
+  "note": "By design (SPEC §9.2: the server's version check wins). Re-timing offline actions with the device clock would let a wrong clock rewrite the shared timer. See DECISIONS"
+ },
+ "D:ff-skip": {
+  "status": "Won't fix",
+  "note": "Not a product bug: the test's two clicks were far enough apart in Firefox for the second to be a legitimate second skip. The test now schedules both for the same instant"
+ },
+ "D:ff-paste": {
+  "status": "Won't fix",
+  "note": "Not a product bug: Firefox ignores clipboardData in a synthetic ClipboardEvent. The test is now engine-independent and the handler tolerates a missing clipboardData"
+ },
+ "D:wk-manual-sql": {
+  "status": "Won't fix",
+  "note": "Not a product bug: WebKit does not offer requests to page.route once a service worker controls the page, so the stub never applied and the real migration ran. The test now runs without a worker. The wizard's stream handling was hardened anyway (no-stream fallback, trailing line, dropped connection)"
  }
 }

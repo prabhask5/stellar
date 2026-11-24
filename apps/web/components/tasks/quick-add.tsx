@@ -12,7 +12,7 @@ import { inputClass } from "@/components/ui/field";
 import { CheckIcon, GridIcon, TextIcon } from "@/components/ui/icons";
 import { Popover } from "@/components/ui/popover";
 import { Sheet } from "@/components/ui/sheet";
-import { useIsWide } from "@/components/ui/use-media";
+import { usePopoverFits } from "@/components/ui/use-media";
 import { createTask, createTaskForToday } from "@/lib/client/data/tasks";
 import { useUi } from "@/lib/client/ui-store";
 
@@ -50,9 +50,31 @@ export function QuickAddBar({
   const [descOpen, setDescOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const wide = useIsWide();
+  const wide = usePopoverFits();
   const nonce = useUi((s) => s.quickAddNonce);
   const touched = useRef(false);
+
+  // A name typed but not yet added survives the app being closed (iOS ends background apps).
+  const draftKey = fixedListId ? `sp-draft-quickadd:${fixedListId}` : "sp-draft-quickadd";
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(draftKey) ?? "null") as {
+        name: string;
+        at: number;
+      } | null;
+      if (saved?.name && Date.now() - saved.at < 6 * 3_600_000) setName((n) => n || saved.name);
+    } catch {
+      // ignored
+    }
+  }, [draftKey]);
+  useEffect(() => {
+    try {
+      if (name.trim()) localStorage.setItem(draftKey, JSON.stringify({ name, at: Date.now() }));
+      else localStorage.removeItem(draftKey);
+    } catch {
+      // ignored
+    }
+  }, [name, draftKey]);
 
   // Follow the tab's default date until the user picks one themselves.
   useEffect(() => {
@@ -100,6 +122,9 @@ export function QuickAddBar({
         Description
       </label>
       <textarea
+        autoComplete="off"
+        enterKeyHint="enter"
+        autoCapitalize="sentences"
         id="qa-description"
         autoFocus
         rows={3}

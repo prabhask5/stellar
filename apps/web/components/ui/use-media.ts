@@ -17,6 +17,12 @@ export function useMediaQuery(query: string): boolean {
 
 /** ≥768px: sheets become centred dialogs, the tab bar becomes a rail. */
 export const useIsWide = () => useMediaQuery("(min-width: 768px)");
+/**
+ * Room for a popover beside its trigger: a wide and reasonably tall viewport. A phone held
+ * sideways is wide but only ~390px high, where a calendar or emoji grid cannot fit next to
+ * anything; pickers open in a sheet there, as they do on a phone held upright.
+ */
+export const usePopoverFits = () => useMediaQuery("(min-width: 768px) and (min-height: 600px)");
 /** ≥1024px: sidebar and multi-column layouts. */
 export const useIsDesktop = () => useMediaQuery("(min-width: 1024px)");
 export const useIsTouch = () => useMediaQuery("(pointer: coarse)");

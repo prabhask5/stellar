@@ -6,7 +6,16 @@ import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { seedPolish } from "../seed-polish";
-import { ensureConfigured, expect, isPhone, signIn, sql, test, wipeData } from "../helpers";
+import {
+  ensureConfigured,
+  expect,
+  isPhone,
+  listsInTab,
+  signIn,
+  sql,
+  test,
+  wipeData,
+} from "../helpers";
 
 const OUT = path.resolve(import.meta.dirname, "../../../../docs/polish/data");
 
@@ -192,7 +201,7 @@ test.describe("scan", () => {
     });
     await step("tasks/task-sheet", async () => {
       await page
-        .getByRole("button", { name: /^Edit “/ })
+        .getByRole("button", { name: /^Edit / })
         .first()
         .click();
       await expect(page.getByTestId("task-sheet")).toBeVisible();
@@ -214,7 +223,8 @@ test.describe("scan", () => {
       await page.waitForTimeout(500);
     });
     await step("tasks/lists", async () => {
-      if (phone) await page.getByRole("radio", { name: "Lists", exact: true }).click();
+      if (listsInTab(info.project.name))
+        await page.getByRole("radio", { name: "Lists", exact: true }).click();
       await expect(page.getByTestId("list-card").first()).toBeVisible();
     });
     await step("tasks/new-list-sheet", async () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { haptic } from "@/lib/client/haptics";
 import type { FocusSettings, FocusState } from "@stellar/db";
 import {
   formatClock,
@@ -133,7 +134,10 @@ function RoundButton({
       aria-label={label}
       title={label}
       disabled={disabled}
-      onClick={onClick}
+      onClick={() => {
+        haptic();
+        onClick();
+      }}
       className={cx(
         "flex items-center justify-center rounded-full transition-[transform,background-color,opacity] duration-100 ease-out active:scale-[0.94] disabled:opacity-35 disabled:active:scale-100",
         primary

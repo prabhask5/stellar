@@ -4,6 +4,21 @@ import { EmojiPicker as Frimousse } from "frimousse";
 import { SearchIcon } from "./icons";
 
 /** The lazily loaded picker body. Data comes from /emoji (self-hosted), never a CDN. */
+/**
+ * The picker library numbers grid rows and columns from 0; ARIA counts from 1, and a
+ * 0 is an invalid value that assistive technology may reject. Shift them here.
+ */
+function oneBased<T extends object>(props: T): T {
+  const out = { ...props } as Record<string, unknown>;
+  for (const key of ["aria-rowindex", "aria-colindex"]) {
+    const v = out[key];
+    if (typeof v === "number") out[key] = v + 1;
+    else if (typeof v === "string" && v !== "" && Number.isFinite(Number(v)))
+      out[key] = Number(v) + 1;
+  }
+  return out as T;
+}
+
 export function EmojiGrid({
   recent,
   onSelect,
@@ -65,19 +80,22 @@ export function EmojiGrid({
           className="select-none pb-3"
           components={{
             CategoryHeader: ({ category, ...props }) => (
-              <div className="bg-[#16123a] px-3 pb-1.5 pt-3 text-caption text-fg-2" {...props}>
+              <div
+                className="bg-[#16123a] px-3 pb-1.5 pt-3 text-caption text-fg-2"
+                {...oneBased(props)}
+              >
                 {category.label}
               </div>
             ),
             Row: ({ children, ...props }) => (
-              <div className="scroll-my-1.5 px-2" {...props}>
+              <div className="scroll-my-1.5 px-2" {...oneBased(props)}>
                 {children}
               </div>
             ),
             Emoji: ({ emoji, ...props }) => (
               <button
                 className="flex aspect-square min-w-0 flex-1 items-center justify-center rounded-thumb text-[22px] data-[active]:bg-fill-thumb"
-                {...props}
+                {...oneBased(props)}
               >
                 {emoji.emoji}
               </button>

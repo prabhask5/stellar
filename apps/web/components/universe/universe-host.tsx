@@ -1,7 +1,7 @@
 "use client";
 
 import { gpuTierFromRenderer, selectTier, type DeviceSignals } from "@stellar/universe/quality";
-import { universeStore } from "@stellar/universe/store";
+import { capTier, sceneSignals, universeStore } from "@stellar/universe/store";
 import { Component, type ComponentType, type ReactNode, useEffect, useState } from "react";
 import { useStore } from "zustand";
 
@@ -16,16 +16,49 @@ const whenIdle: Idle = (cb) => {
   else setTimeout(cb, 600);
 };
 
-function detectGpu(): { tier: 0 | 1 | 2 | 3; webgl: boolean } {
+/** The tier for a setting on this device; Auto also respects what the frame governor learned. */
+function resolveTier(setting: Parameters<typeof selectTier>[0], signals: DeviceSignals) {
+  const tier = selectTier(setting, signals);
+  return setting === "auto" ? capTier(tier) : tier;
+}
+
+type Gpu = { tier: 0 | 1 | 2 | 3; webgl: boolean };
+const GPU_KEY = "sp-gpu";
+
+/**
+ * Classifies the GPU once per browser session. Probing needs a throwaway WebGL context;
+ * doing that on every page load is wasted work (and Firefox logs each one as a lost
+ * context), so the answer is kept for the session.
+ */
+function detectGpu(): Gpu {
+  try {
+    const saved = sessionStorage.getItem(GPU_KEY);
+    if (saved) return JSON.parse(saved) as Gpu;
+  } catch {
+    // no storage: probe every time
+  }
+  const result = probeGpu();
+  try {
+    sessionStorage.setItem(GPU_KEY, JSON.stringify(result));
+  } catch {
+    // ignored
+  }
+  return result;
+}
+
+function probeGpu(): Gpu {
   try {
     const canvas = document.createElement("canvas");
     const gl = (canvas.getContext("webgl2") ??
       canvas.getContext("webgl")) as WebGLRenderingContext | null;
     if (!gl) return { tier: 0, webgl: false };
-    const info = gl.getExtension("WEBGL_debug_renderer_info");
-    const renderer = info
-      ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL))
-      : String(gl.getParameter(gl.RENDERER));
+    // Firefox reports the real renderer through RENDERER and warns that the debug
+    // extension is deprecated; other engines mask RENDERER and need the extension.
+    let renderer = String(gl.getParameter(gl.RENDERER) ?? "");
+    if (!/firefox/i.test(navigator.userAgent)) {
+      const info = gl.getExtension("WEBGL_debug_renderer_info");
+      if (info) renderer = String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL));
+    }
     const tier = gpuTierFromRenderer(renderer, Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)));
     gl.getExtension("WEBGL_lose_context")?.loseContext();
     return { tier, webgl: true };
@@ -103,7 +136,7 @@ export function UniverseHost() {
     void readSignals().then((signals) => {
       if (cancelled) return;
       universeStore.setState({
-        tier: selectTier(setting, signals),
+        tier: resolveTier(setting, signals),
         reducedMotion: signals.reducedMotion,
         ready: false,
       });
@@ -114,7 +147,7 @@ export function UniverseHost() {
         (signals) =>
           !cancelled &&
           universeStore.setState({
-            tier: selectTier(setting, signals),
+            tier: resolveTier(setting, signals),
             reducedMotion: signals.reducedMotion,
           }),
       );
@@ -171,6 +204,40 @@ export function UniverseHost() {
       if (timer) clearTimeout(timer);
     };
   }, [active, tier, Canvas]);
+
+  // The sky yields to the interface: while a finger is scrolling or dragging, while keys
+  // are being typed and while a sheet is moving, the scene holds its frame so the main
+  // thread and the GPU belong to the interaction. It picks up again a moment after.
+  useEffect(() => {
+    const yieldFor = (ms: number) => {
+      sceneSignals.yieldUntil = Math.max(sceneSignals.yieldUntil, performance.now() + ms);
+    };
+    const onScroll = () => yieldFor(220);
+    const onTouch = (e: Event) => {
+      // Dragging the universe itself on the home stage is the one touch that needs frames.
+      if ((e.target as Element | null)?.closest?.("[data-universe-stage]")) return;
+      yieldFor(260);
+    };
+    const onKey = () => yieldFor(300);
+    const opts = { passive: true, capture: true } as const;
+    window.addEventListener("scroll", onScroll, opts);
+    window.addEventListener("wheel", onScroll, opts);
+    window.addEventListener("touchstart", onTouch, opts);
+    window.addEventListener("touchmove", onTouch, opts);
+    window.addEventListener("keydown", onKey, opts);
+    // Sheets, dialogs and popovers mount in portals on <body>: their arrival and
+    // departure is the start of an animation.
+    const portals = new MutationObserver(() => yieldFor(450));
+    portals.observe(document.body, { childList: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll, opts);
+      window.removeEventListener("wheel", onScroll, opts);
+      window.removeEventListener("touchstart", onTouch, opts);
+      window.removeEventListener("touchmove", onTouch, opts);
+      window.removeEventListener("keydown", onKey, opts);
+      portals.disconnect();
+    };
+  }, []);
 
   // Pause rendering while the tab is hidden, and while typing on a phone.
   useEffect(() => {

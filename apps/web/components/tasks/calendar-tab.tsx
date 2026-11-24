@@ -179,7 +179,7 @@ function DayCell({
               ? "bg-accent font-semibold text-accent-ink"
               : inMonth
                 ? "text-fg"
-                : "text-fg-2/45",
+                : "text-fg-2/80",
           )}
         >
           {day}

@@ -444,10 +444,17 @@ export class UniverseScene {
       group.remove(child);
       child.traverse((o) => {
         const m = o as THREE.Mesh;
-        if (m.geometry && m.geometry !== this.planetGeometry) m.geometry.dispose();
+        // Sprites share one geometry inside three.js, and planets share ours.
+        if (m.geometry && m.geometry !== this.planetGeometry && !(o instanceof THREE.Sprite))
+          m.geometry.dispose();
         const material = m.material as THREE.Material | THREE.Material[] | undefined;
-        if (Array.isArray(material)) material.forEach((x) => x.dispose());
-        else material?.dispose();
+        // Textures are not released with their material; the per-object glow sprites
+        // would otherwise pile up on the GPU with every rebuild.
+        for (const x of Array.isArray(material) ? material : material ? [material] : []) {
+          const map = (x as THREE.Material & { map?: THREE.Texture | null }).map;
+          map?.dispose();
+          x.dispose();
+        }
       });
     }
   }

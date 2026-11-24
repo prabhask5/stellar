@@ -281,7 +281,7 @@ test.describe("focus", () => {
     await page.getByRole("button", { name: "Create" }).click();
 
     const list = page.getByTestId("block-list").filter({ hasText: "Social" });
-    await list.getByRole("button", { name: /Social, 0 sites/ }).click();
+    await list.getByRole("button", { name: /Social 0 sites?/ }).click();
     const box = list.getByLabel("Websites to block in Social");
 
     await box.fill("bad_domain.com");

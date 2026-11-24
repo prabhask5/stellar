@@ -164,6 +164,9 @@ export function RoutineSheet({ open, onOpenChange, routine, today, weekStart }: 
           </div>
           <FieldShell label="Description" htmlFor="routine-description" optional>
             <textarea
+              autoComplete="off"
+              enterKeyHint="enter"
+              autoCapitalize="sentences"
               id="routine-description"
               rows={2}
               maxLength={5000}
@@ -259,6 +262,8 @@ export function RoutineSheet({ open, onOpenChange, routine, today, weekStart }: 
               <label className="flex items-center gap-2 text-[15px] text-fg-2">
                 Every
                 <input
+                  autoComplete="off"
+                  enterKeyHint="done"
                   aria-label="Interval in days"
                   inputMode="numeric"
                   value={interval}

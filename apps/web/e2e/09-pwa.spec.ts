@@ -135,7 +135,12 @@ test.describe("PWA", () => {
     // A route never opened in this session still boots offline, and says so.
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings", level: 1 })).toBeVisible();
-    await expect(page.getByRole("status").filter({ hasText: /Offline/ })).toBeVisible();
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: /Offline/ })
+        .first(),
+    ).toBeVisible();
     await page.goto("/focus");
     await expect(page.getByTestId("timer-clock")).toHaveText("25:00");
     // The timer works offline too.
