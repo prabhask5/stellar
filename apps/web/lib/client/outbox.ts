@@ -1,3 +1,4 @@
+import { isDemo } from "./demo";
 import { createStore, del, entries, set, setMany } from "idb-keyval";
 import type { CollectionTable } from "./cache";
 import { recordSync } from "./diagnostics";
@@ -217,6 +218,7 @@ async function mergeFromStore(): Promise<void> {
 
 /** Loads operations left over from a previous session. */
 export function loadOutbox(): Promise<void> {
+  if (isDemo()) return Promise.resolve();
   if (!loaded) {
     loaded = mergeFromStore().then(publish);
   }
@@ -231,6 +233,9 @@ export function enqueue(op: Op): QueuedOp {
   const at = serverNow();
   seqCounter = (seqCounter + 1) % 1000;
   const item: QueuedOp = { id: newId(), at, op, seq: at * 1000 + seqCounter };
+  // Demo mode: the change has already been applied on screen, and that is all there is to
+  // it. Nothing is queued, stored or sent.
+  if (isDemo()) return item;
   queue.push(item);
   persistItem(item);
   publish();
@@ -516,6 +521,7 @@ interface LockManagerLike {
 
 /** Sends queued operations in order. Stops at the first failure that can heal and retries later. */
 export async function flush(): Promise<void> {
+  if (isDemo()) return;
   // Claim the flush synchronously: a second caller must not start while this one is still loading.
   if (flushing) return;
   flushing = true;
@@ -563,6 +569,7 @@ if (channel) {
 
 /** Wires connectivity events. Call once on app start. */
 export function startOutbox(): () => void {
+  if (isDemo()) return () => {};
   const onOnline = () => {
     useSync.setState({ online: true });
     retryDelay = 2000;

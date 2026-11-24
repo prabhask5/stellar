@@ -1,3 +1,4 @@
+import { DemoError, isDemo, refuseInDemo } from "./demo";
 import type { Database } from "@stellar/db";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAccessToken, readMeta } from "./session";
@@ -14,6 +15,7 @@ let client: { key: string; db: Db } | null = null;
  * not part of the JavaScript a page needs before it can paint.
  */
 export async function getSupabase(): Promise<Db> {
+  refuseInDemo();
   const meta = readMeta();
   if (!meta) throw new Error("No session yet");
   const key = `${meta.supabaseUrl}|${meta.supabaseAnonKey}`;
@@ -38,6 +40,7 @@ export const REQUEST_TIMEOUT_MS = 20_000;
  * every query behind it for good.
  */
 export function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (isDemo()) return Promise.reject(new DemoError());
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(new DOMException("Request timed out", "TimeoutError")),

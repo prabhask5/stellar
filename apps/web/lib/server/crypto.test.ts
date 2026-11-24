@@ -297,3 +297,23 @@ describe("polish pass 1: server hardening", () => {
     expect(normalizePublicUrl(undefined)).toBeNull();
   });
 });
+
+describe("vapidSubject", () => {
+  it("is always a mailto on a public-looking host (Apple refuses anything else)", async () => {
+    const { vapidSubject } = await import("./push");
+    expect(vapidSubject("https://planner.example.org")).toBe(
+      "mailto:notifications@planner.example.org",
+    );
+    expect(vapidSubject("https://planner.example.org:8443/app")).toBe(
+      "mailto:notifications@planner.example.org",
+    );
+    for (const url of [
+      null,
+      "http://localhost:3000",
+      "https://stellar.local",
+      "https://192.168.1.20",
+      "nonsense",
+    ])
+      expect(vapidSubject(url)).toBe("mailto:notifications@example.com");
+  });
+});

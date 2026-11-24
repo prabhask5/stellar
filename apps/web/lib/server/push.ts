@@ -16,10 +16,24 @@ export interface PushMessage {
   url?: string;
 }
 
-function subject(config: ReadyConfig): string {
-  return config.publicAppUrl?.startsWith("https://")
-    ? config.publicAppUrl
-    : "mailto:owner@stellar.local";
+/**
+ * The contact address signed into every push (the VAPID `sub` claim). Apple's push service
+ * rejects the whole request with 403 BadJwtToken when it does not look like a real address:
+ * a `.local` or `localhost` host is enough. So it is always a plain mailto on a public
+ * host: the instance's own when it has one, a reserved example domain otherwise.
+ */
+export function vapidSubject(publicAppUrl: string | null): string {
+  let host: string;
+  try {
+    host = publicAppUrl ? new URL(publicAppUrl).hostname.toLowerCase() : "";
+  } catch {
+    host = "";
+  }
+  const isPublic =
+    /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) &&
+    !/^\d+(\.\d+){3}$/.test(host) &&
+    !/\.(local|localhost|internal|lan|home|test|invalid|example)$/.test(host);
+  return `mailto:notifications@${isPublic ? host : "example.com"}`;
 }
 
 export interface PushResult {
@@ -72,7 +86,7 @@ export async function sendPush(
           payload,
           {
             vapidDetails: {
-              subject: subject(config),
+              subject: vapidSubject(config.publicAppUrl),
               publicKey: config.vapid!.publicKey,
               privateKey: config.vapid!.privateKey,
             },

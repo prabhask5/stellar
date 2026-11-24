@@ -5,7 +5,14 @@ import { type DateStr, todayIn, type UniverseSnapshot, type WeekStart } from "@s
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { create } from "zustand";
-import { type Collections, type CollectionTable, type FocusCache, keys } from "../cache";
+import {
+  type Collections,
+  type CollectionTable,
+  type FocusCache,
+  keys,
+  queryClient,
+} from "../cache";
+import { isDemo } from "../demo";
 import { serverNow, setServerSkew } from "../session";
 import { getSupabase } from "../supabase";
 import { fallbackTimeZone, fetchFocus, fetchSettings, loadCollection } from "./core";
@@ -44,6 +51,7 @@ export function useFocus(): FocusCache | undefined {
 }
 
 async function fetchUniverse(): Promise<UniverseSnapshot> {
+  if (isDemo()) return queryClient.getQueryData<UniverseSnapshot>(keys.universe)!;
   const { data, error } = await (await getSupabase()).rpc("sp_universe_snapshot");
   if (error) throw Object.assign(new Error(error.message), error);
   const snapshot = data as unknown as UniverseSnapshot;

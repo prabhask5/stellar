@@ -1,12 +1,15 @@
 "use client";
 
+import { QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { type ReactNode, useEffect, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useKeyboardInset, useSettledViewport } from "@/components/ui/use-media";
 import { ApiRequestError } from "@/lib/client/api";
 import { queryClient } from "@/lib/client/cache";
 import "@/lib/client/data/core";
 import { useReady } from "@/lib/client/data/hooks";
+import { isDemo } from "@/lib/client/demo";
+import { whenIdle } from "@/lib/client/idle";
 import { deviceKind } from "@/lib/client/device";
 import { startOutbox } from "@/lib/client/outbox";
 import { createIdbPersister } from "@/lib/client/persist";
@@ -26,6 +29,49 @@ const RESUME_REFRESH_MS = 20_000;
  * warm cache the screen is populated before the network answers.
  */
 export function Providers({ children }: { children: ReactNode }) {
+  // Read once, on the client. The two branches render the same markup on the first frame
+  // (no data yet), so hydration is unaffected and the live app pays nothing for this.
+  const [demo] = useState(isDemo);
+  return demo ? (
+    <DemoProviders>{children}</DemoProviders>
+  ) : (
+    <LiveProviders>{children}</LiveProviders>
+  );
+}
+
+/**
+ * Demo mode: sample data in memory, and none of the machinery that talks to the server or
+ * to this browser's stored copy of the owner's data (no persisted cache, no session, no
+ * sync queue, no Realtime).
+ */
+function DemoProviders({ children }: { children: ReactNode }) {
+  useKeyboardInset();
+  useSettledViewport();
+  useEffect(() => {
+    let cancelled = false;
+    // Nothing may refetch: there is nowhere to fetch from.
+    queryClient.setDefaultOptions({
+      queries: {
+        staleTime: Infinity,
+        gcTime: Infinity,
+        retry: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+      },
+    });
+    void import("@/lib/client/demo-data").then((m) => {
+      if (cancelled) return;
+      m.seedDemo();
+      useReady.setState({ ready: true });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+
+function LiveProviders({ children }: { children: ReactNode }) {
   const persister = useMemo(() => createIdbPersister(), []);
   useKeyboardInset();
   useSettledViewport();
@@ -60,6 +106,11 @@ export function Providers({ children }: { children: ReactNode }) {
         });
     };
     connect();
+    // A device with notifications on makes sure the server still has a working
+    // registration for it (see syncPush), whichever screen the app opens on.
+    const cancelSync = whenIdle(() => {
+      void import("@/lib/client/push").then((m) => m.syncPush()).catch(() => {});
+    }, 6000);
     const onOnline = () => {
       delay = 2000;
       connect();
@@ -90,6 +141,7 @@ export function Providers({ children }: { children: ReactNode }) {
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pageshow", onPageShow);
+      cancelSync();
       stopOutbox();
       stopRealtime?.();
     };

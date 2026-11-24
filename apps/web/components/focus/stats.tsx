@@ -23,11 +23,13 @@ interface Stats {
 import { GlassCard } from "@/components/ui/glass-card";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { keys, queryClient } from "@/lib/client/cache";
+import { isDemo } from "@/lib/client/demo";
 import { useReady, useTimeZone, useToday } from "@/lib/client/data/hooks";
 import { serverNow } from "@/lib/client/session";
 import { getSupabase } from "@/lib/client/supabase";
 
 async function fetchStats(days: number) {
+  if (isDemo()) return queryClient.getQueryData<Stats>(keys.focusStats(days))!;
   const { data, error } = await (await getSupabase()).rpc("sp_focus_stats", { p_days: days });
   if (error) throw Object.assign(new Error(error.message), error);
   return data as unknown as Stats;

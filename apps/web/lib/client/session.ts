@@ -1,3 +1,4 @@
+import { DemoError, isDemo } from "./demo";
 import { api, ApiRequestError } from "./api";
 
 /** What the page knows about its session. The refresh token never reaches JavaScript. */
@@ -51,6 +52,7 @@ export function setServerSkew(serverTime: string | number, localAt = Date.now())
 }
 
 export function readMeta(): SessionMeta | null {
+  if (isDemo()) return null;
   if (current) {
     const { accessToken: _a, expiresAt: _e, ...meta } = current;
     return meta;
@@ -86,7 +88,7 @@ function fresh(session: WebSession | null): session is WebSession {
 
 /** Sends the browser to the PIN screen, remembering where it was. */
 export function goToLock(): void {
-  if (signedOut || typeof window === "undefined") return;
+  if (signedOut || typeof window === "undefined" || isDemo()) return;
   signedOut = true;
   clearSessionState();
   const here = window.location.pathname + window.location.search;
@@ -132,6 +134,7 @@ async function fetchSession(): Promise<WebSession> {
  * `network` when offline.
  */
 export function getSession(force = false): Promise<WebSession> {
+  if (isDemo()) return Promise.reject(new DemoError());
   if (!force && fresh(current)) return Promise.resolve(current);
   if (!inflight) {
     inflight = fetchSession()

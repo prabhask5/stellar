@@ -13,6 +13,7 @@ import {
   touchUniverse,
   upsertRow,
 } from "../cache";
+import { isDemo } from "../demo";
 import { configureOutbox, enqueue, hasPending, type QueuedOp } from "../outbox";
 import { readMeta, serverNow, setServerSkew } from "../session";
 import { describeError, getSupabase } from "../supabase";
@@ -209,6 +210,8 @@ const takeServer = new Set<string>();
 export async function loadCollection<T extends CollectionTable>(
   table: T,
 ): Promise<Collections[T][]> {
+  // Demo mode has no server: what is in memory is the data.
+  if (isDemo()) return getRows(table);
   const startedAt = serverNow();
   const fetched = await fetchCollection(table);
   const cached = queryClient.getQueryData<Collections[T][]>(keys.table(table));
@@ -245,6 +248,7 @@ export function reloadFromServer(table: CollectionTable): void {
 }
 
 export async function fetchSettings(): Promise<Settings> {
+  if (isDemo()) return queryClient.getQueryData<Settings>(keys.settings)!;
   const db = await getSupabase();
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const boot = check(await db.rpc("sp_bootstrap", { p_timezone: zone })) as unknown as {
@@ -266,6 +270,7 @@ export async function fetchSettings(): Promise<Settings> {
 }
 
 export async function fetchFocus(): Promise<FocusCache> {
+  if (isDemo()) return queryClient.getQueryData<FocusCache>(keys.focus)!;
   const db = await getSupabase();
   const startedAt = Date.now();
   const res = check(await db.rpc("sp_focus_get")) as unknown as {

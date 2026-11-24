@@ -1,3 +1,4 @@
+import { refuseInDemo } from "./demo";
 import type { ErrorBody, ErrorCode } from "@stellar/shared";
 
 /** Error thrown for any non-2xx answer from our own API. */
@@ -30,6 +31,7 @@ export interface ApiOptions {
 
 /** Same-origin JSON call with the `{ error: { code, message } }` envelope turned into a typed error. */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  refuseInDemo();
   let res: Response;
   try {
     res = await fetch(path, {

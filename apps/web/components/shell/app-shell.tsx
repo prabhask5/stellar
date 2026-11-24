@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { UniverseBridge } from "@/components/universe/universe-bridge";
 import { CommandBar } from "./command-bar";
 import { Deferred } from "./deferred";
+import { DemoBanner } from "./demo";
 import { InactivityLock } from "./inactivity-lock";
 import { SideNav, TabBar } from "./nav";
 import { Providers } from "./providers";
@@ -27,6 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <ZoneGate>{children}</ZoneGate>
       </div>
       <TabBar />
+      <DemoBanner />
       <Deferred load={loadDataStatus} />
       <Deferred load={loadToaster} />
       <CommandBar />

@@ -1,3 +1,4 @@
+import { isDemo } from "./demo";
 import {
   REALTIME_TABLES,
   type FocusSettings,
@@ -111,7 +112,7 @@ let hadConnection = false;
  */
 export function startRealtime(deviceKind: "web" | "pwa" = "web"): () => void {
   const meta = readMeta();
-  if (!meta || channel || starting) return () => {};
+  if (isDemo() || !meta || channel || starting) return () => {};
   let cancelled = false;
   let stop = () => {};
   starting = true;
