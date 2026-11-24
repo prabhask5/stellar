@@ -4,74 +4,74 @@
  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
  "idleHome": {
   "longTasks": 2,
-  "longest": 62,
+  "longest": 61,
   "inp": 0,
   "frames": 172,
   "p50": 16.7,
   "p95": 33.4,
-  "worst": 49.9,
+  "worst": 50.1,
   "over33": 7
  },
  "tabSwitches": {
-  "longTasks": 21,
-  "longest": 162,
-  "inp": 168,
-  "frames": 103,
-  "p50": 16.8,
-  "p95": 100,
-  "worst": 233.3,
-  "over33": 29
+  "longTasks": 7,
+  "longest": 68,
+  "inp": 104,
+  "frames": 122,
+  "p50": 16.7,
+  "p95": 66.6,
+  "worst": 83.3,
+  "over33": 24
  },
  "completeTen": {
-  "longTasks": 40,
-  "longest": 137,
-  "inp": 200,
-  "frames": 131,
-  "p50": 33.4,
-  "p95": 100,
-  "worst": 150,
-  "over33": 71
- },
- "scrollAll": {
-  "longTasks": 11,
-  "longest": 87,
-  "inp": 0,
-  "frames": 122,
-  "p50": 16.8,
+  "longTasks": 13,
+  "longest": 89,
+  "inp": 152,
+  "frames": 173,
+  "p50": 33.3,
   "p95": 66.6,
-  "worst": 133.3,
+  "worst": 83.3,
   "over33": 31
  },
- "openSheet": {
+ "scrollAll": {
   "longTasks": 7,
-  "longest": 228,
-  "inp": 168,
-  "frames": 53,
-  "p50": 33.3,
-  "p95": 116.7,
-  "worst": 249.9,
-  "over33": 16
+  "longest": 81,
+  "inp": 0,
+  "frames": 126,
+  "p50": 16.7,
+  "p95": 50.1,
+  "worst": 83.3,
+  "over33": 25
+ },
+ "openSheet": {
+  "longTasks": 4,
+  "longest": 62,
+  "inp": 96,
+  "frames": 65,
+  "p50": 16.8,
+  "p95": 50,
+  "worst": 66.7,
+  "over33": 19
  },
  "typeQuickAdd": {
   "longTasks": 1,
-  "longest": 100,
-  "inp": 144,
-  "frames": 74,
+  "longest": 53,
+  "inp": 88,
+  "frames": 69,
   "p50": 16.7,
-  "p95": 50,
-  "worst": 100.1,
-  "over33": 10
+  "p95": 33.4,
+  "worst": 50,
+  "over33": 4
  },
- "thousandTasksMs": 810,
+ "thousandTasksMs": 1106,
  "thousandScroll": {
-  "longTasks": 17,
-  "longest": 694,
+  "longTasks": 14,
+  "longest": 596,
   "inp": 0,
-  "frames": 98,
+  "frames": 100,
   "p50": 33.3,
-  "p95": 116.7,
-  "worst": 783.3,
-  "over33": 34
+  "p95": 83.4,
+  "worst": 650,
+  "over33": 42
  },
- "thousandDomNodes": 1647
+ "thousandDomNodes": 10326
 }

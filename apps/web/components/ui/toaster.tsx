@@ -14,7 +14,9 @@ function ToastItem({ toast }: { toast: Toast }) {
   useEffect(() => {
     const t = setTimeout(() => dismiss(toast.id), toast.duration);
     return () => clearTimeout(t);
-  }, [toast.id, toast.duration, dismiss]);
+    // `shownAt` changes when the same toast is replaced ("2 tasks completed" → "3 tasks
+    // completed"), which must give its Undo the full time again.
+  }, [toast.id, toast.duration, toast.shownAt, dismiss]);
 
   return (
     <m.div

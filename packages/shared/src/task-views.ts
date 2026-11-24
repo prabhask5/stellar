@@ -93,8 +93,10 @@ export function allView<T extends TaskLike>(
     .sort(compareByDue);
   const groups: TaskGroup<T>[] = [];
   const push = (key: string, label: string, tone: TaskGroup<T>["tone"], task: T) => {
-    const last = groups[groups.length - 1];
-    if (last && last.key === key) last.tasks.push(task);
+    // Rows arrive by due date, so open overdue tasks are interleaved with completed ones
+    // from the same days: look the group up instead of assuming it is the last one.
+    const existing = groups.find((g) => g.key === key);
+    if (existing) existing.tasks.push(task);
     else groups.push({ key, label, tone, tasks: [task] });
   };
   for (const t of rows) {

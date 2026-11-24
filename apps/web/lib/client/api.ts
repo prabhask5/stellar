@@ -19,6 +19,9 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** A request that has not answered by now is treated as a network failure. */
+const REQUEST_TIMEOUT_MS = 20_000;
+
 export interface ApiOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
@@ -35,7 +38,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       credentials: "same-origin",
       cache: "no-store",
-      signal: options.signal,
+      signal: options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch {
     throw new ApiRequestError(

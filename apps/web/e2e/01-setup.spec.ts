@@ -1,3 +1,6 @@
+import { mkdirSync } from "node:fs";
+import path from "node:path";
+import { LATEST_SCHEMA_VERSION } from "@stellar/db";
 import {
   ANON_KEY,
   clearLockout,
@@ -8,9 +11,11 @@ import {
   PIN,
   resetInstance,
   SERVICE_KEY,
+  SHOTS_DIR,
   sql,
   SUPABASE_URL,
   test,
+  uniqueIp,
 } from "./helpers";
 
 test.describe("setup wizard", () => {
@@ -67,7 +72,7 @@ test.describe("setup wizard", () => {
     // Database: migrations run automatically with a progress list.
     await expect(page.getByRole("heading", { name: "Prepare the database" })).toBeVisible();
     await expect(page.getByTestId("db-ready")).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId("migrations").locator("li")).toHaveCount(9);
+    await expect(page.getByTestId("migrations").locator("li")).toHaveCount(LATEST_SCHEMA_VERSION);
     await expect(page.getByTestId("migrations").locator('[data-status="failed"]')).toHaveCount(0);
     await shot("setup-3-database");
     await page.getByRole("button", { name: "Continue" }).click();
@@ -165,7 +170,21 @@ test.describe("setup wizard", () => {
     expect(again.status()).toBe(403);
   });
 
-  test("manual path: copy the SQL, run it, verify", async ({ page, shot }) => {
+  test("manual path: copy the SQL, run it, verify", async ({ browser, baseURL }, info) => {
+    // The migrate call is stubbed. WebKit does not offer requests to page.route once a
+    // service worker controls the page, so this test runs without one.
+    const context = await browser.newContext({
+      ...info.project.use,
+      baseURL,
+      serviceWorkers: "block",
+      extraHTTPHeaders: { "x-forwarded-for": uniqueIp() },
+    });
+    const page = await context.newPage();
+    const shot = async (name: string) => {
+      const dir = path.join(SHOTS_DIR, info.project.name);
+      mkdirSync(dir, { recursive: true });
+      await page.screenshot({ path: path.join(dir, `${name}.png`), animations: "disabled" });
+    };
     // No connection string and no pg-meta route: the wizard falls back to paste-and-verify.
     await page.route("**/api/setup/migrate", async (route) => {
       await route.fulfill({
@@ -201,5 +220,6 @@ test.describe("setup wizard", () => {
     await expect(page.getByTestId("db-ready")).toBeVisible({ timeout: 15_000 });
     await page.getByRole("button", { name: "Continue" }).click();
     await expect(page.getByRole("heading", { name: "Create your PIN" })).toBeVisible();
+    await context.close();
   });
 });

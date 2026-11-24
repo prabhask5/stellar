@@ -28,7 +28,7 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done and verified · `[!]` bloc
 - [x] Bundle analysis: three.js only in the lazy chunk; route sizes in PERF.md
 - [x] Memory: 30-minute scripted session → no growth trend (PERF.md)
 
-### 2.2 Scripted adversarial pass (`apps/web/e2e/audit/adversarial.spec.ts`)
+### 2.2 Scripted adversarial pass (`apps/web/e2e/12-regressions.spec.ts`)
 
 - [x] Rapid input (ADV-01…04)
 - [x] Concurrency, two tabs + API (ADV-14, 20, 21, 22); extension concurrency is covered by code review and the two extension runs

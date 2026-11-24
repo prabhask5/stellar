@@ -1,4 +1,4 @@
-import type { FocusSettings, FocusState, RoutineLog, Settings } from "@stellar/db";
+import type { FocusSettings, FocusState, Goal, RoutineLog, Settings } from "@stellar/db";
 import { addDays, todayIn } from "@stellar/shared";
 import {
   type Collections,
@@ -25,8 +25,64 @@ export const SCORING_TABLES: ReadonlySet<string> = new Set([
   "sp_focus_sessions",
 ]);
 
+const ZONE_KEY = "sp-timezone";
+
+/** Remembers the owner's zone so the next launch knows "today" before the settings arrive. */
+export function rememberTimeZone(zone: string): void {
+  try {
+    localStorage.setItem(ZONE_KEY, zone);
+  } catch {
+    // storage unavailable: the fallback below is the device's zone
+  }
+}
+
+/**
+ * The zone to use while the settings are not loaded yet: the one this device saw
+ * last, else the device's own. (UTC would put "today" on the wrong day for most of
+ * the world for the first moments after launch, and a task added then would get it.)
+ */
+export function fallbackTimeZone(): string {
+  try {
+    const saved = localStorage.getItem(ZONE_KEY);
+    if (saved) return saved;
+  } catch {
+    // ignored
+  }
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
+/** True once the owner's time zone is known: from the settings, or remembered from an earlier launch. */
+export function zoneKnown(): boolean {
+  if (queryClient.getQueryData<Settings>(keys.settings)) return true;
+  try {
+    return localStorage.getItem(ZONE_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** Resolves when the settings have loaded (or after a few seconds if they cannot be). */
+export function whenZoneKnown(timeoutMs = 4000): Promise<void> {
+  if (zoneKnown()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    };
+    const timer = setTimeout(done, timeoutMs);
+    const unsubscribe = queryClient.getQueryCache().subscribe(() => {
+      if (queryClient.getQueryData<Settings>(keys.settings)) done();
+    });
+  });
+}
+
 function ownerTimeZone(): string {
-  return queryClient.getQueryData<Settings>(keys.settings)?.timezone ?? "UTC";
+  return queryClient.getQueryData<Settings>(keys.settings)?.timezone ?? fallbackTimeZone();
 }
 
 /** Today in the owner's time zone, by the server-corrected clock. */
@@ -52,67 +108,140 @@ function check<T>(res: { data: T | null; error: { message: string } | null }): T
   return res.data as T;
 }
 
+const PAGE = 1000;
+
+interface Pageable {
+  order(column: string, opts?: { ascending?: boolean }): Pageable;
+  range(
+    from: number,
+    to: number,
+  ): PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
+}
+
+/**
+ * Reads every row of a query. PostgREST caps a response (1,000 rows on a stock
+ * Supabase), so one request would silently cut a long list short, in no particular
+ * order. Pages are read in a stable order until a short one comes back.
+ */
+async function fetchAll<T>(query: unknown, orderBy: string[], max = 50_000): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; from < max; from += PAGE) {
+    let q = query as Pageable;
+    for (const column of orderBy) q = q.order(column, { ascending: true });
+    const rows = check(await q.range(from, from + PAGE - 1)) as T[];
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+  }
+  return out;
+}
+
 /** Loads one collection. Windows keep the payload small without hiding anything recent. */
 export async function fetchCollection<T extends CollectionTable>(
   table: T,
 ): Promise<Collections[T][]> {
   const db = await getSupabase();
+  type Rows = Collections[T][];
   switch (table) {
     case "sp_tasks": {
       const since = new Date(serverNow() - 90 * 86_400_000).toISOString();
-      return check(
-        await db
+      return fetchAll<Collections[T]>(
+        db
           .from("sp_tasks")
           .select("*")
           .is("deleted_at", null)
-          .or(`completed.eq.false,completed_at.gte.${since}`)
-          .limit(5000),
-      ) as Collections[T][];
+          .or(`completed.eq.false,completed_at.gte.${since}`),
+        ["id"],
+      );
     }
     case "sp_task_lists":
-      return check(
-        await db.from("sp_task_lists").select("*").is("deleted_at", null),
-      ) as Collections[T][];
+      return fetchAll(db.from("sp_task_lists").select("*").is("deleted_at", null), ["id"]);
     case "sp_goal_lists":
-      return check(
-        await db.from("sp_goal_lists").select("*").is("deleted_at", null),
-      ) as Collections[T][];
+      return fetchAll(db.from("sp_goal_lists").select("*").is("deleted_at", null), ["id"]);
     case "sp_goals":
-      return check(
-        await db.from("sp_goals").select("*").is("deleted_at", null),
-      ) as Collections[T][];
+      return fetchAll(db.from("sp_goals").select("*").is("deleted_at", null), ["id"]);
     case "sp_routines":
-      return check(await db.from("sp_routines").select("*")) as Collections[T][];
+      return fetchAll(db.from("sp_routines").select("*"), ["id"]);
     case "sp_routine_logs": {
       const from = addDays(currentToday(), -400);
-      return check(
-        await db.from("sp_routine_logs").select("*").gte("date", from).limit(20000),
-      ) as Collections[T][];
+      return fetchAll(db.from("sp_routine_logs").select("*").gte("date", from), [
+        "routine_id",
+        "date",
+      ]);
     }
     case "sp_block_lists":
-      return check(
-        await db.from("sp_block_lists").select("*").is("deleted_at", null),
-      ) as Collections[T][];
+      return fetchAll(db.from("sp_block_lists").select("*").is("deleted_at", null), ["id"]);
     case "sp_block_list_sites":
-      return check(
-        await db.from("sp_block_list_sites").select("*").limit(10000),
-      ) as Collections[T][];
+      return fetchAll(db.from("sp_block_list_sites").select("*"), ["id"]);
     case "sp_quotes":
-      return check(await db.from("sp_quotes").select("*").limit(2000)) as Collections[T][];
+      return fetchAll(db.from("sp_quotes").select("*"), ["id"]);
     case "sp_focus_sessions": {
       const since = new Date(serverNow() - 40 * 86_400_000).toISOString();
-      return check(
-        await db
-          .from("sp_focus_sessions")
-          .select("*")
-          .gte("ended_at", since)
-          .order("ended_at", { ascending: false })
-          .limit(1000),
-      ) as Collections[T][];
+      const rows = await fetchAll<Collections["sp_focus_sessions"]>(
+        db.from("sp_focus_sessions").select("*").gte("ended_at", since),
+        ["id"],
+      );
+      rows.sort((x, y) => (x.ended_at < y.ended_at ? 1 : x.ended_at > y.ended_at ? -1 : 0));
+      return rows as Rows;
     }
     default:
       throw new Error(`Unknown collection: ${String(table)}`);
   }
+}
+
+const stamp = (row: unknown): number => {
+  const t = Date.parse(String((row as { updated_at?: string | null }).updated_at ?? ""));
+  return Number.isFinite(t) ? t : 0;
+};
+
+/** Tables whose next load must take the server's rows as they are (after a rejected or lost change). */
+const takeServer = new Set<string>();
+
+/**
+ * Loads a collection without undoing what the user just did. A plain refetch
+ * would replace the cached list with the server's, which does not yet contain
+ * changes still waiting in the outbox, and a request that began before a change
+ * was saved comes back older than the cache. So, row by row:
+ *  - a row with queued changes keeps its cached (optimistic) state;
+ *  - otherwise the newer of the two versions wins;
+ *  - a cached row missing from the server is kept only if it was written after
+ *    this request started.
+ */
+export async function loadCollection<T extends CollectionTable>(
+  table: T,
+): Promise<Collections[T][]> {
+  const startedAt = serverNow();
+  const fetched = await fetchCollection(table);
+  const cached = queryClient.getQueryData<Collections[T][]>(keys.table(table));
+  if (!cached) return fetched;
+  const authoritative = takeServer.delete(table);
+  const id = (row: Collections[T]) => rowId(table, row as Record<string, unknown>);
+  const cachedById = new Map(cached.map((r) => [id(r), r]));
+  const merged: Collections[T][] = [];
+  const seen = new Set<string>();
+  for (const row of fetched) {
+    const key = id(row);
+    seen.add(key);
+    const mine = cachedById.get(key);
+    if (hasPending(`${table}:${key}`)) {
+      // Pending and still in the cache: keep our version. Pending and gone: we deleted it.
+      if (mine) merged.push(mine);
+      continue;
+    }
+    merged.push(!authoritative && mine && stamp(mine) > stamp(row) ? mine : row);
+  }
+  for (const row of cached) {
+    const key = id(row);
+    if (seen.has(key)) continue;
+    if (hasPending(`${table}:${key}`) || (!authoritative && stamp(row) >= startedAt))
+      merged.push(row);
+  }
+  return merged;
+}
+
+/** Reloads a collection and takes the server's rows as they are. */
+export function reloadFromServer(table: CollectionTable): void {
+  takeServer.add(table);
+  void queryClient.invalidateQueries({ queryKey: keys.table(table) });
 }
 
 export async function fetchSettings(): Promise<Settings> {
@@ -132,6 +261,7 @@ export async function fetchSettings(): Promise<Settings> {
       settings: boot.focus_settings,
     });
   }
+  rememberTimeZone(boot.settings.timezone);
   return boot.settings;
 }
 
@@ -259,21 +389,35 @@ function onSuccess(item: QueuedOp, result: unknown): void {
     case "timer":
       applyTimerResult(result);
       return;
+    case "rpc": {
+      // sp_goal_increment answers with the goal as the server now has it.
+      if (op.fn === "sp_goal_increment" && isRow(result) && typeof result.id === "string") {
+        if (!hasPending(`sp_goals:${result.id}`)) upsertRow("sp_goals", result as unknown as Goal);
+        touchUniverse();
+      }
+      return;
+    }
     default:
       return;
   }
 }
 
-function onError(item: QueuedOp, error: unknown): void {
-  const { op } = item;
-  console.warn("[sync] change rejected", op.kind, describeError(error));
-  toastError("That change couldn't be saved. Your data has been refreshed.");
-  // Roll back by reloading the truth for whatever the operation touched.
+/** Reloads the truth for everything an operation may have touched. */
+function refreshAfter(op: QueuedOp["op"]): void {
   if (op.kind === "insert" || op.kind === "update" || op.kind === "delete") {
-    if (op.table !== "sp_push_subscriptions")
-      void queryClient.invalidateQueries({ queryKey: keys.table(op.table) });
+    if (op.table === "sp_push_subscriptions") return;
+    reloadFromServer(op.table);
+    // Changes to a parent reach its children too (cascades, rewrites).
+    if (op.table === "sp_task_lists") reloadFromServer("sp_tasks");
+    if (op.table === "sp_goal_lists") reloadFromServer("sp_goals");
+    if (op.table === "sp_routines") reloadFromServer("sp_routine_logs");
+    if (op.table === "sp_block_lists") {
+      reloadFromServer("sp_block_list_sites");
+      void queryClient.invalidateQueries({ queryKey: keys.focus });
+    }
   } else if (op.kind === "log") {
-    void queryClient.invalidateQueries({ queryKey: keys.table("sp_routine_logs") });
+    reloadFromServer("sp_routine_logs");
+    reloadFromServer("sp_routines");
   } else if (op.kind === "update_singleton") {
     void queryClient.invalidateQueries({
       queryKey: op.table === "sp_settings" ? keys.settings : keys.focus,
@@ -281,11 +425,24 @@ function onError(item: QueuedOp, error: unknown): void {
   } else if (op.kind === "timer") {
     void queryClient.invalidateQueries({ queryKey: keys.focus });
   } else {
-    void queryClient.invalidateQueries();
+    const tables = new Set((op.rowKeys ?? []).map((k) => k.split(":")[0] as CollectionTable));
+    if (tables.size === 0) void queryClient.invalidateQueries();
+    for (const t of tables) reloadFromServer(t);
   }
   touchUniverse();
 }
 
-configureOutbox({ onSuccess, onError });
+function onError(item: QueuedOp, error: unknown): void {
+  console.warn("[sync] change rejected", item.op.kind, describeError(error));
+  toastError("That change couldn't be saved. Your data has been refreshed.");
+  refreshAfter(item.op);
+}
+
+/** A newer change from another device won, or the row is gone: show what is really there. */
+function onConflict(item: QueuedOp): void {
+  refreshAfter(item.op);
+}
+
+configureOutbox({ onSuccess, onError, onConflict });
 
 export { getRows };

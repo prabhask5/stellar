@@ -26,6 +26,14 @@ export function rememberPinLength(length: number): void {
   }
 }
 
+export function forgetPinLength(): void {
+  try {
+    localStorage.removeItem(PIN_LENGTH_KEY);
+  } catch {
+    // ignored
+  }
+}
+
 export interface LockScreenProps {
   /** "login" creates a session; "unlock" re-checks the PIN for the inactivity lock. */
   mode: "login" | "unlock";
@@ -85,6 +93,13 @@ export function LockScreen({ mode, onSuccess }: LockScreenProps) {
       } catch (err) {
         setPin("");
         setErrorKey((k) => k + 1);
+        // The remembered length may be out of date (the PIN was changed on another device).
+        // Stop submitting automatically, or every attempt at the new PIN would be cut short
+        // and count towards the lockout.
+        if (!(err instanceof ApiRequestError && err.code === "network")) {
+          forgetPinLength();
+          setAutoLength(null);
+        }
         if (err instanceof ApiRequestError) {
           setError(err.message);
           if (err.code === "locked" && err.retryAfterSeconds) {
@@ -109,16 +124,20 @@ export function LockScreen({ mode, onSuccess }: LockScreenProps) {
       className="flex min-h-dvh flex-col items-center justify-center px-safe pb-safe pt-safe"
       aria-labelledby="lock-title"
     >
-      <div className="flex w-full max-w-[340px] flex-col items-center animate-fade-up">
-        <span className="mb-5 flex size-14 items-center justify-center rounded-full border border-accent-line bg-accent-soft text-accent short:hidden">
-          <LockIcon size={26} />
-        </span>
-        <p className="eyebrow text-fg-2">Stellar Planner</p>
-        <h1 id="lock-title" className="mt-1.5 text-title1 short:text-title2">
-          Enter your PIN
-        </h1>
+      {/* Portrait: title, keypad, message, button in one column. Sideways phone: the keypad
+          sits beside the rest, so everything, Unlock included, fits the height. */}
+      <div className="grid w-full max-w-[340px] animate-fade-up grid-cols-1 justify-items-center flat:max-w-[640px] flat:grid-cols-2 flat:items-center flat:gap-x-10">
+        <div className="flex flex-col items-center flat:col-start-1 flat:row-start-1 flat:self-end">
+          <span className="mb-5 flex size-14 items-center justify-center rounded-full border border-accent-line bg-accent-soft text-accent short:hidden">
+            <LockIcon size={26} />
+          </span>
+          <p className="eyebrow text-fg-2">Stellar Planner</p>
+          <h1 id="lock-title" className="mt-1.5 text-title1 short:text-title2">
+            Enter your PIN
+          </h1>
+        </div>
 
-        <div className="mt-7 short:mt-5">
+        <div className="mt-7 short:mt-5 flat:col-start-2 flat:row-span-2 flat:row-start-1 flat:mt-0">
           <PinPad
             label="PIN"
             value={pin}
@@ -133,26 +152,28 @@ export function LockScreen({ mode, onSuccess }: LockScreenProps) {
           />
         </div>
 
-        <p
-          className="mt-5 min-h-[40px] text-center text-subhead text-warning short:mt-2 short:min-h-[24px]"
-          role="alert"
-          aria-live="assertive"
-        >
-          {locked ? `Too many attempts. Try again in ${formatWait(waitSeconds)}.` : error}
-        </p>
+        <div className="flex w-full flex-col items-center flat:col-start-1 flat:row-start-2 flat:self-start">
+          <p
+            className="mt-5 min-h-[40px] text-center text-subhead text-warning short:mt-2 short:min-h-[24px]"
+            role="alert"
+            aria-live="assertive"
+          >
+            {locked ? `Too many attempts. Try again in ${formatWait(waitSeconds)}.` : error}
+          </p>
 
-        <Button
-          variant="primary"
-          size="lg"
-          block
-          glow={pin.length >= 6}
-          loading={busy}
-          disabled={pin.length < 6 || locked}
-          onClick={() => submit(pin)}
-          className="mt-1"
-        >
-          Unlock
-        </Button>
+          <Button
+            variant="primary"
+            size="lg"
+            block
+            glow={pin.length >= 6}
+            loading={busy}
+            disabled={pin.length < 6 || locked}
+            onClick={() => submit(pin)}
+            className="mt-1"
+          >
+            Unlock
+          </Button>
+        </div>
       </div>
     </main>
   );

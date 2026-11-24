@@ -13,7 +13,7 @@ import { CheckIcon, GridIcon, TextIcon } from "@/components/ui/icons";
 import { Popover } from "@/components/ui/popover";
 import { Sheet } from "@/components/ui/sheet";
 import { useIsWide } from "@/components/ui/use-media";
-import { createTask } from "@/lib/client/data/tasks";
+import { createTask, createTaskForToday } from "@/lib/client/data/tasks";
 import { useUi } from "@/lib/client/ui-store";
 
 export interface QuickAddBarProps {
@@ -72,13 +72,20 @@ export function QuickAddBar({
       input.current?.focus();
       return;
     }
-    createTask({
+    const input_ = {
       name: trimmed,
       description: description.trim() || null,
       due_date: inList ? null : due.date,
       due_time: inList ? null : due.time,
       list_id: fixedListId ?? listId,
-    });
+    };
+    // An untouched default of "today" is resolved when the owner's time zone is known.
+    if (!touched.current && input_.due_date !== null && input_.due_date === today) {
+      const { due_date: _today, ...rest } = input_;
+      createTaskForToday(rest);
+    } else {
+      createTask(input_);
+    }
     setName("");
     setDescription("");
     touched.current = false;

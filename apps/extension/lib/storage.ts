@@ -22,8 +22,10 @@ export const getRulesKey = () => read<string>(KEYS.rules);
 
 export const setConnection = (connection: Connection) =>
   browser.storage.local.set({ [KEYS.connection]: connection });
-export const setSnapshot = (snapshot: Snapshot) =>
-  browser.storage.local.set({ [KEYS.snapshot]: snapshot });
+export const setSnapshot = (snapshot: Snapshot | null) =>
+  snapshot === null
+    ? browser.storage.local.remove(KEYS.snapshot)
+    : browser.storage.local.set({ [KEYS.snapshot]: snapshot });
 export const setStatus = (status: LinkStatus) =>
   browser.storage.local.set({ [KEYS.status]: status });
 export const setRulesKey = (key: string) => browser.storage.local.set({ [KEYS.rules]: key });

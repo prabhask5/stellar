@@ -9,16 +9,26 @@ interface Call {
 
 const calls: Call[] = [];
 let failNext: { message: string; code?: string; status?: number } | null = null;
+/** Failures served in order, one per call, before anything succeeds. */
+const failQueue: { message: string; code?: string; status?: number }[] = [];
+/** The next call answers with no row (a guarded update that matched nothing). */
+let emptyNext = false;
 let now = 1_000_000;
 
 function builder(table: string) {
   const call: Call = { table, method: "", args: [], filters: [] };
   const finish = () => {
     calls.push(call);
+    const queued = failQueue.shift();
+    if (queued) return Promise.resolve({ data: null, error: queued, status: queued.status ?? 400 });
     if (failNext) {
       const error = failNext;
       failNext = null;
       return Promise.resolve({ data: null, error, status: error.status ?? 400 });
+    }
+    if (emptyNext) {
+      emptyNext = false;
+      return Promise.resolve({ data: null, error: null, status: 200 });
     }
     return Promise.resolve({
       data: {
@@ -55,6 +65,9 @@ vi.mock("./supabase", () => ({
     from: (table: string) => builder(table),
     rpc: (fn: string, args: unknown) => {
       calls.push({ method: `rpc:${fn}`, args: [args], filters: [] });
+      const queued = failQueue.shift();
+      if (queued)
+        return Promise.resolve({ data: null, error: queued, status: queued.status ?? 400 });
       if (failNext) {
         const error = failNext;
         failNext = null;
@@ -72,12 +85,22 @@ vi.mock("./session", () => ({
   serverNow: () => now,
 }));
 
-const { configureOutbox, enqueue, flush, hasPending, opRowKey, pendingOps, resetOutbox } =
-  await import("./outbox");
+const {
+  classifyFailure,
+  configureOutbox,
+  enqueue,
+  flush,
+  hasPending,
+  hasPendingFor,
+  opRowKey,
+  pendingOps,
+  resetOutbox,
+} = await import("./outbox");
 const { useSync } = await import("./sync-store");
 
 const settled: string[] = [];
 const rejected: string[] = [];
+const conflicts: string[] = [];
 
 async function drain(): Promise<void> {
   for (let i = 0; i < 20; i++) {
@@ -92,11 +115,15 @@ beforeEach(() => {
   calls.length = 0;
   settled.length = 0;
   rejected.length = 0;
+  conflicts.length = 0;
   failNext = null;
+  failQueue.length = 0;
+  emptyNext = false;
   now = 1_000_000;
   configureOutbox({
     onSuccess: (item) => settled.push(item.op.kind),
     onError: (item) => rejected.push(item.op.kind),
+    onConflict: (item) => conflicts.push(item.op.kind),
   });
 });
 
@@ -205,5 +232,173 @@ describe("outbox", () => {
     ).toBe("sp_routine_logs:r:2026-11-21");
     expect(opRowKey({ kind: "timer", action: "start", expectedVersion: 0 })).toBe("sp_focus_state");
     expect(opRowKey({ kind: "rpc", fn: "x", args: {} })).toBeNull();
+  });
+
+  // ── polish pass 1 regressions ─────────────────────────────────────────────
+  const offline = async () => {
+    failNext = { message: "TypeError: Failed to fetch" };
+    await vi.waitFor(() => expect(useSync.getState().online).toBe(false));
+    now += 20_000;
+    calls.length = 0;
+  };
+
+  it("P0-001: a task created and then completed offline keeps the completion", async () => {
+    failNext = { message: "TypeError: Failed to fetch" };
+    enqueue({ kind: "insert", table: "sp_tasks", row: { id: "a", name: "A" } });
+    enqueue({ kind: "update", table: "sp_tasks", id: "a", patch: { completed: true } });
+    await offline();
+    await drain();
+    expect(calls.map((c) => c.method)).toEqual(["upsert", "update"]);
+    // The insert just set updated_at; guarding the update by the time of the tap would drop it.
+    expect(calls[1]?.filters).toEqual([["eq", "id", "a"]]);
+    expect(settled).toEqual(["insert", "update"]);
+  });
+
+  it("P0-001: the second of two offline edits to one row is not guarded away", async () => {
+    failNext = { message: "TypeError: Failed to fetch" };
+    enqueue({ kind: "update", table: "sp_tasks", id: "a", patch: { name: "renamed" } });
+    enqueue({ kind: "update", table: "sp_tasks", id: "a", patch: { description: "note" } });
+    enqueue({ kind: "update", table: "sp_tasks", id: "b", patch: { name: "other row" } });
+    await offline();
+    await drain();
+    expect(calls.map((c) => c.filters.map((f) => f[0]))).toEqual([
+      ["eq", "lte"], // first edit to a: last write wins against other devices
+      ["eq"], // second edit to a: follows our own write
+      ["eq", "lte"], // b is a different row
+    ]);
+  });
+
+  it("P1-011: a guarded update that matches nothing is a conflict, not a success", async () => {
+    failNext = { message: "TypeError: Failed to fetch" };
+    enqueue({ kind: "update", table: "sp_tasks", id: "a", patch: { completed: true } });
+    enqueue({ kind: "update", table: "sp_tasks", id: "a", patch: { name: "later" } });
+    await offline();
+    emptyNext = true;
+    await drain();
+    expect(conflicts).toEqual(["update"]);
+    // What followed on that row is still checked against the other device's change.
+    expect(calls[1]?.filters.map((f) => f[0])).toEqual(["eq", "lte"]);
+    expect(pendingOps()).toHaveLength(0);
+  });
+
+  it("P0-002: a database error behind a 500 is dropped and the queue carries on", async () => {
+    failNext = { message: "Progress goal not found", code: "P0001", status: 500 };
+    enqueue({ kind: "rpc", fn: "sp_something", args: {} });
+    enqueue({ kind: "insert", table: "sp_tasks", row: { id: "after" } });
+    await drain();
+    expect(rejected).toEqual(["rpc"]);
+    expect(settled).toEqual(["insert"]);
+    expect(useSync.getState().online).toBe(true);
+  });
+
+  it("P0-002: a missing row (P0002) is a quiet conflict and does not block what follows", async () => {
+    failNext = { message: "Routine not found", code: "P0002", status: 500 };
+    enqueue({ kind: "log", routine_id: "r", date: "2026-11-21", completed: true, amount: null });
+    enqueue({ kind: "insert", table: "sp_tasks", row: { id: "after" } });
+    await drain();
+    expect(conflicts).toEqual(["log"]);
+    expect(rejected).toEqual([]);
+    expect(settled).toEqual(["insert"]);
+  });
+
+  it("P0-002: a server that keeps failing one operation cannot hold the queue for ever", async () => {
+    vi.useFakeTimers();
+    try {
+      for (let i = 0; i < 8; i++) failQueue.push({ message: "Internal Server Error", status: 500 });
+      enqueue({ kind: "insert", table: "sp_tasks", row: { id: "poison" } });
+      enqueue({ kind: "insert", table: "sp_tasks", row: { id: "after" } });
+      for (let i = 0; i < 12 && pendingOps().length > 0; i++)
+        await vi.advanceTimersByTimeAsync(31_000);
+      expect(rejected).toEqual(["insert"]);
+      expect(settled).toEqual(["insert"]);
+      expect(calls.filter((c) => (c.args[0] as { id?: string })?.id === "poison")).toHaveLength(8);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a gateway error (502/503/504) or rate limit keeps the change queued", async () => {
+    for (const status of [502, 503, 504, 429]) {
+      resetOutbox();
+      failNext = { message: "upstream", status };
+      enqueue({ kind: "insert", table: "sp_tasks", row: { id: `s${status}` } });
+      await vi.waitFor(() => expect(useSync.getState().online).toBe(false));
+      expect(pendingOps()).toHaveLength(1);
+      expect(rejected).toEqual([]);
+    }
+  });
+
+  it("never drops a change over a session problem", async () => {
+    failQueue.push({ message: "JWT expired", code: "PGRST301", status: 401 });
+    failQueue.push({ message: "JWT expired", code: "PGRST301", status: 401 });
+    enqueue({ kind: "insert", table: "sp_tasks", row: { id: "a" } });
+    await vi.waitFor(() => expect(calls).toHaveLength(2));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(pendingOps()).toHaveLength(1);
+    expect(rejected).toEqual([]);
+    await drain();
+    expect(settled).toEqual(["insert"]);
+  });
+
+  it("P1-013: a goal increment carries its operation id so a replay is applied once", async () => {
+    const item = enqueue({
+      kind: "rpc",
+      fn: "sp_goal_increment",
+      args: { p_goal_id: "g", p_delta: 1 },
+      rowKeys: ["sp_goals:g"],
+      opIdArg: "p_op_id",
+    });
+    expect(hasPending("sp_goals:g")).toBe(true);
+    expect(hasPendingFor("sp_goals")).toBe(true);
+    await drain();
+    expect(calls[0]?.args[0]).toEqual({ p_goal_id: "g", p_delta: 1, p_op_id: item.id });
+    expect(hasPending("sp_goals:g")).toBe(false);
+  });
+
+  it("P1-013: a database without the migration still accepts the increment", async () => {
+    failNext = { message: "Could not find the function", code: "PGRST202", status: 404 };
+    enqueue({
+      kind: "rpc",
+      fn: "sp_goal_increment",
+      args: { p_goal_id: "g", p_delta: 2 },
+      opIdArg: "p_op_id",
+    });
+    await drain();
+    expect(calls.map((c) => c.args[0])).toEqual([
+      expect.objectContaining({ p_op_id: expect.any(String) }),
+      { p_goal_id: "g", p_delta: 2 },
+    ]);
+    expect(settled).toEqual(["rpc"]);
+  });
+
+  it("a handler that throws does not disturb the queue", async () => {
+    configureOutbox({
+      onSuccess: (item) => {
+        settled.push(item.op.kind);
+        throw new Error("boom");
+      },
+      onError: () => {},
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    enqueue({ kind: "insert", table: "sp_tasks", row: { id: "a" } });
+    enqueue({ kind: "insert", table: "sp_tasks", row: { id: "b" } });
+    await drain();
+    warn.mockRestore();
+    expect(settled).toEqual(["insert", "insert"]);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("sorts failures into retry, sign in, gone and refused", () => {
+    expect(classifyFailure({ message: "TypeError: Failed to fetch" })).toBe("network");
+    expect(classifyFailure({ name: "TimeoutError", message: "Request timed out" })).toBe("network");
+    expect(classifyFailure({ message: "x", status: 503 })).toBe("network");
+    expect(classifyFailure({ message: "x", status: 500 })).toBe("server");
+    expect(classifyFailure({ message: "x", status: 500, code: "PGRST002" })).toBe("server");
+    expect(classifyFailure({ message: "x", status: 500, code: "P0001" })).toBe("rejected");
+    expect(classifyFailure({ message: "x", status: 500, code: "P0002" })).toBe("gone");
+    expect(classifyFailure({ message: "x", status: 401 })).toBe("auth");
+    expect(classifyFailure({ message: "violates check", status: 400, code: "23514" })).toBe(
+      "rejected",
+    );
   });
 });

@@ -2,57 +2,57 @@
  {
   "key": "E:C:1",
   "confirms": "C:1",
-  "evidence": "Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-10 (rename then description offline: description lost), ADV-11 (create + complete offline: completion lost), ADV-12 (twenty offline changes: completions of offline-created tasks lost) on desktop Chromium and webkit-iphone-15-pro"
+  "evidence": "Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-10 (rename then description offline: description lost), ADV-11 (create + complete offline: completion lost), ADV-12 (twenty offline changes: completions of offline-created tasks lost) on desktop Chromium and webkit-iphone-15-pro"
  },
  {
   "key": "E:C:6",
   "confirms": "C:6",
-  "evidence": "Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-13 on desktop Chromium: one POST that never answers leaves both tasks unsynced after 60 s"
+  "evidence": "Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-13 on desktop Chromium: one POST that never answers leaves both tasks unsynced after 60 s"
  },
  {
   "key": "E:C:4",
   "confirms": "C:4",
-  "evidence": "Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-14 on desktop Chromium: one offline +1 on a goal became +2 with a second tab open"
+  "evidence": "Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-14 on desktop Chromium: one offline +1 on a goal became +2 with a second tab open"
  },
  {
   "key": "E:C:20",
   "confirms": "C:20",
-  "evidence": "Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-02 on desktop Chromium and webkit-iphone-15-pro: second tap leaves the task completed and the row gone"
+  "evidence": "Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-02 on desktop Chromium and webkit-iphone-15-pro: second tap leaves the task completed and the row gone"
  },
  {
   "key": "E:C:12",
   "confirms": "C:12",
-  "evidence": "Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-03: displayed amounts 1,2,3,4,5,6,7,8,9,5,6,7,8,9,10 during ten rapid taps"
+  "evidence": "Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-03: displayed amounts 1,2,3,4,5,6,7,8,9,5,6,7,8,9,10 during ten rapid taps"
  },
  {
   "key": "E:U:A08",
   "confirms": "U:A08",
-  "evidence": "Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-04: three activations of Create within 60 ms made 3 lists"
+  "evidence": "Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-04: three activations of Create within 60 ms made 3 lists"
  },
  {
   "key": "E:U:A04",
   "confirms": "U:A04",
-  "evidence": "Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-21: tab B's open sheet wrote the old name back over tab A's rename"
+  "evidence": "Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-21: tab B's open sheet wrote the old name back over tab A's rename"
  },
  {
   "key": "E:C:21",
   "confirms": "C:21",
-  "evidence": "Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-42: two regions named Overdue in All with Show completed"
+  "evidence": "Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-42: two regions named Overdue in All with Show completed"
  },
  {
   "key": "E:S:2",
   "confirms": "S:2",
-  "evidence": "Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-61: the routine row is still in sp_routines after DELETE returns 200"
+  "evidence": "Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-61: the routine row is still in sp_routines after DELETE returns 200"
  },
  {
   "key": "E:U:A03",
   "confirms": "U:A03",
-  "evidence": "Reproduced: apps/web/e2e/audit/adversarial.spec.ts ADV-50 on webkit-iphone-15-pro: swiping an open row closed completes the task"
+  "evidence": "Reproduced: apps/web/e2e/12-regressions.spec.ts ADV-50 on webkit-iphone-15-pro: swiping an open row closed completes the task"
  },
  {
   "key": "E:S:3",
   "confirms": "S:3",
-  "evidence": "Not reproduced with 25 parallel requests (apps/web/e2e/audit/adversarial.spec.ts ADV-60 passes: at most 5 were evaluated on this machine); the race window exists in code but argon2 verification serialises enough here. Severity lowered to P2."
+  "evidence": "Not reproduced with 25 parallel requests (apps/web/e2e/12-regressions.spec.ts ADV-60 passes: at most 5 were evaluated on this machine); the race window exists in code but argon2 verification serialises enough here. Severity lowered to P2."
  },
  {
   "key": "D:tz-today",
@@ -65,7 +65,7 @@
   "what": "1) Settings time zone Pacific/Kiritimati (UTC+14), device in any zone 2) Tasks → Today 3) type a name, Enter",
   "expected": "Expected the task due today in the owner's zone. Actual: it is saved with yesterday's date (due_date − today = −1) and lands in Overdue.",
   "cause": "Not yet traced; the quick-add default date does not come from the same owner-zone 'today' the view uses (see also the UTC-before-settings finding).",
-  "evidence": "apps/web/e2e/audit/adversarial.spec.ts ADV-40 fails on desktop Chromium and webkit-iphone-15-pro",
+  "evidence": "apps/web/e2e/12-regressions.spec.ts ADV-40 fails on desktop Chromium and webkit-iphone-15-pro",
   "where": ""
  },
  {
@@ -75,10 +75,10 @@
   "severity": "P2",
   "area": "Auth",
   "surface": "Web (keyboard)",
-  "title": "Digits typed quickly into the PIN screen are dropped",
+  "title": "Digits typed into the PIN screen can be dropped (before the page is interactive, or faster than it re-renders)",
   "what": "1) /lock on desktop 2) type six digits about 15 ms apart (a paste-speed typist, a password manager, or a slow machine)",
   "expected": "Expected six dots and Unlock enabled. Actual: fewer digits are registered, Unlock stays disabled.",
-  "cause": "PinPad reads `value` from a ref that is refreshed in an effect after render; two keydowns before the next commit both append to the same stale value.",
+  "cause": "Two causes. (1) The key listener is attached after hydration, so digits typed the moment the lock screen appears go nowhere; this is what the e2e test hit. (2) PinPad read `value` from a ref refreshed in an effect after render, so two keydowns before the next commit appended to the same stale value.",
   "evidence": "e2e/02-auth.spec.ts:64 times out on firefox-desktop (every run) and on desktop Chromium under load: the 6th digit never registers, button stays disabled",
   "where": "apps/web/components/auth/pin-pad.tsx:39-58"
  },

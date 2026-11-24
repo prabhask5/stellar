@@ -10,6 +10,25 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      sp_applied_ops: {
+        Row: {
+          applied_at: string
+          op_id: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          applied_at?: string
+          op_id: string
+          user_id?: string
+        }
+        Update: {
+          applied_at?: string
+          op_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sp_auth_events: {
         Row: {
           created_at: string
@@ -853,32 +872,59 @@ export type Database = {
       sp_export: { Args: Record<PropertyKey, never>; Returns: Json }
       sp_focus_get: { Args: Record<PropertyKey, never>; Returns: Json }
       sp_focus_stats: { Args: { p_days?: number }; Returns: Json }
-      sp_goal_increment: {
-        Args: { p_delta: number; p_goal_id: string }
-        Returns: {
-          completed: boolean
-          completed_at: string | null
-          created_at: string
-          current_amount: number
-          deleted_at: string | null
-          description: string | null
-          id: string
-          list_id: string
-          name: string
-          sort_order: number | null
-          total_amount: number | null
-          type: string
-          unit: string | null
-          updated_at: string
-          user_id: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "sp_goals"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      sp_goal_increment:
+        | {
+            Args: { p_delta: number; p_goal_id: string }
+            Returns: {
+              completed: boolean
+              completed_at: string | null
+              created_at: string
+              current_amount: number
+              deleted_at: string | null
+              description: string | null
+              id: string
+              list_id: string
+              name: string
+              sort_order: number | null
+              total_amount: number | null
+              type: string
+              unit: string | null
+              updated_at: string
+              user_id: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "sp_goals"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { p_delta: number; p_goal_id: string; p_op_id: string }
+            Returns: {
+              completed: boolean
+              completed_at: string | null
+              created_at: string
+              current_amount: number
+              deleted_at: string | null
+              description: string | null
+              id: string
+              list_id: string
+              name: string
+              sort_order: number | null
+              total_amount: number | null
+              type: string
+              unit: string | null
+              updated_at: string
+              user_id: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "sp_goals"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       sp_goal_list_progress: {
         Args: Record<PropertyKey, never>
         Returns: {

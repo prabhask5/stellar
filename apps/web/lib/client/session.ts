@@ -92,7 +92,14 @@ export function goToLock(): void {
   const here = window.location.pathname + window.location.search;
   const next =
     here && here !== "/" && !here.startsWith("/lock") ? `?next=${encodeURIComponent(here)}` : "";
-  window.location.replace(`/lock${next}`);
+  // The server no longer accepts this device (revoked, signed out everywhere, expired): the
+  // copy of the owner's data kept for offline use must not outlive the session. Changes
+  // still in the outbox stay; they are sent after the PIN is entered again.
+  const leave = () => window.location.replace(`/lock${next}`);
+  void import("./persist")
+    .then((m) => m.clearCachedData())
+    .catch(() => {})
+    .then(leave);
 }
 
 async function fetchSession(): Promise<WebSession> {

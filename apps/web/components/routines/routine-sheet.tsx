@@ -12,7 +12,7 @@ import {
   weekdayName,
   weekdayOrder,
 } from "@stellar/shared";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { ConfirmDialog } from "@/components/ui/confirm";
@@ -76,6 +76,14 @@ export function RoutineSheet({ open, onOpenChange, routine, today, weekStart }: 
     // Seed the form when the sheet opens; `today` changing mid-edit must not reset it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, routine]);
+
+  // A new routine starts "today". If the sheet was opened before the owner's time zone was
+  // known, follow the corrected day as long as the date has not been chosen by hand.
+  const seededToday = useRef(today);
+  useEffect(() => {
+    if (open && !routine) setStart((s) => (s === seededToday.current ? today : s));
+    seededToday.current = today;
+  }, [today, open, routine]);
 
   const schedule = useMemo(
     () => ({

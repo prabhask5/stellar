@@ -18,6 +18,8 @@ export function CommandBar() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        // Nothing opens over the PIN screen.
+        if (useUi.getState().locked) return;
         setOpen(!useUi.getState().commandOpen);
       }
     };

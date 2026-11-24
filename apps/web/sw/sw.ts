@@ -48,6 +48,13 @@ const serwist = new Serwist({
 });
 serwist.addEventListeners();
 
+// A new version has taken over. The cached page shells belong to the previous build and
+// point at script files this version has just removed from the precache, so they go too;
+// the reload that follows fetches fresh ones, and the app warms the cache again after it.
+self.addEventListener("activate", (event) => {
+  event.waitUntil(caches.delete(PAGES));
+});
+
 /** Pages are cached by path alone, so /tasks?tab=all and /tasks share one shell. */
 function pageKey(url: URL): string {
   return url.pathname === "" ? "/" : url.pathname;

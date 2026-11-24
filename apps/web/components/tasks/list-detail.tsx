@@ -121,7 +121,7 @@ export function ListDetail({
                             type="button"
                             {...handle}
                             aria-label={`Reorder “${task.name}”`}
-                            className="mouse:flex hidden size-9 cursor-grab touch-none items-center justify-center rounded-chip text-fg-2/60 hover:bg-fill-hover hover:text-fg active:cursor-grabbing"
+                            className="flex size-9 touch:size-11 cursor-grab touch-none items-center justify-center rounded-chip text-fg-2/60 hover:bg-fill-hover hover:text-fg active:cursor-grabbing"
                           >
                             <DragIcon size={18} />
                           </button>

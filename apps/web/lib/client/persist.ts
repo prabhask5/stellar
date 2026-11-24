@@ -42,6 +42,24 @@ export function createIdbPersister(throttleMs = 1000): Persister {
   };
 }
 
+function deleteDatabases(names: string[]): Promise<void[]> {
+  return Promise.all(
+    names.map(
+      (name) =>
+        new Promise<void>((resolve) => {
+          const req = indexedDB.deleteDatabase(name);
+          req.onsuccess = req.onerror = req.onblocked = () => resolve();
+        }),
+    ),
+  );
+}
+
+/** Removes the cached copy of the data but keeps changes that are still waiting to be sent. */
+export async function clearCachedData(): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  await deleteDatabases(["stellar-cache"]);
+}
+
 /** Removes everything this app stored locally. Used when signing out. */
 export async function clearLocalData(): Promise<void> {
   if (typeof indexedDB === "undefined") return;

@@ -278,6 +278,8 @@ export const isWebKit = (projectName: string) => projectName.startsWith("webkit"
 
 /** Enters a PIN the way the device would: keypad taps on touch, typing with a keyboard. */
 export async function enterPin(page: Page, pin: string, projectName: string): Promise<void> {
+  // The pad listens for keys once it has hydrated; typing earlier would go nowhere.
+  await page.locator('[data-testid="pin-pad"][data-ready]').last().waitFor();
   if (isTouch(projectName)) {
     for (const digit of pin) await page.getByRole("button", { name: digit, exact: true }).tap();
   } else {

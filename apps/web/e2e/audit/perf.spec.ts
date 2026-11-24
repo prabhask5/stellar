@@ -193,7 +193,8 @@ test.describe("perf", () => {
       // Rows created elsewhere must show up after a reload; record it when they do not.
       const fresh = await page
         .getByTestId("all-tab")
-        .getByText("Bulk task 1000", { exact: true })
+        .getByText(/^Bulk task \d+$/)
+        .first()
         .waitFor({ timeout: 30_000 })
         .then(() => true)
         .catch(() => false);

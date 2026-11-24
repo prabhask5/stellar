@@ -203,7 +203,7 @@ function ListEditor({
           type="button"
           {...handle}
           aria-label={`Reorder ${list.name}`}
-          className="mouse:flex hidden size-9 cursor-grab touch-none items-center justify-center rounded-chip text-fg-2/60 hover:bg-fill-hover active:cursor-grabbing"
+          className="flex size-9 touch:size-11 cursor-grab touch-none items-center justify-center rounded-chip text-fg-2/60 hover:bg-fill-hover active:cursor-grabbing"
         >
           <DragIcon size={18} />
         </button>
@@ -235,7 +235,7 @@ function ListEditor({
                 }
               }}
               onPaste={(e) => {
-                const pasted = e.clipboardData.getData("text");
+                const pasted = e.clipboardData?.getData("text") ?? "";
                 // Several lines pasted at once are added straight away.
                 if (/[\n,]/.test(pasted.trim())) {
                   e.preventDefault();

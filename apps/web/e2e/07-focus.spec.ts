@@ -189,10 +189,27 @@ test.describe("focus", () => {
     ]);
     expect(a).toBe(b);
     // Both press Skip at the same moment: the version check lets exactly one through.
-    await Promise.all([
-      page.getByRole("button", { name: "Skip phase" }).click(),
-      page2.getByRole("button", { name: "Skip phase" }).click(),
-    ]);
+    // Scheduled inside both pages for the same instant: two clicks sent from the test runner
+    // can be far enough apart (Firefox) for the second page to have already seen the first
+    // skip, which makes its own skip a legitimate second one.
+    const at = Date.now() + 700;
+    await Promise.all(
+      [page, page2].map((p) =>
+        p.evaluate(
+          (t) =>
+            new Promise<void>((resolve) =>
+              setTimeout(
+                () => {
+                  document.querySelector<HTMLElement>('button[aria-label="Skip phase"]')?.click();
+                  resolve();
+                },
+                Math.max(0, t - Date.now()),
+              ),
+            ),
+          at,
+        ),
+      ),
+    );
     await expect(focus(page)).toHaveAttribute("data-phase", "short_break");
     await expect(focus(page2)).toHaveAttribute("data-phase", "short_break");
     await expect
@@ -284,9 +301,15 @@ test.describe("focus", () => {
         "text/plain",
         "reddit.com\nhttp://news.ycombinator.com/newest\nyoutube.com\nlocalhost\ntwitter.com",
       );
-      document.activeElement?.dispatchEvent(
-        new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }),
-      );
+      const event = new ClipboardEvent("paste", {
+        clipboardData: data,
+        bubbles: true,
+        cancelable: true,
+      });
+      // Firefox ignores `clipboardData` in the constructor of a synthetic event.
+      if (!event.clipboardData?.getData("text/plain"))
+        Object.defineProperty(event, "clipboardData", { value: data });
+      document.activeElement?.dispatchEvent(event);
     });
     await expect(
       list.getByRole("list", { name: "Sites in Social" }).getByRole("listitem"),

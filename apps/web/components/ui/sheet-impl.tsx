@@ -1,6 +1,12 @@
 "use client";
 
-import { AnimatePresence, type PanInfo, useDragControls, useReducedMotion } from "motion/react";
+import {
+  AnimatePresence,
+  type PanInfo,
+  useDragControls,
+  useIsPresent,
+  useReducedMotion,
+} from "motion/react";
 import * as m from "motion/react-m";
 import { Dialog } from "radix-ui";
 import type { ReactNode } from "react";
@@ -83,16 +89,18 @@ export function Sheet({
                   exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.97 }}
                   transition={reduce ? { duration: 0.15 } : SPRING}
                 >
-                  <Header
-                    title={title}
-                    hideTitle={hideTitle}
-                    description={description}
-                    onClose={() => onOpenChange(false)}
-                  />
-                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6">
-                    {children}
-                  </div>
-                  {footer && <div className="border-t border-separator px-6 py-4">{footer}</div>}
+                  <ExitGuard>
+                    <Header
+                      title={title}
+                      hideTitle={hideTitle}
+                      description={description}
+                      onClose={() => onOpenChange(false)}
+                    />
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6">
+                      {children}
+                    </div>
+                    {footer && <div className="border-t border-separator px-6 py-4">{footer}</div>}
+                  </ExitGuard>
                 </m.div>
               ) : (
                 <m.div
@@ -117,34 +125,36 @@ export function Sheet({
                   dragElastic={{ top: 0, bottom: 0.6 }}
                   onDragEnd={onDragEnd}
                 >
-                  <div
-                    className="flex h-6 shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
-                    onPointerDown={(e) => controls.start(e)}
-                    aria-hidden="true"
-                  >
-                    <span className="h-[5px] w-9 rounded-full bg-white/25" />
-                  </div>
-                  <Header
-                    title={title}
-                    hideTitle={hideTitle}
-                    description={description}
-                    onClose={() => onOpenChange(false)}
-                    compact
-                  />
-                  <div
-                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5"
-                    style={{ paddingBottom: footer ? 16 : "max(20px, var(--sab))" }}
-                  >
-                    {children}
-                  </div>
-                  {footer && (
+                  <ExitGuard>
                     <div
-                      className="border-t border-separator px-5 pt-3"
-                      style={{ paddingBottom: "max(12px, var(--sab))" }}
+                      className="flex h-6 shrink-0 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
+                      onPointerDown={(e) => controls.start(e)}
+                      aria-hidden="true"
                     >
-                      {footer}
+                      <span className="h-[5px] w-9 rounded-full bg-white/25" />
                     </div>
-                  )}
+                    <Header
+                      title={title}
+                      hideTitle={hideTitle}
+                      description={description}
+                      onClose={() => onOpenChange(false)}
+                      compact
+                    />
+                    <div
+                      className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5"
+                      style={{ paddingBottom: footer ? 16 : "max(20px, var(--sab))" }}
+                    >
+                      {children}
+                    </div>
+                    {footer && (
+                      <div
+                        className="border-t border-separator px-5 pt-3"
+                        style={{ paddingBottom: "max(12px, var(--sab))" }}
+                      >
+                        {footer}
+                      </div>
+                    )}
+                  </ExitGuard>
                 </m.div>
               )}
             </Dialog.Content>
@@ -152,6 +162,30 @@ export function Sheet({
         )}
       </AnimatePresence>
     </Dialog.Root>
+  );
+}
+
+/**
+ * A sheet stays mounted while it animates out. During that time it must not take
+ * input: a second tap on "Create" a few frames after the first would submit twice.
+ */
+function ExitGuard({ children }: { children: ReactNode }) {
+  const present = useIsPresent();
+  return (
+    <div
+      className="contents"
+      inert={!present}
+      onClickCapture={
+        present
+          ? undefined
+          : (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+      }
+    >
+      {children}
+    </div>
   );
 }
 

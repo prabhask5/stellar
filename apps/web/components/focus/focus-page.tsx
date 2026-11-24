@@ -1,5 +1,6 @@
 "use client";
 
+import { useUi } from "@/lib/client/ui-store";
 import { isBlockingActive } from "@stellar/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePush } from "@/components/settings/notifications";
@@ -40,7 +41,7 @@ export function FocusPage() {
         (["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A"].includes(t.tagName) || t.isContentEditable)
       )
         return;
-      if (document.querySelector('[role="dialog"]')) return;
+      if (document.querySelector('[role="dialog"]') || useUi.getState().locked) return;
       const s = focus?.state;
       if (!s) return;
       e.preventDefault();

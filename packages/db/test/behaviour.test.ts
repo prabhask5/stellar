@@ -342,6 +342,34 @@ describe.skipIf(!available)("database behaviour", () => {
           "insert into sp_goals (list_id, name, completed) values ($1, 'Todo done', true), ($1, 'Todo open', false)",
           [list!.id],
         );
+        // Polish pass 1: an increment that carries an operation id is applied once, however
+        // often it is replayed, and a goal that is gone answers null instead of raising.
+        const op = "7d0e1c9a-58a3-4c0e-9a55-0d6b6a3f2c11";
+        const once = async () =>
+          (
+            await q<{ a: number | null }>(
+              "select (sp_goal_increment($1, 3, $2::uuid)).current_amount::int as a",
+              [g!.id, op],
+            )
+          )[0]!.a;
+        expect(await once()).toBe(3);
+        expect(await once()).toBe(3);
+        expect(await once()).toBe(3);
+        await inc(-3);
+        expect(
+          (
+            await q<{ gone: boolean }>(
+              "select sp_goal_increment('00000000-0000-4000-8000-000000000000', 1, gen_random_uuid()) is null as gone",
+            )
+          )[0]!.gone,
+        ).toBe(true);
+        expect(
+          (
+            await q<{ gone: boolean }>(
+              "select sp_routine_log_set('00000000-0000-4000-8000-000000000000', current_date, true) is null as gone",
+            )
+          )[0]!.gone,
+        ).toBe(true);
         await inc(10);
         const [p] = await q<{ total: number; complete: number; fraction: string }>(
           "select total, complete, fraction from sp_goal_list_progress()",

@@ -14,10 +14,9 @@ import {
   SearchIcon,
   StopIcon,
 } from "@/components/ui/icons";
-import { currentToday } from "@/lib/client/data/core";
 import { timerAction } from "@/lib/client/data/focus";
 import { useFocus } from "@/lib/client/data/hooks";
-import { createTask } from "@/lib/client/data/tasks";
+import { createTaskForToday } from "@/lib/client/data/tasks";
 import { toast } from "@/lib/client/toast";
 import { useUi } from "@/lib/client/ui-store";
 import { NAV } from "./nav";
@@ -59,7 +58,7 @@ export function CommandBar() {
         icon: PlusIcon,
         keywords: "",
         run: () => {
-          createTask({ name: text, due_date: currentToday() });
+          createTaskForToday({ name: text });
           toast("Task added for today", { tone: "success" });
         },
       });

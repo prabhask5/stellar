@@ -480,61 +480,73 @@ function Database({ onBack, onNext }: { onBack: () => void; onNext: () => void }
     setMessage(null);
     try {
       const res = await fetch("/api/setup/migrate", { method: "POST", credentials: "same-origin" });
-      if (!res.ok || !res.body) {
+      if (!res.ok) {
         const body = (await res.json().catch(() => null)) as {
           error?: { message?: string };
         } | null;
         throw new Error(body?.error?.message ?? "Could not start the database setup.");
       }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buffer.indexOf("\n")) >= 0) {
-          const line = buffer.slice(0, nl).trim();
-          buffer = buffer.slice(nl + 1);
-          if (!line) continue;
-          const event = JSON.parse(line) as
-            | { type: "plan"; migrations: { version: number; name: string }[] }
-            | ({ type: "progress" } & MigrationRow)
-            | {
-                type: "result";
-                ok: boolean;
-                method: string;
-                error?: string;
-                schemaVersion?: number;
-              };
-          if (event.type === "plan") {
-            setRows(event.migrations.map((m) => ({ ...m, status: "pending" })));
-          } else if (event.type === "progress") {
-            setRows((prev) =>
-              prev.map((r) =>
-                r.version === event.version
-                  ? { ...r, status: event.status, error: event.error }
-                  : r,
-              ),
-            );
-          } else if (event.ok) {
-            setRows((prev) =>
-              prev.map((r) => (r.status === "pending" ? { ...r, status: "done" } : r)),
-            );
-            setPhase("done");
-          } else if (event.method === "manual") {
-            const text = await fetch("/api/setup/sql", { credentials: "same-origin" }).then((r) =>
-              r.text(),
-            );
-            setSql(text);
-            setPhase("manual");
-          } else {
-            setMessage(event.error ?? "The database setup failed.");
-            setPhase("failed");
+      type Event =
+        | { type: "plan"; migrations: { version: number; name: string }[] }
+        | ({ type: "progress" } & MigrationRow)
+        | { type: "result"; ok: boolean; method: string; error?: string; schemaVersion?: number };
+      let finished = false;
+      const handle = async (raw: string) => {
+        const line = raw.trim();
+        if (!line) return;
+        const event = JSON.parse(line) as Event;
+        if (event.type === "plan") {
+          setRows(event.migrations.map((m) => ({ ...m, status: "pending" })));
+        } else if (event.type === "progress") {
+          setRows((prev) =>
+            prev.map((r) =>
+              r.version === event.version ? { ...r, status: event.status, error: event.error } : r,
+            ),
+          );
+        } else if (event.ok) {
+          finished = true;
+          setRows((prev) =>
+            prev.map((r) => (r.status === "pending" ? { ...r, status: "done" } : r)),
+          );
+          setPhase("done");
+        } else if (event.method === "manual") {
+          finished = true;
+          const text = await fetch("/api/setup/sql", { credentials: "same-origin" }).then((r) =>
+            r.text(),
+          );
+          setSql(text);
+          setPhase("manual");
+        } else {
+          finished = true;
+          setMessage(event.error ?? "The database setup failed.");
+          setPhase("failed");
+        }
+      };
+      // Progress is streamed line by line where the browser exposes the response as a
+      // stream; where it does not (some WebKit paths), the whole answer is read at the end.
+      const reader = res.body?.getReader?.();
+      if (reader) {
+        const decoder = new TextDecoder();
+        let buffer = "";
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let nl: number;
+          while ((nl = buffer.indexOf("\n")) >= 0) {
+            const line = buffer.slice(0, nl);
+            buffer = buffer.slice(nl + 1);
+            await handle(line);
           }
         }
+        // A last line without a newline still counts.
+        await handle(buffer + decoder.decode());
+      } else {
+        for (const line of (await res.text()).split("\n")) await handle(line);
       }
+      // The connection ended before the server reported an outcome: do not sit on "running".
+      if (!finished)
+        throw new Error("The connection dropped during the database setup. Run it again.");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "The database setup failed.");
       setPhase("failed");

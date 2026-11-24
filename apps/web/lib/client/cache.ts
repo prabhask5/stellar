@@ -92,7 +92,12 @@ export function setRows<T extends CollectionTable>(
   table: T,
   update: (rows: Collections[T][]) => Collections[T][],
 ): void {
-  queryClient.setQueryData<Collections[T][]>(keys.table(table), (prev) => update(prev ?? []));
+  const key = keys.table(table);
+  const loaded = queryClient.getQueryData(key) !== undefined;
+  queryClient.setQueryData<Collections[T][]>(key, (prev) => update(prev ?? []));
+  // Writing to a list that was never loaded must not pass for the whole list: it stays
+  // stale, so the first screen that shows it still fetches (and merges what is queued).
+  if (!loaded) void queryClient.invalidateQueries({ queryKey: key, refetchType: "none" });
 }
 
 /** Inserts or replaces a row. A soft-deleted row is removed from the collection instead. */

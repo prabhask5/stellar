@@ -326,6 +326,8 @@ html[data-tier="minimal"] .sp-sky__stars--twinkle {
 @custom-variant touch (@media (pointer: coarse));
 @custom-variant mouse (@media (hover: hover) and (pointer: fine));
 @custom-variant short (@media (max-height: 700px));
+/* A phone held sideways: very little height, so tall stacks lay out side by side. */
+@custom-variant flat (@media (max-height: 480px) and (orientation: landscape));
 
 @keyframes sp-shake {
   10%,

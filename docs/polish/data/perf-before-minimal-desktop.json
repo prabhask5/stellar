@@ -6,31 +6,31 @@
   "longTasks": 0,
   "longest": 0,
   "inp": 0,
-  "frames": 198,
+  "frames": 199,
   "p50": 16.7,
   "p95": 16.7,
-  "worst": 33.4,
-  "over33": 1
+  "worst": 16.8,
+  "over33": 0
  },
  "tabSwitches": {
-  "longTasks": 3,
-  "longest": 208,
-  "inp": 80,
-  "frames": 192,
+  "longTasks": 1,
+  "longest": 147,
+  "inp": 40,
+  "frames": 184,
   "p50": 16.7,
   "p95": 16.8,
-  "worst": 233.4,
-  "over33": 4
+  "worst": 183.3,
+  "over33": 2
  },
  "completeTen": {
-  "longTasks": 1,
-  "longest": 88,
-  "inp": 56,
-  "frames": 292,
+  "longTasks": 0,
+  "longest": 0,
+  "inp": 40,
+  "frames": 294,
   "p50": 16.7,
-  "p95": 16.8,
-  "worst": 66.7,
-  "over33": 2
+  "p95": 16.7,
+  "worst": 33.3,
+  "over33": 0
  },
  "scrollAll": {
   "longTasks": 0,
@@ -38,40 +38,40 @@
   "inp": 0,
   "frames": 144,
   "p50": 16.7,
-  "p95": 16.7,
-  "worst": 33.3,
+  "p95": 16.8,
+  "worst": 33.4,
   "over33": 0
  },
  "openSheet": {
   "longTasks": 1,
-  "longest": 98,
+  "longest": 55,
   "inp": 64,
-  "frames": 98,
+  "frames": 99,
   "p50": 16.7,
   "p95": 16.8,
-  "worst": 133.4,
+  "worst": 49.9,
   "over33": 1
  },
  "typeQuickAdd": {
   "longTasks": 0,
   "longest": 0,
-  "inp": 56,
-  "frames": 92,
+  "inp": 40,
+  "frames": 84,
   "p50": 16.7,
-  "p95": 16.8,
-  "worst": 33.3,
+  "p95": 16.7,
+  "worst": 16.8,
   "over33": 0
  },
- "thousandTasksMs": "never shown: the reload kept the cached list",
+ "thousandTasksMs": 983,
  "thousandScroll": {
   "longTasks": 1,
   "longest": 89,
   "inp": 0,
-  "frames": 120,
+  "frames": 111,
   "p50": 16.7,
-  "p95": 33.4,
-  "worst": 83.3,
-  "over33": 8
+  "p95": 50.1,
+  "worst": 133.3,
+  "over33": 19
  },
- "thousandDomNodes": 10320
+ "thousandDomNodes": 10321
 }

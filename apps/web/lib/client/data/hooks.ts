@@ -8,7 +8,7 @@ import { create } from "zustand";
 import { type Collections, type CollectionTable, type FocusCache, keys } from "../cache";
 import { serverNow, setServerSkew } from "../session";
 import { getSupabase } from "../supabase";
-import { fetchCollection, fetchFocus, fetchSettings } from "./core";
+import { fallbackTimeZone, fetchFocus, fetchSettings, loadCollection } from "./core";
 
 /** True once a session (or the remembered connection details) is available, so queries may run. */
 export const useReady = create<{ ready: boolean }>(() => ({ ready: false }));
@@ -21,7 +21,7 @@ export function useCollection<T extends CollectionTable>(
   const ready = useReady((s) => s.ready);
   const q = useQuery({
     queryKey: keys.table(table),
-    queryFn: () => fetchCollection(table),
+    queryFn: () => loadCollection(table),
     enabled: ready,
   });
   return { rows: q.data ?? (EMPTY as unknown as Collections[T][]), loading: q.data === undefined };
@@ -93,7 +93,10 @@ export function useMinute(): number {
 
 export function useTimeZone(): string {
   const settings = useSettings();
-  return settings?.timezone ?? "UTC";
+  // Server render and hydration use UTC; the remembered or device zone takes over right after.
+  const [fallback, setFallback] = useState("UTC");
+  useEffect(() => setFallback(fallbackTimeZone()), []);
+  return settings?.timezone ?? fallback;
 }
 
 export function useWeekStart(): WeekStart {

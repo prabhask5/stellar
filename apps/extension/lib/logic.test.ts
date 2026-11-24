@@ -223,4 +223,19 @@ describe("badge and clock", () => {
     expect(clock(snap({ status: "idle" }), T0)).toBe("25:00");
     expect(clock(snap({ status: "awaiting", phase: "long_break" }), T0)).toBe("15:00");
   });
+
+  it("P1: a domain whose regex the browser refuses still gets a rule (plain filter)", () => {
+    const rules = buildRules(["youtube.com", "reddit.com"], PAGE, new Set(["reddit.com"]));
+    expect(rules).toHaveLength(2);
+    const reddit = rules.find((r) => JSON.stringify(r).includes("reddit"));
+    const youtube = rules.find((r) => JSON.stringify(r).includes("youtube"));
+    expect(reddit?.condition).toEqual({
+      urlFilter: "||reddit.com^",
+      resourceTypes: ["main_frame"],
+    });
+    expect(youtube?.condition.regexFilter).toBe(domainRegex("youtube.com"));
+    // Last resort when the whole set is refused: every domain is still blocked.
+    const all = buildRules(["youtube.com", "reddit.com"], PAGE, "all");
+    expect(all.every((r) => r.condition.urlFilter && !r.condition.regexFilter)).toBe(true);
+  });
 });

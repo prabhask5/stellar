@@ -84,6 +84,20 @@ describe("task views", () => {
     );
   });
 
+  it("All with completed tasks keeps one Overdue group (P2: duplicate groups and keys)", () => {
+    const mixed = [
+      task("done-17", { due_date: "2026-11-16", completed: true }),
+      task("open-17", { due_date: "2026-11-17" }),
+      task("done-18", { due_date: "2026-11-18", completed: true }),
+      task("open-19", { due_date: "2026-11-19" }),
+    ];
+    const groups = allView(mixed, today, true);
+    const keys = groups.map((g) => g.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(groups[0]?.key).toBe("overdue");
+    expect(groups[0]?.tasks.map((t) => t.name)).toEqual(["open-17", "open-19"]);
+  });
+
   it("Calendar holds dated non-list tasks by day", () => {
     const cal = calendarView(tasks);
     expect(cal.get(today)?.map((t) => t.name)).toEqual(["roadmap", "grocery", "mom", "review"]);

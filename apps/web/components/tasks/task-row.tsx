@@ -67,10 +67,14 @@ export const TaskRow = memo(function TaskRow({
   };
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
-    if (info.offset.x > COMPLETE_AT && !done) {
+    // Decide from where the row ended up, not from how far the finger travelled: a row
+    // that was open at −148 and is pushed back to rest has moved +148 without ever
+    // showing the "complete" side.
+    const at = x.get();
+    if (at > COMPLETE_AT && !done && !open) {
       settle(0);
       toggleTask(task, checkbox.current);
-    } else if (info.offset.x < -64 || (open && info.offset.x < 24)) {
+    } else if (at < -64 && (open || info.offset.x < 0)) {
       settle(-ACTIONS_WIDTH);
     } else {
       settle(0);

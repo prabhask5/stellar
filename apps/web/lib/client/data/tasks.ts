@@ -13,6 +13,8 @@ import {
   restoreRow,
   softDeleteRow,
   updateRow,
+  whenZoneKnown,
+  zoneKnown,
 } from "./core";
 
 export interface NewTask {
@@ -58,6 +60,17 @@ export function createTask(input: NewTask): Task {
   } = row;
   insertRow("sp_tasks", row, send);
   return row;
+}
+
+/**
+ * Creates a task due "today". Today is the owner's day, which needs their time zone; in
+ * the first moments of the first launch on a device it may not be known yet, and the
+ * device's day could be the wrong one. In that case the task is created as soon as the
+ * settings arrive, with the right day.
+ */
+export function createTaskForToday(input: Omit<NewTask, "due_date">): void {
+  if (zoneKnown()) createTask({ ...input, due_date: currentToday() });
+  else void whenZoneKnown().then(() => createTask({ ...input, due_date: currentToday() }));
 }
 
 export type TaskPatch = Partial<
@@ -109,13 +122,14 @@ export function postponeOverdue(): number {
   if (overdue.length === 0) return 0;
   const moved = overdue.map((t) => ({ id: t.id, due_date: t.due_date as string }));
   for (const t of overdue) patchRow("sp_tasks", t.id, { due_date: today, updated_at: nowIso() });
-  enqueue({ kind: "rpc", fn: "sp_postpone_overdue_to_today", args: {} });
+  const rowKeys = moved.map((m) => `sp_tasks:${m.id}`);
+  enqueue({ kind: "rpc", fn: "sp_postpone_overdue_to_today", args: {}, rowKeys });
   emitCosmic({ type: "overdue_postponed", count: overdue.length });
   toast(overdue.length === 1 ? "Moved 1 task to today" : `Moved ${overdue.length} tasks to today`, {
     undo: () => {
       for (const m of moved)
         patchRow("sp_tasks", m.id, { due_date: m.due_date, updated_at: nowIso() });
-      enqueue({ kind: "rpc", fn: "sp_restore_due_dates", args: { p_moved: moved } });
+      enqueue({ kind: "rpc", fn: "sp_restore_due_dates", args: { p_moved: moved }, rowKeys });
     },
   });
   return overdue.length;

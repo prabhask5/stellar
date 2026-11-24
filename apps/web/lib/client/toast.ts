@@ -11,12 +11,14 @@ export interface Toast {
   /** A different action label (e.g. "Reload"). */
   action?: { label: string; run: () => void };
   duration: number;
+  /** When this content was shown; replacing a toast restarts its time on screen. */
+  shownAt: number;
 }
 
 interface ToastState {
   toasts: Toast[];
   push: (
-    t: Omit<Toast, "id" | "tone" | "duration"> & {
+    t: Omit<Toast, "id" | "tone" | "duration" | "shownAt"> & {
       tone?: ToastTone;
       duration?: number;
       id?: string;
@@ -38,6 +40,7 @@ export const useToasts = create<ToastState>((set) => ({
       undo: t.undo,
       action: t.action,
       duration: t.duration ?? (t.undo ? UNDO_MS : 3500),
+      shownAt: Date.now(),
     };
     // At most three at once; a repeated id replaces the earlier toast.
     set((s) => ({ toasts: [...s.toasts.filter((x) => x.id !== id), toast].slice(-3) }));
@@ -48,7 +51,7 @@ export const useToasts = create<ToastState>((set) => ({
 
 export function toast(
   message: string,
-  options: Partial<Omit<Toast, "id" | "message">> & { id?: string } = {},
+  options: Partial<Omit<Toast, "id" | "message" | "shownAt">> & { id?: string } = {},
 ): string {
   return useToasts.getState().push({ message, ...options });
 }

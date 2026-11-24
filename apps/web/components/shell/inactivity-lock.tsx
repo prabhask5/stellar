@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { LockScreen } from "@/components/auth/lock-screen";
 import { useSettings } from "@/lib/client/data/hooks";
 import { useUi } from "@/lib/client/ui-store";
@@ -60,11 +61,29 @@ export function InactivityLock() {
     };
   }, [minutes, setLocked]);
 
+  // Everything under the lock is taken out of reach: no focus, no clicks, no keys, nothing
+  // read out by a screen reader. Sheets and menus opened before the lock live in portals
+  // beside the app, so every other child of <body> is made inert, not just the shell.
+  useEffect(() => {
+    if (!locked) return;
+    useUi.getState().setCommandOpen(false);
+    const overlay = document.querySelector<HTMLElement>("[data-inactivity-lock]");
+    const others = [...document.body.children].filter(
+      (el): el is HTMLElement => el instanceof HTMLElement && el !== overlay && !el.inert,
+    );
+    for (const el of others) el.inert = true;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    return () => {
+      for (const el of others) el.inert = false;
+    };
+  }, [locked]);
+
   if (!locked) return null;
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] overflow-y-auto bg-void/90 backdrop-blur-2xl"
+      className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain bg-void/90 backdrop-blur-2xl"
       data-testid="inactivity-lock"
+      data-inactivity-lock=""
     >
       <LockScreen
         mode="unlock"
@@ -73,6 +92,7 @@ export function InactivityLock() {
           setLocked(false);
         }}
       />
-    </div>
+    </div>,
+    document.body,
   );
 }

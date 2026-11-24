@@ -29,13 +29,18 @@ export function domainRegex(pattern: string): string {
  * fragment (after `#`), where it needs no encoding, so the block page can offer
  * to continue there once the focus phase ends.
  */
-export function buildRules(patterns: readonly string[], blockedPageUrl: string): RedirectRule[] {
+export function buildRules(
+  patterns: readonly string[],
+  blockedPageUrl: string,
+  /** Domains (or "all") that must use a plain filter because their regex is not accepted. */
+  plain: ReadonlySet<string> | "all" = new Set(),
+): RedirectRule[] {
   const unique = [...new Set(patterns.map((p) => p.trim().toLowerCase()).filter(Boolean))]
     .sort()
     .slice(0, MAX_RULES);
   return unique.map((pattern, i) => {
     const id = i + 1;
-    if (i < MAX_REGEX_RULES) {
+    if (i < MAX_REGEX_RULES && plain !== "all" && !plain.has(pattern)) {
       return {
         id,
         priority: 1,
