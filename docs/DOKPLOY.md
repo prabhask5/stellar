@@ -68,7 +68,7 @@ Setting `APP_SECRET` here is the more secure arrangement: the key that encrypts 
 - **Manually:** press **Deploy** (or **Rebuild**) to build the latest commit.
 - **Automatically:** enable **Auto Deploy** under General and add the webhook URL from the **Deployments** tab to your Git provider, so each push to the branch redeploys.
 
-After an update open **Settings → Connection** in the app and re-run the migrations. They are idempotent, so this is always safe. Dokploy keeps the previous image, so **Rollback** in the Deployments tab returns to the last version; migrations only ever add, so an older version keeps working against a newer schema.
+After an update the app migrates its database by itself on start (over the connection string, or through your Supabase's pg-meta endpoint); there is no SQL to run. The container log shows what was applied. Dokploy keeps the previous image, so **Rollback** in the Deployments tab returns to the last version; migrations only ever add, so an older version keeps working against a newer schema.
 
 ## 7. Backups
 

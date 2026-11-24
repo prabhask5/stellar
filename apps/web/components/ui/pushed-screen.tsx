@@ -78,7 +78,11 @@ export function PushedScreen({
       v: 0,
       active: x.get() > 0,
     };
-    e.currentTarget.setPointerCapture?.(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    } catch {
+      // The pointer is already gone (a very short touch): there is nothing to capture.
+    }
   };
   const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const s = g.current;

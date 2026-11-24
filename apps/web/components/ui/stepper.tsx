@@ -1,5 +1,6 @@
 "use client";
 
+import { parseAmount } from "@/lib/client/amount";
 import { haptic } from "@/lib/client/haptics";
 import { formatAmount } from "@stellar/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -84,7 +85,7 @@ export function Stepper({
   };
 
   const commit = () => {
-    const n = Number(draft.replace(",", "."));
+    const n = parseAmount(draft);
     setEditing(false);
     if (draft.trim() !== "" && Number.isFinite(n) && n >= min && n !== value && inputRef.current)
       onSet?.(n, inputRef.current);

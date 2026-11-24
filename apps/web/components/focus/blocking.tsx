@@ -92,10 +92,10 @@ export function BlockingCard({ state, settings, lists, sites }: BlockingProps) {
                 active={on}
                 onClick={() => toggleBlockList(l.id)}
                 aria-label={`${l.name}, ${n} ${n === 1 ? "site" : "sites"}, ${on ? "on" : "off"}`}
-                className="!rounded-full"
+                className="max-w-full !rounded-full"
               >
                 {l.emoji && <span aria-hidden="true">{l.emoji}</span>}
-                {l.name}
+                <span className="min-w-0 truncate">{l.name}</span>
                 {on && (
                   <span className="tnum">
                     {" "}
@@ -230,7 +230,7 @@ function ListEditor({
                 if (message) setMessage(null);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                   e.preventDefault();
                   add(text);
                 }

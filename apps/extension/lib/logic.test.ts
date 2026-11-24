@@ -238,4 +238,13 @@ describe("badge and clock", () => {
     const all = buildRules(["youtube.com", "reddit.com"], PAGE, "all");
     expect(all.every((r) => r.condition.urlFilter && !r.condition.regexFilter)).toBe(true);
   });
+
+  it("P2: a trailing-dot hostname does not slip past the block rule", () => {
+    const re = new RegExp(domainRegex("youtube.com"));
+    expect(re.test("https://youtube.com./watch?v=1")).toBe(true);
+    expect(re.test("https://www.youtube.com.:443/")).toBe(true);
+    expect(re.test("https://youtube.com/")).toBe(true);
+    expect(re.test("https://notyoutube.com/")).toBe(false);
+    expect(re.test("https://youtube.com.evil.example/")).toBe(false);
+  });
 });

@@ -163,7 +163,9 @@ test.describe("native feel", () => {
   test("only one row is open at a time, scrolling closes it, and a full swipe deletes", async ({
     page,
   }, info) => {
-    test.skip(!isTouch(info.project.name), "touch only");
+    // Two rows must be on screen together without scrolling (scrolling closes rows, which
+    // is the point); a 393px-high sideways screen does not reliably fit them under the header.
+    test.skip(!isPhone(info.project.name), "upright phone");
     await seedTasks(18);
     await page.goto("/tasks?tab=all");
     await page.getByRole("radio", { name: "All", exact: true }).click();
@@ -178,15 +180,22 @@ test.describe("native feel", () => {
         return Math.round(new DOMMatrixReadOnly(getComputedStyle(moving).transform).m41);
       });
 
+    await row("09").scrollIntoViewIfNeeded();
     await swipeRow("09", -150);
     await expect(page.getByRole("button", { name: "Delete “Task 09”" })).toBeVisible();
     await expect.poll(() => offset("09")).toBe(-148);
-    await swipeRow("18", -150);
-    await expect.poll(() => offset("18")).toBe(-148);
+    // The row right below it (rows are sorted by due date, so pick by position: on a short
+    // sideways screen a row further down would be off screen).
+    const second = await row("09").evaluate((el) => {
+      const rows = [...document.querySelectorAll('[data-testid="task-row"]')];
+      return (rows[rows.indexOf(el) + 1]?.getAttribute("data-task") ?? "").replace("Task ", "");
+    });
+    await swipeRow(second, -150);
+    await expect.poll(() => offset(second)).toBe(-148);
     await expect.poll(() => offset("09")).toBe(0);
 
     await page.evaluate(() => window.scrollBy(0, 120));
-    await expect.poll(() => offset("18")).toBe(0);
+    await expect.poll(() => offset(second)).toBe(0);
 
     const before = (
       await sql(`select count(*)::int as n from sp_tasks where deleted_at is null`)

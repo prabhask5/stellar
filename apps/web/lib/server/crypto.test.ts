@@ -274,3 +274,26 @@ describe("rate limiter", () => {
     expect(rateLimit("other", 3, 1000, 200).allowed).toBe(true);
   });
 });
+
+describe("polish pass 1: server hardening", () => {
+  it("a lockout decays after a quiet day (P2: it never did)", async () => {
+    const { DECAY_MS, nextOnFailure } = await import("./lockout");
+    const now = 1_800_000_000_000;
+    const old = { failures: 9, lockedUntil: 0, lastFailureAt: now - DECAY_MS - 1 };
+    expect(nextOnFailure(old, now)).toEqual({ failures: 1, lockedUntil: 0, lastFailureAt: now });
+    const recent = { failures: 9, lockedUntil: 0, lastFailureAt: now - 60_000 };
+    expect(nextOnFailure(recent, now).failures).toBe(10);
+  });
+
+  it("PUBLIC_APP_URL without a scheme is understood, and nonsense is ignored (P2: bare 500s)", async () => {
+    const { normalizePublicUrl } = await import("./config");
+    expect(normalizePublicUrl("planner.example.com")).toBe("https://planner.example.com");
+    expect(normalizePublicUrl(" https://planner.example.com/ ")).toBe(
+      "https://planner.example.com",
+    );
+    expect(normalizePublicUrl("http://192.168.1.20:3000")).toBe("http://192.168.1.20:3000");
+    expect(normalizePublicUrl("ftp://x")).toBeNull();
+    expect(normalizePublicUrl("")).toBeNull();
+    expect(normalizePublicUrl(undefined)).toBeNull();
+  });
+});

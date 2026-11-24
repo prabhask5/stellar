@@ -42,8 +42,17 @@ export const useToasts = create<ToastState>((set) => ({
       duration: t.duration ?? (t.undo ? UNDO_MS : 3500),
       shownAt: Date.now(),
     };
-    // At most three at once; a repeated id replaces the earlier toast.
-    set((s) => ({ toasts: [...s.toasts.filter((x) => x.id !== id), toast].slice(-3) }));
+    // At most three at once; a repeated id replaces the earlier toast. When one has to go,
+    // it is the oldest plain message: an Undo or "Reload" is an offer that must stay until
+    // it is taken or runs out.
+    set((s) => {
+      const next = [...s.toasts.filter((x) => x.id !== id), toast];
+      while (next.length > 3) {
+        const plain = next.findIndex((x) => !x.undo && !x.action && x.id !== id);
+        next.splice(plain >= 0 ? plain : 0, 1);
+      }
+      return { toasts: next };
+    });
     return id;
   },
   dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),

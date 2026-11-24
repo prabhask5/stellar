@@ -2,7 +2,7 @@
 
 import { advance, Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PerspectiveCamera } from "three";
 import { useStore } from "zustand";
 import { FrameGovernor, stepDown, TIERS, type TierProfile } from "./quality.ts";
@@ -128,10 +128,29 @@ function Loop({ profile }: { profile: TierProfile }) {
 export default function UniverseCanvas() {
   const tier = useStore(universeStore, (s) => s.tier);
   const profile = TIERS[tier];
+  // iOS takes the WebGL context away from a backgrounded app and does not always give it
+  // back. When that happens the scene is rebuilt on a fresh context instead of leaving
+  // an empty sky behind; the CSS starfield shows through in between.
+  const [epoch, setEpoch] = useState(0);
   if (!profile.webgl) return null;
   return (
     <Canvas
-      key={tier}
+      key={`${tier}:${epoch}`}
+      onCreated={({ gl }) => {
+        const canvas = gl.domElement;
+        canvas.addEventListener("webglcontextlost", (e) => {
+          e.preventDefault();
+          universeStore.setState({ ready: false });
+          // Rebuild once the page is in front again; nothing can be drawn before that.
+          const rebuild = () => {
+            if (document.hidden) return;
+            document.removeEventListener("visibilitychange", rebuild);
+            setEpoch((n) => n + 1);
+          };
+          if (document.hidden) document.addEventListener("visibilitychange", rebuild);
+          else setTimeout(rebuild, 400);
+        });
+      }}
       frameloop="never"
       dpr={[1, profile.maxDpr]}
       gl={{

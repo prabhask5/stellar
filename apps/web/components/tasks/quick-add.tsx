@@ -81,9 +81,19 @@ export function QuickAddBar({
     if (!touched.current) setDue({ date: defaultDate, time: null });
   }, [defaultDate]);
 
+  // Focus when asked (the N key, the "New task" shortcut), once per request: a request that
+  // was already served must not pull focus again every time this bar is mounted.
+  const servedNonce = useRef(nonce);
   useEffect(() => {
-    if (shortcut && nonce > 0) input.current?.focus();
+    if (!shortcut || nonce === servedNonce.current) return;
+    servedNonce.current = nonce;
+    input.current?.focus();
   }, [nonce, shortcut]);
+
+  // A list deleted meanwhile (here or on another device) cannot stay selected.
+  useEffect(() => {
+    if (listId && !fixedListId && !lists.some((l) => l.id === listId)) setListId(null);
+  }, [lists, listId, fixedListId]);
 
   const list = lists.find((l) => l.id === listId) ?? null;
   const inList = Boolean(fixedListId ?? listId);

@@ -149,7 +149,7 @@ export function CommandBar() {
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((index - 1 + commands.length) % commands.length);
-    } else if (e.key === "Enter") {
+    } else if (e.key === "Enter" && !e.nativeEvent.isComposing) {
       e.preventDefault();
       run(commands[index]);
     }

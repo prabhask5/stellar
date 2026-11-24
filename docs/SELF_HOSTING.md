@@ -76,7 +76,7 @@ git pull
 docker compose up -d --build
 ```
 
-After an update, open **Settings → Connection**. It shows the schema version and can re-run the migrations (automatic with `DATABASE_URL`, otherwise copy the SQL as during setup). Migrations are idempotent, so running them again is always safe. Open browser tabs offer a "New version available" refresh, and the extension packages under Settings → Extension are rebuilt with each image.
+After an update there is nothing to do in the database: migrations apply themselves on start (see "Updating" below). **Settings → Connection** shows the schema version and can re-run them by hand if you ever want to; they are idempotent, so that is always safe. Open browser tabs offer a "New version available" refresh, and the extension packages under Settings → Extension are rebuilt with each image.
 
 ## Backups
 
@@ -110,3 +110,7 @@ If `/data` is lost but the database survives, nothing of yours is gone: run the 
 | Devices do not update each other                                 | Realtime is not reachable; see Realtime above                                                                    |
 | Per-device "Revoke" is missing                                   | Needs `DATABASE_URL`; "Sign out everywhere" works without it                                                     |
 | Extension cannot connect                                         | Use the app's public HTTPS address, the same one you open in a tab                                               |
+
+## Updating
+
+Redeploy the new image; that is all. On every start the app brings the database schema up to date by itself: over the Postgres connection string if you gave it one, otherwise through your Supabase instance's own pg-meta endpoint with the service role key from setup. There is no SQL to open or paste. The container log shows what was applied (`[boot] applied migrations 10 (pg-meta); schema version 10`), and Settings → Connection shows the schema version. If the database is still starting when the app does, it retries for a few minutes on its own.

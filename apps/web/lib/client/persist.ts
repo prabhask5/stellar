@@ -20,6 +20,18 @@ export function createIdbPersister(throttleMs = 1000): Persister {
     });
   };
 
+  // The app may be ended while in the background: write what is pending on the way out,
+  // instead of losing the last second of changes to the throttle.
+  if (typeof document !== "undefined") {
+    const flush = () => {
+      if (document.visibilityState !== "hidden" || !timer) return;
+      clearTimeout(timer);
+      write();
+    };
+    document.addEventListener("visibilitychange", flush);
+    window.addEventListener("pagehide", flush);
+  }
+
   return {
     persistClient: (client) => {
       latest = client;

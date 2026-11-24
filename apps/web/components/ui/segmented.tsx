@@ -49,8 +49,12 @@ export function SegmentedControl<T extends string>({
           : 0;
     if (!delta) return;
     e.preventDefault();
-    const next = options[(index + delta + options.length) % options.length];
-    if (next) onChange(next.value);
+    const at = (index + delta + options.length) % options.length;
+    const next = options[at];
+    if (!next) return;
+    onChange(next.value);
+    // Roving focus: the keyboard stays on the segment that is now selected.
+    (e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')[at] ?? null)?.focus();
   };
 
   return (

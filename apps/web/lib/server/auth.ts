@@ -68,22 +68,38 @@ export async function checkPin(
     );
 
   const config = requireConfig();
-  const locked = remainingLockMs(readLockout(), Date.now());
-  if (locked > 0) {
+  // One guess at a time. The lock is read before the (slow) hash check and written after
+  // it, so guesses sent in parallel would all be checked before any of them counted.
+  // Queueing them makes "five attempts" mean five, however they arrive.
+  const turn = pinQueue.then(async () => {
+    const locked = remainingLockMs(readLockout(), Date.now());
+    if (locked > 0) return { kind: "locked" as const, ms: locked };
+    const ok = isValidPin(pin) && (await verifyPin(config.pinHash, pin));
+    if (ok) {
+      clearLockout();
+      return { kind: "ok" as const };
+    }
+    return { kind: "failed" as const, ms: remainingLockMs(recordFailure(), Date.now()) };
+  });
+  pinQueue = turn.then(
+    () => undefined,
+    () => undefined,
+  );
+  const outcome = await turn;
+  if (outcome.kind === "locked") {
     await logAuthEvent("pin_locked", deviceKind, ip);
-    throw lockedError(locked);
+    throw lockedError(outcome.ms);
   }
-  const ok = isValidPin(pin) && (await verifyPin(config.pinHash, pin));
-  if (!ok) {
-    const state = recordFailure();
+  if (outcome.kind === "failed") {
     await logAuthEvent("pin_failure", deviceKind, ip);
-    const nowLocked = remainingLockMs(state, Date.now());
-    if (nowLocked > 0) throw lockedError(nowLocked);
+    if (outcome.ms > 0) throw lockedError(outcome.ms);
     throw new ApiError("unauthorized", "That PIN didn't work. Try again.");
   }
-  clearLockout();
   return config;
 }
+
+/** Serialises PIN checks within this process (the app runs as a single instance). */
+let pinQueue: Promise<void> = Promise.resolve();
 
 function toTokens(session: Session, userId: string): SessionTokens {
   return {

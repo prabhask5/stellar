@@ -109,7 +109,9 @@ export function TaskSheet({ task: current, onClose, lists, today, weekStart }: T
           maxLength={500}
           onChange={(e) => setName(e.target.value)}
           onBlur={commitName}
-          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          onKeyDown={(e) =>
+            e.key === "Enter" && !e.nativeEvent.isComposing && e.currentTarget.blur()
+          }
         />
         <FieldShell label="Description" htmlFor="task-description" optional>
           <textarea

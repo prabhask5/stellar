@@ -269,8 +269,21 @@ async function act(
   const snapshot = await getSnapshot();
   if (!link || !snapshot) return { ok: false, error: "not_connected" };
   try {
-    const result = await timerAction(link.db, action, Number(snapshot.state.version));
+    let result = await timerAction(link.db, action, Number(snapshot.state.version));
     await resync();
+    if (!result.ok) {
+      // Another device moved the timer first. If the press still means the same thing
+      // against the state as it is now, apply it there instead of silently dropping it.
+      const fresh = await getSnapshot();
+      if (
+        fresh &&
+        fresh.state.status === snapshot.state.status &&
+        fresh.state.phase === snapshot.state.phase
+      ) {
+        result = await timerAction(link.db, action, Number(fresh.state.version));
+        await resync();
+      }
+    }
     return result;
   } catch (err) {
     return { ok: false, error: isOffline(err) ? "offline" : "failed" };

@@ -25,8 +25,12 @@ export function lockDurationMs(failures: number): number {
   return Math.min(BASE_LOCK_MS * 2 ** doublings, MAX_LOCK_MS);
 }
 
+/** A quiet day wipes the slate: old mistakes must not keep the next one at an hour's lock. */
+export const DECAY_MS = 24 * 3_600_000;
+
 export function nextOnFailure(state: LockoutState, now: number): LockoutState {
-  const failures = state.failures + 1;
+  const stale = state.lastFailureAt > 0 && now - state.lastFailureAt > DECAY_MS;
+  const failures = (stale ? 0 : state.failures) + 1;
   const duration = lockDurationMs(failures);
   return { failures, lockedUntil: duration ? now + duration : 0, lastFailureAt: now };
 }

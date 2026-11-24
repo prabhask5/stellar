@@ -1,5 +1,6 @@
 "use client";
 
+import { parseAmount } from "@/lib/client/amount";
 import type { Routine } from "@stellar/db";
 import {
   type DateStr,
@@ -105,7 +106,7 @@ export function RoutineSheet({ open, onOpenChange, routine, today, weekStart }: 
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return setError("Give the routine a name.");
-    const amount = Number(total.replace(",", "."));
+    const amount = parseAmount(total);
     if (type === "progress" && (!Number.isFinite(amount) || amount <= 0))
       return setError("Enter a daily total above zero.");
     if (problem) return setError(problem.message);

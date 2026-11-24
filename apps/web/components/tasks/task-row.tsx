@@ -218,7 +218,9 @@ export const TaskRow = memo(function TaskRow({
           tabIndex={open ? 0 : -1}
           aria-hidden={!open}
           aria-label={`Reschedule “${task.name}”`}
-          disabled={task.list_id !== null}
+          // Where rescheduling makes no sense (a list task, a view without the sheet) it is
+          // shown as unavailable instead of being a button that does nothing.
+          disabled={task.list_id !== null || !onReschedule}
           onClick={() => {
             settle(0);
             onReschedule?.(task);

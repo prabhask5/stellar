@@ -132,7 +132,7 @@ export function getConfig(): EffectiveConfig {
   const stage = stageOf(merged);
   return {
     ...merged,
-    publicAppUrl: env("PUBLIC_APP_URL")?.replace(/\/+$/, "") ?? null,
+    publicAppUrl: normalizePublicUrl(env("PUBLIC_APP_URL")),
     fromEnv: {
       supabaseUrl: env("SUPABASE_URL") !== null,
       anonKey: env("SUPABASE_ANON_KEY") !== null,
@@ -181,4 +181,22 @@ export function applyPinReset(): boolean {
   if (!stored?.pinHash) return false;
   writeStoredConfig({ ...stored, pinHash: null });
   return true;
+}
+
+/**
+ * PUBLIC_APP_URL as an origin-safe URL. "planner.example.com" (no scheme) is a common way
+ * to write it; left as typed it made `new URL()` throw in every request that looked at it.
+ * A missing scheme becomes https, and a value that still is not a URL is ignored.
+ */
+export function normalizePublicUrl(raw: string | undefined | null): string | null {
+  const value = raw?.trim().replace(/\/+$/, "");
+  if (!value) return null;
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`;
+  try {
+    const url = new URL(withScheme);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    return withScheme;
+  } catch {
+    return null;
+  }
 }
