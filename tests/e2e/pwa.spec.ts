@@ -14,6 +14,45 @@ import {
 
 const OWNER = "(select id from auth.users where email = 'owner@stellar.local')";
 
+/**
+ * Waits until the query cache saved on the device (IndexedDB) holds these collections.
+ * The app writes it a moment after the data arrives; going offline before that would test
+ * a device that has never held the data.
+ */
+async function waitForSavedCache(page: Page, collections: string[]): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async (wanted) => {
+          // Opening a database that does not exist yet would create it without its store.
+          if (!(await indexedDB.databases()).some((d) => d.name === "stellar-cache")) return wanted;
+          const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            const open = indexedDB.open("stellar-cache");
+            open.onsuccess = () => resolve(open.result);
+            open.onerror = () => reject(open.error);
+          });
+          try {
+            if (!db.objectStoreNames.contains("query")) return wanted;
+            const saved = await new Promise<
+              { clientState?: { queries?: { queryKey: unknown[] }[] } } | undefined
+            >((resolve, reject) => {
+              const get = db.transaction("query").objectStore("query").get("client");
+              get.onsuccess = () => resolve(get.result);
+              get.onerror = () => reject(get.error);
+            });
+            const have = new Set(
+              (saved?.clientState?.queries ?? []).map((q) => String(q.queryKey[0])),
+            );
+            return wanted.filter((name) => !have.has(name));
+          } finally {
+            db.close();
+          }
+        }, collections),
+      { message: "collections not yet saved on the device", timeout: 20_000 },
+    )
+    .toEqual([]);
+}
+
 /** Waits until the worker has cached every app route. */
 async function waitForWarmShell(page: Page): Promise<void> {
   await expect
@@ -98,8 +137,8 @@ test.describe("PWA", () => {
     await expect(page.getByTestId("today-tab")).toContainText("Cached task");
     await waitForServiceWorker(page);
     await waitForWarmShell(page);
-    // Let the query cache reach IndexedDB.
-    await page.waitForTimeout(1600);
+    // Everything the offline part shows must be in the cache saved on the device first.
+    await waitForSavedCache(page, ["sp_tasks", "settings", "focus"]);
 
     await context.setOffline(true);
     await page.reload();

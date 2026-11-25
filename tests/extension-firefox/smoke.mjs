@@ -263,10 +263,19 @@ try {
     }, 15_000);
     await driver.switchTo().window(handles[1]);
     await driver.wait(until.elementLocated(By.xpath("//*[contains(., 'Focus complete')]")), 15_000);
-    const link = await driver.findElement(
-      By.xpath("//a[contains(@href, 'reddit.com')] | //button[contains(., 'Continue')]"),
-    );
-    return `handoff control: ${await link.getText()}`;
+    // The page re-renders as focus ends, so an element found a moment ago may be gone by the
+    // time it is read. Find and read in one step until both succeed.
+    const label = await driver.wait(async () => {
+      try {
+        const control = await driver.findElement(
+          By.xpath("//a[contains(@href, 'reddit.com')] | //button[contains(., 'Continue')]"),
+        );
+        return (await control.getText()) || false;
+      } catch {
+        return false;
+      }
+    }, 15_000);
+    return `handoff control: ${label}`;
   });
 } finally {
   await driver.quit();
