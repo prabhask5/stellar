@@ -66,8 +66,6 @@ describe("OpenAPI document", () => {
       "/push/test",
       "/openapi.json",
     ]);
-    // Single methods the web app uses itself on an otherwise documented path.
-    const internalMethods = new Set(["get /push/subscriptions"]);
     // Routes are discovered from the filesystem, so a new one is checked without editing this test.
     const files = routeFiles(API);
     expect(files.length).toBeGreaterThan(0);
@@ -79,7 +77,6 @@ describe("OpenAPI document", () => {
       const source = readFileSync(file, "utf8");
       for (const method of METHODS)
         if (
-          !internalMethods.has(`${method} ${path}`) &&
           new RegExp(`export (const|function|async function) ${method.toUpperCase()}\\b`).test(
             source,
           )

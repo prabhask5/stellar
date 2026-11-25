@@ -3,11 +3,20 @@
 import { useEffect, useState } from "react";
 import { exitDemo, isDemo } from "@/lib/client/demo";
 
-/** True in demo mode. False on the server and on the first client frame, so markup matches. */
-export function useDemo(): boolean {
-  const [demo, setDemo] = useState(false);
+/**
+ * Whether this is demo mode, or `null` until it is known: on the server and on the first
+ * client frame the answer is not available, so the markup matches. Anything that must not
+ * run in the demo (a request to the server) waits for `false` rather than "not true".
+ */
+export function useDemoState(): boolean | null {
+  const [demo, setDemo] = useState<boolean | null>(null);
   useEffect(() => setDemo(isDemo()), []);
   return demo;
+}
+
+/** True in demo mode. False on the server and on the first client frame, so markup matches. */
+export function useDemo(): boolean {
+  return useDemoState() === true;
 }
 
 /** Always-visible reminder that this is sample data, with the way out. */

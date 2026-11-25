@@ -110,6 +110,14 @@ export const SCHEMAS: Record<string, z.ZodType> = {
   QuoteCreate: s.zQuoteCreate,
   QuotePage: zQuoteList,
   PushSubscribe: s.zPushSubscribe,
+  PushSubscriptionPage: s.zListEnvelope(
+    z.object({
+      id: s.zId,
+      endpoint: z.string(),
+      device_id: s.zId.nullable(),
+      created_at: s.zTimestamp,
+    }),
+  ),
   PushUnsubscribe: s.zPushUnsubscribe,
   Export: s.zExport,
 };
@@ -469,6 +477,14 @@ export const OPERATIONS: Operation[] = [
     errors: [404],
   },
 
+  {
+    method: "get",
+    path: "/push/subscriptions",
+    tag: "Push",
+    summary: "List Web Push subscriptions",
+    description: "The endpoints registered for the owner, oldest first. Keys are never returned.",
+    response: "PushSubscriptionPage",
+  },
   {
     method: "post",
     path: "/push/subscriptions",

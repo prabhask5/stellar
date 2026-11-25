@@ -53,6 +53,9 @@ async function tour(page: Page): Promise<void> {
   await expect(page.getByTestId("focus")).toHaveAttribute("data-status", "running");
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "General" })).toBeVisible();
+  // Nothing on the page asked the server for anything, so nothing failed to load.
+  await page.waitForTimeout(500);
+  await expect(page.getByTestId("data-status")).toHaveCount(0);
   for (const hidden of ["Security", "Connection", "Data", "Extension"])
     await expect(page.getByRole("heading", { name: hidden, exact: true })).toHaveCount(0);
   await expectInvariants(page, "demo settings");

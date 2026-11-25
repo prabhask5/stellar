@@ -1,6 +1,6 @@
 "use client";
 
-import { useDemo } from "@/components/shell/demo";
+import { useDemoState } from "@/components/shell/demo";
 import { Page, PageHeader } from "@/components/ui/page";
 import { SyncIndicator } from "@/components/ui/sync-indicator";
 import { AboutSection } from "./about";
@@ -35,7 +35,10 @@ const LIVE_ONLY = new Set([
 ]);
 
 export function Settings({ notifications }: { notifications?: React.ReactNode }) {
-  const demo = useDemo();
+  // `null` on the first frame. The live sections ask the server for data, which the demo
+  // refuses, so they wait until this is known to be a real session.
+  const demoState = useDemoState();
+  const demo = demoState === true;
   return (
     <Page>
       <PageHeader title="Settings" actions={<SyncIndicator />} />
@@ -59,7 +62,7 @@ export function Settings({ notifications }: { notifications?: React.ReactNode })
         <GeneralSection />
         <AppearanceSection />
         <QuotesSection />
-        {!demo && (
+        {demoState === false && (
           <>
             {notifications}
             <SecuritySection />

@@ -35,9 +35,12 @@ export function rememberEmoji(emoji: string): void {
 /**
  * One height for the loading state and the loaded grid, so the picker never resizes. In a
  * sheet it fills the sheet; in a popover it is whatever the chosen side has room for
- * (`--emoji-h`, see `place`).
+ * (`--emoji-h`, see `place`). The choice follows the variant that is actually shown, not
+ * the window's width: a phone held sideways is wide but gets the sheet, and a fixed
+ * popover height there would be taller than the sheet and scroll inside its scroller.
  */
-const EMOJI_BODY = "h-full min-h-[260px] md:h-[var(--emoji-h,400px)] md:min-h-0";
+const BODY_IN_SHEET = "h-full min-h-[260px]";
+const BODY_IN_POPOVER = "h-[var(--emoji-h,400px)] min-h-0";
 const FULL = 400;
 const WIDTH = 340;
 /** Gap to the trigger plus the margin kept to the window's edge. */
@@ -69,8 +72,8 @@ function place(trigger: HTMLElement): Placement {
 const { Component: EmojiGrid, preload: loadGrid } = preloadable(() =>
   import("./emoji-grid").then((m) => m.EmojiGrid),
 );
-const loading = (
-  <div className={cx("flex items-center justify-center text-fg-2", EMOJI_BODY)}>
+const loading = (className: string) => (
+  <div className={cx("flex items-center justify-center text-fg-2", className)}>
     <Spinner size={22} />
   </div>
 );
@@ -144,9 +147,10 @@ export function EmojiPicker({
     </button>
   );
 
+  const bodyClass = wide ? BODY_IN_POPOVER : BODY_IN_SHEET;
   const body = (
-    <Suspense fallback={loading}>
-      <EmojiGrid recent={recent} onSelect={select} className={EMOJI_BODY} />
+    <Suspense fallback={loading(bodyClass)}>
+      <EmojiGrid recent={recent} onSelect={select} className={bodyClass} />
     </Suspense>
   );
 

@@ -195,5 +195,4 @@ CI is `.github/workflows/ci.yml`, on pull requests and pushes to `main`: `static
 - Blocking is per browser profile and by domain (no paths); private windows are covered only if the extension is allowed there. It is a commitment device, not parental control.
 - Per-device revoke needs the Postgres connection string.
 - A hosted Supabase project with neither a connection string nor pg-meta needs its migrations pasted by hand (Settings → Connection).
-- The command bar nests a button inside each `role="option"` (axe `nested-interactive`); it is the one allow-listed accessibility finding in `tests/e2e/screens.spec.ts`.
 - Real-finger behaviour on iPhone (haptics, system back swipe, WebKit touch handling) is only checked by hand.

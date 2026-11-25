@@ -16,16 +16,6 @@ import {
   wipeData,
 } from "./support/helpers";
 
-/**
- * Accessibility violations that are known and tracked (CLAUDE.md → Known limitations).
- * Listed per screen and rule, so the same rule still fails anywhere else and anything new
- * fails here. Remove an entry when the issue is fixed.
- */
-const KNOWN_AXE: Record<string, string[]> = {
-  // Each command is an option (for the combobox) wrapping a button (for the pointer).
-  "command-bar": ["nested-interactive"],
-};
-
 /** Checks the screen that is showing and returns one line per problem. */
 async function problemsOn(page: Page, screen: string, axe: boolean): Promise<string[]> {
   // Let the sheet or page that just opened settle.
@@ -99,7 +89,7 @@ async function problemsOn(page: Page, screen: string, axe: boolean): Promise<str
   if (axe) {
     const res = await new AxeBuilder({ page }).exclude(".sp-sky").exclude(".sp-universe").analyze();
     for (const v of res.violations)
-      if ((v.impact === "serious" || v.impact === "critical") && !KNOWN_AXE[screen]?.includes(v.id))
+      if (v.impact === "serious" || v.impact === "critical")
         out.push(
           `${screen}: axe ${v.impact} ${v.id} (${v.help}) at ${v.nodes
             .slice(0, 4)
