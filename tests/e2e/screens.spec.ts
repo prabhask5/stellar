@@ -188,7 +188,11 @@ test.describe("screens", () => {
       await expect(page.getByLabel("Search emoji")).toBeVisible();
     });
     await step("tasks/list-detail", async () => {
-      await page.keyboard.press("Escape");
+      // From a fresh page: the previous step leaves a sheet with a popover on it, and
+      // counting on Escape presses to close both is a race with their closing animations.
+      await page.goto("/tasks");
+      if (listsInTab(info.project.name))
+        await page.getByRole("radio", { name: "Lists", exact: true }).click();
       await page.getByRole("button", { name: /^Open A list with/ }).click();
       await expect(page.getByTestId("list-detail")).toBeVisible();
     });
