@@ -78,9 +78,9 @@ export function GoalListsGrid({ onOpen }: { onOpen: (list: GoalList) => void }) 
                       <button
                         type="button"
                         onClick={() => onOpen(list)}
-                        aria-label={`Open ${list.name}`}
                         className="flex h-full w-full flex-col rounded-card p-4 text-left"
                       >
+                        <span className="sr-only">Open </span>
                         <span className="flex w-full items-start justify-between pr-7">
                           <span className="text-[28px] leading-8" aria-hidden="true">
                             {list.emoji}
@@ -95,7 +95,7 @@ export function GoalListsGrid({ onOpen }: { onOpen: (list: GoalList) => void }) 
                           {list.name}
                         </span>
                         <ProgressBar
-                          value={p.fraction}
+                          value={p.over}
                           label={`${list.name} progress`}
                           valueText={`${p.complete} of ${p.total} complete, ${p.percent}%`}
                           className="mt-2.5"

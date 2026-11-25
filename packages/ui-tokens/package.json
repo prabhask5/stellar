@@ -6,12 +6,12 @@
   "exports": {
     ".": "./src/index.ts",
     "./tokens.json": "./tokens.json",
-    "./css/*": "./css/*"
+    "./css/*": "./css/*",
+    "./generate": "./src/generate.ts"
   },
   "scripts": {
     "generate": "node scripts/generate.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
-    "test": "vitest run"
+    "lint": "eslint ."
   }
 }

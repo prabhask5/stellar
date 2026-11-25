@@ -1,5 +1,6 @@
 "use client";
 
+import { haptic } from "@/lib/client/haptics";
 import type { FocusSettings, FocusState } from "@stellar/db";
 import {
   formatClock,
@@ -15,42 +16,121 @@ import { TimerRing } from "@/components/ui/timer-ring";
 import { timerAction, toTimerSettings, toTimerState } from "@/lib/client/data/focus";
 import { useTick } from "@/lib/client/data/hooks";
 
+/**
+ * Each phase has its own colour, from the sky's palette: gold for focus (the app's accent),
+ * violet for a short break, pale blue for the long one. Class names are spelled out so the
+ * stylesheet keeps them.
+ */
 const PHASES: {
   phase: TimerPhase;
   label: string;
   key: "focus_min" | "short_break_min" | "long_break_min";
+  text: string;
+  now: string;
+  done: string;
+  upcoming: string;
 }[] = [
-  { phase: "focus", label: "Focus", key: "focus_min" },
-  { phase: "short_break", label: "Short break", key: "short_break_min" },
-  { phase: "long_break", label: "Long break", key: "long_break_min" },
+  {
+    phase: "focus",
+    label: "Focus",
+    key: "focus_min",
+    text: "text-accent",
+    now: "bg-accent",
+    done: "bg-accent/75",
+    upcoming: "bg-accent/40",
+  },
+  {
+    phase: "short_break",
+    label: "Short break",
+    key: "short_break_min",
+    text: "text-violet",
+    now: "bg-violet",
+    done: "bg-violet/80",
+    upcoming: "bg-violet/45",
+  },
+  {
+    phase: "long_break",
+    label: "Long break",
+    key: "long_break_min",
+    text: "text-azure",
+    now: "bg-azure",
+    done: "bg-azure/80",
+    upcoming: "bg-azure/45",
+  },
 ];
+const LOOK = Object.fromEntries(PHASES.map((p) => [p.phase, p])) as Record<
+  TimerPhase,
+  (typeof PHASES)[number]
+>;
 
-/** Focus 25 · Short break 5 · Long break 15, with the current phase highlighted. Display only. */
+/**
+ * The whole Pomodoro cycle at a glance: focus, short break, focus, short break … focus,
+ * long break. One bar per phase (long for focus, short for a break) in its phase's colour, lit
+ * up to where the session is now, with the three phase lengths named underneath. Display only.
+ */
 export function PhaseStrip({ state, settings }: { state: FocusState; settings: FocusSettings }) {
+  const rounds = Math.max(1, settings.rounds_before_long);
+  // A break belongs to the round it follows.
+  const round = Math.min(rounds, Math.max(1, ((state.round - 1) % rounds) + 1));
+  const current = (round - 1) * 2 + (state.phase === "focus" ? 0 : 1);
+  const started = state.status !== "idle";
+  const steps = Array.from({ length: rounds * 2 }, (_, i) => {
+    const phase: TimerPhase =
+      i % 2 === 0 ? "focus" : i === rounds * 2 - 1 ? "long_break" : "short_break";
+    return { phase, round: Math.floor(i / 2) + 1 };
+  });
   return (
-    <ol
-      aria-label="Phases"
-      className="glass flex w-full rounded-button p-[3px]"
-      data-testid="phase-strip"
-    >
-      {PHASES.map((p) => {
-        const active = state.phase === p.phase;
-        return (
+    <div className="w-full" data-testid="phase-strip">
+      <ol aria-label="Pomodoro cycle" className="flex h-2.5 w-full items-center gap-1">
+        {steps.map((step, i) => {
+          const here = i === current;
+          const done = started && i < current;
+          return (
+            <li
+              key={i}
+              aria-current={here ? "step" : undefined}
+              aria-label={`${phaseLabel(step.phase)}, round ${step.round}${done ? ", done" : here ? ", current" : ""}`}
+              title={`${phaseLabel(step.phase)} · round ${step.round}`}
+              data-step={step.phase}
+              data-state={here ? "current" : done ? "done" : "upcoming"}
+              className={cx(
+                "min-w-0 rounded-full transition-[background-color,height] duration-300",
+                // The current phase is the thick, fully lit bar.
+                here ? "h-2.5" : "h-1.5",
+                step.phase === "focus"
+                  ? "flex-[3]"
+                  : step.phase === "long_break"
+                    ? "flex-[2]"
+                    : "flex-1",
+                here
+                  ? LOOK[step.phase].now
+                  : done
+                    ? LOOK[step.phase].done
+                    : LOOK[step.phase].upcoming,
+              )}
+            />
+          );
+        })}
+      </ol>
+      <ul
+        aria-label="Phase lengths in minutes"
+        className="mt-2.5 flex w-full items-center justify-between gap-2 text-footnote"
+      >
+        {PHASES.map((p) => (
           <li
             key={p.phase}
-            aria-current={active ? "step" : undefined}
             className={cx(
-              // Sized by content so "Short break" is never cut off, down to 320px-wide phones.
-              "flex h-[38px] min-w-0 flex-auto items-center justify-center gap-1 whitespace-nowrap rounded-thumb px-1 text-[13px] font-medium transition-colors duration-200 min-[360px]:px-2 min-[360px]:text-[15px]",
-              active ? "bg-fill-thumb text-fg" : "text-fg-2",
+              "flex min-w-0 items-center gap-1 whitespace-nowrap transition-colors duration-200",
+              state.phase === p.phase ? cx("font-medium", p.text) : "text-fg-2",
             )}
           >
+            <span aria-hidden className={cx("size-2 shrink-0 rounded-full", p.now)} />
             <span className="truncate">{p.label}</span>
             <span className="tnum">{settings[p.key]}</span>
           </li>
-        );
-      })}
-    </ol>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -73,8 +153,10 @@ export function TimerFace({ state, settings, size = 300 }: TimerFaceProps) {
   const now = useTick(250, running);
   const timer = toTimerState(state);
   const cfg = toTimerSettings(settings);
-  const remaining = remainingMs(timer, now, cfg);
   const total = state.phase_total_ms ?? phaseDurationMs(state.phase, cfg);
+  // Never more than the phase is long: this device's guess at the start time and the
+  // server's can differ by a moment, which showed "25:01" for an instant after Start.
+  const remaining = Math.min(remainingMs(timer, now, cfg), total > 0 ? total : Infinity);
   const fraction =
     state.status === "idle" || state.status === "awaiting" ? 1 : total > 0 ? remaining / total : 0;
   const caption =
@@ -133,7 +215,10 @@ function RoundButton({
       aria-label={label}
       title={label}
       disabled={disabled}
-      onClick={onClick}
+      onClick={() => {
+        haptic();
+        onClick();
+      }}
       className={cx(
         "flex items-center justify-center rounded-full transition-[transform,background-color,opacity] duration-100 ease-out active:scale-[0.94] disabled:opacity-35 disabled:active:scale-100",
         primary

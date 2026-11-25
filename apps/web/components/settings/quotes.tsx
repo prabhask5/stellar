@@ -38,6 +38,9 @@ export function QuotesSection() {
           Quote
         </label>
         <textarea
+          autoComplete="off"
+          enterKeyHint="enter"
+          autoCapitalize="sentences"
           id="quote-text"
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -51,6 +54,8 @@ export function QuotesSection() {
             Author
           </label>
           <input
+            autoComplete="off"
+            enterKeyHint="done"
             id="quote-author"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}

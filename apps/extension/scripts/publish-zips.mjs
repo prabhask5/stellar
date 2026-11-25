@@ -9,11 +9,14 @@ const out = resolve(root, ".output");
 const dest = resolve(root, "../web/public/extension");
 mkdirSync(dest, { recursive: true });
 
-const zips = readdirSync(out).filter((f) => f.endsWith(".zip") && !f.includes("sources"));
+// Only this build's archives: an older build under another name may still be in the folder.
+const zips = readdirSync(out).filter(
+  (f) => f.startsWith("stellar-focus-") && f.endsWith(".zip") && !f.includes("sources"),
+);
 const pick = (browser) => zips.find((f) => f.includes(`-${browser}`));
 for (const [browser, name] of [
-  ["chrome", "stellar-planner-chrome.zip"],
-  ["firefox", "stellar-planner-firefox.zip"],
+  ["chrome", "stellar-focus-chrome.zip"],
+  ["firefox", "stellar-focus-firefox.zip"],
 ]) {
   const file = pick(browser);
   if (!file) throw new Error(`No ${browser} zip found in ${out}. Run \`wxt zip\` first.`);

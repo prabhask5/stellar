@@ -80,6 +80,10 @@ export function TextField({
     <FieldShell label={label} hint={hint} error={error} optional={optional} htmlFor={fieldId}>
       <input
         id={fieldId}
+        // Sensible defaults for a phone keyboard; a field can override any of them.
+        autoComplete="off"
+        enterKeyHint="done"
+        dir="auto"
         aria-invalid={error ? true : undefined}
         aria-describedby={error || hint ? `${fieldId}-msg` : undefined}
         className={cx(inputClass, mono && "font-mono text-[14px]", className)}
@@ -114,6 +118,10 @@ export function TextArea({
     <FieldShell label={label} hint={hint} error={error} optional={optional} htmlFor={fieldId}>
       <textarea
         id={fieldId}
+        autoComplete="off"
+        autoCapitalize="sentences"
+        enterKeyHint="enter"
+        dir="auto"
         aria-invalid={error ? true : undefined}
         aria-describedby={error || hint ? `${fieldId}-msg` : undefined}
         className={cx(

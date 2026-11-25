@@ -10,7 +10,14 @@ import {
   isOffline,
   timerAction,
 } from "./client.ts";
-import { blockedPatternFor, blockedUrlFor, buildRules, rulesKey } from "./rules.ts";
+import {
+  blockedPatternFor,
+  blockedUrlFor,
+  buildRules,
+  domainRegex,
+  MAX_REGEX_RULES,
+  rulesKey,
+} from "./rules.ts";
 import {
   clearAll,
   getRulesKey,
@@ -64,14 +71,53 @@ async function redirectOpenTabs(patterns: readonly string[]): Promise<void> {
   );
 }
 
+type DnrRules = Parameters<typeof browser.declarativeNetRequest.updateDynamicRules>[0]["addRules"];
+
+/** Domains whose regex the browser will not compile (too large, unsupported syntax). */
+async function unsupportedRegexes(patterns: readonly string[]): Promise<Set<string>> {
+  const dnr = browser.declarativeNetRequest as typeof browser.declarativeNetRequest & {
+    isRegexSupported?: (options: { regex: string }) => Promise<{ isSupported: boolean }>;
+  };
+  const bad = new Set<string>();
+  if (!dnr.isRegexSupported) return bad;
+  await Promise.all(
+    patterns.slice(0, MAX_REGEX_RULES).map(async (pattern) => {
+      try {
+        const res = await dnr.isRegexSupported?.({ regex: domainRegex(pattern) });
+        if (res && !res.isSupported) bad.add(pattern);
+      } catch {
+        // cannot tell: leave it to the install fallback below
+      }
+    }),
+  );
+  return bad;
+}
+
+/**
+ * Replaces the dynamic rules. An update is all-or-nothing, so one rule the browser
+ * rejects would leave nothing blocked: such domains get a plain filter rule instead,
+ * and if the set is still refused, every domain does.
+ */
 async function installRules(patterns: readonly string[]): Promise<void> {
   const existing = await browser.declarativeNetRequest.getDynamicRules();
-  await browser.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: existing.map((r) => r.id),
-    addRules: buildRules(patterns, blockedPage()) as unknown as Parameters<
-      typeof browser.declarativeNetRequest.updateDynamicRules
-    >[0]["addRules"],
-  });
+  const removeRuleIds = existing.map((r) => r.id);
+  if (patterns.length === 0) {
+    await browser.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules: [] });
+    return;
+  }
+  const plain = await unsupportedRegexes(patterns);
+  try {
+    await browser.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds,
+      addRules: buildRules(patterns, blockedPage(), plain) as unknown as DnrRules,
+    });
+  } catch (err) {
+    console.warn("[stellar] regex rules refused; blocking with plain filters", err);
+    await browser.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds,
+      addRules: buildRules(patterns, blockedPage(), "all") as unknown as DnrRules,
+    });
+  }
 }
 
 /**
@@ -156,9 +202,19 @@ export function resync(): Promise<void> {
       const { db, connection } = link;
       // Realtime needs the session's token; restoring the session is also what triggers a refresh.
       const { data, error } = await db.auth.getSession();
-      if (error || !data.session) {
-        await setStatus("needs_pin");
+      if (error && isOffline(error)) {
+        // The token could not be refreshed because there is no connection. That is "offline",
+        // not "signed out": keep showing and enforcing the last known timer.
+        await setStatus("offline");
         await apply();
+        return;
+      }
+      if (error || !data.session) {
+        // The session is really gone (revoked, signed out everywhere). Without it the timer
+        // cannot be followed any more, so a cached "paused focus" must not block for ever.
+        await setStatus("needs_pin");
+        await setSnapshot(null);
+        await apply(null);
         return;
       }
       try {
@@ -168,8 +224,13 @@ export function resync(): Promise<void> {
         await apply(snapshot);
         subscribe(db, connection.userId, connection.deviceId);
       } catch (err) {
-        if (isAuthFailure(err) && !isOffline(err)) await setStatus("needs_pin");
-        else await setStatus("offline");
+        if (isAuthFailure(err) && !isOffline(err)) {
+          await setStatus("needs_pin");
+          await setSnapshot(null);
+          await apply(null);
+          return;
+        }
+        await setStatus("offline");
         // Offline: keep enforcing the last known state (it expires by itself at phase_ends_at).
         await apply();
       }
@@ -208,8 +269,21 @@ async function act(
   const snapshot = await getSnapshot();
   if (!link || !snapshot) return { ok: false, error: "not_connected" };
   try {
-    const result = await timerAction(link.db, action, Number(snapshot.state.version));
+    let result = await timerAction(link.db, action, Number(snapshot.state.version));
     await resync();
+    if (!result.ok) {
+      // Another device moved the timer first. If the press still means the same thing
+      // against the state as it is now, apply it there instead of silently dropping it.
+      const fresh = await getSnapshot();
+      if (
+        fresh &&
+        fresh.state.status === snapshot.state.status &&
+        fresh.state.phase === snapshot.state.phase
+      ) {
+        result = await timerAction(link.db, action, Number(fresh.state.version));
+        await resync();
+      }
+    }
     return result;
   } catch (err) {
     return { ok: false, error: isOffline(err) ? "offline" : "failed" };

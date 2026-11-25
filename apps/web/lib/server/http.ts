@@ -134,6 +134,23 @@ export function preflight(req: NextRequest): NextResponse {
   return res;
 }
 
+/**
+ * The Origin's host is the host the request was addressed to. A fallback for proxies that
+ * do not pass the original scheme on: a wrong guess about http/https must not make the
+ * app refuse its own pages (the PIN screen posts through here).
+ */
+function sameHost(req: NextRequest): boolean {
+  try {
+    const origin = new URL(req.headers.get("origin") ?? "").host;
+    const host = (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "")
+      .split(",")[0]
+      ?.trim();
+    return origin !== "" && origin === host;
+  } catch {
+    return false;
+  }
+}
+
 type Ctx<P> = { params: Promise<P> };
 type Handler<P> = (req: NextRequest, params: P) => Promise<NextResponse> | NextResponse;
 
@@ -141,6 +158,18 @@ type Handler<P> = (req: NextRequest, params: P) => Promise<NextResponse> | NextR
 export function api<P = Record<string, never>>(handler: Handler<P>) {
   return async (req: NextRequest, ctx: Ctx<P>): Promise<NextResponse> => {
     try {
+      // Cross-site request forgery: a page on another site can make the browser send the
+      // session cookie along with a POST. Browsers label such requests with their Origin, so
+      // a cookie-authenticated write from an origin that is not this app is refused.
+      // (Bearer-token clients carry no ambient credentials and are not affected.)
+      if (
+        !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
+        req.headers.has("origin") &&
+        !req.headers.has("authorization") &&
+        allowedOrigin(req) === null &&
+        !sameHost(req)
+      )
+        throw new ApiError("forbidden", "This request came from another site.");
       const params = ctx?.params ? await ctx.params : ({} as P);
       return withCors(req, await handler(req, params));
     } catch (err) {
@@ -154,8 +183,15 @@ export function clientIp(req: NextRequest): string {
   return fwd || req.headers.get("x-real-ip") || "unknown";
 }
 
-export async function readJson(req: NextRequest): Promise<unknown> {
+/** Largest JSON body an ordinary endpoint accepts (import passes its own, larger limit). */
+export const MAX_BODY_BYTES = 1_000_000;
+
+export async function readJson(req: NextRequest, maxBytes = MAX_BODY_BYTES): Promise<unknown> {
+  // Refuse oversized bodies before buffering them where the length is declared.
+  if (Number(req.headers.get("content-length") ?? 0) > maxBytes)
+    throw new ApiError("bad_request", "The request is too large.");
   const text = await req.text();
+  if (text.length > maxBytes) throw new ApiError("bad_request", "The request is too large.");
   if (!text) return {};
   return JSON.parse(text);
 }

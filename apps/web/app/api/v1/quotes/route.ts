@@ -22,7 +22,8 @@ export const POST = api(async (req) => create(req, await guard(req), "sp_quotes"
 /** Deletes one of your own quotes: `DELETE /quotes?id=…` (or `{ "id": … }` in the body). Built-in quotes can't be deleted. */
 export const DELETE = api(async (req) => {
   const auth = await guard(req);
-  const id = req.nextUrl.searchParams.get("id") ?? ((await readJson(req)) as { id?: string }).id;
+  const id =
+    req.nextUrl.searchParams.get("id") ?? ((await readJson(req)) as { id?: string } | null)?.id;
   if (!id) throw new ApiError("bad_request", "Say which quote to delete: ?id=<uuid>.");
   return remove(auth, "sp_quotes", zId.parse(id), false);
 });

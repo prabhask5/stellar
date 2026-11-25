@@ -2,12 +2,12 @@
 
 import { advance, Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PerspectiveCamera } from "three";
 import { useStore } from "zustand";
 import { FrameGovernor, stepDown, TIERS, type TierProfile } from "./quality.ts";
 import { UniverseScene } from "./scene-core.ts";
-import { cameraInput, sceneSignals, universeStore } from "./store.ts";
+import { cameraInput, diagnostics, rememberTierCap, sceneSignals, universeStore } from "./store.ts";
 
 /** Seconds between the last two rendered frames, shared with the scene. */
 let frameDt = 0;
@@ -57,6 +57,19 @@ function Scene({ profile }: { profile: TierProfile }) {
  */
 function Loop({ profile }: { profile: TierProfile }) {
   const invalidate = useThree((s) => s.invalidate);
+  const gl = useThree((s) => s.gl);
+  // Read-only renderer statistics for diagnostics and the memory sweep.
+  useEffect(() => {
+    diagnostics.info = () => ({
+      geometries: gl.info.memory.geometries,
+      textures: gl.info.memory.textures,
+      programs: gl.info.programs?.length ?? 0,
+      calls: gl.info.render.calls,
+    });
+    return () => {
+      diagnostics.info = null;
+    };
+  }, [gl]);
   useEffect(() => {
     const governor = new FrameGovernor(profile.frameBudgetMs);
     let raf = 0;
@@ -70,9 +83,19 @@ function Loop({ profile }: { profile: TierProfile }) {
         lastTick = now;
         return;
       }
-      // Step-down decisions use the browser's own frame cadence, not our throttle.
-      if (lastTick && governor.frame(now - lastTick, now)) {
-        universeStore.setState({ tier: stepDown(s.tier) });
+      // The interface has the floor (scrolling, typing, a sheet moving): hold this frame.
+      // Frames skipped here say nothing about what the device can do, so the governor
+      // does not see them either.
+      if (now < sceneSignals.yieldUntil && !cameraInput.dragging) {
+        lastTick = 0;
+        return;
+      }
+      // Step-down decisions use the browser's own frame cadence, not our throttle. They
+      // apply to Auto only: a tier the owner chose in Settings is theirs to keep.
+      if (s.setting === "auto" && lastTick && governor.frame(now - lastTick, now)) {
+        const lower = stepDown(s.tier);
+        rememberTierCap(lower);
+        universeStore.setState({ tier: lower });
       }
       lastTick = now;
 
@@ -105,10 +128,33 @@ function Loop({ profile }: { profile: TierProfile }) {
 export default function UniverseCanvas() {
   const tier = useStore(universeStore, (s) => s.tier);
   const profile = TIERS[tier];
+  // iOS takes the WebGL context away from a backgrounded app and does not always give it
+  // back. When that happens the scene is rebuilt on a fresh context instead of leaving
+  // an empty sky behind; the CSS starfield shows through in between.
+  const [epoch, setEpoch] = useState(0);
   if (!profile.webgl) return null;
   return (
     <Canvas
-      key={tier}
+      key={`${tier}:${epoch}`}
+      onCreated={({ gl }) => {
+        const canvas = gl.domElement;
+        canvas.addEventListener("webglcontextlost", (e) => {
+          // A canvas that was replaced (a tier change, an earlier rebuild) loses its context
+          // when it is disposed. That is not a loss to recover from: rebuilding here would
+          // dispose the current canvas in turn, and so on without end.
+          if (!canvas.isConnected) return;
+          e.preventDefault();
+          universeStore.setState({ ready: false });
+          // Rebuild once the page is in front again; nothing can be drawn before that.
+          const rebuild = () => {
+            if (document.hidden) return;
+            document.removeEventListener("visibilitychange", rebuild);
+            if (canvas.isConnected) setEpoch((n) => n + 1);
+          };
+          if (document.hidden) document.addEventListener("visibilitychange", rebuild);
+          else setTimeout(rebuild, 400);
+        });
+      }}
       frameloop="never"
       dpr={[1, profile.maxDpr]}
       gl={{

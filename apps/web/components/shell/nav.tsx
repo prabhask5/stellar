@@ -1,9 +1,8 @@
 "use client";
 
-import { eraLabel, eraProgress } from "@stellar/shared";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ComponentType } from "react";
+import type { ComponentType, MouseEvent } from "react";
 import { cx } from "@/components/ui/cx";
 import {
   FocusIcon,
@@ -14,8 +13,6 @@ import {
   TasksIcon,
   UniverseIcon,
 } from "@/components/ui/icons";
-import { ProgressBar } from "@/components/ui/progress";
-import { useUniverse } from "@/lib/client/data/hooks";
 
 export interface NavItem {
   href: string;
@@ -33,6 +30,15 @@ export const NAV: readonly NavItem[] = [
 
 export function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** Tapping the tab you are already on scrolls to the top, as a native tab bar does. */
+function onTab(e: MouseEvent<HTMLAnchorElement>, href: string, pathname: string) {
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+  if (!isActive(pathname, href) || window.scrollY <= 4) return;
+  e.preventDefault();
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
 }
 
 /** Phone: floating glass pill with five destinations. */
@@ -56,6 +62,9 @@ export function TabBar() {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
+            onClick={(e) => onTab(e, href, pathname)}
+            draggable={false}
+            data-press="scale"
             className={cx(
               "flex min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-[24px] transition-colors duration-200",
               active ? "bg-fill-selected text-accent" : "text-fg-2 active:bg-fill-hover",
@@ -70,24 +79,7 @@ export function TabBar() {
   );
 }
 
-function EraCard() {
-  const universe = useUniverse();
-  const total = universe?.total ?? 0;
-  const p = eraProgress(total);
-  return (
-    <div className="glass rounded-list p-3" data-testid="era-card">
-      <p className="text-caption text-fg-2">{eraLabel(p.era)}</p>
-      <ProgressBar value={p.fraction} label="Progress to the next era" className="my-2" />
-      <p className="text-caption text-fg-2 tnum">
-        {p.next
-          ? `${p.remaining.toLocaleString("en-US")} stars to ${p.next.name}`
-          : "The final era"}
-      </p>
-    </div>
-  );
-}
-
-/** Tablet: icon rail. Desktop: sidebar with labels and Era progress at the bottom. */
+/** Tablet: icon rail. Desktop: sidebar with labels. */
 export function SideNav() {
   const pathname = usePathname();
   const settingsActive = isActive(pathname, "/settings");
@@ -124,6 +116,8 @@ export function SideNav() {
                 aria-current={active ? "page" : undefined}
                 aria-label={label}
                 title={label}
+                onClick={(e) => onTab(e, href, pathname)}
+                draggable={false}
                 className={cx(
                   "flex h-11 items-center justify-center gap-3 rounded-button px-0 text-[15px] transition-colors duration-100 lg:h-10 lg:justify-start lg:px-3",
                   active
@@ -154,9 +148,6 @@ export function SideNav() {
           <GearIcon size={20} className={settingsActive ? "text-accent" : undefined} />
           <span className="hidden lg:inline">Settings</span>
         </Link>
-        <div className="hidden lg:block">
-          <EraCard />
-        </div>
       </div>
     </nav>
   );

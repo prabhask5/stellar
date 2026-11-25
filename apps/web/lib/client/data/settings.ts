@@ -2,7 +2,7 @@ import type { Quote, Settings } from "@stellar/db";
 import { keys, queryClient } from "../cache";
 import { enqueue } from "../outbox";
 import { toast } from "../toast";
-import { currentUserId, hardDeleteRow, insertRow, newId, nowIso } from "./core";
+import { currentUserId, hardDeleteRow, insertRow, newId, nowIso, rememberTimeZone } from "./core";
 
 export type SettingsPatch = Partial<
   Pick<
@@ -21,6 +21,7 @@ export function updateSettings(patch: SettingsPatch): void {
   queryClient.setQueryData<Settings>(keys.settings, (prev) =>
     prev ? { ...prev, ...patch } : prev,
   );
+  if (patch.timezone) rememberTimeZone(patch.timezone);
   enqueue({ kind: "update_singleton", table: "sp_settings", patch });
 }
 

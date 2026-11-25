@@ -154,6 +154,7 @@ function Connect({ reconnect }: { reconnect: Connection | null }) {
         >
           {busy ? "Looking…" : "Continue"}
         </button>
+        {reconnect && <DisconnectButton disabled={busy} />}
       </form>
     );
   }
@@ -201,7 +202,22 @@ function Connect({ reconnect }: { reconnect: Connection | null }) {
           Use a different address
         </button>
       )}
+      {reconnect && <DisconnectButton disabled={busy} />}
     </div>
+  );
+}
+
+/** A way out when the PIN cannot be entered (wrong instance, PIN forgotten): unlink and start over. */
+function DisconnectButton({ disabled }: { disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      className="btn btn--secondary btn--block"
+      disabled={disabled}
+      onClick={() => void send({ type: "disconnect" }).catch(() => undefined)}
+    >
+      Disconnect this browser
+    </button>
   );
 }
 
@@ -495,7 +511,7 @@ function Popup() {
             <Icon d={ICON.back} />
           </button>
         ) : (
-          <span className="popup__brand">Stellar Planner</span>
+          <span className="popup__brand">Stellar Focus</span>
         )}
         {linked && view === "main" && (
           <button

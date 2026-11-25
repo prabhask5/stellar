@@ -1,6 +1,7 @@
 "use client";
 
 import type { MouseEvent, Ref } from "react";
+import { haptic } from "@/lib/client/haptics";
 import { cx } from "./cx";
 import { CheckIcon } from "./icons";
 
@@ -20,6 +21,7 @@ export interface CheckboxProps {
 export function Checkbox({ checked, onChange, label, disabled, className, ref }: CheckboxProps) {
   const onClick = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
+    haptic(checked ? "light" : "success");
     onChange(!checked, e.currentTarget);
   };
   return (

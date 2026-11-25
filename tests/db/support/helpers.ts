@@ -1,0 +1,91 @@
+import { randomUUID } from "node:crypto";
+import pg from "pg";
+
+/**
+ * SQL tests need a Postgres with the Supabase roles and `auth` schema.
+ * `pnpm stack:up` starts one locally; otherwise set TEST_DATABASE_URL.
+ * When no database is reachable the SQL suites are skipped locally and fail in CI.
+ */
+export const DATABASE_URL =
+  process.env.TEST_DATABASE_URL ??
+  process.env.DATABASE_URL ??
+  "postgres://postgres:postgres@127.0.0.1:54322/postgres";
+
+export async function probe(): Promise<boolean> {
+  const client = new pg.Client({ connectionString: DATABASE_URL, connectionTimeoutMillis: 2000 });
+  client.on("error", () => {});
+  try {
+    await client.connect();
+    const r = await client.query("select to_regclass('auth.users') as t");
+    return r.rows[0]?.t !== null;
+  } catch {
+    return false;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+export const available = await probe();
+if (!available) {
+  const message = "[db tests] No Supabase-compatible Postgres reachable. Run `pnpm stack:up`.";
+  // Locally the SQL suites are skipped; in CI a missing database must never pass as green.
+  if (process.env.CI) throw new Error(message);
+  console.warn(`${message} SQL suites are skipped.`);
+}
+
+export async function open(): Promise<pg.Client> {
+  const client = new pg.Client({ connectionString: DATABASE_URL });
+  client.on("error", () => {});
+  await client.connect();
+  return client;
+}
+
+export async function createUser(admin: pg.Client, timezone = "UTC"): Promise<string> {
+  const id = randomUUID();
+  await admin.query(
+    // GoTrue expects empty strings, not NULLs, in its token columns.
+    `insert into auth.users (id, instance_id, aud, role, email, confirmation_token, recovery_token, email_change_token_new, email_change)
+     values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', $2, '', '', '', '')`,
+    [id, `test-${id}@stellar.test`],
+  );
+  await admin.query("insert into public.sp_settings (user_id, timezone) values ($1, $2)", [
+    id,
+    timezone,
+  ]);
+  return id;
+}
+
+export async function dropUser(admin: pg.Client, id: string): Promise<void> {
+  await admin.query("delete from auth.users where id = $1", [id]);
+}
+
+export type Q = <T extends pg.QueryResultRow = pg.QueryResultRow>(
+  sql: string,
+  params?: unknown[],
+) => Promise<T[]>;
+
+/** Runs `fn` in one transaction as the given user, exactly as PostgREST would. */
+export async function asUser<R>(
+  admin: pg.Client,
+  userId: string | null,
+  fn: (q: Q) => Promise<R>,
+): Promise<R> {
+  await admin.query("begin");
+  try {
+    if (userId) {
+      await admin.query("select set_config('request.jwt.claims', $1, true)", [
+        JSON.stringify({ sub: userId, role: "authenticated" }),
+      ]);
+      await admin.query("set local role authenticated");
+    } else {
+      await admin.query("set local role anon");
+    }
+    const q: Q = async (sql, params) => (await admin.query(sql, params as never[])).rows as never;
+    const result = await fn(q);
+    await admin.query("commit");
+    return result;
+  } catch (err) {
+    await admin.query("rollback");
+    throw err;
+  }
+}

@@ -9,7 +9,7 @@ export const OPTIONS = preflight;
 /** Merges an export into the account. Rows are matched by id, so importing twice changes nothing. */
 export const POST = api(async (req) => {
   const auth = await authenticate(req);
-  const body = zExport.parse(await readJson(req));
+  const body = zExport.parse(await readJson(req, 100_000_000));
   const { data, error } = await auth.supabase.rpc("sp_import", { p_data: body as unknown as Json });
   if (error) {
     const bad =

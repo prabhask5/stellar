@@ -1,49 +1,81 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { GroupedList, ListRow } from "@/components/ui/grouped-list";
 import { BellIcon } from "@/components/ui/icons";
 import { Switch } from "@/components/ui/switch";
 import {
+  describeTest,
   disablePush,
   enablePush,
   type PushStatus,
   pushStatus,
   sendTestPush,
+  syncPush,
 } from "@/lib/client/push";
 import { toast, toastError } from "@/lib/client/toast";
 import { Section } from "./parts";
 
-export function usePush() {
-  const [status, setStatus] = useState<PushStatus | null>(null);
-  const [busy, setBusy] = useState(false);
-  const refresh = useCallback(() => {
-    pushStatus()
-      .then(setStatus)
-      .catch(() => setStatus({ support: "unsupported", permission: "default", subscribed: false }));
-  }, []);
-  useEffect(refresh, [refresh]);
+// One status for the whole app, so the switch in Settings and the prompt on Focus can never
+// disagree: both read this, and a change made through either updates both.
+let shared: PushStatus | null = null;
+let started = false;
+const listeners = new Set<() => void>();
+const subscribe = (fn: () => void) => {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+};
 
-  const toggle = useCallback(
-    async (on: boolean) => {
-      setBusy(true);
-      try {
-        if (on) {
-          await enablePush();
-          toast("Notifications are on", { tone: "success" });
-        } else {
-          await disablePush();
-          toast("Notifications are off");
-        }
-      } catch (err) {
-        toastError(err instanceof Error ? err.message : "Could not change notifications.");
-      }
-      setBusy(false);
-      refresh();
-    },
-    [refresh],
+function refresh(): void {
+  pushStatus()
+    .catch((): PushStatus => ({ support: "unsupported", permission: "default", subscribed: false }))
+    .then((next) => {
+      shared = next;
+      for (const fn of listeners) fn();
+    });
+}
+
+function start(): void {
+  if (started) return;
+  started = true;
+  refresh();
+  // The first look can come before the service worker exists; look again once it does, and
+  // make sure a device that is "on" is still registered with the server.
+  if ("serviceWorker" in navigator)
+    void navigator.serviceWorker.ready
+      .then(() => syncPush())
+      .catch(() => {})
+      .then(refresh);
+  // Permission can be changed in the browser's own settings while the app is in the background.
+  document.addEventListener("visibilitychange", () => !document.hidden && refresh());
+}
+
+export function usePush() {
+  const status = useSyncExternalStore(
+    subscribe,
+    () => shared,
+    () => null,
   );
+  const [busy, setBusy] = useState(false);
+  useEffect(start, []);
+
+  const toggle = useCallback(async (on: boolean) => {
+    setBusy(true);
+    try {
+      if (on) {
+        await enablePush();
+        toast("Notifications are on", { tone: "success" });
+      } else {
+        await disablePush();
+        toast("Notifications are off");
+      }
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Could not change notifications.");
+    }
+    setBusy(false);
+    refresh();
+  }, []);
   return { status, busy, toggle };
 }
 
@@ -58,10 +90,9 @@ export function NotificationsSection() {
   const test = async () => {
     setTesting(true);
     try {
-      const r = await sendTestPush();
-      toast(r.sent > 0 ? "Test notification sent" : "No device is subscribed yet", {
-        tone: r.sent > 0 ? "success" : "default",
-      });
+      const { ok, message } = describeTest(await sendTestPush());
+      if (ok) toast(message, { tone: "success" });
+      else toastError(message);
     } catch {
       toastError("Could not send a test notification.");
     }

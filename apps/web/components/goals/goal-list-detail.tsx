@@ -1,7 +1,7 @@
 "use client";
 
 import type { Goal, GoalList } from "@stellar/db";
-import { goalProgress, listProgress } from "@stellar/shared";
+import { goalOver, listProgress } from "@stellar/shared";
 import { originOf } from "@stellar/universe/bus";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
@@ -42,7 +42,7 @@ function GoalRow({
       type="button"
       {...handle}
       aria-label={`Reorder “${goal.name}”`}
-      className="mouse:flex hidden size-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-chip text-fg-2/60 hover:bg-fill-hover hover:text-fg active:cursor-grabbing"
+      className="flex size-9 touch:size-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-chip text-fg-2/60 hover:bg-fill-hover hover:text-fg active:cursor-grabbing"
     >
       <DragIcon size={18} />
     </button>
@@ -63,9 +63,9 @@ function GoalRow({
         <button
           type="button"
           onClick={() => onEdit(goal)}
-          aria-label={`Edit “${goal.name}”`}
           className="flex min-h-11 min-w-0 flex-1 flex-col justify-center py-2 text-left"
         >
+          <span className="sr-only">Edit </span>
           <span
             className={cx(
               "block truncate transition-colors duration-200",
@@ -85,7 +85,6 @@ function GoalRow({
     );
   }
 
-  const fraction = goalProgress(goal);
   return (
     <div
       className="flex items-center gap-3 py-3 pl-4 pr-3"
@@ -97,12 +96,12 @@ function GoalRow({
           <button
             type="button"
             onClick={() => onEdit(goal)}
-            aria-label={`Edit “${goal.name}”`}
             className={cx(
               "max-w-full truncate text-left",
               goal.completed ? "text-fg-2" : "text-fg",
             )}
           >
+            <span className="sr-only">Edit </span>
             {goal.name}
           </button>
           <AmountLabel
@@ -117,7 +116,7 @@ function GoalRow({
           <p className="mt-0.5 truncate text-footnote text-fg-2">{goal.description}</p>
         )}
         <ProgressBar
-          value={fraction}
+          value={goalOver(goal)}
           label={`${goal.name} progress`}
           valueText={`${goal.current_amount} of ${goal.total_amount ?? 0}${goal.unit ? ` ${goal.unit}` : ""}`}
           className="mt-2"
@@ -185,8 +184,8 @@ export function GoalListDetail({ list, index, goals, onBack }: GoalListDetailPro
               ? "No goals yet"
               : `${progress.complete} of ${progress.total} complete`}
           </p>
-          <p className="mt-0.5 text-title2 tnum">{progress.percent}%</p>
-          <ProgressBar value={progress.fraction} label={`${list.name} progress`} className="mt-3" />
+          <p className="mt-0.5 text-title2 tnum">{Math.round(progress.over * 100)}%</p>
+          <ProgressBar value={progress.over} label={`${list.name} progress`} className="mt-3" />
         </div>
         <MiniPlanet progress={progress.fraction} index={index} complete={progress.allComplete} />
       </GlassCard>
@@ -282,7 +281,7 @@ export function GoalListDetail({ list, index, goals, onBack }: GoalListDetailPro
         deleteWarning={
           sorted.length === 0
             ? "The list is empty."
-            : `Its ${sorted.length === 1 ? "goal is" : `${sorted.length} goals are`} deleted with it. Stardust you already earned stays.`
+            : `Its ${sorted.length === 1 ? "goal is" : `${sorted.length} goals are`} deleted with it.`
         }
       />
     </div>

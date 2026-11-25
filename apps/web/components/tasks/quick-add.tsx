@@ -12,8 +12,8 @@ import { inputClass } from "@/components/ui/field";
 import { CheckIcon, GridIcon, TextIcon } from "@/components/ui/icons";
 import { Popover } from "@/components/ui/popover";
 import { Sheet } from "@/components/ui/sheet";
-import { useIsWide } from "@/components/ui/use-media";
-import { createTask } from "@/lib/client/data/tasks";
+import { usePopoverFits } from "@/components/ui/use-media";
+import { createTask, createTaskForToday } from "@/lib/client/data/tasks";
 import { useUi } from "@/lib/client/ui-store";
 
 export interface QuickAddBarProps {
@@ -50,7 +50,7 @@ export function QuickAddBar({
   const [descOpen, setDescOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const wide = useIsWide();
+  const wide = usePopoverFits();
   const nonce = useUi((s) => s.quickAddNonce);
   const touched = useRef(false);
 
@@ -59,9 +59,19 @@ export function QuickAddBar({
     if (!touched.current) setDue({ date: defaultDate, time: null });
   }, [defaultDate]);
 
+  // Focus when asked (the N key, the "New task" shortcut), once per request: a request that
+  // was already served must not pull focus again every time this bar is mounted.
+  const servedNonce = useRef(nonce);
   useEffect(() => {
-    if (shortcut && nonce > 0) input.current?.focus();
+    if (!shortcut || nonce === servedNonce.current) return;
+    servedNonce.current = nonce;
+    input.current?.focus();
   }, [nonce, shortcut]);
+
+  // A list deleted meanwhile (here or on another device) cannot stay selected.
+  useEffect(() => {
+    if (listId && !fixedListId && !lists.some((l) => l.id === listId)) setListId(null);
+  }, [lists, listId, fixedListId]);
 
   const list = lists.find((l) => l.id === listId) ?? null;
   const inList = Boolean(fixedListId ?? listId);
@@ -72,13 +82,20 @@ export function QuickAddBar({
       input.current?.focus();
       return;
     }
-    createTask({
+    const input_ = {
       name: trimmed,
       description: description.trim() || null,
       due_date: inList ? null : due.date,
       due_time: inList ? null : due.time,
       list_id: fixedListId ?? listId,
-    });
+    };
+    // An untouched default of "today" is resolved when the owner's time zone is known.
+    if (!touched.current && input_.due_date !== null && input_.due_date === today) {
+      const { due_date: _today, ...rest } = input_;
+      createTaskForToday(rest);
+    } else {
+      createTask(input_);
+    }
     setName("");
     setDescription("");
     touched.current = false;
@@ -93,6 +110,9 @@ export function QuickAddBar({
         Description
       </label>
       <textarea
+        autoComplete="off"
+        enterKeyHint="enter"
+        autoCapitalize="sentences"
         id="qa-description"
         autoFocus
         rows={3}
@@ -207,7 +227,7 @@ export function QuickAddBar({
           </Button>
         </span>
       </div>
-      <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-1 pb-1 md:overflow-visible md:p-0">
+      <div className="no-scrollbar -mt-1 flex items-center gap-2 overflow-x-auto overflow-y-hidden px-1 pb-1 pt-1 md:mt-0 md:overflow-visible md:p-0">
         {!fixedListId && (
           <DateChip
             value={due}

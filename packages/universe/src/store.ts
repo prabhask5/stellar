@@ -70,6 +70,9 @@ if (typeof window !== "undefined") {
   (window as Window & { __stellarUniverse?: unknown }).__stellarUniverse = {
     screenTargets,
     coreScreen,
+    info: () => diagnostics.info?.() ?? null,
+    /** Milliseconds for which the scene is still yielding to the interface. */
+    yielding: () => Math.max(0, sceneSignals.yieldUntil - performance.now()),
   };
 }
 
@@ -155,7 +158,7 @@ export function setDragging(dragging: boolean): void {
 
 /** Moments the 3D scene reacts to (set by the event overlay). Seconds on the scene clock; -1 = never. */
 export const sceneSignals = {
-  /** Core flash: supernova, first light, new era. */
+  /** Core flash: supernova, system blossom. */
   flashAt: -1,
   flashStrength: 0,
   /** Warp jump burst at the start of a focus phase. */
@@ -166,4 +169,44 @@ export const sceneSignals = {
   rekindle: [] as string[],
   /** Monotonic scene clock in seconds, written by the render loop. */
   now: 0,
+  /** `performance.now()` until which the scene holds its frame for the interface (scroll, typing, sheets). */
+  yieldUntil: 0,
 };
+
+/** Read-only renderer statistics, present while a WebGL scene is mounted. */
+export const diagnostics: {
+  info: (() => { geometries: number; textures: number; programs: number; calls: number }) | null;
+} = { info: null };
+
+const CAP_KEY = "sp-tier-cap";
+const CAP_DAYS = 7;
+const ORDER: readonly QualityTier[] = ["minimal", "balanced", "cinematic"];
+
+/**
+ * When Auto had to step down because this device could not hold the frame rate, the lower
+ * tier is remembered for a week. The next launch then starts there, instead of starting
+ * high, stuttering for three seconds and rebuilding the scene every time.
+ */
+export function rememberTierCap(tier: QualityTier): void {
+  try {
+    localStorage.setItem(CAP_KEY, JSON.stringify({ tier, at: Date.now() }));
+  } catch {
+    // ignored
+  }
+}
+
+/** Applies the remembered cap to a tier chosen by Auto. */
+export function capTier(tier: QualityTier): QualityTier {
+  try {
+    const raw = localStorage.getItem(CAP_KEY);
+    if (!raw) return tier;
+    const cap = JSON.parse(raw) as { tier: QualityTier; at: number };
+    if (Date.now() - cap.at > CAP_DAYS * 86_400_000) {
+      localStorage.removeItem(CAP_KEY);
+      return tier;
+    }
+    return ORDER.indexOf(cap.tier) < ORDER.indexOf(tier) ? cap.tier : tier;
+  } catch {
+    return tier;
+  }
+}

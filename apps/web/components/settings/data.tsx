@@ -74,7 +74,7 @@ export function DataSection() {
     <Section
       id="data"
       title="Data"
-      description="Your data lives in your own database. Exports include everything: tasks, goals, routines and their history, focus sessions, block lists, quotes and your stardust ledger."
+      description="Your data lives in your own database. Exports include everything: tasks, goals, routines and their history, focus sessions, block lists and quotes."
     >
       <GroupedList>
         <ListRow

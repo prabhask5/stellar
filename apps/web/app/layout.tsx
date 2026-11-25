@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import { ServiceWorker } from "@/components/shell/service-worker";
+import { TouchFeelLoader } from "@/components/shell/touch-feel-loader";
 import { Starfield } from "@/components/sky/starfield";
 import { MotionProvider } from "@/components/ui/motion-provider";
 import { UniverseHost } from "@/components/universe/universe-host";
@@ -11,6 +12,9 @@ import "./globals.css";
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
+  // The fallback for platforms without a system font this good. Apple devices (the main
+  // target) never use it, so it is not preloaded for everyone.
+  preload: false,
   variable: "--font-inter",
   weight: ["200", "400", "500", "600", "700"],
 });
@@ -46,7 +50,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={inter.variable} data-tier="auto">
+    // The colour is inline so the very first frame is already dark: a stylesheet that arrives a
+    // moment later would let the browser's white default show through on launch.
+    <html
+      lang="en"
+      className={inter.variable}
+      data-tier="auto"
+      style={{ backgroundColor: "#070615" }}
+    >
       <body>
         <Starfield />
         <UniverseHost />
@@ -54,6 +65,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <div className="sp-shell">{children}</div>
         </MotionProvider>
         <ServiceWorker />
+        <TouchFeelLoader />
       </body>
     </html>
   );

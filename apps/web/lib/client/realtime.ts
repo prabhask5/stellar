@@ -1,3 +1,4 @@
+import { isDemo } from "./demo";
 import {
   REALTIME_TABLES,
   type FocusSettings,
@@ -9,6 +10,7 @@ import {
   type Collections,
   type CollectionTable,
   type FocusCache,
+  findRow,
   keys,
   queryClient,
   removeRow,
@@ -17,6 +19,7 @@ import {
   upsertRow,
 } from "./cache";
 import { SCORING_TABLES } from "./data/core";
+import { recordRealtimeEvent, recordRealtimeStatus } from "./diagnostics";
 import { hasPending } from "./outbox";
 import { readMeta, type SessionMeta } from "./session";
 import { type Db, getSupabase } from "./supabase";
@@ -50,6 +53,7 @@ function applyFocusState(row: Row): void {
 }
 
 function applyChange(table: RealtimeTable, payload: RealtimePostgresChangesPayload<Row>): void {
+  recordRealtimeEvent(table);
   if (table === "sp_focus_state") {
     if (payload.eventType !== "DELETE") applyFocusState(payload.new);
     return;
@@ -80,8 +84,18 @@ function applyChange(table: RealtimeTable, payload: RealtimePostgresChangesPaylo
     }
   } else {
     const row = payload.new;
+    const id = rowId(collection, row);
     // While a local edit to this row is still queued, the cache already shows the newer intent.
-    if (hasPending(`${collection}:${rowId(collection, row)}`)) return;
+    if (hasPending(`${collection}:${id}`)) return;
+    // A table that has never been loaded is fetched whole when it is first shown; one
+    // row from here would look like the complete, fresh list.
+    if (queryClient.getQueryData(keys.table(collection)) === undefined) return;
+    // Events can arrive late and out of order: never let an older version replace a newer one.
+    const cached = findRow(collection, id) as { updated_at?: string | null } | null;
+    const incoming = Date.parse(String(row.updated_at ?? ""));
+    const current = Date.parse(String(cached?.updated_at ?? ""));
+    if (cached && Number.isFinite(incoming) && Number.isFinite(current) && incoming < current)
+      return;
     upsertRow(collection, row as unknown as Collections[typeof collection]);
   }
   if (SCORING_TABLES.has(table) || table === "sp_goal_lists" || table === "sp_routines")
@@ -98,7 +112,7 @@ let hadConnection = false;
  */
 export function startRealtime(deviceKind: "web" | "pwa" = "web"): () => void {
   const meta = readMeta();
-  if (!meta || channel || starting) return () => {};
+  if (isDemo() || !meta || channel || starting) return () => {};
   let cancelled = false;
   let stop = () => {};
   starting = true;
@@ -159,6 +173,7 @@ function subscribe(db: Db, meta: SessionMeta, deviceKind: "web" | "pwa"): () => 
       ch.subscribe((status) => {
         if (status === "SUBSCRIBED") {
           useSync.setState({ realtime: "connected", online: true });
+          recordRealtimeStatus(true);
           void ch.track({
             device: `${deviceKind}:${meta.deviceId ?? presenceKey}`,
             kind: deviceKind,
@@ -168,6 +183,7 @@ function subscribe(db: Db, meta: SessionMeta, deviceKind: "web" | "pwa"): () => 
           hadConnection = true;
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
           useSync.setState({ realtime: "disconnected", devices: 1 });
+          recordRealtimeStatus(false);
         }
       });
     });

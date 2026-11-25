@@ -45,8 +45,13 @@ export function ServiceWorker() {
         offerUpdate(registration);
         registration.addEventListener("updatefound", () => {
           const installing = registration.installing;
+          // An update replaces a worker that already controls this page. That is decided
+          // now, when the new worker is found: on a first install nothing controls the page
+          // yet, but the worker can have taken control by the time "installed" is heard,
+          // and the first visit would be told there is a new version.
+          const replacing = Boolean(navigator.serviceWorker.controller);
           installing?.addEventListener("statechange", () => {
-            if (installing.state === "installed") offerUpdate(registration);
+            if (replacing && installing.state === "installed") offerUpdate(registration);
           });
         });
         // Look for a new version when the app comes back to the foreground, and hourly.

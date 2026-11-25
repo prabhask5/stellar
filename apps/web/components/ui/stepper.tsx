@@ -1,5 +1,7 @@
 "use client";
 
+import { parseAmount } from "@/lib/client/amount";
+import { haptic } from "@/lib/client/haptics";
 import { formatAmount } from "@stellar/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "./cx";
@@ -43,9 +45,9 @@ export function Stepper({
     interval: null,
     fired: false,
   });
-  const latest = useRef({ onStep, step });
+  const latest = useRef({ onStep, step, value, min });
   useEffect(() => {
-    latest.current = { onStep, step };
+    latest.current = { onStep, step, value, min };
   });
 
   const stop = useCallback(() => {
@@ -61,10 +63,14 @@ export function Stepper({
     hold.current.fired = false;
     hold.current.timer = setTimeout(() => {
       hold.current.fired = true;
-      hold.current.interval = setInterval(
-        () => latest.current.onStep(dir * latest.current.step, el),
-        90,
-      );
+      hold.current.interval = setInterval(() => {
+        const now = latest.current;
+        // At the floor the button disables itself, and a disabled button never reports the
+        // finger lifting: stop here, or the repeat would run on unseen.
+        if (dir < 0 && now.value <= now.min) return stop();
+        haptic();
+        now.onStep(dir * now.step, el);
+      }, 90);
     }, 420);
   };
 
@@ -74,11 +80,12 @@ export function Stepper({
       hold.current.fired = false;
       return;
     }
+    haptic();
     onStep(dir * step, el);
   };
 
   const commit = () => {
-    const n = Number(draft.replace(",", "."));
+    const n = parseAmount(draft);
     setEditing(false);
     if (draft.trim() !== "" && Number.isFinite(n) && n >= min && n !== value && inputRef.current)
       onSet?.(n, inputRef.current);
@@ -116,6 +123,8 @@ export function Stepper({
         <>
           {editing ? (
             <input
+              autoComplete="off"
+              enterKeyHint="done"
               ref={inputRef}
               autoFocus
               inputMode="decimal"

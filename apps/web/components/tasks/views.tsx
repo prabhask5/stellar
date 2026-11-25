@@ -2,10 +2,11 @@
 
 import type { Task } from "@stellar/db";
 import { allView, type DateStr, todayView } from "@stellar/shared";
-import { useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/grouped-list";
 import { EmptyState } from "@/components/ui/page";
+import { RowsSkeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { withLingering } from "@/lib/client/complete";
 import { postponeOverdue } from "@/lib/client/data/tasks";
@@ -91,6 +92,7 @@ export function TodayTab({ tasks, today, loading, onOpen, onReschedule }: TabPro
           />
         </section>
       )}
+      {empty && loading && <RowsSkeleton label="Loading tasks" />}
       {empty && !loading && <EmptyState title="Clear skies." body="Nothing left in orbit today." />}
       {showCompleted && view.completed.length > 0 && (
         <section aria-label="Completed today" className="mt-7">
@@ -111,6 +113,38 @@ export function TodayTab({ tasks, today, loading, onOpen, onReschedule }: TabPro
   );
 }
 
+const FIRST_ROWS = 60;
+const MORE_ROWS = 80;
+
+/**
+ * How many rows of a long list to mount. Starts with the first screenfuls and grows
+ * whenever the end comes within reach of the viewport; rows already shown stay mounted,
+ * so scrolling remains the browser's own.
+ */
+function useProgressive(total: number): { limit: number; sentinel: ReactNode } {
+  const [limit, setLimit] = useState(FIRST_ROWS);
+  const ref = useRef<HTMLDivElement>(null);
+  const more = limit < total;
+  useEffect(() => {
+    const el = ref.current;
+    if (!more || !el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setLimit(Number.MAX_SAFE_INTEGER);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setLimit((n) => n + MORE_ROWS);
+      },
+      { rootMargin: "1200px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+    // `limit` re-arms the observer: if the sentinel is still in reach after growing, grow again.
+  }, [more, limit]);
+  return { limit, sentinel: more ? <div ref={ref} aria-hidden="true" className="h-px" /> : null };
+}
+
 /** All: every non-list task grouped by date, undated last. */
 export function AllTab({ tasks, today, loading, onOpen, onReschedule }: TabProps) {
   const lingering = useUi((s) => s.lingering);
@@ -120,12 +154,28 @@ export function AllTab({ tasks, today, loading, onOpen, onReschedule }: TabProps
     [tasks, lingering, today, showCompleted],
   );
 
+  // A long history is mounted as it is scrolled to, not all at once: a thousand rows are
+  // several seconds of work on a phone before the first one could be shown.
+  const total = useMemo(() => groups.reduce((n, g) => n + g.tasks.length, 0), [groups]);
+  const { limit, sentinel } = useProgressive(total);
+  const shown = useMemo(() => {
+    if (limit >= total) return groups.map((g) => ({ ...g, count: g.tasks.length }));
+    const out: ((typeof groups)[number] & { count: number })[] = [];
+    let left = limit;
+    for (const g of groups) {
+      if (left <= 0) break;
+      out.push({ ...g, count: g.tasks.length, tasks: g.tasks.slice(0, left) });
+      left -= g.tasks.length;
+    }
+    return out;
+  }, [groups, limit, total]);
+
   return (
     <div data-testid="all-tab">
-      {groups.map((g) => (
+      {shown.map((g) => (
         <section key={g.key} aria-label={g.label} className="mb-7">
           <SectionHeader tone={g.tone}>
-            {g.label} · <span className="tnum">{g.tasks.length}</span>
+            {g.label} · <span className="tnum">{g.count}</span>
           </SectionHeader>
           <TaskGroup
             label={`${g.label} tasks`}
@@ -137,6 +187,8 @@ export function AllTab({ tasks, today, loading, onOpen, onReschedule }: TabProps
           />
         </section>
       ))}
+      {sentinel}
+      {groups.length === 0 && loading && <RowsSkeleton rows={5} label="Loading tasks" />}
       {groups.length === 0 && !loading && (
         <EmptyState title="An open sky." body="Add a task above and it will appear here." />
       )}

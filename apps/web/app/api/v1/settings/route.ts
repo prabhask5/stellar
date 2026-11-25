@@ -20,6 +20,8 @@ export const GET = api(async (req) => {
 export const PUT = api(async (req) => {
   const auth = await authenticate(req);
   const patch = zSettingsUpdate.parse(await readJson(req));
+  if (Object.keys(patch).length === 0)
+    throw new ApiError("bad_request", "Send at least one setting to change.");
   const { error: bootError } = await auth.supabase.rpc("sp_bootstrap", {
     p_timezone: patch.timezone,
   });

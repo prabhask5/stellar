@@ -1,3 +1,4 @@
+import { refuseInDemo } from "./demo";
 import type { ErrorBody, ErrorCode } from "@stellar/shared";
 
 /** Error thrown for any non-2xx answer from our own API. */
@@ -19,6 +20,9 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** A request that has not answered by now is treated as a network failure. */
+const REQUEST_TIMEOUT_MS = 20_000;
+
 export interface ApiOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
@@ -27,6 +31,7 @@ export interface ApiOptions {
 
 /** Same-origin JSON call with the `{ error: { code, message } }` envelope turned into a typed error. */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  refuseInDemo();
   let res: Response;
   try {
     res = await fetch(path, {
@@ -35,7 +40,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       credentials: "same-origin",
       cache: "no-store",
-      signal: options.signal,
+      signal: options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch {
     throw new ApiRequestError(

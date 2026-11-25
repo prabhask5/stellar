@@ -1,5 +1,6 @@
 "use client";
 
+import { parseAmount } from "@/lib/client/amount";
 import type { Goal } from "@stellar/db";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,7 @@ export function GoalSheet({ open, onOpenChange, listId, goal }: GoalSheetProps) 
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return setError("Give the goal a name.");
-    const amount = Number(total.replace(",", "."));
+    const amount = parseAmount(total);
     if (type === "progress" && (!Number.isFinite(amount) || amount <= 0))
       return setError("Enter a total above zero.");
     const fields = {
@@ -73,6 +74,9 @@ export function GoalSheet({ open, onOpenChange, listId, goal }: GoalSheetProps) 
         />
         <FieldShell label="Description" htmlFor="goal-description" optional>
           <textarea
+            autoComplete="off"
+            enterKeyHint="enter"
+            autoCapitalize="sentences"
             id="goal-description"
             rows={2}
             maxLength={5000}

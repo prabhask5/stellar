@@ -1,5 +1,6 @@
 import type { Task } from "@stellar/db";
 import { originOf } from "@stellar/universe/bus";
+import { findRow } from "./cache";
 import { setTaskCompleted } from "./data/tasks";
 import { toast, UNDO_MS } from "./toast";
 import { LINGER_MS, useUi } from "./ui-store";
@@ -13,20 +14,27 @@ let batchTimer: ReturnType<typeof setTimeout> | null = null;
  * share one toast ("3 tasks completed") whose Undo re-opens all of them.
  */
 export function toggleTask(task: Pick<Task, "id" | "completed">, element?: Element | null): void {
-  if (task.completed) {
+  const ui = useUi.getState();
+  // A row that is still lingering was completed a moment ago, even though its view presents
+  // it as open: a second tap takes the completion back.
+  if (task.completed || ui.lingering.has(task.id)) {
+    ui.unlinger(task.id);
+    batch = batch.filter((id) => id !== task.id);
     setTaskCompleted(task.id, false);
     return;
   }
-  useUi.getState().linger(task.id);
+  ui.linger(task.id);
   setTaskCompleted(task.id, true, originOf(element));
   batch.push(task.id);
-  const ids = batch.slice();
   if (batchTimer) clearTimeout(batchTimer);
   batchTimer = setTimeout(() => {
     batch = [];
     batchTimer = null;
   }, UNDO_MS + LINGER_MS);
   setTimeout(() => {
+    // Only what is still completed counts: some may have been taken back while lingering.
+    const ids = batch.filter((id) => findRow("sp_tasks", id)?.completed);
+    if (ids.length === 0 || !ids.includes(task.id)) return;
     toast(ids.length === 1 ? "Task completed" : `${ids.length} tasks completed`, {
       id: "task-completed",
       undo: () => {

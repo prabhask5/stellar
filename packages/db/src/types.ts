@@ -10,6 +10,25 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      sp_applied_ops: {
+        Row: {
+          applied_at: string
+          op_id: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          applied_at?: string
+          op_id: string
+          user_id?: string
+        }
+        Update: {
+          applied_at?: string
+          op_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sp_auth_events: {
         Row: {
           created_at: string
@@ -139,6 +158,40 @@ export type Database = {
           last_seen_at?: string
           name?: string
           revoked_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sp_events: {
+        Row: {
+          created_at: string
+          date: string
+          emoji: string
+          id: string
+          name: string
+          time: string | null
+          updated_at: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          date: string
+          emoji?: string
+          id?: string
+          name: string
+          time?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          emoji?: string
+          id?: string
+          name?: string
+          time?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -727,63 +780,13 @@ export type Database = {
         }
         Relationships: []
       }
-      sp_universe_events: {
-        Row: {
-          created_at: string
-          id: string
-          kind: string
-          points: number
-          ref_date: string | null
-          ref_id: string | null
-          user_id: string
-        }
-        ComputedFields: never
-        Insert: {
-          created_at?: string
-          id?: string
-          kind: string
-          points: number
-          ref_date?: string | null
-          ref_id?: string | null
-          user_id?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          kind?: string
-          points?: number
-          ref_date?: string | null
-          ref_id?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      sp__award: {
-        Args: {
-          p_date: string
-          p_kind: string
-          p_points: number
-          p_ref: string
-          p_user: string
-        }
-        Returns: undefined
-      }
       sp__blocking: { Args: { p_user: string }; Returns: Json }
-      sp__day_fraction: {
-        Args: { p_date: string; p_user: string }
-        Returns: number
-      }
-      sp__era_json: { Args: { p_total: number }; Returns: Json }
       sp__focus_ensure: { Args: { p_user: string }; Returns: undefined }
-      sp__goal_list_sync: {
-        Args: { p_list: string; p_user: string }
-        Returns: undefined
-      }
       sp__instance_progress: {
         Args: {
           p_amount: number
@@ -808,10 +811,6 @@ export type Database = {
           p_phase: string
         }
         Returns: number
-      }
-      sp__routine_day_sync: {
-        Args: { p_date: string; p_user: string }
-        Returns: undefined
       }
       sp__scheduled: {
         Args: {
@@ -841,44 +840,62 @@ export type Database = {
         Returns: Json
       }
       sp_device_seen: { Args: Record<PropertyKey, never>; Returns: undefined }
-      sp_era_index: { Args: { p_total: number }; Returns: number }
-      sp_eras: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          idx: number
-          name: string
-          threshold: number
-        }[]
-      }
       sp_export: { Args: Record<PropertyKey, never>; Returns: Json }
       sp_focus_get: { Args: Record<PropertyKey, never>; Returns: Json }
       sp_focus_stats: { Args: { p_days?: number }; Returns: Json }
-      sp_goal_increment: {
-        Args: { p_delta: number; p_goal_id: string }
-        Returns: {
-          completed: boolean
-          completed_at: string | null
-          created_at: string
-          current_amount: number
-          deleted_at: string | null
-          description: string | null
-          id: string
-          list_id: string
-          name: string
-          sort_order: number | null
-          total_amount: number | null
-          type: string
-          unit: string | null
-          updated_at: string
-          user_id: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "sp_goals"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      sp_goal_increment:
+        | {
+            Args: { p_delta: number; p_goal_id: string }
+            Returns: {
+              completed: boolean
+              completed_at: string | null
+              created_at: string
+              current_amount: number
+              deleted_at: string | null
+              description: string | null
+              id: string
+              list_id: string
+              name: string
+              sort_order: number | null
+              total_amount: number | null
+              type: string
+              unit: string | null
+              updated_at: string
+              user_id: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "sp_goals"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { p_delta: number; p_goal_id: string; p_op_id: string }
+            Returns: {
+              completed: boolean
+              completed_at: string | null
+              created_at: string
+              current_amount: number
+              deleted_at: string | null
+              description: string | null
+              id: string
+              list_id: string
+              name: string
+              sort_order: number | null
+              total_amount: number | null
+              type: string
+              unit: string | null
+              updated_at: string
+              user_id: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "sp_goals"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       sp_goal_list_progress: {
         Args: Record<PropertyKey, never>
         Returns: {

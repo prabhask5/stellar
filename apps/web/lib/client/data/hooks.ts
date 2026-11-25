@@ -5,10 +5,17 @@ import { type DateStr, todayIn, type UniverseSnapshot, type WeekStart } from "@s
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { create } from "zustand";
-import { type Collections, type CollectionTable, type FocusCache, keys } from "../cache";
+import {
+  type Collections,
+  type CollectionTable,
+  type FocusCache,
+  keys,
+  queryClient,
+} from "../cache";
+import { isDemo } from "../demo";
 import { serverNow, setServerSkew } from "../session";
 import { getSupabase } from "../supabase";
-import { fetchCollection, fetchFocus, fetchSettings } from "./core";
+import { fallbackTimeZone, fetchFocus, fetchSettings, loadCollection } from "./core";
 
 /** True once a session (or the remembered connection details) is available, so queries may run. */
 export const useReady = create<{ ready: boolean }>(() => ({ ready: false }));
@@ -21,7 +28,7 @@ export function useCollection<T extends CollectionTable>(
   const ready = useReady((s) => s.ready);
   const q = useQuery({
     queryKey: keys.table(table),
-    queryFn: () => fetchCollection(table),
+    queryFn: () => loadCollection(table),
     enabled: ready,
   });
   return { rows: q.data ?? (EMPTY as unknown as Collections[T][]), loading: q.data === undefined };
@@ -44,6 +51,7 @@ export function useFocus(): FocusCache | undefined {
 }
 
 async function fetchUniverse(): Promise<UniverseSnapshot> {
+  if (isDemo()) return queryClient.getQueryData<UniverseSnapshot>(keys.universe)!;
   const { data, error } = await (await getSupabase()).rpc("sp_universe_snapshot");
   if (error) throw Object.assign(new Error(error.message), error);
   const snapshot = data as unknown as UniverseSnapshot;
@@ -93,7 +101,10 @@ export function useMinute(): number {
 
 export function useTimeZone(): string {
   const settings = useSettings();
-  return settings?.timezone ?? "UTC";
+  // Server render and hydration use UTC; the remembered or device zone takes over right after.
+  const [fallback, setFallback] = useState("UTC");
+  useEffect(() => setFallback(fallbackTimeZone()), []);
+  return settings?.timezone ?? fallback;
 }
 
 export function useWeekStart(): WeekStart {
@@ -113,9 +124,16 @@ export function useToday(): DateStr {
 /** A fast clock for countdowns: re-renders every `intervalMs` while mounted and visible. */
 export function useTick(intervalMs = 250, active = true): number {
   const [now, setNow] = useState(() => serverNow());
+  // The clock is read again in the very render that turns ticking on. Otherwise the first
+  // frame after Start or Resume is drawn with the time this was last looked at, and the
+  // display jumps.
+  const [wasActive, setWasActive] = useState(active);
+  if (active !== wasActive) {
+    setWasActive(active);
+    setNow(serverNow());
+  }
   useEffect(() => {
     if (!active) return;
-    setNow(serverNow());
     const t = setInterval(() => setNow(serverNow()), intervalMs);
     return () => clearInterval(t);
   }, [intervalMs, active]);

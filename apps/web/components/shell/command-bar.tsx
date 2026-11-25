@@ -1,11 +1,13 @@
 "use client";
 
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { whenIdle } from "@/lib/client/idle";
+import { preloadable } from "@/lib/client/preloadable";
 import { useUi } from "@/lib/client/ui-store";
 
-const load = () => import("./command-bar-impl");
-const CommandBarImpl = lazy(() => load().then((m) => ({ default: m.CommandBar })));
+const { Component: CommandBarImpl, preload } = preloadable(() =>
+  import("./command-bar-impl").then((m) => m.CommandBar),
+);
 
 /** ⌘K / Ctrl+K. The palette itself loads when idle or on first use. */
 export function CommandBar() {
@@ -18,6 +20,8 @@ export function CommandBar() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        // Nothing opens over the PIN screen.
+        if (useUi.getState().locked) return;
         setOpen(!useUi.getState().commandOpen);
       }
     };
@@ -25,7 +29,7 @@ export function CommandBar() {
     return () => window.removeEventListener("keydown", onKey);
   }, [setOpen]);
 
-  useEffect(() => whenIdle(() => void load()), []);
+  useEffect(() => whenIdle(() => void preload().catch(() => {})), []);
 
   if (!used) return null;
   return (

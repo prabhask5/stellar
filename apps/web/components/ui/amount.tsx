@@ -1,5 +1,6 @@
 "use client";
 
+import { parseAmount } from "@/lib/client/amount";
 import { formatAmount } from "@stellar/shared";
 import { useRef, useState } from "react";
 
@@ -19,7 +20,7 @@ export function AmountLabel({ current, total, unit, label, onSet }: AmountLabelP
   const input = useRef<HTMLInputElement>(null);
 
   const commit = () => {
-    const n = Number(draft.replace(",", "."));
+    const n = parseAmount(draft);
     setEditing(false);
     if (draft.trim() !== "" && Number.isFinite(n) && n >= 0 && n !== current && input.current)
       onSet?.(n, input.current);
@@ -29,6 +30,8 @@ export function AmountLabel({ current, total, unit, label, onSet }: AmountLabelP
     <span className="whitespace-nowrap text-fg-2 tnum">
       {editing ? (
         <input
+          autoComplete="off"
+          enterKeyHint="done"
           ref={input}
           autoFocus
           inputMode="decimal"

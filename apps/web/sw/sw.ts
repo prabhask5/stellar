@@ -48,6 +48,13 @@ const serwist = new Serwist({
 });
 serwist.addEventListeners();
 
+// A new version has taken over. The cached page shells belong to the previous build and
+// point at script files this version has just removed from the precache, so they go too;
+// the reload that follows fetches fresh ones, and the app warms the cache again after it.
+self.addEventListener("activate", (event) => {
+  event.waitUntil(caches.delete(PAGES));
+});
+
 /** Pages are cached by path alone, so /tasks?tab=all and /tasks share one shell. */
 function pageKey(url: URL): string {
   return url.pathname === "" ? "/" : url.pathname;
@@ -164,7 +171,14 @@ self.addEventListener("notificationclick", (event) => {
       for (const client of windows) {
         if (new URL(client.url).origin === self.location.origin) {
           await client.focus();
-          if ("navigate" in client) await client.navigate(target).catch(() => undefined);
+          // Already showing the right screen: bringing it forward is enough. A navigation
+          // would reload the whole app and throw away what was on screen.
+          const here = new URL(client.url);
+          if (
+            here.pathname !== new URL(target, self.location.origin).pathname &&
+            "navigate" in client
+          )
+            await client.navigate(target).catch(() => undefined);
           return;
         }
       }

@@ -8,7 +8,6 @@ import { seededRandom } from "@stellar/shared/hash";
 import * as THREE from "three";
 import {
   constellationBrightness,
-  dustCount,
   litStars,
   placeClusters,
   placeConstellation,
@@ -229,10 +228,6 @@ interface ConstellationEntry {
   subtitle: string;
 }
 
-/** Core glow and nebula richness per era (Void … Cosmic Web). */
-const CORE_BY_ERA = [0.0, 0.42, 0.6, 0.72, 0.9, 1.0, 1.05];
-const NEBULA_BY_ERA = [0.0, 0.05, 0.55, 0.65, 0.8, 0.9, 1.0];
-
 export class UniverseScene {
   readonly root = new THREE.Group();
   private readonly galaxy = new THREE.Group();
@@ -252,12 +247,7 @@ export class UniverseScene {
   private constellations: ConstellationEntry[] = [];
   private knownStars = new Set<string>();
   private firstSnapshot = true;
-  private era = -1;
   private structureKey = "";
-  private coreLevel = 0;
-  private coreTarget = 0;
-  private nebulaLevel = 0;
-  private nebulaTarget = 0;
   private warpLevel = 0;
   private drift = 0;
   private sinceProject = 1;
@@ -271,6 +261,8 @@ export class UniverseScene {
     this.dust = pointsLayer(Math.max(profile.maxDust, 1), 0.011, 0.55);
     this.backdrop = pointsLayer(700, 0.022, 0.6);
     this.fillBackdrop();
+    this.fillDust();
+    this.buildLayers();
 
     // White-hot centre falling off through Starlight Gold.
     this.core = new THREE.Sprite(
@@ -372,18 +364,6 @@ export class UniverseScene {
 
   /** Applies a new snapshot. Cheap when nothing structural changed. */
   setSnapshot(snapshot: UniverseSnapshot): void {
-    const era = snapshot.era.index;
-    if (era !== this.era) {
-      this.era = era;
-      this.coreTarget = CORE_BY_ERA[Math.min(era, 6)] ?? 0;
-      this.nebulaTarget = NEBULA_BY_ERA[Math.min(era, 6)] ?? 0;
-      this.fillDust(era);
-      this.buildLayers(era);
-      if (this.firstSnapshot) {
-        this.coreLevel = this.coreTarget;
-        this.nebulaLevel = this.nebulaTarget;
-      }
-    }
     this.fillStars(snapshot);
     const key = JSON.stringify([
       snapshot.lists.map((l) => [l.id, l.all_complete]),
@@ -426,8 +406,9 @@ export class UniverseScene {
     commit(this.stars, seeds.length);
   }
 
-  private fillDust(era: number): void {
-    const n = dustCount(era, this.profile.maxDust);
+  /** Ambient dust, independent of the owner's own stars. */
+  private fillDust(): void {
+    const n = this.profile.maxDust;
     for (let i = 0; i < n; i++) {
       const s = placeStar(`dust:${i}`);
       this.dust.position.set(s.position, i * 3);
@@ -444,45 +425,49 @@ export class UniverseScene {
       group.remove(child);
       child.traverse((o) => {
         const m = o as THREE.Mesh;
-        if (m.geometry && m.geometry !== this.planetGeometry) m.geometry.dispose();
+        // Sprites share one geometry inside three.js, and planets share ours.
+        if (m.geometry && m.geometry !== this.planetGeometry && !(o instanceof THREE.Sprite))
+          m.geometry.dispose();
         const material = m.material as THREE.Material | THREE.Material[] | undefined;
-        if (Array.isArray(material)) material.forEach((x) => x.dispose());
-        else material?.dispose();
+        // Textures are not released with their material; the per-object glow sprites
+        // would otherwise pile up on the GPU with every rebuild.
+        for (const x of Array.isArray(material) ? material : material ? [material] : []) {
+          const map = (x as THREE.Material & { map?: THREE.Texture | null }).map;
+          map?.dispose();
+          x.dispose();
+        }
       });
     }
   }
 
-  /** Era layers: globular clusters, neighbouring galaxies, the cosmic web. */
-  private buildLayers(era: number): void {
-    this.clearGroup(this.layers);
-    const clusters = placeClusters(era);
-    if (clusters.length) {
-      const total = clusters.reduce((n, c) => n + c.stars, 0);
-      const layer = pointsLayer(total, 0.012, 0.85);
-      const rand = seededRandom(5150);
-      let i = 0;
-      for (const c of clusters) {
-        for (let k = 0; k < c.stars; k++, i++) {
-          const a = rand() * TAU;
-          const e = Math.asin(rand() * 2 - 1);
-          const r = c.radius * Math.pow(rand(), 1.8);
-          layer.position.set(
-            [
-              c.center[0] + Math.cos(a) * Math.cos(e) * r,
-              c.center[1] + Math.sin(e) * r,
-              c.center[2] + Math.sin(a) * Math.cos(e) * r,
-            ],
-            i * 3,
-          );
-          layer.size[i] = 0.6 + rand() * 0.6;
-          layer.warm[i] = 0.5 + rand() * 0.5;
-          layer.phase[i] = rand() * TAU;
-        }
+  /** Far background: globular clusters, neighbouring galaxies, the cosmic web. */
+  private buildLayers(): void {
+    const clusters = placeClusters();
+    const total = clusters.reduce((n, c) => n + c.stars, 0);
+    const layer = pointsLayer(total, 0.012, 0.85);
+    const rand = seededRandom(5150);
+    let i = 0;
+    for (const c of clusters) {
+      for (let k = 0; k < c.stars; k++, i++) {
+        const a = rand() * TAU;
+        const e = Math.asin(rand() * 2 - 1);
+        const r = c.radius * Math.pow(rand(), 1.8);
+        layer.position.set(
+          [
+            c.center[0] + Math.cos(a) * Math.cos(e) * r,
+            c.center[1] + Math.sin(e) * r,
+            c.center[2] + Math.sin(a) * Math.cos(e) * r,
+          ],
+          i * 3,
+        );
+        layer.size[i] = 0.6 + rand() * 0.6;
+        layer.warm[i] = 0.5 + rand() * 0.5;
+        layer.phase[i] = rand() * TAU;
       }
-      commit(layer, total);
-      this.layers.add(layer.points);
     }
-    for (const n of placeNeighbours(era)) {
+    commit(layer, total);
+    this.layers.add(layer.points);
+    for (const n of placeNeighbours()) {
       const sprite = glowSprite(NEBULA_RGBA.violet, 0.55);
       sprite.position.set(...n.position);
       sprite.scale.set(n.scale * 1.8, n.scale * 0.7, 1);
@@ -492,24 +477,22 @@ export class UniverseScene {
       heart.scale.setScalar(n.scale * 0.35);
       this.layers.add(sprite, heart);
     }
-    const web = placeWeb(era);
-    if (web.edges.length) {
-      const positions = new Float32Array(web.edges.length * 6);
-      web.edges.forEach(([a, b], i) => {
-        positions.set(web.nodes[a] as Vec3, i * 6);
-        positions.set(web.nodes[b] as Vec3, i * 6 + 3);
-      });
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      const material = new THREE.LineBasicMaterial({
-        color: new THREE.Color(...VIOLET_RGB),
-        transparent: true,
-        opacity: 0.16,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      });
-      this.layers.add(new THREE.LineSegments(geometry, material));
-    }
+    const web = placeWeb();
+    const positions = new Float32Array(web.edges.length * 6);
+    web.edges.forEach(([a, b], i) => {
+      positions.set(web.nodes[a] as Vec3, i * 6);
+      positions.set(web.nodes[b] as Vec3, i * 6 + 3);
+    });
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const material = new THREE.LineBasicMaterial({
+      color: new THREE.Color(...VIOLET_RGB),
+      transparent: true,
+      opacity: 0.16,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.layers.add(new THREE.LineSegments(geometry, material));
   }
 
   private buildPlanets(snapshot: UniverseSnapshot): void {
@@ -699,20 +682,14 @@ export class UniverseScene {
     const t = sceneSignals.now;
     const home = state.mode === "home";
 
-    // Ease levels towards their targets (a new era brightens gradually).
-    const ease = 1 - Math.exp(-dt * 1.2);
-    this.coreLevel += (this.coreTarget - this.coreLevel) * ease;
-    this.nebulaLevel += (this.nebulaTarget - this.nebulaLevel) * ease;
     const sinceFlash = sceneSignals.flashAt < 0 ? 99 : t - sceneSignals.flashAt;
     const flash = sinceFlash < 3 ? sceneSignals.flashStrength * Math.exp(-sinceFlash * 1.6) : 0;
     const pulse = motion ? 1 + Math.sin(t * 0.9) * 0.03 : 1;
-    this.core.material.opacity =
-      this.coreLevel > 0.01 || flash > 0 ? Math.min(1, 0.5 + this.coreLevel * 0.5 + flash) : 0;
-    this.core.scale.setScalar((0.42 + this.coreLevel * 0.5 + flash * 0.9) * pulse);
-    this.coreHalo.material.opacity = Math.min(1, this.coreLevel * 0.55 + flash * 0.4);
-    this.coreHalo.scale.setScalar(1.4 + this.coreLevel * 0.7 + flash * 1.2);
+    this.core.scale.setScalar((0.945 + flash * 0.9) * pulse);
+    this.coreHalo.material.opacity = Math.min(1, 0.5775 + flash * 0.4);
+    this.coreHalo.scale.setScalar(2.135 + flash * 1.2);
     this.nebulae.forEach((sprite, i) => {
-      sprite.material.opacity = this.nebulaLevel * (0.5 + 0.15 * Math.sin(t * 0.07 + i));
+      sprite.material.opacity = 0.5 + 0.15 * Math.sin(t * 0.07 + i);
       sprite.scale.setScalar(
         (sprite.userData.base as number) * (1 + 0.04 * Math.sin(t * 0.05 + i * 2)),
       );

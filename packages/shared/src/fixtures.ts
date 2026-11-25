@@ -885,20 +885,3 @@ export const SITE_FIXTURES: { input: string; expected: string | null }[] = [
   { input: "https://", expected: null },
   { input: "www.com", expected: null },
 ];
-
-// ── eras ────────────────────────────────────────────────────────────────────
-export const ERA_FIXTURES: { total: number; index: number; name: string }[] = [
-  { total: -50, index: 0, name: "Void" },
-  { total: 0, index: 0, name: "Void" },
-  { total: 99, index: 0, name: "Void" },
-  { total: 100, index: 1, name: "First Light" },
-  { total: 999, index: 1, name: "First Light" },
-  { total: 1000, index: 2, name: "Nebula" },
-  { total: 4999, index: 2, name: "Nebula" },
-  { total: 5000, index: 3, name: "Star Cluster" },
-  { total: 15000, index: 4, name: "Galaxy" },
-  { total: 39999, index: 4, name: "Galaxy" },
-  { total: 40000, index: 5, name: "Supercluster" },
-  { total: 100000, index: 6, name: "Cosmic Web" },
-  { total: 2500000, index: 6, name: "Cosmic Web" },
-];

@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TextArea } from "@/components/ui/field";
@@ -11,6 +12,15 @@ import { api, ApiRequestError } from "@/lib/client/api";
 import { useReady } from "@/lib/client/data/hooks";
 import { toast, toastError } from "@/lib/client/toast";
 import { Section } from "./parts";
+
+// Read-only and below the fold: fetched when Settings is open, not with the page.
+const DiagnosticsDashboard = dynamic(
+  () => import("./diagnostics").then((m) => m.DiagnosticsDashboard),
+  {
+    ssr: false,
+    loading: () => <div className="glass h-[420px] rounded-list" aria-hidden="true" />,
+  },
+);
 
 interface Connection {
   supabaseUrl: string;
@@ -121,6 +131,7 @@ export function ConnectionSection() {
   const status = !c ? "Checking" : !c.reachable ? "Unreachable" : "Connected";
   return (
     <Section id="connection" title="Connection">
+      <DiagnosticsDashboard />
       <GroupedList data-testid="connection">
         <ListRow
           title="Supabase"

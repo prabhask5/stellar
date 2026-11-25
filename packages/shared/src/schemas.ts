@@ -1,6 +1,6 @@
 /**
  * zod schemas for every boundary: API requests and responses, config, and the
- * shapes clients persist. `docs/openapi.json` is generated from these.
+ * shapes clients persist. The OpenAPI document (`openapi.ts`) is generated from these.
  */
 import { z } from "zod";
 import { isDateStr, isValidTimeZone, normalizeTime } from "./dates.ts";
@@ -211,6 +211,28 @@ export const zReorder = z.object({
   id: zId,
   sort_order: zSortOrder.describe("New fractional rank, between the ranks of its new neighbours"),
 });
+
+// ── events ──────────────────────────────────────────────────────────────────
+export const zEvent = z.object({
+  id: zId,
+  name: z.string(),
+  emoji: zEmoji,
+  date: zDate.describe("The day of the event, in the owner's time zone"),
+  time: z
+    .string()
+    .nullable()
+    .describe("Time of day on that date, HH:MM:SS; null for the whole day"),
+  created_at: zTimestamp,
+  updated_at: zTimestamp,
+});
+export const zEventCreate = z.object({
+  id: zId.optional().describe("Client-generated id, so retries are idempotent"),
+  name: zName(120),
+  emoji: zEmoji.optional(),
+  date: zDate,
+  time: zTime.nullable().optional(),
+});
+export const zEventUpdate = zEventCreate.omit({ id: true }).partial();
 
 // ── goals ───────────────────────────────────────────────────────────────────
 export const zGoalList = zTaskList;
@@ -513,16 +535,6 @@ export const zSitesRemove = z.object({
 
 // ── universe ────────────────────────────────────────────────────────────────
 export const zUniverseSnapshot = z.object({
-  total: z.number(),
-  era: z.object({
-    index: z.number().int(),
-    name: z.string(),
-    threshold: z.number(),
-    next_name: z.string().nullable(),
-    next_threshold: z.number().nullable(),
-    remaining: z.number(),
-    fraction: z.number(),
-  }),
   stars: z.object({
     count: z.number(),
     recent: z.array(z.object({ id: zId, at: zTimestamp.nullable() })),
@@ -559,7 +571,6 @@ export const zUniverseSnapshot = z.object({
       broken: z.boolean(),
     }),
   ),
-  focus: z.object({ minutes: z.number(), phases: z.number() }),
   server_time: zTimestamp,
 });
 export type UniverseSnapshot = z.infer<typeof zUniverseSnapshot>;

@@ -7,6 +7,8 @@ import { IconButton } from "@/components/ui/button";
 import { cx } from "@/components/ui/cx";
 import { ChevronLeftIcon, DragIcon, EditIcon } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/page";
+import { RowsSkeleton } from "@/components/ui/skeleton";
+import { useCollection } from "@/lib/client/data/hooks";
 import { Sortable, SortableItem } from "@/components/ui/sortable";
 import { withLingering } from "@/lib/client/complete";
 import { deleteTaskList, moveTask, updateTaskList } from "@/lib/client/data/tasks";
@@ -38,6 +40,7 @@ export function ListDetail({
   onOpen,
 }: ListDetailProps) {
   const lingering = useUi((s) => s.lingering);
+  const { loading } = useCollection("sp_tasks");
   const [showCompleted, setShowCompleted] = useShowCompleted("list");
   const [editing, setEditing] = useState(false);
   const all = useMemo(() => listView(tasks, list.id, true), [tasks, list.id]);
@@ -82,7 +85,9 @@ export function ListDetail({
       />
 
       <div className="mt-6">
-        {open.length === 0 ? (
+        {open.length === 0 && loading ? (
+          <RowsSkeleton label="Loading tasks" />
+        ) : open.length === 0 ? (
           <div className="glass rounded-list">
             <EmptyState
               title="Nothing here yet."
@@ -121,7 +126,7 @@ export function ListDetail({
                             type="button"
                             {...handle}
                             aria-label={`Reorder “${task.name}”`}
-                            className="mouse:flex hidden size-9 cursor-grab touch-none items-center justify-center rounded-chip text-fg-2/60 hover:bg-fill-hover hover:text-fg active:cursor-grabbing"
+                            className="flex size-9 touch:size-11 cursor-grab touch-none items-center justify-center rounded-chip text-fg-2/60 hover:bg-fill-hover hover:text-fg active:cursor-grabbing"
                           >
                             <DragIcon size={18} />
                           </button>

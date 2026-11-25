@@ -23,11 +23,13 @@ interface Stats {
 import { GlassCard } from "@/components/ui/glass-card";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { keys, queryClient } from "@/lib/client/cache";
+import { isDemo } from "@/lib/client/demo";
 import { useReady, useTimeZone, useToday } from "@/lib/client/data/hooks";
 import { serverNow } from "@/lib/client/session";
 import { getSupabase } from "@/lib/client/supabase";
 
 async function fetchStats(days: number) {
+  if (isDemo()) return queryClient.getQueryData<Stats>(keys.focusStats(days))!;
   const { data, error } = await (await getSupabase()).rpc("sp_focus_stats", { p_days: days });
   if (error) throw Object.assign(new Error(error.message), error);
   return data as unknown as Stats;
@@ -155,17 +157,20 @@ export function FocusStats({ state, sessions }: FocusStatsProps) {
             );
           })}
         </div>
-        <table className="sr-only">
-          <caption>Focus minutes per day</caption>
-          <tbody>
-            {series.map((d) => (
-              <tr key={d.date}>
-                <th scope="row">{formatShortDate(d.date, today)}</th>
-                <td>{Math.round(d.minutes)} minutes</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* The wrapper is what hides this: a table's caption is not clipped by rules on the table itself. */}
+        <div className="sr-only">
+          <table>
+            <caption>Focus minutes per day</caption>
+            <tbody>
+              {series.map((d) => (
+                <tr key={d.date}>
+                  <th scope="row">{formatShortDate(d.date, today)}</th>
+                  <td>{Math.round(d.minutes)} minutes</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </GlassCard>
 
       <h3 className="mb-2 mt-6 px-1 text-[15px] font-semibold text-fg-2">Recent sessions</h3>
@@ -186,7 +191,11 @@ export function FocusStats({ state, sessions }: FocusStatsProps) {
                 <span
                   className={cx(
                     "size-2 shrink-0 rounded-full",
-                    s.phase === "focus" ? "bg-accent" : "bg-violet",
+                    s.phase === "focus"
+                      ? "bg-accent"
+                      : s.phase === "long_break"
+                        ? "bg-azure"
+                        : "bg-violet",
                   )}
                   aria-hidden="true"
                 />

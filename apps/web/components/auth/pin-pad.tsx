@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "@/components/ui/cx";
 import { BackspaceIcon } from "@/components/ui/icons";
 
@@ -35,6 +35,8 @@ export function PinPad({
   errorKey = 0,
   label,
 }: PinPadProps) {
+  const root = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
   const latest = useRef({ value, disabled, onChange, onSubmit, maxLength, autoSubmitLength });
   useEffect(() => {
     latest.current = { value, disabled, onChange, onSubmit, maxLength, autoSubmitLength };
@@ -43,8 +45,14 @@ export function PinPad({
   const press = useCallback((key: string) => {
     const s = latest.current;
     if (s.disabled) return;
+    // Keys can arrive faster than React re-renders (fast typists, password managers, slow
+    // devices). The entered value is advanced here, at once, so no digit builds on a stale one.
+    const commit = (next: string) => {
+      s.value = next;
+      s.onChange(next);
+    };
     if (key === "back") {
-      s.onChange(s.value.slice(0, -1));
+      commit(s.value.slice(0, -1));
       return;
     }
     if (key === "enter") {
@@ -53,13 +61,15 @@ export function PinPad({
     }
     if (s.value.length >= s.maxLength) return;
     const next = s.value + key;
-    s.onChange(next);
+    commit(next);
     if (s.autoSubmitLength && next.length === s.autoSubmitLength) s.onSubmit?.(next);
   }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // A pad that is covered (under the lock screen, in a sheet that is closing) is not the one being typed into.
+      if (root.current?.closest("[inert]")) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       if (/^\d$/.test(e.key)) {
@@ -74,13 +84,20 @@ export function PinPad({
       }
     };
     window.addEventListener("keydown", onKey);
+    setReady(true);
     return () => window.removeEventListener("keydown", onKey);
   }, [press]);
 
   const dots = Math.max(minLength, Math.min(value.length, maxLength));
 
   return (
-    <div className="flex flex-col items-center" data-testid="pin-pad">
+    <div
+      ref={root}
+      className="flex flex-col items-center"
+      data-testid="pin-pad"
+      // Set once the key listener is attached, so keys are not sent to a pad that cannot hear them yet.
+      data-ready={ready || undefined}
+    >
       <div
         key={errorKey}
         role="status"
@@ -109,7 +126,7 @@ export function PinPad({
       </p>
 
       <div
-        className="touch:grid mt-7 hidden grid-cols-3 gap-x-6 gap-y-4 short:mt-5 short:gap-y-3"
+        className="touch:grid mt-7 hidden grid-cols-3 gap-x-6 gap-y-4 short:mt-5 short:gap-y-3 flat:mt-3 flat:gap-x-4 flat:gap-y-2"
         aria-label="Keypad"
       >
         {KEYS.map((k) => (
@@ -154,7 +171,7 @@ function Key({
       disabled={disabled}
       onClick={onPress}
       className={cx(
-        "flex size-[76px] items-center justify-center rounded-full text-[30px] font-light leading-none text-fg short:size-[64px] short:text-[26px]",
+        "flex size-[76px] items-center justify-center rounded-full text-[30px] font-light leading-none text-fg short:size-[64px] short:text-[26px] flat:size-[54px] flat:text-[24px]",
         "transition-[transform,background-color] duration-100 ease-out active:scale-[0.94] disabled:opacity-40",
         plain
           ? "text-fg-2 active:bg-fill-hover"

@@ -14,10 +14,9 @@ import {
   SearchIcon,
   StopIcon,
 } from "@/components/ui/icons";
-import { currentToday } from "@/lib/client/data/core";
 import { timerAction } from "@/lib/client/data/focus";
 import { useFocus } from "@/lib/client/data/hooks";
-import { createTask } from "@/lib/client/data/tasks";
+import { createTaskForToday } from "@/lib/client/data/tasks";
 import { toast } from "@/lib/client/toast";
 import { useUi } from "@/lib/client/ui-store";
 import { NAV } from "./nav";
@@ -59,7 +58,7 @@ export function CommandBar() {
         icon: PlusIcon,
         keywords: "",
         run: () => {
-          createTask({ name: text, due_date: currentToday() });
+          createTaskForToday({ name: text });
           toast("Task added for today", { tone: "success" });
         },
       });
@@ -150,7 +149,7 @@ export function CommandBar() {
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((index - 1 + commands.length) % commands.length);
-    } else if (e.key === "Enter") {
+    } else if (e.key === "Enter" && !e.nativeEvent.isComposing) {
       e.preventDefault();
       run(commands[index]);
     }
@@ -173,6 +172,8 @@ export function CommandBar() {
           <div className="flex items-center gap-3 border-b border-separator px-4">
             <SearchIcon size={18} className="shrink-0 text-fg-2" />
             <input
+              autoComplete="off"
+              enterKeyHint="done"
               autoFocus
               value={query}
               onChange={(e) => {
@@ -199,26 +200,24 @@ export function CommandBar() {
             className="max-h-[min(50dvh,380px)] overflow-y-auto p-2"
           >
             {commands.map((c, i) => (
+              // The option is the control itself: a button inside it would be a second,
+              // nested control for assistive technology. Keys go through the combobox.
               <li
                 key={c.id}
                 id={`cmd-${c.id}`}
                 role="option"
                 aria-selected={i === index}
                 data-index={i}
+                onClick={() => run(c)}
+                onPointerMove={() => setActive(i)}
+                className={cx(
+                  "flex h-11 w-full items-center gap-3 rounded-chip px-3 text-left text-[15px]",
+                  i === index ? "bg-fill-selected text-fg" : "text-fg-2",
+                )}
               >
-                <button
-                  type="button"
-                  onClick={() => run(c)}
-                  onPointerMove={() => setActive(i)}
-                  className={cx(
-                    "flex h-11 w-full items-center gap-3 rounded-chip px-3 text-left text-[15px]",
-                    i === index ? "bg-fill-selected text-fg" : "text-fg-2",
-                  )}
-                >
-                  <c.icon size={18} className={i === index ? "text-accent" : undefined} />
-                  <span className="min-w-0 flex-1 truncate">{c.label}</span>
-                  {c.hint && <span className="shrink-0 text-caption text-fg-2">{c.hint}</span>}
-                </button>
+                <c.icon size={18} className={i === index ? "text-accent" : undefined} />
+                <span className="min-w-0 flex-1 truncate">{c.label}</span>
+                {c.hint && <span className="shrink-0 text-caption text-fg-2">{c.hint}</span>}
               </li>
             ))}
             {commands.length === 0 && (

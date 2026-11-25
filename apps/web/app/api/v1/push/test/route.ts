@@ -1,4 +1,5 @@
 import { api, clientIp, json, preflight, ApiError } from "@/lib/server/http";
+import { requireConfig } from "@/lib/server/config";
 import { sendPush } from "@/lib/server/push";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { authenticate } from "@/lib/server/supabase";
@@ -8,7 +9,9 @@ export const OPTIONS = preflight;
 
 /** Sends a test notification to every subscribed device. */
 export const POST = api(async (req) => {
-  await authenticate(req);
+  // Acts with the server's own credentials afterwards, so the token is checked with the auth
+  // server here (a token that is merely well-formed is not enough).
+  await authenticate(req, { verify: true });
   const limited = rateLimit(`push-test:${clientIp(req)}`, 6, 60_000);
   if (!limited.allowed)
     throw new ApiError(
@@ -22,5 +25,5 @@ export const POST = api(async (req) => {
     tag: "test",
     url: "/focus",
   });
-  return json(result);
+  return json({ ...result, configured: Boolean(requireConfig().vapid) });
 });

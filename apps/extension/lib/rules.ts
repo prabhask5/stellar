@@ -21,7 +21,9 @@ function escapeRegex(s: string): string {
  * subdomains, over http or https, so `\0` in the substitution is the original URL.
  */
 export function domainRegex(pattern: string): string {
-  return `^https?://([a-z0-9-]+\\.)*${escapeRegex(pattern)}(:[0-9]+)?([/?#].*)?$`;
+  // `\\.?` after the host: "youtube.com." (a fully qualified name with its trailing dot)
+  // reaches the same site and must not slip past the rule.
+  return `^https?://([a-z0-9-]+\\.)*${escapeRegex(pattern)}\\.?(:[0-9]+)?([/?#].*)?$`;
 }
 
 /**
@@ -29,13 +31,18 @@ export function domainRegex(pattern: string): string {
  * fragment (after `#`), where it needs no encoding, so the block page can offer
  * to continue there once the focus phase ends.
  */
-export function buildRules(patterns: readonly string[], blockedPageUrl: string): RedirectRule[] {
+export function buildRules(
+  patterns: readonly string[],
+  blockedPageUrl: string,
+  /** Domains (or "all") that must use a plain filter because their regex is not accepted. */
+  plain: ReadonlySet<string> | "all" = new Set(),
+): RedirectRule[] {
   const unique = [...new Set(patterns.map((p) => p.trim().toLowerCase()).filter(Boolean))]
     .sort()
     .slice(0, MAX_RULES);
   return unique.map((pattern, i) => {
     const id = i + 1;
-    if (i < MAX_REGEX_RULES) {
+    if (i < MAX_REGEX_RULES && plain !== "all" && !plain.has(pattern)) {
       return {
         id,
         priority: 1,

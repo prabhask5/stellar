@@ -1,4 +1,4 @@
-// Performance budget check (SPEC §12), run after `pnpm build`:
+// Performance budget check, run after `pnpm build`:
 //  - the JavaScript a first visit downloads is ≤ 200 KB gzip on the routes a
 //    visit starts on: the Universe home (also the PWA start URL), the lock
 //    screen and setup;

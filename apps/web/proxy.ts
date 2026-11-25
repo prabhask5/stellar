@@ -7,6 +7,7 @@ import { AUTH_COOKIE } from "@/lib/server/supabase-cookie";
  *  - unconfigured        → everything goes to /setup
  *  - configured, no session cookie → /lock (PIN entry)
  *  - configured, signed in → /setup and /lock bounce back to the app
+ *  - /demo is always reachable; with the demo cookie the app pages are too
  * Only the presence of the session cookie is checked here, so navigation never
  * waits on the network; the data itself is protected by RLS.
  */
@@ -27,6 +28,18 @@ export function proxy(req: NextRequest) {
     return pathname === "/setup"
       ? NextResponse.next()
       : NextResponse.redirect(new URL("/setup", req.url));
+  }
+
+  // The demo switch is public. It turns on a cookie that lets a visitor reach the app's
+  // pages, which are static shells with no data in them; every API still requires the
+  // owner's session, and in demo mode the client never calls one (lib/client/demo.ts).
+  if (pathname === "/demo") return NextResponse.next();
+  const demo = req.cookies.get("sp-demo")?.value === "1";
+  if (demo) {
+    // Signing in and setup are not part of the demo: leave it first.
+    return pathname === "/lock" || pathname === "/setup"
+      ? NextResponse.redirect(new URL("/demo", req.url))
+      : NextResponse.next();
   }
 
   const signedIn = req.cookies

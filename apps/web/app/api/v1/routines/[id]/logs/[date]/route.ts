@@ -1,5 +1,5 @@
 import { zDate, zId, zRoutineLogSet } from "@stellar/shared";
-import { api, json, preflight, readJson } from "@/lib/server/http";
+import { api, ApiError, json, preflight, readJson } from "@/lib/server/http";
 import { guard, rpc } from "@/lib/server/resource";
 
 export const dynamic = "force-dynamic";
@@ -15,5 +15,7 @@ export const PUT = api<{ id: string; date: string }>(async (req, { id, date }) =
     p_completed: body.completed ?? null,
     p_amount: body.amount ?? null,
   });
+  if (!log || (log as { routine_id?: unknown }).routine_id == null)
+    throw new ApiError("not_found", "Not found.");
   return json(log);
 });

@@ -2,7 +2,7 @@
 
 import type { Task, TaskList } from "@stellar/db";
 import type { DateStr, WeekStart } from "@stellar/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DateChip } from "@/components/ui/date-chip";
 import { FieldShell, inputClass, TextField } from "@/components/ui/field";
@@ -34,25 +34,64 @@ export function TaskSheet({ task: current, onClose, lists, today, weekStart }: T
   }, [current]);
   const task = current ?? shown;
 
+  // What each field held when the user last saw it in sync. A field is only written when the
+  // user changed it from that, so an open sheet never puts an old name or note back over an
+  // edit made meanwhile on another device; untouched fields simply follow the task.
+  const base = useRef({ name: "", description: "" });
   useEffect(() => {
     if (task) {
       setName(task.name);
       setDescription(task.description ?? "");
+      base.current = { name: task.name, description: task.description ?? "" };
     }
-    // Re-seed only when a different task is opened, not on every background update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id]);
+  useEffect(() => {
+    if (!task) return;
+    const was = base.current.name;
+    base.current.name = task.name;
+    setName((mine) => (mine === was ? task.name : mine));
+  }, [task?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!task) return;
+    const theirs = task.description ?? "";
+    const was = base.current.description;
+    base.current.description = theirs;
+    setDescription((mine) => (mine === was ? theirs : mine));
+  }, [task?.description]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Going to the background may be the last thing this page does: save what was typed.
+  const commitRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const onHide = () => document.visibilityState === "hidden" && commitRef.current();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onHide);
+    };
+  }, []);
 
   if (!task) return null;
 
   const commitName = () => {
     const trimmed = name.trim();
     if (!trimmed) setName(task.name);
-    else if (trimmed !== task.name) updateTask(task.id, { name: trimmed });
+    else if (trimmed !== base.current.name) {
+      base.current.name = trimmed;
+      updateTask(task.id, { name: trimmed });
+    }
   };
   const commitDescription = () => {
-    const next = description.trim() || null;
-    if (next !== (task.description ?? null)) updateTask(task.id, { description: next });
+    const next = description.trim();
+    if (next !== base.current.description.trim()) {
+      base.current.description = next;
+      updateTask(task.id, { description: next || null });
+    }
+  };
+  commitRef.current = () => {
+    commitName();
+    commitDescription();
   };
   const close = () => {
     commitName();
@@ -70,10 +109,15 @@ export function TaskSheet({ task: current, onClose, lists, today, weekStart }: T
           maxLength={500}
           onChange={(e) => setName(e.target.value)}
           onBlur={commitName}
-          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          onKeyDown={(e) =>
+            e.key === "Enter" && !e.nativeEvent.isComposing && e.currentTarget.blur()
+          }
         />
         <FieldShell label="Description" htmlFor="task-description" optional>
           <textarea
+            autoComplete="off"
+            enterKeyHint="enter"
+            autoCapitalize="sentences"
             id="task-description"
             rows={3}
             maxLength={5000}

@@ -19,9 +19,7 @@ export type CosmicEvent =
   | { type: "routine_day_complete"; date: string }
   | { type: "streak_rekindled"; routineId: string }
   | { type: "focus_start" }
-  | { type: "focus_complete" }
-  | { type: "new_era"; index: number; name: string }
-  | { type: "first_light" };
+  | { type: "focus_complete" };
 
 export type CosmicEventType = CosmicEvent["type"];
 export type CosmicListener = (event: CosmicEvent) => void;

@@ -1,5 +1,6 @@
 "use client";
 
+import { RowsSkeleton } from "@/components/ui/skeleton";
 import { isDateStr } from "@stellar/shared";
 import { useMemo } from "react";
 import { GroupedList, ListRow } from "@/components/ui/grouped-list";
@@ -8,7 +9,17 @@ import { useSettings, useToday } from "@/lib/client/data/hooks";
 import { updateSettings } from "@/lib/client/data/settings";
 import { InlineSelect, rowInput, Section } from "./parts";
 
-function zones(current: string): { value: string; label: string }[] {
+/**
+ * City first ("Los Angeles · America"): in a narrow row the end of the label is what gets cut
+ * off, and the city is the part that tells two zones apart.
+ */
+function zoneLabel(zone: string): string {
+  const parts = zone.replace(/_/g, " ").split("/");
+  const city = parts.pop() ?? zone;
+  return parts.length ? `${city} · ${parts.join(" / ")}` : city;
+}
+
+function zones(current: string): { value: string; label: string; short: string }[] {
   const supported = (): string[] => {
     try {
       return Intl.supportedValuesOf("timeZone");
@@ -16,16 +27,25 @@ function zones(current: string): { value: string; label: string }[] {
       return [];
     }
   };
-  return [...new Set(["UTC", current, ...supported()])]
-    .sort()
-    .map((z) => ({ value: z, label: z.replace(/_/g, " ") }));
+  return [...new Set(["UTC", current, ...supported()])].sort().map((z) => ({
+    value: z,
+    label: zoneLabel(z),
+    // The closed control shows the city alone, which leaves the row's title its room.
+    short: z.replace(/_/g, " ").split("/").pop() ?? z,
+  }));
 }
 
 export function GeneralSection() {
   const settings = useSettings();
   const today = useToday();
   const zoneOptions = useMemo(() => zones(settings?.timezone ?? "UTC"), [settings?.timezone]);
-  if (!settings) return null;
+  // Hold the section's place while the settings load, so nothing below it shifts.
+  if (!settings)
+    return (
+      <Section id="general" title="General">
+        <RowsSkeleton rows={4} label="Loading settings" />
+      </Section>
+    );
 
   return (
     <Section id="general" title="General">
@@ -68,6 +88,7 @@ export function GeneralSection() {
           subtitle="Used for the Life progress bar."
           trailing={
             <input
+              autoComplete="off"
               id="set-birthdate"
               type="date"
               max={today}
@@ -88,6 +109,8 @@ export function GeneralSection() {
           subtitle="In years."
           trailing={
             <input
+              autoComplete="off"
+              enterKeyHint="done"
               id="set-lifespan"
               type="number"
               inputMode="numeric"

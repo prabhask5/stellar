@@ -157,7 +157,14 @@ export function incrementGoal(id: string, delta: number, origin?: ScreenPoint): 
   const wasListComplete = listComplete(current.list_id);
   const patch = withAmount(current, current.current_amount + delta);
   patchRow("sp_goals", id, patch);
-  enqueue({ kind: "rpc", fn: "sp_goal_increment", args: { p_goal_id: id, p_delta: delta } });
+  enqueue({
+    kind: "rpc",
+    fn: "sp_goal_increment",
+    args: { p_goal_id: id, p_delta: delta },
+    rowKeys: [`sp_goals:${id}`],
+    // Applied at most once, however often the request is replayed.
+    opIdArg: "p_op_id",
+  });
   touchUniverse();
   celebrate(current, { ...current, ...patch }, wasListComplete, origin);
 }

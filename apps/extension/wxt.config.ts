@@ -4,11 +4,34 @@ import { defineConfig } from "wxt";
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   imports: false,
+  zip: {
+    name: "stellar-focus",
+    // Mozilla's reviewers rebuild the add-on from the sources archive, so it has to hold
+    // everything the build reads: this app, the workspace packages it imports, and the
+    // lockfile. The build steps they follow are in this app's README.md, which is included.
+    sourcesRoot: "../..",
+    includeSources: [
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "tsconfig.base.json",
+      "apps/extension/**",
+      "packages/shared/**",
+      "packages/db/**",
+      "packages/ui-tokens/**",
+      // Only so the lockfile matches the workspace; not part of the extension.
+      "apps/web/package.json",
+      "packages/universe/package.json",
+    ],
+    // Tests live in the root tests/ folder, which is not included above.
+    excludeSources: ["**/*.test.*", "**/*.spec.*"],
+  },
   manifest: ({ browser }) => ({
-    name: "Stellar Planner",
+    name: "Stellar Focus",
     short_name: "Stellar",
+    // 132 characters at most (Chrome Web Store).
     description:
-      "Your Stellar Planner focus timer in the toolbar, with distracting sites blocked while a focus phase runs.",
+      "A focus timer in your toolbar that blocks distracting sites while you focus. The companion to a self-hosted Stellar Planner.",
     // storage: connection + last known timer state. alarms: resync and timed unblock.
     // declarativeNetRequest: redirect rules. tabs: redirect tabs already open on a blocked site.
     permissions: ["storage", "alarms", "declarativeNetRequest", "tabs"],
@@ -17,16 +40,20 @@ export default defineConfig({
     // these as optional, so the popup also requests them when you connect.
     host_permissions: ["<all_urls>"],
     web_accessible_resources: [{ resources: ["blocked.html"], matches: ["<all_urls>"] }],
-    action: { default_title: "Stellar Planner" },
+    action: { default_title: "Stellar Focus" },
     icons: { 16: "icon/16.png", 32: "icon/32.png", 48: "icon/48.png", 128: "icon/128.png" },
     ...(browser === "firefox"
       ? {
           browser_specific_settings: {
             gecko: {
-              id: "stellar-planner@stellar.local",
-              strict_min_version: "128.0",
-              // The extension talks only to your own instance; nothing is collected.
-              data_collection_permissions: { required: ["none"] },
+              // Permanent once the add-on is on addons.mozilla.org.
+              id: "stellar-focus@stellar.local",
+              // 140 is the first Firefox with built-in data consent, which new add-ons must use.
+              strict_min_version: "140.0",
+              // The PIN you type, and the session it earns, go to the Stellar Planner
+              // instance you name: that is "authentication information" in Mozilla's terms.
+              // Nothing else leaves the browser, and nothing goes to the developer.
+              data_collection_permissions: { required: ["authenticationInfo"] },
             },
           },
         }

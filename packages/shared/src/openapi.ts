@@ -1,7 +1,7 @@
 /**
  * The OpenAPI description of `/api/v1`, built from the same zod schemas the
- * server validates with. `docs/openapi.json` is this document written to disk
- * (a test keeps the two in sync) and the app serves it at `/api/v1/openapi.json`.
+ * server validates with. The app serves it at `/api/v1/openapi.json`; a test checks
+ * that it covers every route handler.
  */
 import { z } from "zod";
 import * as s from "./schemas.ts";
@@ -81,6 +81,10 @@ export const SCHEMAS: Record<string, z.ZodType> = {
   GoalUpdate: s.zGoalUpdate,
   GoalIncrement: s.zGoalIncrement,
   GoalPage: s.zListEnvelope(s.zGoal),
+  Event: s.zEvent,
+  EventCreate: s.zEventCreate,
+  EventUpdate: s.zEventUpdate,
+  EventPage: s.zListEnvelope(s.zEvent),
   Routine: s.zRoutine,
   RoutineCreate: s.zRoutineCreate,
   RoutineUpdate: s.zRoutineUpdate,
@@ -106,6 +110,14 @@ export const SCHEMAS: Record<string, z.ZodType> = {
   QuoteCreate: s.zQuoteCreate,
   QuotePage: zQuoteList,
   PushSubscribe: s.zPushSubscribe,
+  PushSubscriptionPage: s.zListEnvelope(
+    z.object({
+      id: s.zId,
+      endpoint: z.string(),
+      device_id: s.zId.nullable(),
+      created_at: s.zTimestamp,
+    }),
+  ),
   PushUnsubscribe: s.zPushUnsubscribe,
   Export: s.zExport,
 };
@@ -303,6 +315,18 @@ export const OPERATIONS: Operation[] = [
     errors: [404],
   },
 
+  ...crud("Events", "/events", "Event", "event").map((o) =>
+    o.method === "delete"
+      ? { ...o, description: "Deleted for good. A tombstone is kept for `updated_since` sync." }
+      : o.method === "get"
+        ? {
+            ...o,
+            description:
+              "Dates and deadlines to count down to, earliest first. `date` (and `time`, when set) are in the owner's time zone.",
+          }
+        : o,
+  ),
+
   ...crud("Routines", "/routines", "Routine", "routine"),
   reorder("Routines", "/routines", "routine"),
   {
@@ -453,6 +477,14 @@ export const OPERATIONS: Operation[] = [
     errors: [404],
   },
 
+  {
+    method: "get",
+    path: "/push/subscriptions",
+    tag: "Push",
+    summary: "List Web Push subscriptions",
+    description: "The endpoints registered for the owner, oldest first. Keys are never returned.",
+    response: "PushSubscriptionPage",
+  },
   {
     method: "post",
     path: "/push/subscriptions",

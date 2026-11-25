@@ -1,5 +1,6 @@
 "use client";
 
+import { parseAmount } from "@/lib/client/amount";
 import type { Routine } from "@stellar/db";
 import {
   type DateStr,
@@ -12,7 +13,7 @@ import {
   weekdayName,
   weekdayOrder,
 } from "@stellar/shared";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { ConfirmDialog } from "@/components/ui/confirm";
@@ -77,6 +78,14 @@ export function RoutineSheet({ open, onOpenChange, routine, today, weekStart }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, routine]);
 
+  // A new routine starts "today". If the sheet was opened before the owner's time zone was
+  // known, follow the corrected day as long as the date has not been chosen by hand.
+  const seededToday = useRef(today);
+  useEffect(() => {
+    if (open && !routine) setStart((s) => (s === seededToday.current ? today : s));
+    seededToday.current = today;
+  }, [today, open, routine]);
+
   const schedule = useMemo(
     () => ({
       start_date: start,
@@ -97,7 +106,7 @@ export function RoutineSheet({ open, onOpenChange, routine, today, weekStart }: 
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return setError("Give the routine a name.");
-    const amount = Number(total.replace(",", "."));
+    const amount = parseAmount(total);
     if (type === "progress" && (!Number.isFinite(amount) || amount <= 0))
       return setError("Enter a daily total above zero.");
     if (problem) return setError(problem.message);
@@ -156,6 +165,9 @@ export function RoutineSheet({ open, onOpenChange, routine, today, weekStart }: 
           </div>
           <FieldShell label="Description" htmlFor="routine-description" optional>
             <textarea
+              autoComplete="off"
+              enterKeyHint="enter"
+              autoCapitalize="sentences"
               id="routine-description"
               rows={2}
               maxLength={5000}
@@ -251,6 +263,8 @@ export function RoutineSheet({ open, onOpenChange, routine, today, weekStart }: 
               <label className="flex items-center gap-2 text-[15px] text-fg-2">
                 Every
                 <input
+                  autoComplete="off"
+                  enterKeyHint="done"
                   aria-label="Interval in days"
                   inputMode="numeric"
                   value={interval}

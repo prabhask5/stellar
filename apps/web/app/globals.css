@@ -80,6 +80,8 @@ html.sp-insets-landscape {
     touch-action: manipulation;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "cv11", "ss01";
+    /* A word longer than its container (a URL, a pasted token) wraps instead of overflowing. */
+    overflow-wrap: break-word;
   }
 
   @media (min-width: 1024px) {
@@ -100,6 +102,128 @@ html.sp-insets-landscape {
 
   button {
     cursor: pointer;
+  }
+
+  /* ── Chrome is not content ───────────────────────────────────────────────
+     Controls, navigation, rows and cards never start a text selection and never
+     show the long-press callout (link preview, "Copy"); long-press belongs to our
+     own actions (reorder). Real content stays selectable: fields, notes, quotes
+     and anything marked .selectable. On touch screens the rule covers the whole
+     interface, because there a stray selection is always an accident. */
+  button,
+  a,
+  summary,
+  label,
+  nav,
+  [role="button"],
+  [role="radio"],
+  [role="switch"],
+  [role="checkbox"],
+  [role="tab"],
+  [role="option"],
+  [role="gridcell"],
+  [role="progressbar"],
+  [data-press],
+  .eyebrow {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  a,
+  img,
+  svg {
+    -webkit-user-drag: none;
+  }
+  @media (pointer: coarse) {
+    body {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+  }
+  input,
+  textarea,
+  select,
+  [contenteditable="true"],
+  .selectable,
+  .selectable * {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+
+  /* ── 44×44 targets ───────────────────────────────────────────────────────
+     A control may look smaller than 44px (a 32px close button, a 36px chip, a
+     31px switch), but on a touch screen its hit area never is: an invisible
+     pseudo-element extends it to at least 44×44, centred on the control.
+     :where() keeps this at zero specificity, so a control that positions itself
+     (absolute, fixed, sticky) keeps doing so. */
+  @media (pointer: coarse) {
+    :where(
+      button,
+      a[href],
+      summary,
+      [role="button"],
+      [role="radio"],
+      [role="switch"],
+      [role="checkbox"],
+      [role="tab"]
+    ) {
+      position: relative;
+    }
+    /* Leaf controls only: an extended hit area over a control that contains other controls
+       (a row that wraps a button, a link wrapped around a button) would swallow their taps.
+       display:contents wrappers have no box of their own, so they are left out too. */
+    :where(
+        button,
+        a[href],
+        summary,
+        [role="button"],
+        [role="radio"],
+        [role="switch"],
+        [role="checkbox"],
+        [role="tab"]
+      ):not(.no-hit, .contents):not(
+        :has(
+          button,
+          a[href],
+          input,
+          select,
+          textarea,
+          [role="button"],
+          [role="checkbox"],
+          [role="switch"]
+        )
+      )::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  /* ── Pressed, the moment a finger lands ──────────────────────────────────
+     Set on pointerdown by TouchFeel; no transition on the way in. */
+  [data-pressed="scale"] {
+    transform: scale(0.97);
+    filter: brightness(1.12);
+    transition: none !important;
+  }
+  /* An inset wash rather than a background change, so it works over any fill (glass, gold). */
+  [data-pressed="fill"] {
+    box-shadow: inset 0 0 0 100vmax var(--sp-fill-selected);
+    transition: none !important;
+  }
+  [data-pressed="none"] {
+    transition: none !important;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-pressed="scale"] {
+      transform: none;
+    }
   }
 
   button:disabled {
@@ -168,6 +292,14 @@ html.sp-insets-landscape {
   border: 1px solid var(--sp-glass-border);
   -webkit-backdrop-filter: var(--sp-glass-blur);
   backdrop-filter: var(--sp-glass-blur);
+}
+
+/* Sheets and dialogs are solid: what is behind them must not show through and compete with
+   the form, and a large blurred layer is the most expensive thing to animate. */
+.sp-sheet {
+  background: rgb(22, 18, 50);
+  border: 1px solid var(--sp-glass-border);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
 }
 
 /* The Minimal tier and browsers without backdrop-filter get the opaque fill. */
@@ -322,10 +454,86 @@ html[data-tier="minimal"] .sp-sky__stars--twinkle {
   min-height: 100dvh;
 }
 
+/* iOS installed app started with a viewport shorter than the screen: a document taller than
+   the screen makes WebKit measure the viewport again (see useSettledViewport). */
+html.sp-short-viewport {
+  min-height: calc(var(--screen-h, 100vh) + 1px);
+}
+
+/* A progress bar taken past its goal (ProgressBar with a value over 1). `--over` runs from 0
+   at the goal to 1 at three times it, and everything celestial grows with it: the glow, the
+   comet crossing the bar, and the stars above it. `--lap` is the colour of the current lap. */
+.sp-over {
+  box-shadow:
+    0 0 calc(3px + 13px * var(--over))
+      color-mix(in srgb, var(--lap) calc(30% + 50% * var(--over)), transparent),
+    0 0 calc(10px + 26px * var(--over))
+      color-mix(in srgb, var(--lap) calc(8% + 22% * var(--over)), transparent);
+  transition: box-shadow 350ms ease-out;
+}
+.sp-over__comet {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 34%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85) 82%, #fff);
+  border-radius: 999px;
+  opacity: calc(0.3 + 0.55 * var(--over));
+  animation: sp-comet calc(3.2s - 1.6s * var(--over)) cubic-bezier(0.45, 0, 0.35, 1) infinite;
+}
+.sp-over__star {
+  position: absolute;
+  bottom: calc(100% + 1px);
+  width: calc(7px + 6px * var(--over));
+  aspect-ratio: 1;
+  margin-left: calc(-3.5px - 3px * var(--over));
+  background: color-mix(in srgb, var(--lap) 55%, #fff);
+  /* A four-pointed star. */
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  animation: sp-star 1.9s ease-in-out infinite;
+}
+@keyframes sp-comet {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(310%);
+  }
+}
+@keyframes sp-star {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.55) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+html[data-tier="minimal"] .sp-over__comet,
+html[data-tier="minimal"] .sp-over__star {
+  animation: none;
+}
+html[data-tier="minimal"] .sp-over__comet {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-over__comet {
+    display: none;
+  }
+  .sp-over__star {
+    animation: none;
+    opacity: 0.9;
+  }
+}
+
 /* Input-modality variants: keypads for touch, keyboard hints for precise pointers. */
 @custom-variant touch (@media (pointer: coarse));
 @custom-variant mouse (@media (hover: hover) and (pointer: fine));
 @custom-variant short (@media (max-height: 700px));
+/* A phone held sideways: very little height, so tall stacks lay out side by side. */
+@custom-variant flat (@media (max-height: 480px) and (orientation: landscape));
 
 @keyframes sp-shake {
   10%,
@@ -443,58 +651,6 @@ html[data-sky="3d"] .sp-sky__nebula {
   height: 100%;
 }
 
-.sp-era {
-  position: absolute;
-  left: 50%;
-  top: 42%;
-  width: min(90vw, 560px);
-  transform: translate(-50%, -50%);
-  text-align: center;
-  animation: sp-era 6s ease-in-out both;
-}
-.sp-era--reduced {
-  animation: sp-fade 300ms ease-out both;
-}
-.sp-era__eyebrow {
-  font-size: 13px;
-  line-height: 16px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--sp-accent);
-}
-.sp-era__name {
-  margin-top: 8px;
-  font-size: clamp(34px, 9vw, 64px);
-  line-height: 1.05;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--sp-text-primary);
-  text-shadow: 0 0 40px rgba(246, 199, 110, 0.55);
-}
-.sp-era__line {
-  margin-top: 10px;
-  font-size: 15px;
-  line-height: 20px;
-  color: var(--sp-text-secondary);
-}
-@keyframes sp-era {
-  0%,
-  12% {
-    opacity: 0;
-    transform: translate(-50%, -46%) scale(0.94);
-  }
-  30%,
-  78% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -52%) scale(1.03);
-  }
-}
-
 .sp-universe-label {
   position: fixed;
   z-index: 3;
@@ -511,7 +667,15 @@ html[data-sky="3d"] .sp-sky__nebula {
   backdrop-filter: var(--sp-glass-blur);
   pointer-events: none;
   white-space: nowrap;
+  /* A long goal-list or routine name stays on screen. */
+  max-width: min(80vw, 320px);
   animation: sp-fade 150ms ease-out both;
+}
+.sp-universe-label__title,
+.sp-universe-label__subtitle {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sp-universe-label__title {
   font-size: 13px;
@@ -524,4 +688,18 @@ html[data-sky="3d"] .sp-sky__nebula {
   line-height: 16px;
   color: var(--sp-accent);
   font-variant-numeric: tabular-nums;
+}
+
+/* Compact title bar shown once a page's large title has scrolled away (phones). One blur
+   layer, fixed, so it costs nothing while it is transparent and never moves with scroll. */
+.sp-compact-bar {
+  background: var(--sp-glass-fill-strong);
+  border-bottom: 1px solid var(--sp-glass-border);
+  -webkit-backdrop-filter: var(--sp-glass-blur);
+  backdrop-filter: var(--sp-glass-blur);
+}
+html[data-tier="minimal"] .sp-compact-bar {
+  background: rgb(17, 14, 42);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }

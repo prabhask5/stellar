@@ -31,6 +31,23 @@ export function goalProgress(goal: GoalLike): number {
   return clamp01(goal.current_amount / goal.total_amount);
 }
 
+/** Progress bars keep growing past a goal's total up to this many times it, then stop. */
+export const MAX_OVER = 3;
+
+/** Amount over total without the cap at 1: 1.5 is half as much again, at most MAX_OVER. */
+function over(current: number, total: number | null): number {
+  if (!total || total <= 0 || !Number.isFinite(current)) return 0;
+  return Math.min(MAX_OVER, Math.max(0, current / total));
+}
+
+/**
+ * Like `goalProgress`, but going past 1 for a progress goal taken beyond its total. Only
+ * for display: whether a goal is complete, and every average, use `goalProgress`.
+ */
+export function goalOver(goal: GoalLike): number {
+  return goal.type === "todo" ? goalProgress(goal) : over(goal.current_amount, goal.total_amount);
+}
+
 export function isGoalComplete(goal: GoalLike): boolean {
   return goal.type === "todo" ? goal.completed : goalProgress(goal) >= 1;
 }
@@ -38,6 +55,12 @@ export function isGoalComplete(goal: GoalLike): boolean {
 export interface ListProgress {
   /** Mean progress of the goals, 0…1. */
   fraction: number;
+  /**
+   * For display: equal to `fraction` until every goal is complete, then the mean with goals
+   * counted past their totals (up to MAX_OVER). One runaway goal cannot make an unfinished
+   * list look finished.
+   */
+  over: number;
   percent: number;
   complete: number;
   total: number;
@@ -47,16 +70,20 @@ export interface ListProgress {
 /** Mean of the goals' progress across both types. */
 export function listProgress(goals: readonly GoalLike[]): ListProgress {
   const total = goals.length;
-  if (total === 0) return { fraction: 0, percent: 0, complete: 0, total: 0, allComplete: false };
+  if (total === 0)
+    return { fraction: 0, over: 0, percent: 0, complete: 0, total: 0, allComplete: false };
   let sum = 0;
   let complete = 0;
+  let raw = 0;
   for (const g of goals) {
     sum += goalProgress(g);
+    raw += goalOver(g);
     if (isGoalComplete(g)) complete++;
   }
   const fraction = sum / total;
   return {
     fraction,
+    over: complete === total ? raw / total : fraction,
     percent: Math.round(fraction * 100),
     complete,
     total,
@@ -75,6 +102,11 @@ export function instanceProgress(i: RoutineInstanceLike): number {
   if (i.type === "todo") return i.completed ? 1 : 0;
   if (!i.total_amount || i.total_amount <= 0) return 0;
   return clamp01(i.amount / i.total_amount);
+}
+
+/** Like `instanceProgress`, but going past 1 when the amount is beyond the total (display only). */
+export function instanceOver(i: RoutineInstanceLike): number {
+  return i.type === "todo" ? instanceProgress(i) : over(i.amount, i.total_amount);
 }
 
 /** Mean progress of a day's scheduled instances; null when nothing is scheduled (no ring). */

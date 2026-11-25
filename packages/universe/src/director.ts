@@ -16,11 +16,11 @@ export interface Effect {
   magnitude: number;
   /** Where each merged event started (for sparks that fly from the checkbox). */
   origins: { point: ScreenPoint | null; at: number }[];
-  /** Free-form details for the renderer (era name, ids). */
+  /** Free-form details for the renderer (ids, counts). */
   detail: Record<string, string | number>;
 }
 
-/** Base durations from SPEC §7.2, in ms. */
+/** Base duration of each cosmic event, in ms. */
 export const DURATIONS: Record<CosmicEventType, number> = {
   task_completed: 1200,
   overdue_postponed: 1500,
@@ -32,8 +32,6 @@ export const DURATIONS: Record<CosmicEventType, number> = {
   streak_rekindled: 1500,
   focus_start: 1500,
   focus_complete: 3000,
-  new_era: 6000,
-  first_light: 4000,
 };
 
 /** Kinds that merge into a running effect of the same kind, and for how long after it started. */
@@ -48,20 +46,13 @@ const COALESCE_MS: Partial<Record<CosmicEventType, number>> = {
 export const GLOW_MS = 450;
 
 /** Large cinematic events never overlap each other; a new one waits for the current one. */
-const EXCLUSIVE: ReadonlySet<CosmicEventType> = new Set([
-  "new_era",
-  "first_light",
-  "focus_complete",
-  "goal_list_completed",
-]);
+const EXCLUSIVE: ReadonlySet<CosmicEventType> = new Set(["focus_complete", "goal_list_completed"]);
 
 export type DirectorDecision =
   { action: "start"; effect: Effect } | { action: "merge"; effect: Effect } | { action: "queued" };
 
 function detailOf(event: CosmicEvent): Record<string, string | number> {
   switch (event.type) {
-    case "new_era":
-      return { index: event.index, name: event.name };
     case "overdue_postponed":
       return { count: event.count };
     case "goal_progress":

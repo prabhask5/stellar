@@ -1,5 +1,6 @@
 "use client";
 
+import { useUi } from "@/lib/client/ui-store";
 import { isBlockingActive } from "@stellar/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePush } from "@/components/settings/notifications";
@@ -40,7 +41,9 @@ export function FocusPage() {
         (["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A"].includes(t.tagName) || t.isContentEditable)
       )
         return;
-      if (document.querySelector('[role="dialog"]')) return;
+      // A sheet has the keyboard; the fullscreen timer (also a dialog) is ours.
+      if (document.querySelector('[role="dialog"]:not([data-focus-fullscreen])')) return;
+      if (useUi.getState().locked) return;
       const s = focus?.state;
       if (!s) return;
       e.preventDefault();
@@ -167,8 +170,15 @@ export function FocusPage() {
           role="dialog"
           aria-modal="true"
           aria-label="Fullscreen timer"
-          className="fixed inset-0 z-[55] flex flex-col items-center justify-center gap-10 bg-[rgba(7,6,21,0.55)] animate-fade"
-          style={{ paddingTop: "var(--sat)", paddingBottom: "var(--sab)" }}
+          data-focus-fullscreen=""
+          // Just the ring over the sky: the page beneath is covered, not merely dimmed.
+          className="fixed inset-0 z-[55] flex flex-col items-center justify-center gap-10 bg-void/95 animate-fade"
+          style={{
+            paddingTop: "var(--sat)",
+            paddingBottom: "var(--sab)",
+            paddingLeft: "var(--sal)",
+            paddingRight: "var(--sar)",
+          }}
           data-testid="focus-fullscreen"
         >
           <IconButton

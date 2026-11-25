@@ -1,3 +1,4 @@
+export * from "./countdown.ts";
 export * from "./dates.ts";
 export * from "./hash.ts";
 export * from "./normalize.ts";
@@ -5,6 +6,5 @@ export * from "./progress.ts";
 export * from "./rank.ts";
 export * from "./recurrence.ts";
 export * from "./schemas.ts";
-export * from "./scoring.ts";
 export * from "./task-views.ts";
 export * from "./timer.ts";

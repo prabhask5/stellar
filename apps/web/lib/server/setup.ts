@@ -73,8 +73,13 @@ export async function verifySchema(): Promise<VerifyResult> {
     version = await readSchemaVersion();
   }
   const ok = version !== null && version >= LATEST_SCHEMA_VERSION;
-  if (ok !== (readStoredConfig()?.schemaVerified ?? false))
-    updateStoredConfig({ schemaVerified: ok });
+  // Once setup has finished, a failed check never takes the instance out of service: the
+  // database may be briefly unreachable, or simply one app update behind. Only the first-run
+  // wizard, which has nothing to lose, records a negative result.
+  const stored = readStoredConfig();
+  if (ok && !stored?.schemaVerified) updateStoredConfig({ schemaVerified: true });
+  else if (!ok && stored?.schemaVerified && !stored.setupCompletedAt)
+    updateStoredConfig({ schemaVerified: false });
   return {
     ok,
     schemaVersion: version,

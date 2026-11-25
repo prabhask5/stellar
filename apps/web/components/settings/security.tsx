@@ -16,6 +16,7 @@ import { useReady, useSettings } from "@/lib/client/data/hooks";
 import { updateSettings } from "@/lib/client/data/settings";
 import { clearLocalData } from "@/lib/client/persist";
 import { clearSessionState } from "@/lib/client/session";
+import { useSync } from "@/lib/client/sync-store";
 import { toast, toastError } from "@/lib/client/toast";
 import { InlineSelect, relativeTime, Section } from "./parts";
 
@@ -30,7 +31,8 @@ const KIND_LABEL: Record<DeviceInfo["kind"], string> = {
   web: "Browser",
   pwa: "Installed app",
   extension: "Browser extension",
-  ios: "iPhone app",
+  // `ios` is the legacy name for devices that sign in through the REST API.
+  ios: "API client",
 };
 
 /** Leaves this device: clears everything stored locally, then shows the PIN screen. */
@@ -175,10 +177,24 @@ export function SecuritySection() {
     }
   };
 
-  const signOut = async () => {
-    await api("/api/v1/auth/logout", { method: "POST" }).catch(() => {});
+  const pending = useSync((st) => st.pending);
+  const [unsynced, setUnsynced] = useState<null | "here" | "everywhere">(null);
+
+  const signOutNow = async () => {
+    try {
+      await api("/api/v1/auth/logout", { method: "POST" });
+    } catch (err) {
+      // Clearing this device without ending the session would look signed out but not be.
+      if (err instanceof ApiRequestError && err.code === "network") {
+        toastError("You're offline. Connect to sign out.");
+        return;
+      }
+    }
     await leave();
   };
+
+  /** Changes that have not reached the server would be lost with the local data. */
+  const signOut = () => (pending > 0 ? setUnsynced("here") : void signOutNow());
 
   const signOutEverywhere = async () => {
     try {
@@ -272,7 +288,10 @@ export function SecuritySection() {
         <Button variant="secondary" onClick={signOut}>
           Sign out
         </Button>
-        <Button variant="danger" onClick={() => setEverywhere(true)}>
+        <Button
+          variant="danger"
+          onClick={() => (pending > 0 ? setUnsynced("everywhere") : setEverywhere(true))}
+        >
           Sign out everywhere
         </Button>
       </div>
@@ -285,6 +304,14 @@ export function SecuritySection() {
         body="Every browser, installed app and extension will need your PIN again. Your data is not affected."
         confirmLabel="Sign out everywhere"
         onConfirm={signOutEverywhere}
+      />
+      <ConfirmDialog
+        open={unsynced !== null}
+        onOpenChange={(o) => !o && setUnsynced(null)}
+        title={pending === 1 ? "1 change hasn't synced" : `${pending} changes haven't synced`}
+        body="Signing out now removes them from this device before they reach your other devices. Connect and wait for the sync to finish to keep them."
+        confirmLabel="Sign out anyway"
+        onConfirm={() => (unsynced === "everywhere" ? setEverywhere(true) : void signOutNow())}
       />
       <ConfirmDialog
         open={revoking !== null}

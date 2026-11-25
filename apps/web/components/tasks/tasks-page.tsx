@@ -66,8 +66,14 @@ export function TasksPage() {
         else q.delete("list");
       }
       const url = q.size ? `${pathname}?${q}` : pathname;
-      if (replace) router.replace(url, { scroll: false });
-      else router.push(url, { scroll: false });
+      if (replace) {
+        router.replace(url, { scroll: false });
+        return;
+      }
+      // Opening a list is a new history entry (so Back, and the system's back swipe, return to
+      // the lists); everything else replaces nothing and scrolls nowhere.
+      if (next.list === null) router.replace(url, { scroll: false });
+      else router.push(url, { scroll: Boolean(next.list) });
     },
     [params, pathname, router],
   );
@@ -90,6 +96,40 @@ export function TasksPage() {
   const showQuickAdd = !openList && tab !== "lists";
   const defaultDate = tab === "today" ? today : tab === "calendar" ? selectedDate : null;
 
+  const rootMain =
+    tab === "today" ? (
+      <TodayTab
+        tasks={tasks}
+        today={today}
+        loading={loading}
+        onOpen={onOpen}
+        onReschedule={onReschedule}
+      />
+    ) : tab === "all" ? (
+      <AllTab
+        tasks={tasks}
+        today={today}
+        loading={loading}
+        onOpen={onOpen}
+        onReschedule={onReschedule}
+      />
+    ) : tab === "calendar" ? (
+      <CalendarTab
+        tasks={tasks}
+        today={today}
+        weekStart={weekStart}
+        selected={selectedDate}
+        onSelect={setCalendarDate}
+        onOpen={onOpen}
+        onReschedule={onReschedule}
+      />
+    ) : (
+      <TaskListsPanel onOpen={onOpenList} columns={3} />
+    );
+  const goBack = () => {
+    // The system's own back gesture may already have left this screen.
+    if (new URLSearchParams(window.location.search).has("list")) navigate({ list: null });
+  };
   const main = openList ? (
     <ListDetail
       list={openList}
@@ -97,37 +137,11 @@ export function TasksPage() {
       lists={sortedLists}
       today={today}
       weekStart={weekStart}
-      onBack={() => navigate({ list: null })}
+      onBack={goBack}
       onOpen={onOpen}
-    />
-  ) : tab === "today" ? (
-    <TodayTab
-      tasks={tasks}
-      today={today}
-      loading={loading}
-      onOpen={onOpen}
-      onReschedule={onReschedule}
-    />
-  ) : tab === "all" ? (
-    <AllTab
-      tasks={tasks}
-      today={today}
-      loading={loading}
-      onOpen={onOpen}
-      onReschedule={onReschedule}
-    />
-  ) : tab === "calendar" ? (
-    <CalendarTab
-      tasks={tasks}
-      today={today}
-      weekStart={weekStart}
-      selected={selectedDate}
-      onSelect={setCalendarDate}
-      onOpen={onOpen}
-      onReschedule={onReschedule}
     />
   ) : (
-    <TaskListsPanel onOpen={onOpenList} columns={3} />
+    rootMain
   );
 
   return (

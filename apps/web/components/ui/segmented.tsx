@@ -1,5 +1,6 @@
 "use client";
 
+import { haptic } from "@/lib/client/haptics";
 import { useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { useId } from "react";
@@ -48,8 +49,12 @@ export function SegmentedControl<T extends string>({
           : 0;
     if (!delta) return;
     e.preventDefault();
-    const next = options[(index + delta + options.length) % options.length];
-    if (next) onChange(next.value);
+    const at = (index + delta + options.length) % options.length;
+    const next = options[at];
+    if (!next) return;
+    onChange(next.value);
+    // Roving focus: the keyboard stays on the segment that is now selected.
+    (e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')[at] ?? null)?.focus();
   };
 
   return (
@@ -73,7 +78,10 @@ export function SegmentedControl<T extends string>({
             aria-checked={active}
             aria-label={o.hint ? `${o.label}, ${o.hint}` : undefined}
             tabIndex={active ? 0 : -1}
-            onClick={() => onChange(o.value)}
+            onClick={() => {
+              if (!active) haptic();
+              onChange(o.value);
+            }}
             className={cx(
               "relative z-10 flex items-center justify-center whitespace-nowrap rounded-thumb font-medium transition-colors duration-200",
               size === "md" ? "h-[38px] text-[15px] lg:h-[34px] lg:text-[14px]" : "h-8 text-[13px]",

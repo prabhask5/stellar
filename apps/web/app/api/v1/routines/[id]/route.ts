@@ -9,6 +9,7 @@ export const PATCH = api<{ id: string }>(async (req, { id }) =>
   update(req, await guard(req), "sp_routines", id, zRoutineUpdate),
 );
 
+// Routines are deleted for good, history included; nothing reads a soft-deleted one.
 export const DELETE = api<{ id: string }>(async (req, { id }) =>
-  remove(await guard(req), "sp_routines", id, true),
+  remove(await guard(req), "sp_routines", id, false),
 );

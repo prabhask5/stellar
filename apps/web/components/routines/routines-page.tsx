@@ -91,8 +91,10 @@ export function RoutinesPage() {
       </header>
 
       {mounted && (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start lg:gap-6">
-          <GlassCard radius="card" className="p-4">
+        // One shrinkable column on phones: without minmax(0, 1fr) a grid track is as wide as its
+        // widest content, and WebKit then lays the calendar out wider than the screen.
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start lg:gap-6">
+          <GlassCard radius="card" className="min-w-0 p-4">
             <MonthCalendar
               year={view.year}
               month={view.month}
@@ -104,10 +106,8 @@ export function RoutinesPage() {
               onSelect={onSelect}
             />
           </GlassCard>
-          <div className="flex flex-col gap-4">
-            <GlassCard radius="card" className="px-4 pb-2 pt-4">
-              <DayPanel date={inlineDate} today={today} routines={sorted} logs={logs} />
-            </GlassCard>
+          <div className="flex min-w-0 flex-col gap-4">
+            <DayPanel date={inlineDate} today={today} routines={sorted} logs={logs} />
             <ManageRoutines routines={sorted} logs={logs} today={today} weekStart={weekStart} />
           </div>
         </div>
