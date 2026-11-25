@@ -42,7 +42,7 @@ Create a file in the right folder; it is picked up by its name. Nothing else nee
 
 - Pure logic: `unit/<package or app>/<name>.test.ts`.
 - Anything that needs Postgres: `db/<name>.test.ts`, using `db/support/helpers.ts` (`open`, `createUser`, `asUser`). Wrap the suite in `describe.skipIf(!available)`.
-- A user flow: `e2e/<feature>.spec.ts`. Import `test` and `expect` from `./support/helpers`, not from Playwright: that `test` gives each test its own client address, simulates safe areas for the project, and checks the screen-wide invariants (`support/invariants.ts`) when the test ends. Start with `ensureConfigured(request)` in `beforeAll` and `wipeData()` + `signIn(context)` in `beforeEach`.
+- A user flow: `e2e/<feature>.spec.ts`. Import `test` and `expect` from `./support/helpers`, not from Playwright: that `test` gives each test its own client address, simulates safe areas for the project, and checks the screen-wide invariants (`support/invariants.ts`) when the test ends. Start with `ensureConfigured(request)` in `beforeAll` and `wipeData()` + `signIn(context)` in `beforeEach`. To test offline behaviour use `goOffline(context, page)` / `goOnline(context, page)` from the helpers, which wait for the installed app before cutting the network.
 - A new browser or device: add a project to `playwright.config.ts`. CI reads the project list from that file.
 
 `.only` fails the run in Vitest always and in Playwright on CI.

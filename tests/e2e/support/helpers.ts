@@ -198,6 +198,15 @@ export const test = base.extend<{ shot: (name: string) => Promise<void> }>({
 
 export { expect };
 
+/**
+ * Waits until the page is interactive: its client code has run, so global key handlers
+ * (⌘K, shortcuts) exist. A key pressed straight after `goto` can arrive before that, which
+ * no person can do. The attribute is set by a client effect once the app has started.
+ */
+export async function hydrated(page: Page): Promise<void> {
+  await page.locator('html[data-touch-feel="on"]').waitFor();
+}
+
 /** Waits until the service worker is active and controls the page: the app is installed. */
 export async function waitForServiceWorker(page: Page): Promise<void> {
   await expect

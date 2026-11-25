@@ -9,6 +9,7 @@ import {
   test,
   uniqueIp,
   wipeData,
+  hydrated,
 } from "./support/helpers";
 
 test.describe("app shell", () => {
@@ -147,6 +148,7 @@ test.describe("app shell", () => {
   test("command bar adds a task and jumps between pages", async ({ page }, info) => {
     test.skip(isPhone(info.project.name), "⌘K is a desktop feature");
     await page.goto("/settings");
+    await hydrated(page);
     await page.keyboard.press("ControlOrMeta+k");
     const input = page.getByRole("combobox", { name: "Command" });
     await expect(input).toBeFocused();
