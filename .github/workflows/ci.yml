@@ -75,6 +75,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+      # The stack listens on 54321 and 54322, which lie inside Linux's range for outgoing
+      # connections. Reserve them, or now and then one is already taken when Docker binds it.
+      - name: Reserve the stack's ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54321,54322
       - name: Enable pnpm (Corepack)
         run: corepack enable
       - uses: actions/setup-node@v7
@@ -160,6 +164,10 @@ jobs:
       matrix: ${{ fromJSON(needs.e2e-plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
+      # The stack listens on 54321 and 54322, which lie inside Linux's range for outgoing
+      # connections. Reserve them, or now and then one is already taken when Docker binds it.
+      - name: Reserve the stack's ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54321,54322
       - name: Enable pnpm (Corepack)
         run: corepack enable
       - uses: actions/setup-node@v7
@@ -205,6 +213,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+      # The stack listens on 54321 and 54322, which lie inside Linux's range for outgoing
+      # connections. Reserve them, or now and then one is already taken when Docker binds it.
+      - name: Reserve the stack's ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54321,54322
       - name: Enable pnpm (Corepack)
         run: corepack enable
       - uses: actions/setup-node@v7
