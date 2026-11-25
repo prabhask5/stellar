@@ -1,0 +1,237 @@
+name: CI
+
+# Every job here must pass before a pull request can merge. Branch protection requires only
+# the `required` job at the bottom, which fails unless all the others succeeded, so jobs can
+# be added or removed without changing repository settings.
+#
+# Tests are found by glob under tests/, and the e2e matrix is read from the Playwright
+# config, so adding, changing or deleting a test (or a Playwright project) needs no edit here.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  TURBO_TELEMETRY_DISABLED: "1"
+  WXT_DISABLE_TELEMETRY: "1"
+
+jobs:
+  static:
+    name: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Enable pnpm (Corepack)
+        run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Tests live in tests/
+        run: |
+          stray=$(git ls-files | grep -E '\.(test|spec)\.[^/]+$' | grep -v '^tests/' || true)
+          if [ -n "$stray" ]; then
+            echo "::error::Test files outside tests/ are not run by CI. Move them into tests/:"
+            echo "$stray"
+            exit 1
+          fi
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - name: Links in the docs
+        run: node scripts/check-links.mjs
+
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Enable pnpm (Corepack)
+        run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  db:
+    name: db
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Enable pnpm (Corepack)
+        run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start the local Supabase stack
+        run: pnpm stack:up
+      - run: pnpm test:db
+      - name: Stack logs
+        if: failure()
+        run: docker compose -f dev/supabase/docker-compose.yml logs --no-color --tail 200
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Enable pnpm (Corepack)
+        run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the extension and the web app
+        run: pnpm build
+      - run: pnpm budgets
+      - name: Pack the build for the browser jobs
+        # One archive, so the symlinks inside Next's standalone output survive the upload.
+        run: |
+          tar -czf build.tgz \
+            apps/web/.next/standalone apps/web/.next/static apps/web/public \
+            apps/extension/.output/chrome-mv3 apps/extension/.output/*-firefox.zip
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build
+          path: build.tgz
+          retention-days: 3
+          if-no-files-found: error
+      - name: Build the Docker image
+        run: docker build -t stellar-planner:ci .
+
+  e2e-plan:
+    name: e2e-plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.projects.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Enable pnpm (Corepack)
+        run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Read the Playwright projects from tests/playwright.config.ts
+        id: projects
+        run: |
+          matrix=$(node --input-type=module -e '
+            const { default: config } = await import("./tests/playwright.config.ts");
+            const include = config.projects.map((p) => ({
+              project: p.name,
+              browser: p.use?.browserName ?? p.use?.defaultBrowserType ?? "chromium",
+            }));
+            if (include.length === 0) throw new Error("No Playwright projects found.");
+            console.log(JSON.stringify({ include }));
+          ')
+          echo "$matrix"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: e2e (${{ matrix.project }})
+    needs: [build, e2e-plan]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.e2e-plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Enable pnpm (Corepack)
+        run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: build
+      - run: tar -xzf build.tgz
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | tr -d ' ')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-${{ matrix.browser }}
+      - name: Install ${{ matrix.browser }}
+        run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+      - name: Start the local Supabase stack
+        run: pnpm stack:up
+      - run: pnpm test:e2e --project=${{ matrix.project }}
+      - name: Stack logs
+        if: failure()
+        run: docker compose -f dev/supabase/docker-compose.yml logs --no-color --tail 200
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-report-${{ matrix.project }}
+          path: |
+            tests/playwright-report
+            tests/test-results
+          retention-days: 7
+
+  extension-firefox:
+    name: extension-firefox
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Enable pnpm (Corepack)
+        run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: build
+      - run: tar -xzf build.tgz
+      - name: Start the local Supabase stack
+        run: pnpm stack:up
+      # Firefox and geckodriver are part of the runner image; the test starts the app itself.
+      - run: firefox --version && geckodriver --version | head -1
+      - run: pnpm test:firefox
+      - name: Stack logs
+        if: failure()
+        run: docker compose -f dev/supabase/docker-compose.yml logs --no-color --tail 200
+
+  required:
+    name: required
+    if: always()
+    needs: [static, unit, db, build, e2e-plan, e2e, extension-firefox]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$NEEDS" | jq -e 'all(.[]; .result == "success")' > /dev/null
