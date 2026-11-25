@@ -12,7 +12,9 @@ import {
   dayCompletion,
   formatAmount,
   formatDuration,
+  goalOver,
   goalProgress,
+  instanceOver,
   instanceProgress,
   listProgress,
   timeProgress,
@@ -53,6 +55,25 @@ describe("goal progress", () => {
     expect(p.fraction).toBeCloseTo(0.625);
     expect(p).toMatchObject({ percent: 63, complete: 2, total: 4, allComplete: false });
     expect(listProgress([])).toMatchObject({ percent: 0, total: 0, allComplete: false });
+  });
+
+  it("counts past a goal's total for display only, up to three times it", () => {
+    const g = (current_amount: number, total_amount: number | null = 10) =>
+      ({ type: "progress", completed: false, current_amount, total_amount }) as const;
+    expect(goalOver(g(5))).toBe(0.5);
+    expect(goalOver(g(15))).toBe(1.5);
+    expect(goalOver(g(99))).toBe(3);
+    expect(goalOver(g(5, 0))).toBe(0);
+    expect(goalProgress(g(15))).toBe(1);
+    expect(goalOver({ type: "todo", completed: true, current_amount: 9, total_amount: null })).toBe(
+      1,
+    );
+    expect(instanceOver({ type: "progress", completed: true, amount: 25, total_amount: 10 })).toBe(
+      2.5,
+    );
+    // A list goes past 100% only once every goal in it is complete.
+    expect(listProgress([g(30), g(0)])).toMatchObject({ fraction: 0.5, over: 0.5 });
+    expect(listProgress([g(30), g(10)])).toMatchObject({ fraction: 1, over: 2, percent: 100 });
   });
 });
 

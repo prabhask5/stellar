@@ -95,7 +95,7 @@ export function GoalListsGrid({ onOpen }: { onOpen: (list: GoalList) => void }) 
                           {list.name}
                         </span>
                         <ProgressBar
-                          value={p.fraction}
+                          value={p.over}
                           label={`${list.name} progress`}
                           valueText={`${p.complete} of ${p.total} complete, ${p.percent}%`}
                           className="mt-2.5"

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Goal, GoalList } from "@stellar/db";
-import { goalProgress, listProgress } from "@stellar/shared";
+import { goalOver, listProgress } from "@stellar/shared";
 import { originOf } from "@stellar/universe/bus";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
@@ -85,7 +85,6 @@ function GoalRow({
     );
   }
 
-  const fraction = goalProgress(goal);
   return (
     <div
       className="flex items-center gap-3 py-3 pl-4 pr-3"
@@ -117,7 +116,7 @@ function GoalRow({
           <p className="mt-0.5 truncate text-footnote text-fg-2">{goal.description}</p>
         )}
         <ProgressBar
-          value={fraction}
+          value={goalOver(goal)}
           label={`${goal.name} progress`}
           valueText={`${goal.current_amount} of ${goal.total_amount ?? 0}${goal.unit ? ` ${goal.unit}` : ""}`}
           className="mt-2"
@@ -185,8 +184,8 @@ export function GoalListDetail({ list, index, goals, onBack }: GoalListDetailPro
               ? "No goals yet"
               : `${progress.complete} of ${progress.total} complete`}
           </p>
-          <p className="mt-0.5 text-title2 tnum">{progress.percent}%</p>
-          <ProgressBar value={progress.fraction} label={`${list.name} progress`} className="mt-3" />
+          <p className="mt-0.5 text-title2 tnum">{Math.round(progress.over * 100)}%</p>
+          <ProgressBar value={progress.over} label={`${list.name} progress`} className="mt-3" />
         </div>
         <MiniPlanet progress={progress.fraction} index={index} complete={progress.allComplete} />
       </GlassCard>

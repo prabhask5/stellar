@@ -191,7 +191,11 @@ export function FocusStats({ state, sessions }: FocusStatsProps) {
                 <span
                   className={cx(
                     "size-2 shrink-0 rounded-full",
-                    s.phase === "focus" ? "bg-accent" : "bg-violet",
+                    s.phase === "focus"
+                      ? "bg-accent"
+                      : s.phase === "long_break"
+                        ? "bg-azure"
+                        : "bg-violet",
                   )}
                   aria-hidden="true"
                 />

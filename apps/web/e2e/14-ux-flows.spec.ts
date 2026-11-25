@@ -286,6 +286,52 @@ test.describe("ux flows", () => {
     await expectInvariants(page, "the emoji sheet");
   });
 
+  test("a goal taken past its total laps its bar: colour, stars and the real percentage", async ({
+    page,
+  }) => {
+    await sql(
+      `with l as (insert into sp_goal_lists (user_id, name, emoji) values (${OWNER}, 'Reading', '📚') returning id)
+       insert into sp_goals (user_id, list_id, name, type, current_amount, total_amount, unit)
+       select ${OWNER}, id, v.name, 'progress', v.cur, 10, 'pages' from l,
+         (values ('Under', 5, 1), ('Beyond', 15, 2), ('Stellar', 25, 3), ('Supernova', 40, 4)) as v(name, cur, ord)`,
+    );
+    await page.goto("/goals");
+    await page.getByText("Reading").first().click();
+    const bar = (name: string) => page.getByRole("progressbar", { name: `${name} progress` });
+    await expect(bar("Under")).not.toHaveAttribute("data-over");
+    await expect(bar("Under").getByTestId("over-badge")).toHaveCount(0);
+    // One lap past the goal per 100%, capped at three times it.
+    const wide = page.viewportSize()!.width >= 768;
+    for (const [name, tier, percent] of [
+      ["Beyond", "1", "150%"],
+      ["Stellar", "2", "250%"],
+      ["Supernova", "3", "300%"],
+    ] as const) {
+      await expect(bar(name)).toHaveAttribute("data-over", tier);
+      // A desktop row names the lap; a phone shows the number alone.
+      await expect(bar(name).getByTestId("over-badge")).toHaveText(
+        wide ? `${name} · ${percent}` : percent,
+        { useInnerText: true },
+      );
+      await expect(bar(name).locator(".sp-over__star")).toHaveCount(Number(tier));
+    }
+    const colours = await Promise.all(
+      ["Beyond", "Stellar", "Supernova"].map((n) =>
+        bar(n)
+          .getByTestId("over-badge")
+          .evaluate((el) => getComputedStyle(el).color),
+      ),
+    );
+    expect(new Set(colours).size, colours.join(" ")).toBe(3);
+    // Not every goal is complete, so the list itself is not past 100%.
+    await expect(bar("Reading")).not.toHaveAttribute("data-over");
+    await sql(`update sp_goals set current_amount = 10 where name = 'Under'`);
+    await page.reload();
+    // (100 + 150 + 250 + 300) / 4 = 200%: the list is on its second lap.
+    await expect(bar("Reading")).toHaveAttribute("data-over", "2");
+    await expectInvariants(page, "goals past their totals");
+  });
+
   test("the timer starts at the full time and only counts down", async ({ page }) => {
     await page.goto("/focus");
     await expect(page.getByTestId("timer-clock")).toHaveText("25:00");

@@ -182,7 +182,8 @@ function DaySummary({
           label="Routines done"
           valueText={count}
           color="var(--tone)"
-          className="mt-3 h-2"
+          size="md"
+          className="mt-3"
         />
       </div>
     );
