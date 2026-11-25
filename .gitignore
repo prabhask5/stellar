@@ -15,9 +15,9 @@ apps/web/public/sw.js
 apps/web/public/sw.js.map
 apps/web/public/swe-worker-*.js
 apps/web/public/extension/*.zip
-apps/web/test-results
-apps/web/playwright-report
-apps/web/e2e/.tmp
+tests/test-results
+tests/playwright-report
+tests/**/.tmp
 next-env.d.ts
 .claude/settings.local.json
 dev/supabase-official/official.env

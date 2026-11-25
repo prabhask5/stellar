@@ -8,10 +8,9 @@ export default defineConfig({
     name: "stellar-focus",
     // Mozilla's reviewers rebuild the add-on from the sources archive, so it has to hold
     // everything the build reads: this app, the workspace packages it imports, and the
-    // lockfile. See SOURCE_CODE_REVIEW.md, which is the first file they are pointed to.
+    // lockfile. The build steps they follow are in this app's README.md, which is included.
     sourcesRoot: "../..",
     includeSources: [
-      "SOURCE_CODE_REVIEW.md",
       "package.json",
       "pnpm-lock.yaml",
       "pnpm-workspace.yaml",
@@ -24,7 +23,8 @@ export default defineConfig({
       "apps/web/package.json",
       "packages/universe/package.json",
     ],
-    excludeSources: ["**/*.test.ts", "**/test/**", "apps/extension/scripts/firefox-smoke.mjs"],
+    // Tests live in the root tests/ folder, which is not included above.
+    excludeSources: ["**/*.test.*", "**/*.spec.*"],
   },
   manifest: ({ browser }) => ({
     name: "Stellar Focus",

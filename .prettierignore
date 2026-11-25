@@ -8,8 +8,7 @@ pnpm-lock.yaml
 packages/ui-tokens/css
 packages/db/src/types.ts
 packages/db/src/bundle.generated.ts
-docs/openapi.json
-docs/ios/StellarTokens.swift
-docs/design
 apps/web/public
-SPEC.md
+tests/test-results
+tests/playwright-report
+tests/**/.tmp

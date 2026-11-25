@@ -14,6 +14,9 @@ export default tseslint.config(
       "**/dist/**",
       "**/public/**",
       "**/next-env.d.ts",
+      "tests/test-results/**",
+      "tests/playwright-report/**",
+      "tests/**/.tmp/**",
       "packages/db/src/types.ts",
       "packages/db/src/bundle.generated.ts",
     ],
@@ -35,5 +38,10 @@ export default tseslint.config(
       "@typescript-eslint/consistent-type-imports": ["error", { fixStyle: "inline-type-imports" }],
       "no-console": ["warn", { allow: ["warn", "error", "info"] }],
     },
+  },
+  {
+    // Playwright fixtures call a callback named `use` and take `{}` when they need no fixtures.
+    files: ["tests/e2e/**", "tests/support/**"],
+    rules: { "react-hooks/rules-of-hooks": "off", "no-empty-pattern": "off" },
   },
 );
