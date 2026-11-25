@@ -182,7 +182,8 @@ jobs:
         run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
       - name: Start the local Supabase stack
         run: pnpm stack:up
-      - run: pnpm test:e2e --project=${{ matrix.project }}
+      # A virtual display: Firefox on Linux only has WebGL when it is not headless.
+      - run: xvfb-run -a pnpm test:e2e --project=${{ matrix.project }}
       - name: Stack logs
         if: failure()
         run: docker compose -f dev/supabase/docker-compose.yml logs --no-color --tail 200

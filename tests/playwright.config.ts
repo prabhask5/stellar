@@ -78,7 +78,14 @@ export default defineConfig({
     },
     {
       name: "firefox-desktop",
-      use: { ...devices["Desktop Firefox"], viewport: { width: 1280, height: 800 } },
+      use: {
+        ...devices["Desktop Firefox"],
+        viewport: { width: 1280, height: 800 },
+        // Headless Firefox on Linux has no WebGL at all, so the universe could never be
+        // drawn there. With a display it gets software WebGL: run this project under a
+        // virtual one (`xvfb-run -a pnpm test:e2e --project=firefox-desktop`), as CI does.
+        ...(process.platform === "linux" ? { headless: false } : {}),
+      },
     },
   ],
   webServer: {

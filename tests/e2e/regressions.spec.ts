@@ -377,11 +377,14 @@ test.describe("regressions", () => {
         `select status, version::int as version from sp_focus_state`,
       )
     )[0]!;
-    // One Start wins. A second tap may land after the button has turned into Pause, which
-    // is a legitimate second action; what matters is that everyone agrees on the result.
+    // One Start wins. A tap that lands after the button has turned into Pause is a
+    // legitimate second action, and with the API's Start winning first the other tab's tap
+    // can then land on Resume: a third. Three actors, so at most three versions, each one a
+    // real transition; what matters is that everyone agrees on the result.
     expect([
       { status: "running", version: 1 },
       { status: "paused", version: 2 },
+      { status: "running", version: 3 },
     ]).toContainEqual(db);
     for (const p of [page, page2])
       await expect(p.getByTestId("focus")).toHaveAttribute("data-status", db.status);
