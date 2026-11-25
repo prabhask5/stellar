@@ -13,6 +13,12 @@ export interface PopoverProps {
   side?: "top" | "bottom" | "left" | "right";
   className?: string;
   label: string;
+  /**
+   * Keep the given side and alignment whatever room there is. For content that sizes itself
+   * to the room available: left to choose, the popover would pick a side for the full size,
+   * shrink to fit it, find it now fits the other side, and jump there.
+   */
+  fixed?: boolean;
 }
 
 /** Glass popover for desktop pickers. On phones the same content is shown in a Sheet. */
@@ -25,6 +31,7 @@ export function Popover({
   side = "bottom",
   className,
   label,
+  fixed = false,
 }: PopoverProps) {
   return (
     <RadixPopover.Root open={open} onOpenChange={onOpenChange}>
@@ -35,6 +42,7 @@ export function Popover({
           side={side}
           sideOffset={8}
           collisionPadding={12}
+          avoidCollisions={!fixed}
           aria-label={label}
           // Never taller than the space the viewport leaves: scroll inside instead of running off screen.
           style={{ maxHeight: "var(--radix-popover-content-available-height)" }}

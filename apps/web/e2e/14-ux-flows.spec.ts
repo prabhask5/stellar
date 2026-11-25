@@ -192,6 +192,59 @@ test.describe("ux flows", () => {
     await expectInvariants(page, "emoji search results");
   });
 
+  test("in a short window the emoji picker opens on one side and stays there", async ({
+    page,
+  }, info) => {
+    test.skip(isTouch(info.project.name), "phones show the picker in a sheet");
+    // Too short for the whole picker under the tile: it used to open above, then jump below.
+    // The case from QA: Edit list on a laptop-sized window, picker under a centred dialog.
+    await page.setViewportSize({ width: 1440, height: 690 });
+    await sql(
+      `insert into sp_task_lists (user_id, name, emoji) values (${OWNER}, 'Groceries', '🛒')`,
+    );
+    await page.goto("/tasks");
+    await page.getByTestId("task-lists").filter({ visible: true }).getByText("Groceries").click();
+    await page.getByRole("button", { name: "Edit list" }).click();
+    const tile = page.getByRole("button", { name: /emoji/i }).first();
+    await expect(tile).toBeVisible();
+    await page.waitForTimeout(400);
+    // Every frame from the click on: where the picker is.
+    await page.evaluate(() => {
+      const seen: number[][] = [];
+      (window as unknown as { __frames: number[][] }).__frames = seen;
+      const tick = () => {
+        const el = document.querySelector("[data-radix-popper-content-wrapper]");
+        if (el) {
+          const r = el.getBoundingClientRect();
+          // Radix parks the popover far off screen until it has been placed.
+          if (r.top > -1000) seen.push([Math.round(r.top), Math.round(r.height)]);
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    for (let round = 0; round < 3; round++) {
+      await tile.click();
+      await expect(page.getByRole("gridcell").first()).toBeVisible();
+      await page.waitForTimeout(300);
+      await page.keyboard.press("Escape");
+      await expect(page.getByLabel("Search emoji")).toHaveCount(0);
+    }
+    const frames = await page.evaluate(
+      () => (window as unknown as { __frames: number[][] }).__frames,
+    );
+    expect(frames.length).toBeGreaterThan(3);
+    // A pixel of rounding is fine; changing sides or size is not.
+    const spread = (i: number) =>
+      Math.max(...frames.map((f) => f[i]!)) - Math.min(...frames.map((f) => f[i]!));
+    const seen = [...new Set(frames.map((f) => f.join("x")))].join(" ");
+    expect(spread(0), `the picker moved: ${seen}`).toBeLessThanOrEqual(2);
+    expect(spread(1), `the picker changed size: ${seen}`).toBeLessThanOrEqual(2);
+    const [top, height] = frames[0]!;
+    expect(top! + height!, "the picker runs past the window").toBeLessThanOrEqual(690);
+    expect(top!).toBeGreaterThanOrEqual(0);
+  });
+
   test("the timer starts at the full time and only counts down", async ({ page }) => {
     await page.goto("/focus");
     await expect(page.getByTestId("timer-clock")).toHaveText("25:00");

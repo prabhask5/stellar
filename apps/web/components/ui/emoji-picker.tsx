@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { type CSSProperties, Suspense, useEffect, useRef, useState } from "react";
 import { whenIdle } from "@/lib/client/idle";
 import { preloadable } from "@/lib/client/preloadable";
 import { cx } from "./cx";
@@ -32,9 +32,38 @@ export function rememberEmoji(emoji: string): void {
   }
 }
 
-/** One height for the loading state and the loaded grid, so the popover never resizes (and never flips sides). */
-const EMOJI_BODY =
-  "h-[min(70dvh,440px)] md:h-[min(400px,var(--radix-popover-content-available-height,400px))]";
+/**
+ * One height for the loading state and the loaded grid, so the picker never resizes. In a
+ * popover that height is whatever the chosen side has room for (`--emoji-h`, see `place`).
+ */
+const EMOJI_BODY = "h-[min(70dvh,440px)] md:h-[var(--emoji-h,400px)]";
+const FULL = 400;
+const WIDTH = 340;
+/** Gap to the trigger plus the margin kept to the window's edge. */
+const MARGIN = 20;
+
+interface Placement {
+  side: "top" | "bottom";
+  align: "start" | "end";
+  height: number;
+}
+
+/**
+ * Where the popover goes, decided once from the trigger's position before it opens: below
+ * if the whole picker fits there, otherwise the roomier side at the height that fits.
+ * Letting the popover decide made it open above and then jump below in a short window.
+ */
+function place(trigger: HTMLElement): Placement {
+  const r = trigger.getBoundingClientRect();
+  const below = window.innerHeight - r.bottom - MARGIN;
+  const above = r.top - MARGIN;
+  const side = below >= FULL || below >= above ? "bottom" : "top";
+  return {
+    side,
+    align: r.left + WIDTH + 12 > window.innerWidth ? "end" : "start",
+    height: Math.max(160, Math.min(FULL, side === "bottom" ? below : above)),
+  };
+}
 
 const { Component: EmojiGrid, preload: loadGrid } = preloadable(() =>
   import("./emoji-grid").then((m) => m.EmojiGrid),
@@ -76,6 +105,12 @@ export function EmojiPicker({
   className,
 }: EmojiPickerProps) {
   const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState<Placement>({
+    side: "bottom",
+    align: "start",
+    height: FULL,
+  });
+  const button = useRef<HTMLButtonElement>(null);
   const [recent, setRecent] = useState<string[]>([]);
   const wide = usePopoverFits();
 
@@ -93,6 +128,7 @@ export function EmojiPicker({
 
   const trigger = (
     <button
+      ref={button}
       type="button"
       aria-label={value ? `${label}: ${value}. Change` : `${label}. Choose`}
       onClick={wide ? undefined : () => setOpen(true)}
@@ -117,12 +153,20 @@ export function EmojiPicker({
     return (
       <Popover
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(next) => {
+          if (next && button.current) setPlacement(place(button.current));
+          setOpen(next);
+        }}
         trigger={trigger}
         label="Choose an emoji"
+        side={placement.side}
+        align={placement.align}
+        fixed
         className="w-[340px] !overflow-hidden p-0"
       >
-        {open ? body : null}
+        {open ? (
+          <div style={{ "--emoji-h": `${placement.height}px` } as CSSProperties}>{body}</div>
+        ) : null}
       </Popover>
     );
   }
