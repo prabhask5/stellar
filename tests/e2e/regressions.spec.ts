@@ -1,6 +1,5 @@
 // Regression tests. Each began as a failing adversarial test: rapid input, offline replay,
 // two tabs, lock isolation, time zones, gestures and two server behaviours.
-import type { BrowserContext, Page } from "@playwright/test";
 import {
   ensureConfigured,
   expect,
@@ -13,21 +12,14 @@ import {
   test,
   uniqueIp,
   wipeData,
+  goOffline,
+  goOnline,
 } from "./support/helpers";
 
 const OWNER = "(select id from auth.users where email = 'owner@stellar.local')";
 const count = async (where: string) =>
   (await sql<{ n: number }>(`select count(*)::int as n from ${where}`))[0]!.n;
 const today = `sp__today(${OWNER})`;
-
-async function goOnline(context: BrowserContext, page: Page) {
-  await context.setOffline(false);
-  await page.evaluate(() => window.dispatchEvent(new Event("online")));
-}
-async function goOffline(context: BrowserContext, page: Page) {
-  await context.setOffline(true);
-  await page.evaluate(() => window.dispatchEvent(new Event("offline")));
-}
 
 test.describe("regressions", () => {
   test.beforeAll(async ({ request }) => {

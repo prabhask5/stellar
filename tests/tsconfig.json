@@ -8,5 +8,6 @@
       "@/*": ["../apps/web/*"]
     }
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["test-results", "playwright-report", "**/.tmp"]
 }

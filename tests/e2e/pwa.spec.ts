@@ -9,22 +9,10 @@ import {
   sql,
   test,
   wipeData,
+  waitForServiceWorker,
 } from "./support/helpers";
 
 const OWNER = "(select id from auth.users where email = 'owner@stellar.local')";
-
-async function waitForServiceWorker(page: Page): Promise<void> {
-  await expect
-    .poll(
-      () =>
-        page.evaluate(async () => {
-          const reg = await navigator.serviceWorker.getRegistration();
-          return Boolean(reg?.active) && Boolean(navigator.serviceWorker.controller);
-        }),
-      { timeout: 30_000 },
-    )
-    .toBe(true);
-}
 
 /** Waits until the worker has cached every app route. */
 async function waitForWarmShell(page: Page): Promise<void> {

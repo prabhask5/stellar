@@ -198,6 +198,39 @@ export const test = base.extend<{ shot: (name: string) => Promise<void> }>({
 
 export { expect };
 
+/** Waits until the service worker is active and controls the page: the app is installed. */
+export async function waitForServiceWorker(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const reg = await navigator.serviceWorker.getRegistration();
+          return Boolean(reg?.active) && Boolean(navigator.serviceWorker.controller);
+        }),
+      { timeout: 30_000 },
+    )
+    .toBe(true);
+}
+
+/**
+ * Cuts the network the way a device loses it: after the app has been installed. Offline
+ * use rests on the service worker having cached the app's code, so a test that goes
+ * offline a moment after the first paint of a brand-new browser profile would be testing
+ * a half-downloaded app (lazily loaded code fails to arrive), not offline behaviour.
+ */
+export async function goOffline(context: BrowserContext, page: Page): Promise<void> {
+  await waitForServiceWorker(page);
+  // Nothing still downloading that the cut would abort half-way.
+  await page.waitForLoadState("networkidle");
+  await context.setOffline(true);
+  await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+}
+
+export async function goOnline(context: BrowserContext, page: Page): Promise<void> {
+  await context.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+}
+
 /** An iPhone project of either engine (touch input, iOS user agent). */
 export const isTouch = (projectName: string) => projectName.includes("iphone");
 /** A project that gets the phone layout (tab bar, sheets). Landscape is 852px wide: the rail layout. */

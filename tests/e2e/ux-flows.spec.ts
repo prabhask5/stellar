@@ -105,43 +105,59 @@ test.describe("ux flows", () => {
     // than that, so let it arrive and time the animation itself.
     await page.waitForTimeout(3000);
     // Timed inside the page, frame by frame: from the click to the sheet standing still.
-    await page.evaluate(() => {
-      const w = window as unknown as { __sheet?: { down: number; rest: number } };
-      addEventListener(
-        "pointerdown",
-        () => {
-          const t = { down: performance.now(), rest: 0 };
-          w.__sheet = t;
-          let last = "";
-          let still = 0;
-          const tick = () => {
-            const el = document.querySelector('[role="dialog"]');
-            const r = el?.getBoundingClientRect();
-            const now = r
-              ? `${r.top.toFixed(1)}:${r.height.toFixed(1)}:${getComputedStyle(el!).opacity}`
-              : "";
-            still = now && now === last ? still + 1 : 0;
-            last = now;
-            if (still >= 3) t.rest = performance.now();
-            else requestAnimationFrame(tick);
-          };
-          requestAnimationFrame(tick);
-        },
-        { once: true, capture: true },
-      );
-    });
-    await page.getByRole("button", { name: "New goal list" }).click();
     const sheet = page.getByRole("dialog");
-    await expect(sheet).toBeVisible();
-    const timing = await page.waitForFunction(() => {
-      const t = (window as unknown as { __sheet?: { down: number; rest: number } }).__sheet;
-      return t && t.rest ? Math.round(t.rest - t.down) : null;
-    });
+    const openAndTime = async (): Promise<number> => {
+      await page.evaluate(() => {
+        const w = window as unknown as { __sheet?: { down: number; rest: number } };
+        w.__sheet = undefined;
+        addEventListener(
+          "pointerdown",
+          () => {
+            const t = { down: performance.now(), rest: 0 };
+            w.__sheet = t;
+            let last = "";
+            let still = 0;
+            const tick = () => {
+              const el = document.querySelector('[role="dialog"]');
+              const r = el?.getBoundingClientRect();
+              const now = r
+                ? `${r.top.toFixed(1)}:${r.height.toFixed(1)}:${getComputedStyle(el!).opacity}`
+                : "";
+              still = now && now === last ? still + 1 : 0;
+              last = now;
+              if (still >= 3) t.rest = performance.now();
+              else requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          },
+          { once: true, capture: true },
+        );
+      });
+      await page.getByRole("button", { name: "New goal list" }).click();
+      await expect(sheet).toBeVisible();
+      const timing = await page.waitForFunction(() => {
+        const t = (window as unknown as { __sheet?: { down: number; rest: number } }).__sheet;
+        return t && t.rest ? Math.round(t.rest - t.down) : null;
+      });
+      return (await timing.jsonValue()) as number;
+    };
+    // Three opens, judged by the fastest. What this guards against is a delay built into
+    // opening (it was 530 ms in Chromium and 720–920 ms in WebKit), which is there every
+    // time; one slow sample only says the machine was busy for a moment.
+    const samples: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      if (i > 0) {
+        await page.keyboard.press("Escape");
+        await expect(sheet).toBeHidden();
+      }
+      samples.push(await openAndTime());
+    }
     // The animation is about 0.2 s. Playwright's WebKit paints at half the frame rate, so
-    // it gets a wider budget; before the fix this was 720–920 ms there and 530 ms in Chromium.
-    expect(await timing.jsonValue(), "milliseconds from click to a sheet at rest").toBeLessThan(
-      browserName === "webkit" ? 700 : 500,
-    );
+    // it gets a wider budget.
+    expect(
+      Math.min(...samples),
+      `milliseconds from click to a sheet at rest, fastest of ${samples.join(", ")}`,
+    ).toBeLessThan(browserName === "webkit" ? 700 : 500);
     expect(
       await sheet.evaluate((el) => {
         const cs = getComputedStyle(el);
