@@ -7,5 +7,6 @@ export default defineConfig({
   ...e2e,
   testDir: import.meta.dirname,
   testMatch: "screenshots.ts",
+  retries: 0,
   projects: e2e.projects?.filter((p) => p.name === "desktop"),
 });

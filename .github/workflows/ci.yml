@@ -187,14 +187,16 @@ jobs:
       - name: Stack logs
         if: failure()
         run: docker compose -f dev/supabase/docker-compose.yml logs --no-color --tail 200
+      # Also when the job passed: a test that needed its retry leaves its trace here.
       - uses: actions/upload-artifact@v7
-        if: failure()
+        if: ${{ !cancelled() }}
         with:
           name: e2e-report-${{ matrix.project }}
           path: |
             tests/playwright-report
             tests/test-results
           retention-days: 7
+          if-no-files-found: ignore
 
   extension-firefox:
     name: extension-firefox
