@@ -16,7 +16,7 @@
     "lint": "turbo run lint && eslint tests scripts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run --config tests/vitest.config.ts --project unit",
+    "test": "pnpm --filter @stellar/extension exec wxt prepare && vitest run --config tests/vitest.config.ts --project unit",
     "test:db": "vitest run --config tests/vitest.config.ts --project db",
     "test:e2e": "playwright test --config tests/playwright.config.ts",
     "test:firefox": "node tests/extension-firefox/smoke.mjs",
