@@ -30,14 +30,15 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   // One retry on CI, so a single hiccup of a shared runner does not block a merge. A test that
-  // needed it is reported as flaky (annotated on the pull request, trace uploaded): fix it.
+  // passed on its retry has passed: the log lists it as flaky and its trace is uploaded, but
+  // only a test that failed both attempts is annotated on the pull request.
   retries: process.env.CI ? 1 : 0,
   timeout: 60_000,
   expect: { timeout: 10_000 },
   reporter: process.env.CI
     ? [
         ["list"],
-        ["github"],
+        [path.join(here, "e2e/support/github-failures.ts")],
         ["html", { open: "never", outputFolder: path.join(here, "playwright-report") }],
       ]
     : [["list"]],

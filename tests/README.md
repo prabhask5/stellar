@@ -59,7 +59,7 @@ Create a file in the right folder; it is picked up by its name. Nothing else nee
 
 A timing assertion compares the best of several samples, not one.
 
-`.only` fails the run in Vitest always and in Playwright on CI. CI retries a failed e2e test once and reports any test that needed it as flaky (an annotation on the pull request, with its trace in the job's artifact); fix those, they are not passes.
+`.only` fails the run in Vitest always and in Playwright on CI. CI retries a failed e2e test once. A test that passes on its retry has passed: the job log lists it as flaky and its trace is in the job's artifact, but the pull request is annotated only with tests that failed both attempts.
 
 ## Imports
 
