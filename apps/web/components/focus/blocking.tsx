@@ -12,6 +12,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { ChevronDownIcon, DragIcon, EditIcon, PlusIcon, XIcon } from "@/components/ui/icons";
 import { Sheet } from "@/components/ui/sheet";
 import { Sortable, SortableItem } from "@/components/ui/sortable";
+import { Switch } from "@/components/ui/switch";
 import {
   addSites,
   createBlockList,
@@ -112,7 +113,13 @@ export function BlockingCard({ state, settings, lists, sites }: BlockingProps) {
           Blocking stays on while paused. It lifts when the focus phase ends, on every device.
         </p>
       )}
-      <BlockListsSheet open={managing} onOpenChange={setManaging} lists={sorted} sites={sites} />
+      <BlockListsSheet
+        open={managing}
+        onOpenChange={setManaging}
+        lists={sorted}
+        sites={sites}
+        active={active}
+      />
     </GlassCard>
   );
 }
@@ -121,7 +128,10 @@ function ListEditor({
   list,
   sites,
   handle,
+  on,
 }: {
+  /** Switched on: its sites are blocked during focus. Off keeps the list and its sites. */
+  on: boolean;
   list: BlockList;
   sites: BlockListSite[];
   handle: React.HTMLAttributes<HTMLElement>;
@@ -171,15 +181,18 @@ function ListEditor({
           className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left"
         >
           <span
-            className="flex size-9 shrink-0 items-center justify-center rounded-chip bg-fill-subtle text-[18px]"
+            className={cx(
+              "flex size-9 shrink-0 items-center justify-center rounded-chip bg-fill-subtle text-[18px] transition-opacity duration-200",
+              !on && "opacity-45 grayscale",
+            )}
             aria-hidden="true"
           >
             {list.emoji ?? "🚫"}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-fg">{list.name}</span>
+            <span className={cx("block truncate", on ? "text-fg" : "text-fg-2")}>{list.name}</span>
             <span className="block text-footnote text-fg-2 tnum">
-              {mine.length === 1 ? "1 site" : `${mine.length} sites`}
+              {mine.length === 1 ? "1 site" : `${mine.length} sites`} · {on ? "On" : "Off"}
             </span>
           </span>
           <ChevronDownIcon
@@ -190,6 +203,13 @@ function ListEditor({
             )}
           />
         </button>
+        <span className="flex h-11 shrink-0 items-center px-1.5">
+          <Switch
+            checked={on}
+            onChange={() => toggleBlockList(list.id)}
+            label={`Block ${list.name} during focus`}
+          />
+        </span>
         <IconButton
           label={`Edit ${list.name}`}
           variant="plain"
@@ -312,17 +332,20 @@ function ListEditor({
   );
 }
 
-/** Block list manager: create, rename, pick an emoji, delete, and edit each list's sites. */
+/** Block list manager: create, switch on and off, rename, pick an emoji, delete, and edit each list's sites. */
 export function BlockListsSheet({
   open,
   onOpenChange,
   lists,
   sites,
+  active,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lists: BlockList[];
   sites: BlockListSite[];
+  /** Ids of the lists that are switched on. */
+  active: ReadonlySet<string>;
 }) {
   const [creating, setCreating] = useState(false);
   return (
@@ -331,7 +354,7 @@ export function BlockListsSheet({
         open={open}
         onOpenChange={onOpenChange}
         title="Block lists"
-        description="Sites in the lists you switch on are blocked by the browser extension while a focus phase runs."
+        description="Sites in the lists you switch on are blocked by the browser extension while a focus phase runs. Switch a list off to keep it without blocking it."
         detent="large"
         width={520}
       >
@@ -354,7 +377,9 @@ export function BlockListsSheet({
               <div className="glass overflow-hidden rounded-list [&>*+*]:border-t [&>*+*]:border-separator">
                 {lists.map((l) => (
                   <SortableItem key={l.id} id={l.id}>
-                    {({ handle }) => <ListEditor list={l} sites={sites} handle={handle} />}
+                    {({ handle }) => (
+                      <ListEditor list={l} sites={sites} handle={handle} on={active.has(l.id)} />
+                    )}
                   </SortableItem>
                 ))}
               </div>

@@ -340,8 +340,26 @@ test.describe("focus", () => {
       )
       .toBe(1);
 
-    // Deleting an active list also switches it off.
+    // In the editor every list has a switch: off keeps the list and its sites, on blocks again.
     await page.getByRole("button", { name: "Edit lists" }).click();
+    const toggle = page.getByRole("switch", { name: "Block Social during focus" });
+    const activeCount = async () =>
+      (await sql(`select cardinality(active_block_list_ids) as n from sp_focus_settings`))[0]?.n;
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByTestId("block-list").filter({ hasText: "Social" })).toContainText(
+      "3 sites · Off",
+    );
+    await expect.poll(activeCount).toBe(0);
+    expect((await sql(`select count(*)::int as n from sp_block_list_sites`))[0]?.n).toBe(3);
+    await toggle.click();
+    await expect(page.getByTestId("block-list").filter({ hasText: "Social" })).toContainText(
+      "3 sites · On",
+    );
+    await expect.poll(activeCount).toBe(1);
+
+    // Deleting an active list also switches it off.
     await page.getByRole("button", { name: "Edit Social" }).click();
     await page.getByRole("button", { name: "Delete" }).click();
     await expect(page.getByText("Its 3 sites are removed with it.")).toBeVisible();

@@ -188,6 +188,22 @@ test.describe("browser extension", () => {
       await sql(`delete from sp_block_list_sites where pattern = 'example.org'`);
       await expect.poll(() => rules(popup), { timeout: 8000 }).toBe(2);
 
+      // Switching a list off (it is kept, with its sites) stops its sites being blocked at
+      // once; switching it on again blocks them again.
+      const setActive = (names: string) =>
+        sql(
+          `update sp_focus_settings set active_block_list_ids = array(select id from sp_block_lists where name in (${names})) where user_id = ${OWNER}`,
+        );
+      await setActive("'News'");
+      await expect.poll(() => rules(popup), { timeout: 8000 }).toBe(0);
+      await fresh.goto(`http://${SITE}:${PORT}/api/health`).catch(() => undefined);
+      await expect(fresh.locator("body")).toContainText('"status":"ok"');
+      expect((await sql(`select count(*)::int as n from sp_block_list_sites`))[0]?.n).toBe(2);
+      await setActive("'Social', 'News'");
+      await expect.poll(() => rules(popup), { timeout: 8000 }).toBe(2);
+      await fresh.goto(`http://${SITE}:${PORT}/api/health`).catch(() => undefined);
+      await expect(fresh).toHaveURL(/blocked\.html/);
+
       // Leaving the focus phase lifts the block everywhere and offers the original address.
       await popup.getByRole("button", { name: "Skip phase" }).click();
       await expect.poll(async () => (await state()).phase).toBe("short_break");
