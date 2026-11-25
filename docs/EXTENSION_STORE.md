@@ -29,7 +29,6 @@ by at least one store.
 | `[HOMEPAGE URL]`                           | Where people learn what Stellar Planner is and how to host it (the repository, or a site of yours).                                                                                                                                                                                                                                                    |
 | `[REVIEW INSTANCE URL]` and `[REVIEW PIN]` | **A Stellar Planner instance the reviewers can reach, and its PIN.** The extension does nothing without an instance, and a reviewer who cannot get past the connect screen will reject it. Use a separate, throwaway deployment with sample data. Do not give out your own instance or your own PIN. Demo mode (`/demo`) is not enough: it has no API. |
 | Licence                                    | AMO makes you choose one, and the repository has no `LICENSE` file. See section 3.5.                                                                                                                                                                                                                                                                   |
-| Screenshots                                | Both stores need at least one. See section 1.3.                                                                                                                                                                                                                                                                                                        |
 
 Prepare the review instance like this, so the test steps below work as written:
 
@@ -93,16 +92,30 @@ GOOD TO KNOW
 
 ### 1.3 Screenshots
 
-Chrome wants 1280×800 or 640×400 (1 to 5 images). AMO accepts any size; the same images
-work. Take them from the review instance so no real data is in them:
+Four 1280×800 images are in `docs/extension-store/`, taken from the real extension running
+against a local test instance with invented data (block lists on `example.com` domains).
+Upload them in this order to both stores:
 
-1. The popup with a focus phase running and the minutes on the toolbar badge.
-2. The block page ("This orbit is closed") with the countdown.
-3. The popup's connect screen (address, then PIN).
-4. The app's Focus page showing the block lists and their switches, to show where the lists come from.
+| File                | Shows                                                            |
+| ------------------- | ---------------------------------------------------------------- |
+| `1-timer.png`       | The popup with a focus phase running and the lists being blocked |
+| `2-blocked.png`     | The block page with the live countdown                           |
+| `3-connect.png`     | The popup's connect screen                                       |
+| `4-block-lists.png` | The app's Focus page with the block lists and their switches     |
+
+Images 1 and 3 place the popup over a blurred view of the app with a caption; 2 and 4 are
+the screens exactly as they are. The instance address in them reads `localhost:3100`.
+
+To retake them after a design change:
+
+```bash
+pnpm --filter @stellar/extension build
+cd apps/web && AUDIT=1 npx playwright test e2e/audit/store-screenshots.spec.ts --project=desktop
+```
 
 Chrome also asks for a 128×128 store icon: use `apps/extension/public/icon/128.png`. A
-440×280 small promo tile is optional but improves how the listing looks in search.
+440×280 small promo tile is optional but improves how the listing looks in search; it is
+not made here.
 
 ## 2. Chrome Web Store
 
