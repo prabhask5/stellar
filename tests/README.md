@@ -42,8 +42,19 @@ Create a file in the right folder; it is picked up by its name. Nothing else nee
 
 - Pure logic: `unit/<package or app>/<name>.test.ts`.
 - Anything that needs Postgres: `db/<name>.test.ts`, using `db/support/helpers.ts` (`open`, `createUser`, `asUser`). Wrap the suite in `describe.skipIf(!available)`.
-- A user flow: `e2e/<feature>.spec.ts`. Import `test` and `expect` from `./support/helpers`, not from Playwright: that `test` gives each test its own client address, simulates safe areas for the project, and checks the screen-wide invariants (`support/invariants.ts`) when the test ends. Start with `ensureConfigured(request)` in `beforeAll` and `wipeData()` + `signIn(context)` in `beforeEach`. To test offline behaviour use `goOffline(context, page)` / `goOnline(context, page)` from the helpers, which wait for the installed app before cutting the network.
+- A user flow: `e2e/<feature>.spec.ts`. Import `test` and `expect` from `./support/helpers`, not from Playwright: that `test` gives each test its own client address, simulates safe areas for the project, and checks the screen-wide invariants (`support/invariants.ts`) when the test ends. Start with `ensureConfigured(request)` in `beforeAll` and `wipeData()` + `signIn(context)` in `beforeEach`.
 - A new browser or device: add a project to `playwright.config.ts`. CI reads the project list from that file.
+
+**Wait for a signal, never for a guess.** A test acts faster than a person can, so before doing something Playwright does not wait for by itself, wait for the state a person would be in. The helpers cover the cases that have bitten:
+
+| Before                                         | Use                                                       |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| pressing a global key right after `goto`       | `hydrated(page)`                                          |
+| raw touch input (`swipe`) on an element        | `locator.tap({ trial: true })`: visible, still, reachable |
+| writing a row another page should receive live | `realtimeReady(page)`, created before navigating          |
+| cutting the network                            | `goOffline(context, page)`: waits for the installed app   |
+
+A timing assertion compares the best of several samples, not one.
 
 `.only` fails the run in Vitest always and in Playwright on CI.
 
