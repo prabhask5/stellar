@@ -32,6 +32,7 @@ Install the browsers once with `pnpm exec playwright install chromium webkit fir
 
 - **Unit and db** use Vitest. Pass a path or `-t` to narrow a run: `pnpm test tests/unit/shared/timer.test.ts`. Locally the db suites are skipped when no database is reachable; in CI that is an error.
 - **e2e** starts the production standalone build itself (`e2e/support/serve-standalone.mjs`, port 3100) with its own data directory (`e2e/.tmp/data`), resets the instance before the run, and drives it against the local stack. Specs do not depend on each other or on their order. Tests run one at a time because they share one database.
+- **On a Mac, keep the display awake while the WebKit projects run** (`caffeinate -d pnpm test:e2e`). WebKit stops painting when the display turns off, and every click then waits until the test times out.
 - **The Firefox smoke test** starts its own server on port 3101, sets the instance up, seeds it and then drives the packaged add-on. `HEADED=1` shows the browser.
 
 Environment knobs for e2e: `E2E_PORT`, `E2E_DATA_DIR` (relative to `tests/e2e`), `E2E_STACK_ENV` (another stack's env file, see [dev/README.md](../dev/README.md)), `E2E_DEV=1` (run against `next dev` instead of the build).
