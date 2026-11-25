@@ -202,6 +202,12 @@ test.describe("ux flows", () => {
     await sql(
       `insert into sp_task_lists (user_id, name, emoji) values (${OWNER}, 'Groceries', '🛒')`,
     );
+    // Emoji data that takes a moment, as on a real connection: the picker shows its
+    // loading state first, which is when it used to sit on the wrong side.
+    await page.route("**/emoji/**", async (route) => {
+      await new Promise((r) => setTimeout(r, 500));
+      await route.continue();
+    });
     await page.goto("/tasks");
     await page.getByTestId("task-lists").filter({ visible: true }).getByText("Groceries").click();
     await page.getByRole("button", { name: "Edit list" }).click();
