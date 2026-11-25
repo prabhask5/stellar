@@ -162,6 +162,16 @@ All tests are in `tests/` and are found by glob, so adding, renaming or deleting
 
 CI is `.github/workflows/ci.yml`, on pull requests and pushes to `main`: `static` (format, lint, typecheck, links, and a guard that fails on a test file outside `tests/`), `unit`, `db`, `build` (build, budgets, Docker image), `e2e` (one job per Playwright project; the matrix is read from the Playwright config, so adding a project adds a job), `extension-firefox`, and `required`, which fails unless every other job succeeded. **`required` is the only check branch protection needs**, so jobs can be added or removed without touching repository settings. Never make CI green by weakening a test.
 
+### Pull requests: the work is not done until CI is green
+
+Never push to `main`; open a pull request and stay with it.
+
+1. Before pushing, run what the change can affect: `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test`, plus `pnpm test:db` and the relevant `pnpm test:e2e --project=…` (see [tests/README.md](tests/README.md)).
+2. After every push, wait for the checks: `gh pr checks <number> --watch`. A full run takes about 12 minutes. Do not report the work as finished, and do not start unrelated work on the branch, while checks are pending or red.
+3. When a job fails, read its log (`gh run view <run-id> --log-failed`, or the `e2e-report-<project>` artifact with the trace) and fix the cause. There are no retries, so one failure is a real failure. A failure that does not reproduce is still a defect in the test or the app: find the signal the test should have waited for (the helpers in `tests/e2e/support/helpers.ts`), never add a sleep, a retry or a looser assertion.
+4. CI browsers run on Linux, which differs from a Mac: Firefox has WebGL only with a display (`xvfb-run`), and WebKit paints in software (hence 1× pixel density there). To reproduce a Linux-only failure locally, run the suite inside Playwright's image (`mcr.microsoft.com/playwright:v<version>-noble`) against the stack on the host.
+5. Merge only when `required` is green.
+
 ## 9. Deployment
 
 - `Dockerfile`: three stages on `node:24-bookworm-slim`; the runtime holds Next's standalone output, static assets and `public/` (including both extension zips), runs as the `node` user, exposes 3000, declares `VOLUME /data` and a health check on `/api/health`. `docker-compose.yml` runs it locally.
