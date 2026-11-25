@@ -23,6 +23,7 @@ public enum StellarTokens {
         public static let accentLine = Color(.sRGB, red: 0.965, green: 0.78, blue: 0.431, opacity: 0.35)
         public static let accentGlow = Color(.sRGB, red: 0.965, green: 0.78, blue: 0.431, opacity: 0.45)
         public static let violet = Color(.sRGB, red: 0.616, green: 0.549, blue: 1, opacity: 1)
+        public static let azure = Color(.sRGB, red: 0.486, green: 0.776, blue: 1, opacity: 1)
         public static let nebulaViolet = Color(.sRGB, red: 0.431, green: 0.298, blue: 1, opacity: 0.5)
         public static let nebulaMagenta = Color(.sRGB, red: 0.839, green: 0.282, blue: 0.627, opacity: 0.38)
         public static let nebulaBlue = Color(.sRGB, red: 0.235, green: 0.431, blue: 1, opacity: 0.28)

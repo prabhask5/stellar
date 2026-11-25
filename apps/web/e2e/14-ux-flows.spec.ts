@@ -226,6 +226,18 @@ test.describe("ux flows", () => {
     const steps = page.getByTestId("phase-strip").getByRole("listitem");
     // Four rounds by default: focus, short break ×3, then focus, long break.
     await expect(page.locator('[data-testid="phase-strip"] [data-step]')).toHaveCount(8);
+    // Each kind of phase has its own colour.
+    const hues = await page
+      .locator('[data-testid="phase-strip"] [data-step]')
+      .evaluateAll((els) =>
+        Object.fromEntries(
+          els.map((e) => [
+            e.getAttribute("data-step"),
+            getComputedStyle(e).backgroundColor.replace(/\s*\/.*|,[^,]*\)$/, ""),
+          ]),
+        ),
+      );
+    expect(new Set(Object.values(hues)).size, JSON.stringify(hues)).toBe(3);
     expect(
       await page
         .locator('[data-testid="phase-strip"] [data-step]')

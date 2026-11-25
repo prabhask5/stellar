@@ -16,20 +16,57 @@ import { TimerRing } from "@/components/ui/timer-ring";
 import { timerAction, toTimerSettings, toTimerState } from "@/lib/client/data/focus";
 import { useTick } from "@/lib/client/data/hooks";
 
+/**
+ * Each phase has its own colour, from the sky's palette: gold for focus (the app's accent),
+ * violet for a short break, pale blue for the long one. Class names are spelled out so the
+ * stylesheet keeps them.
+ */
 const PHASES: {
   phase: TimerPhase;
   label: string;
   key: "focus_min" | "short_break_min" | "long_break_min";
+  text: string;
+  now: string;
+  done: string;
+  upcoming: string;
 }[] = [
-  { phase: "focus", label: "Focus", key: "focus_min" },
-  { phase: "short_break", label: "Short break", key: "short_break_min" },
-  { phase: "long_break", label: "Long break", key: "long_break_min" },
+  {
+    phase: "focus",
+    label: "Focus",
+    key: "focus_min",
+    text: "text-accent",
+    now: "bg-accent",
+    done: "bg-accent/75",
+    upcoming: "bg-accent/40",
+  },
+  {
+    phase: "short_break",
+    label: "Short break",
+    key: "short_break_min",
+    text: "text-violet",
+    now: "bg-violet",
+    done: "bg-violet/80",
+    upcoming: "bg-violet/45",
+  },
+  {
+    phase: "long_break",
+    label: "Long break",
+    key: "long_break_min",
+    text: "text-azure",
+    now: "bg-azure",
+    done: "bg-azure/80",
+    upcoming: "bg-azure/45",
+  },
 ];
+const LOOK = Object.fromEntries(PHASES.map((p) => [p.phase, p])) as Record<
+  TimerPhase,
+  (typeof PHASES)[number]
+>;
 
 /**
  * The whole Pomodoro cycle at a glance: focus, short break, focus, short break … focus,
- * long break. One bar per phase (long for focus, short for a break), filled up to where
- * the session is now, with the three phase lengths named underneath. Display only.
+ * long break. One bar per phase (long for focus, short for a break) in its phase's colour, lit
+ * up to where the session is now, with the three phase lengths named underneath. Display only.
  */
 export function PhaseStrip({ state, settings }: { state: FocusState; settings: FocusSettings }) {
   const rounds = Math.max(1, settings.rounds_before_long);
@@ -44,7 +81,7 @@ export function PhaseStrip({ state, settings }: { state: FocusState; settings: F
   });
   return (
     <div className="w-full" data-testid="phase-strip">
-      <ol aria-label="Pomodoro cycle" className="flex w-full items-center gap-1">
+      <ol aria-label="Pomodoro cycle" className="flex h-2.5 w-full items-center gap-1">
         {steps.map((step, i) => {
           const here = i === current;
           const done = started && i < current;
@@ -57,13 +94,19 @@ export function PhaseStrip({ state, settings }: { state: FocusState; settings: F
               data-step={step.phase}
               data-state={here ? "current" : done ? "done" : "upcoming"}
               className={cx(
-                "h-1.5 min-w-0 rounded-full transition-colors duration-300",
+                "min-w-0 rounded-full transition-[background-color,height] duration-300",
+                // The current phase is the thick, fully lit bar.
+                here ? "h-2.5" : "h-1.5",
                 step.phase === "focus"
                   ? "flex-[3]"
                   : step.phase === "long_break"
                     ? "flex-[2]"
                     : "flex-1",
-                here ? "bg-accent" : done ? "bg-accent/45" : "bg-track",
+                here
+                  ? LOOK[step.phase].now
+                  : done
+                    ? LOOK[step.phase].done
+                    : LOOK[step.phase].upcoming,
               )}
             />
           );
@@ -78,9 +121,10 @@ export function PhaseStrip({ state, settings }: { state: FocusState; settings: F
             key={p.phase}
             className={cx(
               "flex min-w-0 items-center gap-1 whitespace-nowrap transition-colors duration-200",
-              state.phase === p.phase ? "font-medium text-accent" : "text-fg-2",
+              state.phase === p.phase ? cx("font-medium", p.text) : "text-fg-2",
             )}
           >
+            <span aria-hidden className={cx("size-2 shrink-0 rounded-full", p.now)} />
             <span className="truncate">{p.label}</span>
             <span className="tnum">{settings[p.key]}</span>
           </li>
