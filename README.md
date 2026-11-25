@@ -2,69 +2,132 @@
 
 A self-hosted personal planner where finishing things builds a universe. Tasks, long-term goals, daily routines and a focus timer, in one calm, fast app that you run yourself on top of your own Supabase.
 
-- **Web app and PWA.** Built iPhone-first: installable to the Home Screen, aware of the Dynamic Island, notch and home indicator, usable offline, with push notifications when a focus phase ends.
-- **Browser extension** for Chrome and Firefox. The same timer in your toolbar, kept in sync in real time, and hard blocking of the sites you choose while a focus phase runs.
-- **One owner, one PIN.** No accounts to manage. Your data lives in your Postgres, protected by row-level security.
-- **REST API** with an OpenAPI description, ready for a native iOS app.
+**[Try the demo → planner.prabhas.io/demo](https://planner.prabhas.io/demo)**
 
-## Run it
+![The Universe home: your tasks, goals and routines drawn as a galaxy, with today's summary](.github/assets/screenshots/universe-desktop.jpg)
 
-You need Docker and a Supabase instance (self-hosted or cloud). No environment variables are required.
+## Screenshots
+
+|                                  Tasks                                  |                               Goals                               |
+| :---------------------------------------------------------------------: | :---------------------------------------------------------------: |
+|    ![Tasks on desktop](.github/assets/screenshots/tasks-desktop.jpg)    | ![Goals on desktop](.github/assets/screenshots/goals-desktop.jpg) |
+|                              **Routines**                               |                             **Focus**                             |
+| ![Routines on desktop](.github/assets/screenshots/routines-desktop.jpg) | ![Focus on desktop](.github/assets/screenshots/focus-desktop.jpg) |
+
+<p align="center">
+  <img src=".github/assets/screenshots/universe-iphone.jpg" alt="Universe on iPhone" width="19%">
+  <img src=".github/assets/screenshots/tasks-iphone.jpg" alt="Tasks on iPhone" width="19%">
+  <img src=".github/assets/screenshots/goals-iphone.jpg" alt="Goals on iPhone" width="19%">
+  <img src=".github/assets/screenshots/routines-iphone.jpg" alt="Routines on iPhone" width="19%">
+  <img src=".github/assets/screenshots/focus-iphone.jpg" alt="Focus on iPhone" width="19%">
+</p>
+
+## Features
+
+- **Tasks.** Today, All and Calendar views, lists, quick add, swipe actions, one-tap "move overdue to today" with Undo.
+- **Goals.** Todo and progress goals in lists, upcoming events with a live countdown, and progress bars for your day, week, month, year and life.
+- **Routines.** Daily, weekday or every-N-days habits with a month calendar, per-day rings and streaks.
+- **Focus.** A Pomodoro timer that every device shares in real time, with stats and push notifications when a phase ends.
+- **Your universe.** Every completed task is a star, every goal a planet, every routine a constellation, in a 3D galaxy behind the app.
+- **Built iPhone-first.** Installable to the Home Screen, aware of the Dynamic Island and home indicator, instant and usable offline.
+- **One owner, one PIN.** No accounts. Your data lives in your own Postgres, protected by row-level security.
+
+## Browser extension
+
+**Stellar Focus** puts the same focus timer in your browser toolbar and blocks the sites you choose while a focus phase runs, with no way around it until the phase ends. Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/stellar-focus/bbmpcnffjjmnjedignkaocpifhiaoemf) or [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/stellar-focus/), then connect it with your instance's address and your PIN. Source and details: [`apps/extension`](apps/extension).
+
+## Self-hosting
+
+You need Docker and a Supabase project: self-hosted (the official Docker setup works as is) or Supabase Cloud. The app uses its Auth, REST and Realtime services and creates tables prefixed `sp_` in the `public` schema, so it can share the project with other apps. No environment variables are required.
+
+### Quick start
 
 ```bash
+git clone https://github.com/prabhask5/stellar.git && cd stellar
 docker compose up -d --build
 # open http://localhost:3000
 ```
 
-The setup wizard asks for your Supabase URL and keys, creates the `sp_` tables, and has you choose a PIN. Everything it needs to remember is stored, encrypted, in the `/data` volume.
+Mount a volume at `/data` (the compose file does). It holds the encrypted configuration; without it, every redeploy returns to the setup wizard. Anything beyond `localhost` needs HTTPS in front: installing the app, push notifications and offline use all require it.
 
-- Deploying on a server: [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)
-- Deploying with Dokploy: [docs/DOKPLOY.md](docs/DOKPLOY.md)
-- Installing the extension: [docs/EXTENSION.md](docs/EXTENSION.md)
-- API: [docs/API.md](docs/API.md), [docs/openapi.json](docs/openapi.json)
-- Building the iOS app: [docs/IOS_INTEGRATION.md](docs/IOS_INTEGRATION.md)
+### Dokploy
 
-## What's inside
+1. **Create Service → Application**, connect this repository, Build Type **Dockerfile** (path `Dockerfile`, context `.`).
+2. **Advanced → Volumes:** add a Volume Mount with mount path `/data`.
+3. **Domains:** add your host, container port `3000`, HTTPS on with Let's Encrypt.
+4. **Deploy**, then open the domain.
 
-```
-apps/web          Next.js app: UI, PWA service worker, setup wizard, /api/v1
-apps/extension    WXT (Manifest V3) extension for Chrome and Firefox
-packages/db       SQL migrations (idempotent, sp_ prefixed), migration runner, generated types
-packages/shared   Dates, recurrence, timer state machine, zod schemas, OpenAPI builder
-packages/ui-tokens  Design tokens → CSS variables, Tailwind theme, SwiftUI file
-packages/universe The 3D universe (three.js), 2D event overlay, cosmic event bus
-dev/supabase      A small Supabase-compatible stack for local development and tests
-docs              Guides, decisions, progress, API description, design mockups
-```
+### The setup wizard
 
-How it fits together:
+The first visit leads to `/setup`, which asks for:
 
-- **Rules live in Postgres.** Recurrence, streaks and the focus timer's state machine are SQL functions and triggers, so the web app, the extension and any future client always agree. `packages/shared` mirrors them in TypeScript for instant optimistic UI, and parity tests run both against the same fixtures.
-- **The browser talks to Supabase directly** for data and Realtime with a short-lived token. The refresh token never reaches page JavaScript: it stays in httpOnly cookies and is exchanged by the server.
-- **Optimistic and offline.** Every change is applied locally at once and sent from an ordered outbox stored in IndexedDB, which survives reloads and loss of connectivity.
-- **The universe** is a lazily loaded three.js scene behind every page. Completing things adds stars, planets and events; nothing in it blocks the interface.
+- your **Supabase URL**, **anon key** and **service role key**. Use the public HTTPS URL: browsers and the extension talk to Supabase directly.
+- optionally a **Postgres connection string**. With it the app runs its migrations over a direct connection and can revoke single devices. It is used by the server only, so it must be reachable from inside the container (for a Supabase on the same host, its pooler or database service on a shared Docker network, not `localhost`). Without it, migrations go through your instance's pg-meta service, or the wizard shows the SQL to paste.
+- a **PIN** of 6 to 12 digits, and optionally your time zone, week start and birthdate.
+
+The wizard creates one hidden Supabase user that your PIN unlocks. Stellar Planner needs exactly one user, so turning off sign-ups on your Supabase (`GOTRUE_DISABLE_SIGNUP=true`) is good hardening.
+
+### Environment overrides
+
+All optional. A value set here wins over what the wizard saved. See [`.env.example`](.env.example).
+
+| Variable                                                         | Purpose                                                                                                   |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `APP_SECRET`                                                     | Key that encrypts the config in `/data`. Generated if unset. Set it before setup; do not change it later. |
+| `PUBLIC_APP_URL`                                                 | The app's public address, if it is not detected correctly behind your proxy.                              |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | The Supabase connection, instead of entering it in the wizard.                                            |
+| `DATABASE_URL`                                                   | The Postgres connection string.                                                                           |
+
+### Updating, PIN recovery, backups
+
+- **Updating:** rebuild and redeploy (`git pull && docker compose up -d --build`). Database migrations apply themselves on start.
+- **Forgot your PIN:** set `RESET_PIN=true`, restart, choose a new PIN in the app, then remove the variable and restart again. Your data is untouched.
+- **Backups:** your data is in the Supabase database (the `sp_` tables); back it up as you back up Postgres. Also keep the `/data` volume, and `APP_SECRET` if you set it. If `/data` is lost, run the wizard again against the same Supabase: nothing of yours is gone. **Settings → Data** exports and imports everything as one JSON file.
+
+## REST API
+
+Every instance serves a REST API under `/api/v1` for integrations and your own tools. It is described by the OpenAPI document at `/api/v1/openapi.json` on your instance.
 
 ## Development
 
-Requirements: Node 22 or newer, Corepack (for pnpm), Docker.
+Prerequisites: Node 22.18 or newer (with Corepack, which provides pnpm) and Docker.
 
 ```bash
 corepack enable
 pnpm install
-pnpm stack:up        # local Postgres, auth, REST, Realtime on :54321 (keys in dev/supabase/dev.env)
-pnpm dev             # http://localhost:3000, then run through /setup with those keys
+pnpm stack:up        # local Supabase on :54321 (dev-only keys in dev/supabase/dev.env)
+pnpm dev             # http://localhost:3000 → finish /setup with those keys
+pnpm dev:seed        # optional: fill the instance with sample data
 ```
 
-| Command                                      | What it does                                                                          |
-| -------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `pnpm typecheck` / `pnpm lint` / `pnpm test` | Types, ESLint, unit and SQL tests (SQL tests need `pnpm stack:up`)                    |
-| `pnpm build`                                 | Builds the extension for both browsers, zips it, then builds the web app              |
-| `pnpm e2e`                                   | Playwright against the production build: desktop, iPhone 15 Pro, iPhone SE            |
-| `pnpm budgets`                               | Checks the initial-JavaScript budget after a build                                    |
-| `pnpm tokens`                                | Regenerates CSS, Tailwind theme and `docs/ios/StellarTokens.swift` from `tokens.json` |
-| `pnpm openapi`                               | Regenerates `docs/openapi.json` from the zod schemas                                  |
-| `pnpm stack:down`                            | Stops the local stack and deletes its data                                            |
+Tests:
 
-After changing a migration in `packages/db/migrations`, run `node packages/db/scripts/bundle.ts` so the wizard ships the new SQL. Migrations must stay idempotent: they are re-run on every upgrade.
+```bash
+pnpm test            # unit
+pnpm test:db         # SQL behaviour and migrations (needs the stack)
+pnpm build           # the e2e suites run against the production build
+pnpm exec playwright install chromium webkit firefox
+pnpm test:e2e        # Playwright: desktop, iPhone (Chromium and WebKit), Firefox
+pnpm test:firefox    # the extension in a real Firefox
+```
 
-`docs/DECISIONS.md` records the non-obvious choices made while building, and `docs/PROGRESS.md` the plan and what was verified.
+How the tests are organised and how to add one: [tests/README.md](tests/README.md). Architecture, data model and conventions: [CLAUDE.md](CLAUDE.md).
+
+## Project structure
+
+```
+apps/web             Next.js app: UI, PWA, setup wizard, /api/v1
+apps/extension       Stellar Focus, the Chrome and Firefox extension
+packages/shared      Logic shared by both apps: dates, recurrence, timer, schemas
+packages/db          SQL migrations, migration runner, table types
+packages/ui-tokens   Design tokens → CSS variables and Tailwind theme
+packages/universe    The 3D universe and cosmic events
+dev/                 Local Supabase stacks for development and tests
+tests/               Every test: unit, db, e2e, Firefox extension
+```
+
+More on each package in [packages/README.md](packages/README.md), and on the local stacks in [dev/README.md](dev/README.md).
+
+## License
+
+[MIT](LICENSE) © 2026 Walter Mac
