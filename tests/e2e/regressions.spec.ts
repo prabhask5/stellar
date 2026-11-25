@@ -363,9 +363,18 @@ test.describe("regressions", () => {
       data: { pin: "246810", device: { name: "api", kind: "ios" } },
     });
     const token = (await pin.json()).session.access_token as string;
+    // Both buttons are found before anything is pressed. Looked up by name at press time,
+    // the slower tab would search for "Start focus" on a button the winner has already
+    // turned into Pause, and wait for it until the test timed out.
+    const buttons = await Promise.all(
+      [page, page2].map(async (p) => {
+        const start = p.getByRole("button", { name: "Start focus" });
+        await expect(start).toBeVisible();
+        return (await start.elementHandle())!;
+      }),
+    );
     await Promise.all([
-      page.getByRole("button", { name: "Start focus" }).click(),
-      page2.getByRole("button", { name: "Start focus" }).click(),
+      ...buttons.map((button) => button.click()),
       request.post("/api/v1/focus/actions", {
         headers: { Authorization: `Bearer ${token}` },
         data: { action: "start", expectedVersion: 0 },
