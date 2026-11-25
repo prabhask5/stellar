@@ -207,7 +207,7 @@ test.describe("screens", () => {
     await step("goals/goal-sheet", async () => {
       await page
         .getByTestId("goal-list-detail")
-        .getByRole("button", { name: "Add goal" })
+        .getByRole("button", { name: "New goal" })
         .first()
         .click();
       await expect(page.getByTestId("goal-sheet")).toBeVisible();
@@ -218,7 +218,7 @@ test.describe("screens", () => {
     });
     await step("routines/manage+sheet", async () => {
       await page.getByRole("button", { name: /Manage routines/ }).click();
-      await page.getByRole("button", { name: "Add routine" }).click();
+      await page.getByRole("button", { name: "New routine" }).click();
       await expect(page.getByTestId("routine-sheet")).toBeVisible();
     });
     await step("focus", async () => {

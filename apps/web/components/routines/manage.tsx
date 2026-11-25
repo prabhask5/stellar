@@ -115,7 +115,7 @@ export function ManageRoutines({ routines, logs, today, weekStart }: ManageRouti
                 icon={<PlusIcon size={18} />}
                 onClick={() => setAdding(true)}
               >
-                Add routine
+                New routine
               </Button>
             </div>
           </div>

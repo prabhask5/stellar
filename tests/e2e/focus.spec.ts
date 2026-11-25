@@ -274,7 +274,7 @@ test.describe("focus", () => {
     await page.getByRole("button", { name: "Edit lists" }).click();
     await page.getByRole("button", { name: "New block list" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Social");
-    await page.getByRole("button", { name: "Create" }).click();
+    await page.getByRole("button", { name: "Add block list" }).click();
 
     const list = page.getByTestId("block-list").filter({ hasText: "Social" });
     await list.getByRole("button", { name: /Social 0 sites?/ }).click();

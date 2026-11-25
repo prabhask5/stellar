@@ -372,7 +372,7 @@ export function Sheet({
 
 /**
  * A sheet stays mounted while it animates out. During that time it must not take
- * input: a second tap on "Create" a few frames after the first would submit twice.
+ * input: a second tap on "Add list" a few frames after the first would submit twice.
  */
 function ExitGuard({ children }: { children: ReactNode }) {
   const present = useIsPresent();

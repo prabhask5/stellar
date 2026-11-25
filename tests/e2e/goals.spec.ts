@@ -81,17 +81,17 @@ test.describe("goals", () => {
     await expect(page.getByText("No planets yet.")).toBeVisible();
     await page.getByRole("button", { name: "New goal list" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Reading");
-    await page.getByRole("button", { name: "Create" }).click();
+    await page.getByRole("button", { name: "Add goal list" }).click();
     await page.getByRole("button", { name: "Open Reading" }).click();
     const detail = page.getByTestId("goal-list-detail");
     await expect(detail.getByText("A system waiting to form.")).toBeVisible();
 
     // A todo goal and a progress goal.
-    await detail.getByRole("button", { name: "Add goal" }).first().click();
+    await detail.getByRole("button", { name: "New goal" }).first().click();
     const sheet = page.getByTestId("goal-sheet");
     await sheet.getByRole("textbox", { name: "Name", exact: true }).fill("Join a book club");
     await sheet.getByRole("button", { name: "Add goal" }).click();
-    await detail.getByRole("button", { name: "Add goal" }).first().click();
+    await detail.getByRole("button", { name: "New goal" }).first().click();
     await sheet.getByRole("textbox", { name: "Name", exact: true }).fill("Read books");
     await sheet.getByRole("radio", { name: /Progress/ }).click();
     await sheet.getByRole("button", { name: "Add goal" }).click();

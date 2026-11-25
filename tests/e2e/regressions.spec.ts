@@ -108,7 +108,7 @@ test.describe("regressions", () => {
     const panel = page.getByTestId("task-lists").filter({ visible: true });
     await panel.getByRole("button", { name: "New task list" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Dupes");
-    const create = page.getByRole("button", { name: "Create" });
+    const create = page.getByRole("button", { name: "Add list" });
     // Three taps as fast as a finger or a bouncing mouse button can produce them: separate
     // events a few milliseconds apart, the later ones landing while the sheet animates out.
     await create.evaluate((el: HTMLElement) => {
@@ -132,10 +132,10 @@ test.describe("regressions", () => {
     await page.getByRole("button", { name: "Edit Edit me" }).click();
     const sheet = page.getByTestId("task-sheet");
     await sheet.getByLabel("Name").fill("Edited offline");
-    await sheet.getByRole("button", { name: "Done" }).click();
+    await sheet.getByRole("button", { name: "Save" }).click();
     await page.getByRole("button", { name: "Edit Edited offline" }).click();
     await sheet.getByLabel("Description").fill("Second edit");
-    await sheet.getByRole("button", { name: "Done" }).click();
+    await sheet.getByRole("button", { name: "Save" }).click();
     // Offline long enough to count as an offline edit (the outbox guard starts at 15 s).
     await page.waitForTimeout(17_000);
     await goOnline(context, page);
@@ -196,7 +196,7 @@ test.describe("regressions", () => {
     for (const n of [4, 5]) {
       await page.getByRole("button", { name: `Edit Seed ${n}` }).click();
       await page.getByTestId("task-sheet").getByLabel("Name").fill(`Renamed ${n}`);
-      await page.getByTestId("task-sheet").getByRole("button", { name: "Done" }).click();
+      await page.getByTestId("task-sheet").getByRole("button", { name: "Save" }).click();
       await expect(page.getByRole("dialog")).toHaveCount(0);
     }
     await page.getByRole("button", { name: "Edit Seed 6" }).click();
@@ -332,11 +332,11 @@ test.describe("regressions", () => {
     // A renames while B's sheet is open.
     await page.getByRole("button", { name: "Edit Original" }).click();
     await page.getByTestId("task-sheet").getByLabel("Name").fill("Renamed in A");
-    await page.getByTestId("task-sheet").getByRole("button", { name: "Done" }).click();
+    await page.getByTestId("task-sheet").getByRole("button", { name: "Save" }).click();
     await expect(page2.getByTestId("today-tab")).toContainText("Renamed in A", { timeout: 8000 });
     // B only changes the description.
     await sheet2.getByLabel("Description").fill("From B");
-    await sheet2.getByRole("button", { name: "Done" }).click();
+    await sheet2.getByRole("button", { name: "Save" }).click();
     await expect
       .poll(async () => (await sql(`select description from sp_tasks`))[0]?.description)
       .toBe("From B");
@@ -464,7 +464,7 @@ test.describe("regressions", () => {
     await name.fill("Zone tomorrow");
     await page.getByRole("button", { name: /Due date/ }).click();
     await page.getByRole("button", { name: "Tomorrow", exact: true }).click();
-    if (pickersInSheet(info.project.name)) await page.getByRole("button", { name: "Done" }).click();
+    if (pickersInSheet(info.project.name)) await page.getByRole("button", { name: "Save" }).click();
     else await page.keyboard.press("Escape");
     await name.press("Enter");
     await expect
