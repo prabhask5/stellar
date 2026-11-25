@@ -109,14 +109,16 @@ test.describe("demo mode", () => {
   test("on the owner's own signed-in browser, the demo shows and touches none of their data", async ({
     page,
     context,
-    baseURL,
   }) => {
     await signIn(context);
     // First the real app, so this browser holds the owner's cached data and session.
     await page.goto("/tasks");
     await expect(page.getByTestId("today-tab")).toContainText(SECRET);
 
-    await context.addCookies([{ name: "sp-demo", value: "1", url: baseURL! }]);
+    // In through the button in the owner's own Settings.
+    await page.goto("/settings");
+    await page.getByRole("button", { name: /Demo mode/ }).click();
+    await expect(page.getByTestId("demo-banner")).toBeVisible();
     const data = watchData(page);
     await page.goto("/");
     await tour(page);

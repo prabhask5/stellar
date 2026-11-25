@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { GroupedList, ListRow } from "@/components/ui/grouped-list";
 import { api } from "@/lib/client/api";
+import { enterDemo } from "@/lib/client/demo";
 import { Section } from "./parts";
 
 export function AboutSection() {
@@ -29,6 +30,12 @@ export function AboutSection() {
               OpenAPI
             </a>
           }
+        />
+        <ListRow
+          title="Demo mode"
+          subtitle="Open the app on sample data, to show it to someone. Your own data stays out of it, and Exit brings you back."
+          onClick={enterDemo}
+          trailing={<span className="text-accent">Open</span>}
         />
       </GroupedList>
     </Section>
