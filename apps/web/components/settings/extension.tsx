@@ -10,6 +10,9 @@ const PACKAGES = [
   {
     id: "chrome",
     name: "Chrome, Edge, Brave, Arc",
+    store: "Chrome Web Store",
+    storeUrl:
+      "https://chromewebstore.google.com/detail/stellar-focus/bbmpcnffjjmnjedignkaocpifhiaoemf",
     file: "/extension/stellar-focus-chrome.zip",
     steps: [
       "Unzip the download.",
@@ -20,16 +23,21 @@ const PACKAGES = [
   {
     id: "firefox",
     name: "Firefox",
+    store: "Firefox Add-ons",
+    storeUrl: "https://addons.mozilla.org/en-US/firefox/addon/stellar-focus/",
     file: "/extension/stellar-focus-firefox.zip",
     steps: [
       "Open about:debugging and choose “This Firefox”.",
       "Choose “Load Temporary Add-on” and pick the zip.",
-      "For a permanent install, sign it as an unlisted add-on (see docs/EXTENSION.md).",
+      "It stays until Firefox restarts. The store version installs for good.",
     ],
   },
 ] as const;
 
-/** Download links for the browser extension packages served by this app, with install steps. */
+/**
+ * Where to get the browser extension: its store page first, and for self-hosters the
+ * packages this app serves (built with it, so they always match the server), with install steps.
+ */
 export function ExtensionSection() {
   const [available, setAvailable] = useState<Record<string, boolean>>({});
   const [origin, setOrigin] = useState("");
@@ -65,6 +73,20 @@ export function ExtensionSection() {
           <div key={p.id} className="p-4">
             <div className="flex items-center justify-between gap-3">
               <p className="text-headline text-fg">{p.name}</p>
+              <a
+                href={p.storeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={cx(
+                  "inline-flex h-9 min-h-9 shrink-0 select-none items-center justify-center whitespace-nowrap rounded-chip border border-accent-line bg-accent-soft px-3 text-[14px] font-medium text-accent",
+                  "transition-[transform,background-color,opacity] duration-100 ease-out hover:bg-[rgba(246,199,110,0.2)] active:scale-[0.97]",
+                )}
+              >
+                {p.store}
+              </a>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-footnote text-fg-2">Or install the copy this server ships:</p>
               {available[p.id] === false ? (
                 <span className="text-footnote text-fg-2">Not included in this build</span>
               ) : (
@@ -73,17 +95,16 @@ export function ExtensionSection() {
                   download
                   aria-disabled={available[p.id] === undefined || undefined}
                   className={cx(
-                    "inline-flex h-9 min-h-9 shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-chip border border-accent-line bg-accent-soft px-3 text-[14px] font-medium text-accent",
-                    "transition-[transform,background-color,opacity] duration-100 ease-out hover:bg-[rgba(246,199,110,0.2)] active:scale-[0.97]",
+                    "inline-flex min-h-9 shrink-0 select-none items-center gap-1.5 whitespace-nowrap text-[14px] font-medium text-accent hover:underline",
                     available[p.id] === undefined && "pointer-events-none opacity-45",
                   )}
                 >
                   <DownloadIcon size={16} />
-                  Download
+                  Download zip
                 </a>
               )}
             </div>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-footnote text-fg-2">
+            <ol className="mt-1 list-decimal space-y-1 pl-5 text-footnote text-fg-2">
               {p.steps.map((s) => (
                 <li key={s}>{s}</li>
               ))}

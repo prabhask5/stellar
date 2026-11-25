@@ -24,7 +24,7 @@ export function AboutSection() {
         />
         <ListRow
           title="API"
-          subtitle="A REST API for integrations and the future iPhone app."
+          subtitle="A REST API for integrations and your own tools."
           trailing={
             <a href="/api/v1/openapi.json" className="text-accent hover:underline">
               OpenAPI

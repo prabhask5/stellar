@@ -31,7 +31,8 @@ const KIND_LABEL: Record<DeviceInfo["kind"], string> = {
   web: "Browser",
   pwa: "Installed app",
   extension: "Browser extension",
-  ios: "iPhone app",
+  // `ios` is the legacy name for devices that sign in through the REST API.
+  ios: "API client",
 };
 
 /** Leaves this device: clears everything stored locally, then shows the PIN screen. */
