@@ -54,6 +54,8 @@ export type FocusSession = Narrow<
 export type BlockList = Narrow<Row<"sp_block_lists">, { sort_order: number }>;
 export type BlockListSite = Row<"sp_block_list_sites">;
 export type Quote = Row<"sp_quotes">;
+/** A date (optionally with a time) to count down to, in the owner's time zone. */
+export type CountdownEvent = Row<"sp_events">;
 export type Device = Narrow<Row<"sp_devices">, { kind: "web" | "pwa" | "extension" | "ios" }>;
 export type PushSubscriptionRow = Row<"sp_push_subscriptions">;
 export type AuthEvent = Row<"sp_auth_events">;
@@ -70,6 +72,7 @@ export const REALTIME_TABLES = [
   "sp_goal_lists",
   "sp_routines",
   "sp_routine_logs",
+  "sp_events",
 ] as const satisfies readonly TableName[];
 
 export type RealtimeTable = (typeof REALTIME_TABLES)[number];

@@ -8,7 +8,7 @@ Write anything that feels off into `docs/polish/FRICTION_LOG.md`. Each step says
 
 - Deploy the `polish/pass-1` build somewhere you can reach from the phone (not production data if you can avoid it).
 - Open it once in Safari, add it to the Home Screen, open it from the icon, enter your PIN.
-- In the container log you should see `[boot] applied migrations 10 (…)` once. You should not have had to run any SQL.
+- In the container log you should see `[boot] applied migrations 10, 11, 12 (…)` (or just the ones your instance was missing) once. You should not have had to run any SQL.
 
 ## 1. Launch and first frame (2 min)
 

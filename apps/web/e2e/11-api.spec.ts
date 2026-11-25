@@ -490,6 +490,61 @@ test.describe("REST API v1", () => {
     expect((await api.get("/block-lists")).body.data).toHaveLength(0);
   });
 
+  test("events: create, list in date order, update, delete with a tombstone, export", async ({
+    request,
+  }) => {
+    const api = client(request);
+    const id = randomUUID();
+    const far = await api.post("/events", {
+      id,
+      name: "  Marathon ",
+      emoji: "🏃",
+      date: "2031-04-18",
+    });
+    expect(far.status).toBe(201);
+    expect(far.body).toMatchObject({
+      id,
+      name: "Marathon",
+      emoji: "🏃",
+      date: "2031-04-18",
+      time: null,
+    });
+    // The same id again is the same event, not a second one.
+    expect((await api.post("/events", { id, name: "Marathon", date: "2031-04-18" })).status).toBe(
+      201,
+    );
+    const near = await api.post("/events", { name: "Launch", date: "2030-01-05", time: "9:30" });
+    expect(near.body).toMatchObject({ emoji: "📅", time: "09:30:00" });
+    expect((await api.post("/events", { name: "No date" })).status).toBe(400);
+    expect((await api.post("/events", { name: "", date: "2030-01-01" })).status).toBe(400);
+    expect((await api.post("/events", { name: "Bad", date: "2030-02-31" })).status).toBe(400);
+
+    const all = await api.get("/events");
+    expect(all.body.data.map((e: Json) => e.name)).toEqual(["Launch", "Marathon"]);
+    const mark = all.body.server_time as string;
+
+    const moved = await api.patch(`/events/${near.body.id}`, { date: "2032-06-01", time: null });
+    expect(moved.body).toMatchObject({ name: "Launch", date: "2032-06-01", time: null });
+    expect((await api.get("/events")).body.data.map((e: Json) => e.name)).toEqual([
+      "Marathon",
+      "Launch",
+    ]);
+    expect((await api.patch(`/events/${randomUUID()}`, { name: "x" })).status).toBe(404);
+
+    expect((await api.get("/export")).body.events.map((e: Json) => e.name).sort()).toEqual([
+      "Launch",
+      "Marathon",
+    ]);
+
+    expect((await api.del(`/events/${id}`)).status).toBe(200);
+    expect((await api.del(`/events/${id}`)).status).toBe(404);
+    const delta = await api.get(`/events?updated_since=${encodeURIComponent(mark)}`);
+    expect(delta.body.data.map((e: Json) => e.name)).toEqual(["Launch"]);
+    expect(delta.body.deleted_ids).toEqual([id]);
+    // Without a session there is nothing to read.
+    expect((await request.get(`${V1}/events`)).status()).toBe(401);
+  });
+
   test("quotes, settings and export", async ({ request }) => {
     const api = client(request);
     const random = await api.get("/quotes/random");

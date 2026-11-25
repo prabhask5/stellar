@@ -122,6 +122,15 @@ curl -s -X PATCH $APP/api/v1/tasks/0b0e3c1e-2f0a-4c8e-9d7b-3a1f5e6d7c8b \
 
 `type` is `todo` (done or not) or `progress` (`current_amount` of `total_amount`, with an optional `unit`). A progress goal completes when it reaches its total.
 
+### Events
+
+Dates and deadlines the Goals page counts down to. `date` is the owner's calendar day and `time` an optional time on it (`HH:MM`); both are read in the owner's time zone (`/settings` → `timezone`). Events are deleted for good; `?updated_since=` reports removed ids.
+
+| Method        | Path          | Notes                                                 |
+| ------------- | ------------- | ----------------------------------------------------- |
+| GET, POST     | `/events`     | Earliest first. Body: `name`, `emoji`, `date`, `time` |
+| PATCH, DELETE | `/events/:id` |                                                       |
+
 ### Routines
 
 | Method        | Path                       | Notes                                                                         |

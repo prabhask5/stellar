@@ -175,6 +175,8 @@ export async function fetchCollection<T extends CollectionTable>(
       return fetchAll(db.from("sp_block_list_sites").select("*"), ["id"]);
     case "sp_quotes":
       return fetchAll(db.from("sp_quotes").select("*"), ["id"]);
+    case "sp_events":
+      return fetchAll(db.from("sp_events").select("*"), ["id"]);
     case "sp_focus_sessions": {
       const since = new Date(serverNow() - 40 * 86_400_000).toISOString();
       const rows = await fetchAll<Collections["sp_focus_sessions"]>(

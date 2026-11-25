@@ -184,6 +184,13 @@ sp_goals        (list_id uuid not null references sp_goal_lists on delete cascad
 - **Goal progress:** todo → 0 or 1; progress → `min(current/total, 1)`.
 - **List progress** = mean of its goals' progress (both types), shown as a percent and "X of Y complete".
 
+### 5.2a Upcoming events
+
+- An event is a name, an emoji and a date, optionally with a time. Both are read in the owner's time zone.
+- The Goals page lists them between the time-progress card and the goal lists, nearest first, with a live countdown: years, months, weeks, days, hours, minutes, seconds, starting at the largest unit that is not zero. Years and months are calendar units; the last day counts real time, so the count reaches zero exactly at the event.
+- The nearest event is shown large (desktop: a tile per unit; phone: one large number with the rest on a line). Events that have passed stay at the end, dimmed, until deleted.
+- Deleting is immediate with Undo. Events sync, export and import like everything else.
+
 ### 5.3 Routines
 A routine is a goal template repeated over time. Day-goals are **computed, not stored**. Only per-day results are stored.
 ```
@@ -580,6 +587,7 @@ Endpoints:
 - `GET /tasks?view=today|all|calendar|list&list_id=&from=&to=`, `POST /tasks`, `PATCH|DELETE /tasks/:id`, `POST /tasks/postpone-overdue`
 - `GET|POST /goal-lists`, `PATCH|DELETE /goal-lists/:id`, `POST /goal-lists/reorder`
 - `GET|POST /goals`, `PATCH|DELETE /goals/:id`, `POST /goals/:id/increment {delta}`
+- `GET|POST /events`, `PATCH|DELETE /events/:id`
 - `GET|POST /routines`, `PATCH|DELETE /routines/:id`, `GET /routines/days?from=&to=`, `PUT /routines/:id/logs/:date`
 - `GET|PUT /focus/settings`, `GET /focus/state`, `POST /focus/actions {action, expectedVersion}`, `GET /focus/sessions?from=&to=`, `GET /focus/stats`
 - `GET|POST /block-lists`, `PATCH|DELETE /block-lists/:id`, `POST|DELETE /block-lists/:id/sites`

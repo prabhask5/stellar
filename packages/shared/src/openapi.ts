@@ -81,6 +81,10 @@ export const SCHEMAS: Record<string, z.ZodType> = {
   GoalUpdate: s.zGoalUpdate,
   GoalIncrement: s.zGoalIncrement,
   GoalPage: s.zListEnvelope(s.zGoal),
+  Event: s.zEvent,
+  EventCreate: s.zEventCreate,
+  EventUpdate: s.zEventUpdate,
+  EventPage: s.zListEnvelope(s.zEvent),
   Routine: s.zRoutine,
   RoutineCreate: s.zRoutineCreate,
   RoutineUpdate: s.zRoutineUpdate,
@@ -302,6 +306,18 @@ export const OPERATIONS: Operation[] = [
     response: "Goal",
     errors: [404],
   },
+
+  ...crud("Events", "/events", "Event", "event").map((o) =>
+    o.method === "delete"
+      ? { ...o, description: "Deleted for good. A tombstone is kept for `updated_since` sync." }
+      : o.method === "get"
+        ? {
+            ...o,
+            description:
+              "Dates and deadlines to count down to, earliest first. `date` (and `time`, when set) are in the owner's time zone.",
+          }
+        : o,
+  ),
 
   ...crud("Routines", "/routines", "Routine", "routine"),
   reorder("Routines", "/routines", "routine"),

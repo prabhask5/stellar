@@ -1,4 +1,5 @@
 import type {
+  CountdownEvent,
   BlockList,
   BlockListSite,
   FocusSession,
@@ -254,6 +255,21 @@ export function seedDemo(): void {
     minutes: i >= 23 ? minutesByDay[29 - i]! : [25, 50, 0, 75][i % 4]!,
   }));
 
+  // ── upcoming events ──────────────────────────────────────────────────────
+  const events: CountdownEvent[] = [
+    ["🏃", "Half marathon", 12, "09:00:00"],
+    ["✈️", "Lisbon trip", 47, null],
+    ["🎓", "Thesis deadline", 163, "17:00:00"],
+    ["🎂", "Thirtieth birthday", 420, null],
+  ].map(([emoji, name, inDays, time]) => ({
+    ...base,
+    id: id(),
+    emoji: emoji as string,
+    name: name as string,
+    date: day(inDays as number),
+    time: time as string | null,
+  }));
+
   // ── everything else ──────────────────────────────────────────────────────
   const quotes: Quote[] = [
     ["The days are long, but the years are short.", "Gretchen Rubin"],
@@ -339,5 +355,6 @@ export function seedDemo(): void {
   set(keys.table("sp_block_lists"), blockLists);
   set(keys.table("sp_block_list_sites"), sites);
   set(keys.table("sp_quotes"), quotes);
+  set(keys.table("sp_events"), events);
   set(keys.table("sp_focus_sessions"), sessions);
 }

@@ -7,6 +7,7 @@ import { Page, PageHeader } from "@/components/ui/page";
 import { useMounted } from "@/components/ui/use-media";
 import { useCollection } from "@/lib/client/data/hooks";
 import { QuoteCard, TimeProgressCard } from "./cards";
+import { UpcomingEvents } from "./events";
 import { GoalListDetail } from "./goal-list-detail";
 import { GoalListsGrid } from "./goal-lists";
 
@@ -43,6 +44,7 @@ export function GoalsPage() {
         {mounted ? <QuoteCard /> : <div className="glass min-h-[92px] rounded-card" />}
         <TimeProgressCard />
       </div>
+      <div className="mt-8">{mounted && <UpcomingEvents />}</div>
       <div className="mt-8">{mounted && <GoalListsGrid onOpen={openList} />}</div>
     </Page>
   );

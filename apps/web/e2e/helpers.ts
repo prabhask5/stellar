@@ -73,6 +73,7 @@ export async function wipeData(): Promise<void> {
       delete from public.sp_block_lists where user_id = uid;
       delete from public.sp_focus_sessions where user_id = uid;
       delete from public.sp_quotes where user_id = uid;
+      delete from public.sp_events where user_id = uid;
       delete from public.sp_tombstones where user_id = uid;
       delete from public.sp_push_subscriptions where user_id = uid;
       update public.sp_focus_state set status = 'idle', phase = 'focus', round = 1, phase_started_at = null,

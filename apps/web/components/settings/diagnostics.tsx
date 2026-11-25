@@ -17,6 +17,7 @@ const TABLES: [CollectionTable, string][] = [
   ["sp_routine_logs", "Routine logs"],
   ["sp_block_lists", "Block lists"],
   ["sp_block_list_sites", "Blocked sites"],
+  ["sp_events", "Events"],
 ];
 
 const bytes = (n: number) =>

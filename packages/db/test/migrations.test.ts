@@ -111,6 +111,7 @@ describe.skipIf(!available)("migration runner", () => {
     expect(r.rows.map((x) => x.tablename)).toEqual([
       "sp_block_list_sites",
       "sp_block_lists",
+      "sp_events",
       "sp_focus_settings",
       "sp_focus_state",
       "sp_goal_lists",
@@ -123,7 +124,7 @@ describe.skipIf(!available)("migration runner", () => {
     const ri = await db.query(
       "select count(*)::int as n from pg_class where relname like 'sp\\_%' and relkind = 'r' and relreplident = 'f'",
     );
-    expect(ri.rows[0].n).toBe(10);
+    expect(ri.rows[0].n).toBe(11);
   });
 
   it("enables row level security on every sp_ table", async () => {

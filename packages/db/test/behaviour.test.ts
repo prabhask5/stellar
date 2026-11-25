@@ -48,6 +48,7 @@ describe.skipIf(!available)("database behaviour", () => {
           [bl!.id],
         );
         await q("insert into sp_quotes (text, author) values ('Mine', 'Me')");
+        await q("insert into sp_events (name, date) values ('Launch', '2027-03-01')");
         await q("select sp_timer_action('start', 0)");
       });
       const tables = [
@@ -59,6 +60,7 @@ describe.skipIf(!available)("database behaviour", () => {
         "sp_routine_logs",
         "sp_block_lists",
         "sp_block_list_sites",
+        "sp_events",
         "sp_focus_state",
         "sp_focus_settings",
         "sp_focus_sessions",
@@ -827,6 +829,9 @@ describe.skipIf(!available)("database behaviour", () => {
           [bl!.id],
         );
         await q("insert into sp_quotes (text, author) values ('Stay curious.', 'Me')");
+        await q(
+          "insert into sp_events (name, emoji, date, time) values ('  Marathon ', '🏃', '2027-04-18', '09:30')",
+        );
       });
       const dump = await asUser(
         db,
@@ -864,8 +869,17 @@ describe.skipIf(!available)("database behaviour", () => {
         routine_logs: 1,
         block_list_sites: 1,
         quotes: 1,
+        events: 1,
       });
       expect(res.imported).not.toHaveProperty("universe_events");
+      // The event came across whole: trimmed name, emoji, date and time.
+      const ev = await db.query(
+        "select name, emoji, date::text as date, time::text as time from sp_events where user_id = $1",
+        [b],
+      );
+      expect(ev.rows).toEqual([
+        { name: "Marathon", emoji: "🏃", date: "2027-04-18", time: "09:30:00" },
+      ]);
       const tz = await db.query("select timezone from sp_settings where user_id = $1", [b]);
       expect(tz.rows[0].timezone).toBe("Europe/Paris");
       await asUser(db, b, (q) => q("select sp_import($1::jsonb)", [JSON.stringify(dump)]));

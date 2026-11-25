@@ -163,6 +163,40 @@ export type Database = {
         }
         Relationships: []
       }
+      sp_events: {
+        Row: {
+          created_at: string
+          date: string
+          emoji: string
+          id: string
+          name: string
+          time: string | null
+          updated_at: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          date: string
+          emoji?: string
+          id?: string
+          name: string
+          time?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          emoji?: string
+          id?: string
+          name?: string
+          time?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sp_focus_sessions: {
         Row: {
           actual_seconds: number

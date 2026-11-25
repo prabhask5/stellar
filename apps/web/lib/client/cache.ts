@@ -1,6 +1,7 @@
 import type {
   BlockList,
   BlockListSite,
+  CountdownEvent,
   FocusSession,
   FocusSettings,
   FocusState,
@@ -54,6 +55,7 @@ export interface Collections {
   sp_block_list_sites: BlockListSite;
   sp_quotes: Quote;
   sp_focus_sessions: FocusSession;
+  sp_events: CountdownEvent;
 }
 export type CollectionTable = keyof Collections;
 

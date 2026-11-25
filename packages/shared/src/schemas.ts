@@ -212,6 +212,28 @@ export const zReorder = z.object({
   sort_order: zSortOrder.describe("New fractional rank, between the ranks of its new neighbours"),
 });
 
+// ── events ──────────────────────────────────────────────────────────────────
+export const zEvent = z.object({
+  id: zId,
+  name: z.string(),
+  emoji: zEmoji,
+  date: zDate.describe("The day of the event, in the owner's time zone"),
+  time: z
+    .string()
+    .nullable()
+    .describe("Time of day on that date, HH:MM:SS; null for the whole day"),
+  created_at: zTimestamp,
+  updated_at: zTimestamp,
+});
+export const zEventCreate = z.object({
+  id: zId.optional().describe("Client-generated id, so retries are idempotent"),
+  name: zName(120),
+  emoji: zEmoji.optional(),
+  date: zDate,
+  time: zTime.nullable().optional(),
+});
+export const zEventUpdate = zEventCreate.omit({ id: true }).partial();
+
 // ── goals ───────────────────────────────────────────────────────────────────
 export const zGoalList = zTaskList;
 export const zGoalListCreate = zTaskListCreate;
