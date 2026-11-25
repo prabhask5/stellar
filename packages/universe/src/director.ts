@@ -20,7 +20,7 @@ export interface Effect {
   detail: Record<string, string | number>;
 }
 
-/** Base durations from SPEC §7.2, in ms. */
+/** Base duration of each cosmic event, in ms. */
 export const DURATIONS: Record<CosmicEventType, number> = {
   task_completed: 1200,
   overdue_postponed: 1500,

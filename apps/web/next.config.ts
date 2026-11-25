@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   typedRoutes: false,
   devIndicators: false,
+  // Agent context for this repository is the root CLAUDE.md; `next dev` must not write its own file.
+  agentRules: false,
   // Baseline hardening for every response. No Content-Security-Policy here: Next's inline
   // bootstrap scripts would need per-request nonces, which static shells cannot carry.
   async headers() {

@@ -1,6 +1,6 @@
 /**
  * Task views as pure filters over one task array. "Same task object everywhere;
- * views are just filters." Mirrors SQL `sp_tasks_view` (SPEC §5.1).
+ * views are just filters." Mirrors SQL `sp_tasks_view`.
  */
 import { type DateStr, formatShortDate, formatTime, relativeDayName } from "./dates.ts";
 

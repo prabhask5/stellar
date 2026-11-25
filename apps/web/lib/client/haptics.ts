@@ -8,7 +8,7 @@
  *   only path the platform exposes, so a hidden switch is clicked through its label. It
  *   only fires during a user gesture, and it is silent on versions without the control.
  *
- * Nothing is faked: where neither path exists, nothing happens. See docs/DECISIONS.md.
+ * Nothing is faked: where neither path exists, nothing happens.
  */
 type Kind = "light" | "success";
 

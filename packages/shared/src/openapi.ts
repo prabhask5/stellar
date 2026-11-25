@@ -1,7 +1,7 @@
 /**
  * The OpenAPI description of `/api/v1`, built from the same zod schemas the
- * server validates with. `docs/openapi.json` is this document written to disk
- * (a test keeps the two in sync) and the app serves it at `/api/v1/openapi.json`.
+ * server validates with. The app serves it at `/api/v1/openapi.json`; a test checks
+ * that it covers every route handler.
  */
 import { z } from "zod";
 import * as s from "./schemas.ts";

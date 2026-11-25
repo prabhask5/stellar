@@ -124,7 +124,7 @@ export function normalizeSupabaseUrl(input: string): Normalized<NormalizedUrl> {
   return { ok: true, value: { url, changed: url !== comparable, entered } };
 }
 
-/** Normalises the app's public URL as typed into the extension or iOS app. */
+/** Normalises the app's public URL as typed into the extension or another client. */
 export function normalizeAppUrl(input: string): Normalized<string> {
   const entered = input.trim();
   if (!entered) return { ok: false, message: "Enter your Stellar Planner address." };

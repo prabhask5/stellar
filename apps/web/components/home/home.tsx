@@ -284,7 +284,7 @@ function UniverseStage() {
 
 function formatFocus(minutes: number): React.ReactNode {
   const text = formatDuration(minutes);
-  // "1h 15m" → large digits, small unit letters, as in the mockup.
+  // "1h 15m" → large digits, small unit letters.
   return text.split(/(\d+)/).map((part, i) =>
     /\d/.test(part) ? (
       <span key={i}>{part}</span>

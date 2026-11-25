@@ -1,6 +1,6 @@
 /**
  * zod schemas for every boundary: API requests and responses, config, and the
- * shapes clients persist. `docs/openapi.json` is generated from these.
+ * shapes clients persist. The OpenAPI document (`openapi.ts`) is generated from these.
  */
 import { z } from "zod";
 import { isDateStr, isValidTimeZone, normalizeTime } from "./dates.ts";
