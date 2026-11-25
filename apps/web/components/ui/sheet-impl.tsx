@@ -68,7 +68,7 @@ interface GestureOptions {
 /**
  * The bottom sheet's touch gesture, the way a native sheet behaves:
  *  - it follows the finger from anywhere on the sheet, not just the grabber;
- *  - inside the scrolling content, a pull down only drags the sheet once the content is
+ *  - inside scrolling content (the sheet's, or a list nested in it), a pull down only drags the sheet once the content is
  *    at its top (otherwise it scrolls), and a push up scrolls unless the sheet can rise;
  *  - past its top detent it rubber-bands;
  *  - on release it flings by velocity to the nearest detent, or away;
@@ -87,7 +87,8 @@ function useSheetGesture({ enabled, sheet, scrollerRef, y, twoDetents, onClose }
     let decided = false;
     let dragging = false;
     let blocked = false;
-    let fromScroller = false;
+    /** The scrolling area the touch began in: the sheet's own, or one nested in its content. */
+    let inner: HTMLElement | null = null;
 
     const height = () => el.offsetHeight;
     const medium = () => (twoDetents ? Math.round(height() * 0.42) : 0);
@@ -113,7 +114,21 @@ function useSheetGesture({ enabled, sheet, scrollerRef, y, twoDetents, onClose }
         target?.closest('[data-sheet-no-drag], input[type="range"], [role="slider"]') ||
         (target?.closest(".touch-none") && !target.closest("[data-sheet-grabber]")),
       );
-      fromScroller = Boolean(target && scrollerRef.current?.contains(target));
+      // The nearest area under the finger that can actually scroll (an emoji grid inside the
+      // sheet scrolls by itself); failing that, the sheet's own content area.
+      inner = null;
+      const sc = scrollerRef.current;
+      if (target && sc?.contains(target)) {
+        inner = sc;
+        for (let n: Element | null = target; n && n !== sc; n = n.parentElement) {
+          if (!(n instanceof HTMLElement) || n.scrollHeight <= n.clientHeight + 1) continue;
+          const overflow = getComputedStyle(n).overflowY;
+          if (overflow === "auto" || overflow === "scroll") {
+            inner = n;
+            break;
+          }
+        }
+      }
     };
 
     /** Returns true when the sheet has taken the gesture (the caller should stop the page reacting). */
@@ -125,8 +140,6 @@ function useSheetGesture({ enabled, sheet, scrollerRef, y, twoDetents, onClose }
         if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return false;
         decided = true;
         if (Math.abs(dx) > Math.abs(dy)) return false;
-        const sc = scrollerRef.current;
-        const inner = fromScroller && sc ? sc : null;
         const scrollable = Boolean(inner && inner.scrollHeight > inner.clientHeight + 1);
         if (dy > 0) dragging = !inner || inner.scrollTop <= 0;
         else dragging = base > 1 || !scrollable;

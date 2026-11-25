@@ -34,9 +34,10 @@ export function rememberEmoji(emoji: string): void {
 
 /**
  * One height for the loading state and the loaded grid, so the picker never resizes. In a
- * popover that height is whatever the chosen side has room for (`--emoji-h`, see `place`).
+ * sheet it fills the sheet; in a popover it is whatever the chosen side has room for
+ * (`--emoji-h`, see `place`).
  */
-const EMOJI_BODY = "h-[min(70dvh,440px)] md:h-[var(--emoji-h,400px)]";
+const EMOJI_BODY = "h-full min-h-[260px] md:h-[var(--emoji-h,400px)] md:min-h-0";
 const FULL = 400;
 const WIDTH = 340;
 /** Gap to the trigger plus the margin kept to the window's edge. */

@@ -11,6 +11,7 @@ import {
   listsInTab,
   signIn,
   sql,
+  swipe,
   test,
   wipeData,
 } from "./helpers";
@@ -153,7 +154,9 @@ test.describe("ux flows", () => {
     await expectInvariants(page, "the new goal list sheet");
   });
 
-  test("the emoji picker opens in place, with one scrollbar and whole rows", async ({ page }) => {
+  test("the emoji picker opens in place, with one scrollbar and whole rows", async ({
+    page,
+  }, info) => {
     await page.goto("/goals");
     await page.getByRole("button", { name: "New goal list" }).click();
     await page.getByRole("button", { name: /^Emoji/ }).click();
@@ -166,6 +169,8 @@ test.describe("ux flows", () => {
         const r = root.getBoundingClientRect();
         return [Math.round(r.top), Math.round(r.height)];
       });
+    // On a phone the sheet is still sliding its last pixels into place when the field appears.
+    if (isPhone(info.project.name)) await page.waitForTimeout(300);
     const first = await frame();
     let elapsed = 0;
     for (const pause of [80, 120, 300, 400]) {
@@ -249,6 +254,36 @@ test.describe("ux flows", () => {
     const [top, height] = frames[0]!;
     expect(top! + height!, "the picker runs past the window").toBeLessThanOrEqual(690);
     expect(top!).toBeGreaterThanOrEqual(0);
+  });
+
+  test("on a phone the emoji picker fills its sheet and scrolls through every emoji", async ({
+    page,
+  }, info) => {
+    test.skip(!isPhone(info.project.name), "the sheet is the phone layout");
+    await page.goto("/goals");
+    await page.getByRole("button", { name: "New goal list" }).click();
+    await page.getByRole("button", { name: /^Emoji/ }).click();
+    await expect(page.getByRole("gridcell").first()).toBeVisible();
+    await page.waitForTimeout(400);
+    const grid = page.locator("[frimousse-viewport]");
+    const box = (await grid.boundingBox())!;
+    const screen = page.viewportSize()!;
+    // The grid runs to the bottom of the sheet (it used to stop at 440px, leaving half empty).
+    expect(screen.height - (box.y + box.height), "empty space under the grid").toBeLessThan(60);
+    // Dragging up on the grid scrolls it; the sheet used to take the gesture and nothing moved.
+    const sheetTop = () =>
+      page.getByRole("dialog", { name: "Choose an emoji" }).evaluate((el) => {
+        return Math.round(el.getBoundingClientRect().top);
+      });
+    const before = await sheetTop();
+    await swipe(page, { x: box.x + box.width / 2, y: box.y + box.height * 0.7 }, 0, -260, 10);
+    await page.waitForTimeout(400);
+    if (info.project.name === "iphone-15-pro" || info.project.name === "iphone-se")
+      expect(await grid.evaluate((el) => el.scrollTop), "the grid did not scroll").toBeGreaterThan(
+        100,
+      );
+    expect(await sheetTop(), "the sheet moved instead of the grid").toBe(before);
+    await expectInvariants(page, "the emoji sheet");
   });
 
   test("the timer starts at the full time and only counts down", async ({ page }) => {

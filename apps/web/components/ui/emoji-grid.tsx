@@ -85,7 +85,7 @@ export function EmojiGrid({
           components={{
             CategoryHeader: ({ category, ...props }) => (
               <div
-                className="bg-[#16123a] px-3 pb-1.5 pt-3 text-caption text-fg-2"
+                className="bg-[rgb(22,18,50)] px-3 pb-1.5 pt-3 text-caption text-fg-2"
                 {...oneBased(props)}
               >
                 {category.label}

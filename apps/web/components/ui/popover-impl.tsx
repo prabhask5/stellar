@@ -21,7 +21,7 @@ export interface PopoverProps {
   fixed?: boolean;
 }
 
-/** Glass popover for desktop pickers. On phones the same content is shown in a Sheet. */
+/** Popover for desktop pickers. On phones the same content is shown in a Sheet. */
 export function Popover({
   open,
   onOpenChange,
@@ -48,7 +48,8 @@ export function Popover({
           style={{ maxHeight: "var(--radix-popover-content-available-height)" }}
           className={cx(
             "overflow-y-auto overscroll-contain",
-            "glass-strong z-[70] rounded-card p-3 shadow-[0_18px_50px_rgba(0,0,0,0.45)] outline-none animate-fade",
+            // Solid, like sheets and dialogs: what is behind must not show through a picker.
+            "sp-sheet z-[70] rounded-card p-3 outline-none animate-fade",
             className,
           )}
         >
