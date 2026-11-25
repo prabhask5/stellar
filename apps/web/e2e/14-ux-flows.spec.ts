@@ -290,6 +290,21 @@ test.describe("ux flows", () => {
       expect(await zone.evaluate((el) => el.getBoundingClientRect().right <= innerWidth)).toBe(
         true,
       );
+    // The control is as wide as its value, not as its longest option, so the row's title and
+    // caption beside it keep their room.
+    const row = await zone.evaluate((el) => {
+      const title = [...el.closest("label, div.flex")!.querySelectorAll("span")].find(
+        (s) => s.textContent === "Time zone",
+      )!;
+      return {
+        control: el.getBoundingClientRect().width,
+        titleCut: title.scrollWidth > title.clientWidth,
+        titleWidth: title.getBoundingClientRect().width,
+      };
+    });
+    expect(row.titleCut, "the row title is cut off").toBe(false);
+    expect(row.control, "the select is wider than its value needs").toBeLessThan(230);
+    expect(row.titleWidth, "the title and caption are squeezed").toBeGreaterThan(110);
     await expectInvariants(page, "settings");
   });
 

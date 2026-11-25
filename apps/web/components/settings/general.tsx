@@ -19,7 +19,7 @@ function zoneLabel(zone: string): string {
   return parts.length ? `${city} · ${parts.join(" / ")}` : city;
 }
 
-function zones(current: string): { value: string; label: string }[] {
+function zones(current: string): { value: string; label: string; short: string }[] {
   const supported = (): string[] => {
     try {
       return Intl.supportedValuesOf("timeZone");
@@ -27,9 +27,12 @@ function zones(current: string): { value: string; label: string }[] {
       return [];
     }
   };
-  return [...new Set(["UTC", current, ...supported()])]
-    .sort()
-    .map((z) => ({ value: z, label: zoneLabel(z) }));
+  return [...new Set(["UTC", current, ...supported()])].sort().map((z) => ({
+    value: z,
+    label: zoneLabel(z),
+    // The closed control shows the city alone, which leaves the row's title its room.
+    short: z.replace(/_/g, " ").split("/").pop() ?? z,
+  }));
 }
 
 export function GeneralSection() {
