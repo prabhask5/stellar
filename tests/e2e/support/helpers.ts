@@ -207,6 +207,29 @@ export async function hydrated(page: Page): Promise<void> {
   await page.locator('html[data-touch-feel="on"]').waitFor();
 }
 
+/**
+ * Resolves once the page's Realtime channel is delivering database changes. Call it before
+ * navigating. Joining the channel is not enough: the server confirms the database feed
+ * separately ("Subscribed to PostgreSQL"), and a row written before that never arrives.
+ */
+export function realtimeReady(page: Page, timeout = 20_000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("Realtime did not confirm the database feed in time.")),
+      timeout,
+    );
+    page.on("websocket", (ws) => {
+      if (!ws.url().includes("/realtime/")) return;
+      ws.on("framereceived", (frame) => {
+        if (String(frame.payload).includes("Subscribed to PostgreSQL")) {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    });
+  });
+}
+
 /** Waits until the service worker is active and controls the page: the app is installed. */
 export async function waitForServiceWorker(page: Page): Promise<void> {
   await expect

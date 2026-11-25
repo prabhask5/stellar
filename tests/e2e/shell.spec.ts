@@ -10,6 +10,7 @@ import {
   uniqueIp,
   wipeData,
   hydrated,
+  realtimeReady,
 } from "./support/helpers";
 
 test.describe("app shell", () => {
@@ -197,24 +198,15 @@ test.describe("app shell", () => {
     });
     await signIn(other);
     const page2 = await other.newPage();
-    // Both devices start on Focus, the page that shows who is in sync. Each seeing the other
-    // there proves both Realtime channels have joined, which a fixed pause can only guess.
-    await Promise.all([page.goto("/focus"), page2.goto("/focus")]);
-    for (const p of [page, page2])
-      await expect(p.getByRole("status").filter({ hasText: "2 devices in sync" })).toBeVisible({
-        timeout: 15_000,
-      });
-    // On to the Universe home inside the app, so the channels stay as they are.
-    for (const p of [page, page2])
-      await p
-        .getByRole("navigation", { name: "Main" })
-        .filter({ visible: true })
-        .getByRole("link", { name: "Universe" })
-        .click();
+    // Both pages must be receiving database changes before the row is written, or it is
+    // simply missed. The Realtime server says when that is; a fixed pause can only guess.
+    const listening = [realtimeReady(page), realtimeReady(page2)];
+    await Promise.all([page.goto("/"), page2.goto("/")]);
     const card1 = page.getByTestId("today-card");
     const card2 = page2.getByTestId("today-card");
     await expect(card1.getByText("Clear skies.")).toBeVisible();
     await expect(card2.getByText("Clear skies.")).toBeVisible();
+    await Promise.all(listening);
 
     // A change made anywhere (here: straight in the database, as another client would) reaches both.
     await sql(

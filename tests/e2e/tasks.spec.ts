@@ -439,6 +439,11 @@ test.describe("tasks", () => {
     const swipe = async (text: string, dx: number) => {
       const row = page.getByTestId("task-row").filter({ hasText: text });
       await row.scrollIntoViewIfNeeded();
+      // The swipe is raw touch input, which skips the checks Playwright makes before its own
+      // taps. Make them here: the row is visible, has stopped moving (it was just rendered and
+      // scrolled to) and can receive touches. Without this the gesture could start 15 ms
+      // after the row first appeared, and be lost.
+      await row.tap({ trial: true });
       const box = (await row.boundingBox())!;
       const x = dx > 0 ? box.x + 100 : box.x + box.width - 60;
       await touchSwipe(page, { x, y: box.y + box.height / 2 }, dx);
