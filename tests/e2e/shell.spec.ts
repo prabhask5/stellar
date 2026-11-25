@@ -10,6 +10,7 @@ import {
   uniqueIp,
   wipeData,
   hydrated,
+  realtimeDelivering,
   realtimeReady,
 } from "./support/helpers";
 
@@ -191,6 +192,8 @@ test.describe("app shell", () => {
     browser,
     baseURL,
   }, info) => {
+    // Room for `realtimeDelivering` to wait out the server's rate limiter after another spec.
+    test.setTimeout(240_000);
     const other = await browser.newContext({
       ...info.project.use,
       baseURL,
@@ -199,7 +202,7 @@ test.describe("app shell", () => {
     await signIn(other);
     const page2 = await other.newPage();
     // Both pages must be receiving database changes before the row is written, or it is
-    // simply missed. The Realtime server says when that is; a fixed pause can only guess.
+    // simply missed: the server has confirmed each feed, and a change really arrives.
     const listening = [realtimeReady(page), realtimeReady(page2)];
     await Promise.all([page.goto("/"), page2.goto("/")]);
     const card1 = page.getByTestId("today-card");
@@ -207,6 +210,7 @@ test.describe("app shell", () => {
     await expect(card1.getByText("Clear skies.")).toBeVisible();
     await expect(card2.getByText("Clear skies.")).toBeVisible();
     await Promise.all(listening);
+    await realtimeDelivering(page, page2);
 
     // A change made anywhere (here: straight in the database, as another client would) reaches both.
     await sql(

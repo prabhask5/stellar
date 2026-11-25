@@ -47,12 +47,13 @@ Create a file in the right folder; it is picked up by its name. Nothing else nee
 
 **Wait for a signal, never for a guess.** A test acts faster than a person can, so before doing something Playwright does not wait for by itself, wait for the state a person would be in. The helpers cover the cases that have bitten:
 
-| Before                                         | Use                                                       |
-| ---------------------------------------------- | --------------------------------------------------------- |
-| pressing a global key right after `goto`       | `hydrated(page)`                                          |
-| raw touch input (`swipe`) on an element        | `locator.tap({ trial: true })`: visible, still, reachable |
-| writing a row another page should receive live | `realtimeReady(page)`, created before navigating          |
-| cutting the network                            | `goOffline(context, page)`: waits for the installed app   |
+| Before                                         | Use                                                                          |
+| ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| pressing a global key right after `goto`       | `hydrated(page)`                                                             |
+| raw touch input (`swipe`) on an element        | `locator.tap({ trial: true })`: visible, still, reachable                    |
+| writing a row another page should receive live | `realtimeReady(page)`, created before navigating                             |
+| timing a live update from another device       | `realtimeDelivering(...pages)`: rides out the Realtime server's rate limiter |
+| cutting the network                            | `goOffline(context, page)`: waits for the installed app                      |
 
 A timing assertion compares the best of several samples, not one.
 

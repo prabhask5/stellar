@@ -7,6 +7,7 @@ import {
   expect,
   type Page,
   test as base,
+  type WebSocket,
 } from "@playwright/test";
 import pg from "pg";
 
@@ -207,10 +208,11 @@ export async function hydrated(page: Page): Promise<void> {
   await page.locator('html[data-touch-feel="on"]').waitFor();
 }
 
+const realtimeSockets = new WeakMap<Page, WebSocket>();
+
 /**
- * Resolves once the page's Realtime channel is delivering database changes. Call it before
- * navigating. Joining the channel is not enough: the server confirms the database feed
- * separately ("Subscribed to PostgreSQL"), and a row written before that never arrives.
+ * Resolves once the page's Realtime channel has joined and the server has confirmed its
+ * database feed ("Subscribed to PostgreSQL"). Call it before navigating.
  */
 export function realtimeReady(page: Page, timeout = 20_000): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -220,6 +222,7 @@ export function realtimeReady(page: Page, timeout = 20_000): Promise<void> {
     );
     page.on("websocket", (ws) => {
       if (!ws.url().includes("/realtime/")) return;
+      realtimeSockets.set(page, ws);
       ws.on("framereceived", (frame) => {
         if (String(frame.payload).includes("Subscribed to PostgreSQL")) {
           clearTimeout(timer);
@@ -228,6 +231,47 @@ export function realtimeReady(page: Page, timeout = 20_000): Promise<void> {
       });
     });
   });
+}
+
+/**
+ * Proves that database changes are reaching these pages and will keep doing so, for a test
+ * that is about to time one. Use after `realtimeReady`, and allow the test a few minutes.
+ *
+ * The Realtime server counts database changes for the whole instance in 5-second buckets
+ * and averages them over a minute; above 100 a second it broadcasts none until the burst
+ * has left that minute. Tests share one server, and creating or deleting a large data set
+ * (the screens sweep's seed, a reset of the instance) is such a burst. A timed assertion
+ * soon after would be measuring the limiter, which also only trips at its next tick, so
+ * a change or two can still get through first.
+ *
+ * So this repeats a write that changes nothing on screen until every page has received it
+ * every second for longer than one tick.
+ */
+export async function realtimeDelivering(...pages: Page[]): Promise<void> {
+  const seen = pages.map(() => false);
+  pages.forEach((page, i) => {
+    const ws = realtimeSockets.get(page);
+    if (!ws) throw new Error("Call realtimeReady(page) before navigating.");
+    ws.on("framereceived", (frame) => {
+      if (String(frame.payload).includes('"sp_focus_settings"')) seen[i] = true;
+    });
+  });
+  const TICK_SECONDS = 5;
+  let inARow = 0;
+  await expect
+    .poll(
+      async () => {
+        seen.fill(false);
+        await sql(
+          "update public.sp_focus_settings set updated_at = now() where user_id = (select id from auth.users where email = 'owner@stellar.local')",
+        );
+        await new Promise((r) => setTimeout(r, 1000));
+        inARow = seen.every(Boolean) ? inARow + 1 : 0;
+        return inARow;
+      },
+      { timeout: 150_000, intervals: [0] },
+    )
+    .toBeGreaterThan(TICK_SECONDS + 1);
 }
 
 /** Waits until the service worker is active and controls the page: the app is installed. */

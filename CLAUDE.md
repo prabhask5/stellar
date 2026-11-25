@@ -195,4 +195,5 @@ CI is `.github/workflows/ci.yml`, on pull requests and pushes to `main`: `static
 - Blocking is per browser profile and by domain (no paths); private windows are covered only if the extension is allowed there. It is a commitment device, not parental control.
 - Per-device revoke needs the Postgres connection string.
 - A hosted Supabase project with neither a connection string nor pg-meta needs its migrations pasted by hand (Settings → Connection).
+- Supabase Realtime limits database changes per instance (100 a second by default, averaged over a minute). After a larger burst, such as an import or deleting a big list, it broadcasts no changes for up to a minute; other devices catch up when they next refetch (on return to the app, or on reload). Tests that time a live update call `realtimeDelivering()` first for the same reason.
 - Real-finger behaviour on iPhone (haptics, system back swipe, WebKit touch handling) is only checked by hand.
