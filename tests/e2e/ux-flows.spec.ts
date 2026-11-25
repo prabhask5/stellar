@@ -104,22 +104,25 @@ test.describe("ux flows", () => {
     // The sheet's code is fetched when the browser is idle after load; a person clicks later
     // than that, so let it arrive and time the animation itself.
     await page.waitForTimeout(3000);
-    // Timed inside the page, frame by frame: from the click to the sheet standing still.
+    // Timed inside the page, frame by frame: from the click to the sheet being there, and
+    // to it standing still.
     const sheet = page.getByRole("dialog");
-    const openAndTime = async (): Promise<number> => {
+    type Timing = { down: number; shown: number; rest: number };
+    const openAndTime = async (): Promise<{ shown: number; rest: number }> => {
       await page.evaluate(() => {
-        const w = window as unknown as { __sheet?: { down: number; rest: number } };
+        const w = window as unknown as { __sheet?: { down: number; shown: number; rest: number } };
         w.__sheet = undefined;
         addEventListener(
           "pointerdown",
           () => {
-            const t = { down: performance.now(), rest: 0 };
+            const t = { down: performance.now(), shown: 0, rest: 0 };
             w.__sheet = t;
             let last = "";
             let still = 0;
             const tick = () => {
               const el = document.querySelector('[role="dialog"]');
               const r = el?.getBoundingClientRect();
+              if (el && !t.shown) t.shown = performance.now();
               const now = r
                 ? `${r.top.toFixed(1)}:${r.height.toFixed(1)}:${getComputedStyle(el!).opacity}`
                 : "";
@@ -136,15 +139,18 @@ test.describe("ux flows", () => {
       await page.getByRole("button", { name: "New goal list" }).click();
       await expect(sheet).toBeVisible();
       const timing = await page.waitForFunction(() => {
-        const t = (window as unknown as { __sheet?: { down: number; rest: number } }).__sheet;
-        return t && t.rest ? Math.round(t.rest - t.down) : null;
+        const t = (window as unknown as { __sheet?: { down: number; shown: number; rest: number } })
+          .__sheet;
+        return t && t.rest
+          ? { shown: Math.round(t.shown - t.down), rest: Math.round(t.rest - t.down) }
+          : null;
       });
-      return (await timing.jsonValue()) as number;
+      return (await timing.jsonValue()) as Omit<Timing, "down">;
     };
     // Three opens, judged by the fastest. What this guards against is a delay built into
     // opening (it was 530 ms in Chromium and 720–920 ms in WebKit), which is there every
     // time; one slow sample only says the machine was busy for a moment.
-    const samples: number[] = [];
+    const samples: { shown: number; rest: number }[] = [];
     for (let i = 0; i < 3; i++) {
       if (i > 0) {
         await page.keyboard.press("Escape");
@@ -152,12 +158,24 @@ test.describe("ux flows", () => {
       }
       samples.push(await openAndTime());
     }
-    // The animation is about 0.2 s. Playwright's WebKit paints at half the frame rate, so
-    // it gets a wider budget.
-    expect(
-      Math.min(...samples),
-      `milliseconds from click to a sheet at rest, fastest of ${samples.join(", ")}`,
-    ).toBeLessThan(browserName === "webkit" ? 700 : 500);
+    const fastest = (key: "shown" | "rest") => Math.min(...samples.map((s) => s[key]));
+    const all = JSON.stringify(samples);
+    if (browserName === "firefox" && process.platform === "linux") {
+      // Firefox on Linux paints in software, and two frames of the dimmed backdrop take
+      // about half a second each (measured), so the time to rest says nothing about the
+      // app there. The delay being guarded against kept the sheet out of the page for
+      // 300 ms or more; here it is in the page by the next frame.
+      expect(
+        fastest("shown"),
+        `milliseconds from click to a sheet in the page, of ${all}`,
+      ).toBeLessThan(200);
+    } else {
+      // The animation is about 0.2 s. Playwright's WebKit paints at half the frame rate, so
+      // it gets a wider budget.
+      expect(fastest("rest"), `milliseconds from click to a sheet at rest, of ${all}`).toBeLessThan(
+        browserName === "webkit" ? 700 : 500,
+      );
+    }
     expect(
       await sheet.evaluate((el) => {
         const cs = getComputedStyle(el);
