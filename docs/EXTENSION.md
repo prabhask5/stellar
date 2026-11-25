@@ -1,6 +1,6 @@
 # The browser extension
 
-The Stellar Planner extension puts your focus timer in the browser toolbar and blocks the sites on your active block lists while a focus phase is running. It works in Chrome (and Chromium browsers such as Edge, Brave and Arc) and in Firefox, from one codebase in `apps/extension`.
+**Stellar Focus**, the Stellar Planner extension, puts your focus timer in the browser toolbar and blocks the sites on your active block lists while a focus phase is running. It works in Chrome (and Chromium browsers such as Edge, Brave and Arc) and in Firefox, from one codebase in `apps/extension`.
 
 ## Install
 
@@ -8,10 +8,10 @@ Your instance serves the extension packages itself, so they always match your se
 
 ### Chrome, Edge, Brave, Arc
 
-1. Download `stellar-planner-chrome.zip` and unzip it into a folder you will keep.
+1. Download `stellar-focus-chrome.zip` and unzip it into a folder you will keep.
 2. Open `chrome://extensions` and switch on **Developer mode** (top right).
 3. Click **Load unpacked** and choose the unzipped folder.
-4. Pin "Stellar Planner" from the puzzle-piece menu so the timer is visible.
+4. Pin "Stellar Focus" from the puzzle-piece menu so the timer is visible.
 
 Chrome only installs packed extensions from the Chrome Web Store, so a self-hosted extension stays loaded "unpacked". That is fully functional; Chrome may remind you about developer-mode extensions on startup. To update, replace the folder's contents with the new zip and press the reload arrow on the extension's card.
 
@@ -19,10 +19,10 @@ Chrome only installs packed extensions from the Chrome Web Store, so a self-host
 
 Release versions of Firefox only install signed extensions. Two options:
 
-- **Try it now (temporary).** Open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and select `stellar-planner-firefox.zip`. It stays until Firefox restarts.
+- **Try it now (temporary).** Open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and select `stellar-focus-firefox.zip`. It stays until Firefox restarts.
 - **Install permanently (sign it once).** Signing an unlisted add-on is free and automatic, but needs your own Mozilla account, so it cannot be done for you:
   1. Create API credentials at <https://addons.mozilla.org/developers/addon/api/key/>.
-  2. If you will share the build with anyone else, first change `browser_specific_settings.gecko.id` in `apps/extension/wxt.config.ts` to an ID of your own (for example `stellar-planner@your-domain.com`); add-on IDs are unique on addons.mozilla.org.
+  2. If you will share the build with anyone else, first change `browser_specific_settings.gecko.id` in `apps/extension/wxt.config.ts` to an ID of your own (for example `stellar-focus@your-domain.com`); add-on IDs are unique on addons.mozilla.org.
   3. Build and sign:
 
      ```bash
@@ -66,7 +66,9 @@ Block lists and which of them are active are managed on the app's **Focus** page
 | `tabs`                  | Finds tabs already open on a blocked site when a focus phase starts                                                                                                       |
 | Access to all sites     | A redirect rule only applies to sites the extension has access to, and you can put any site on a block list; the same access lets it call your instance and your Supabase |
 
-The extension talks only to your Stellar Planner instance and your Supabase. It collects nothing and has no analytics.
+The extension talks only to your Stellar Planner instance and your Supabase. Nothing goes to the developer or any third party, and there are no analytics. In Firefox's terms it handles one kind of data, authentication information: the PIN you type and the session it earns are sent to your own instance. Firefox 140 or newer is required, because that is the first version with the built-in data consent new add-ons must use.
+
+Publishing to the Chrome Web Store and addons.mozilla.org: every answer the two stores ask for is in [EXTENSION_STORE.md](EXTENSION_STORE.md), and the privacy policy to link is [EXTENSION_PRIVACY.md](EXTENSION_PRIVACY.md).
 
 ## Limits
 

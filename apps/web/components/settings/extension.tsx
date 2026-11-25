@@ -10,7 +10,7 @@ const PACKAGES = [
   {
     id: "chrome",
     name: "Chrome, Edge, Brave, Arc",
-    file: "/extension/stellar-planner-chrome.zip",
+    file: "/extension/stellar-focus-chrome.zip",
     steps: [
       "Unzip the download.",
       "Open chrome://extensions and turn on Developer mode.",
@@ -20,7 +20,7 @@ const PACKAGES = [
   {
     id: "firefox",
     name: "Firefox",
-    file: "/extension/stellar-planner-firefox.zip",
+    file: "/extension/stellar-focus-firefox.zip",
     steps: [
       "Open about:debugging and choose “This Firefox”.",
       "Choose “Load Temporary Add-on” and pick the zip.",
@@ -58,7 +58,7 @@ export function ExtensionSection() {
     <Section
       id="extension"
       title="Extension"
-      description="The browser extension shows the same focus timer and blocks distracting sites while a focus phase runs. It stays in sync with every other device."
+      description="Stellar Focus, the browser extension, shows the same focus timer and blocks distracting sites while a focus phase runs. It stays in sync with every other device."
     >
       <GroupedList>
         {PACKAGES.map((p) => (

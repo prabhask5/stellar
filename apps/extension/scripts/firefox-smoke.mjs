@@ -12,10 +12,10 @@ import { Builder, By, until } from "selenium-webdriver";
 import firefox from "selenium-webdriver/firefox.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const XPI = path.resolve(here, "../.output/stellarextension-1.0.0-firefox.zip");
+const XPI = path.resolve(here, "../.output/stellar-focus-1.0.0-firefox.zip");
 const APP = process.argv[2] ?? "http://127.0.0.1:3100";
 const PIN = process.argv[3] ?? "246810";
-const GECKO_ID = "stellar-planner@stellar.local";
+const GECKO_ID = "stellar-focus@stellar.local";
 const UUID = "5e1a7000-0000-4000-8000-000000000001";
 // On the seeded "Social" block list (scripts/seed-polish.mts). The request is redirected before it leaves the browser.
 const SITE = "reddit.com";

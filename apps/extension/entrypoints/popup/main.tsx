@@ -511,7 +511,7 @@ function Popup() {
             <Icon d={ICON.back} />
           </button>
         ) : (
-          <span className="popup__brand">Stellar Planner</span>
+          <span className="popup__brand">Stellar Focus</span>
         )}
         {linked && view === "main" && (
           <button
