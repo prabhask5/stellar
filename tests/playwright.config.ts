@@ -29,7 +29,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // No retries, in CI either: a test that passes only on a second attempt is a flaky test,
+  // and it should fail the run rather than hide.
+  retries: 0,
   timeout: 60_000,
   expect: { timeout: 10_000 },
   reporter: process.env.CI

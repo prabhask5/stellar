@@ -59,7 +59,7 @@ Create a file in the right folder; it is picked up by its name. Nothing else nee
 
 A timing assertion compares the best of several samples, not one.
 
-`.only` fails the run in Vitest always and in Playwright on CI.
+`.only` fails the run in Vitest always and in Playwright on CI. There are no retries anywhere: a test that needs a second attempt is flaky, and CI fails on it.
 
 ## Imports
 

@@ -50,12 +50,32 @@ docker compose up -d --build
 
 Mount a volume at `/data` (the compose file does). It holds the encrypted configuration; without it, every redeploy returns to the setup wizard. Anything beyond `localhost` needs HTTPS in front: installing the app, push notifications and offline use all require it.
 
-### Dokploy
+### Deploying on a server
 
-1. **Create Service → Application**, connect this repository, Build Type **Dockerfile** (path `Dockerfile`, context `.`).
-2. **Advanced → Volumes:** add a Volume Mount with mount path `/data`.
-3. **Domains:** add your host, container port `3000`, HTTPS on with Let's Encrypt.
-4. **Deploy**, then open the domain.
+Stellar Planner is one long-running container. Any host that can run a Docker image with a persistent volume works: a VPS, a home server, or a platform that builds from a `Dockerfile` (Fly.io, Railway, Render, Coolify, Dokploy, CapRover and the like). It needs three things:
+
+1. **The image**, built from this repository's `Dockerfile`. It listens on port `3000` and reports health at `/api/health`.
+2. **A persistent volume mounted at `/data`.**
+3. **HTTPS** on your domain, forwarding to port 3000.
+
+On a plain server, for example with [Caddy](https://caddyserver.com) for HTTPS:
+
+```bash
+docker build -t stellar-planner .
+docker run -d --name stellar-planner --restart unless-stopped \
+  -p 127.0.0.1:3000:3000 -v stellar-data:/data stellar-planner
+```
+
+```
+# Caddyfile
+planner.example.com {
+    reverse_proxy 127.0.0.1:3000
+}
+```
+
+On a platform, point it at the repository, choose the Dockerfile build, add a volume at `/data`, set the internal port to `3000` and attach your domain.
+
+**Serverless hosts such as Vercel or Netlify do not fit.** The app keeps its encrypted configuration on disk and runs a background loop that advances the focus timer and sends notifications, and neither survives in functions that start per request.
 
 ### The setup wizard
 

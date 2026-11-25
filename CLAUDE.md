@@ -157,7 +157,7 @@ Semantics that bite:
 All tests are in `tests/` and are found by glob, so adding, renaming or deleting a test file needs no configuration change. Layout, aliases and prerequisites are in [tests/README.md](tests/README.md).
 
 - `tests/unit/**/*.test.ts` and `tests/db/**/*.test.ts`: Vitest projects `unit` and `db` (`tests/vitest.config.ts`).
-- `tests/e2e/*.spec.ts`: Playwright; every spec runs in every project of `tests/playwright.config.ts`, with animations on, and every test ends with the screen-wide invariants in `tests/e2e/support/invariants.ts`.
+- `tests/e2e/*.spec.ts`: Playwright; every spec runs in every project of `tests/playwright.config.ts`, with animations on and no retries (a test that passes only on a second attempt fails the run), and every test ends with the screen-wide invariants in `tests/e2e/support/invariants.ts`.
 - `tests/extension-firefox/smoke.mjs`: Selenium + geckodriver, because Playwright cannot load extensions into Firefox.
 
 CI is `.github/workflows/ci.yml`, on pull requests and pushes to `main`: `static` (format, lint, typecheck, links, and a guard that fails on a test file outside `tests/`), `unit`, `db`, `build` (build, budgets, Docker image), `e2e` (one job per Playwright project; the matrix is read from the Playwright config, so adding a project adds a job), `extension-firefox`, and `required`, which fails unless every other job succeeded. **`required` is the only check branch protection needs**, so jobs can be added or removed without touching repository settings. Never make CI green by weakening a test.
@@ -165,7 +165,7 @@ CI is `.github/workflows/ci.yml`, on pull requests and pushes to `main`: `static
 ## 9. Deployment
 
 - `Dockerfile`: three stages on `node:24-bookworm-slim`; the runtime holds Next's standalone output, static assets and `public/` (including both extension zips), runs as the `node` user, exposes 3000, declares `VOLUME /data` and a health check on `/api/health`. `docker-compose.yml` runs it locally.
-- **Mount `/data`** (encrypted config, generated secret, lockout counters). Without it every redeploy returns to the setup wizard. On Dokploy: an Application built from the Dockerfile, a volume at `/data`, an HTTPS domain on port 3000.
+- **Mount `/data`** (encrypted config, generated secret, lockout counters). Without it every redeploy returns to the setup wizard. Any host that runs the image with a volume at `/data` and HTTPS in front of port 3000 works; serverless platforms (Vercel and the like) do not, because of the on-disk config and the scheduler loop.
 - **No env is required.** Optional overrides, which win over the wizard: `APP_SECRET`, `PUBLIC_APP_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` (see `.env.example`).
 - **`RESET_PIN=true`** clears the PIN on every boot while set and re-keys the hidden owner (signing out every device). Set it, restart, choose a PIN, remove it, restart.
 - **Connecting to Supabase.** The Supabase URL must be the public HTTPS one, because browsers and the extension call it directly. The Postgres connection string is used only by the server (migrations, per-device revoke), so it must be reachable **from the container**: for a Supabase on the same host that usually means its pooler or database service on a shared Docker network, not `localhost`. Without one, migrations go through pg-meta and per-device revoke is hidden.
