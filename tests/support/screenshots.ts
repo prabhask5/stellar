@@ -13,9 +13,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { type Browser, type BrowserContext, chromium, devices, type Page } from "@playwright/test";
 import {
+  applyInsets,
   clearLockout,
   ensureConfigured,
   expect,
+  type Insets,
   PIN,
   signIn,
   sql,
@@ -36,22 +38,20 @@ const MAX_BYTES = 300 * 1024;
 /** Saves a README image as JPEG and fails if it is too heavy to belong in the repository. */
 async function saveReadme(page: Page, name: string): Promise<void> {
   const file = path.join(README, `${name}.jpg`);
-  await page.screenshot({ path: file, type: "jpeg", quality: 82, scale: "css" });
+  await page.screenshot({ path: file, type: "jpeg", quality: 82 });
   expect(statSync(file).size, `${name}.jpg size in bytes`).toBeLessThan(MAX_BYTES);
 }
 
-const SCREENS: [name: string, path: string, ready: (page: Page) => Promise<void>][] = [
-  ["universe", "/", async (page) => expect(page.getByTestId("today-card")).toBeVisible()],
-  ["tasks", "/tasks", async (page) => expect(page.getByTestId("today-tab")).toBeVisible()],
+const SCREENS: [name: string, ready: (page: Page) => Promise<void>][] = [
+  ["universe", async (page) => expect(page.getByTestId("today-card")).toBeVisible()],
+  ["tasks", async (page) => expect(page.getByTestId("today-tab")).toBeVisible()],
   [
     "goals",
-    "/goals",
     async (page) => expect(page.getByRole("button", { name: /^Open Health/ })).toBeVisible(),
   ],
-  ["routines", "/routines", async (page) => expect(page.getByTestId("day-panel")).toBeVisible()],
+  ["routines", async (page) => expect(page.getByTestId("day-panel")).toBeVisible()],
   [
     "focus",
-    "/focus",
     async (page) => {
       await page.getByRole("button", { name: "Start focus" }).click();
       await expect(page.getByTestId("focus")).toHaveAttribute("data-status", "running");
@@ -59,30 +59,38 @@ const SCREENS: [name: string, path: string, ready: (page: Page) => Promise<void>
   ],
 ];
 
+// Headless Chromium draws WebGL in software, for which the app's Auto quality picks the
+// still starfield. Asking for the real GPU gives the pictures the 3D universe.
+const GPU_ARGS =
+  process.platform === "darwin"
+    ? ["--use-angle=metal", "--enable-gpu", "--ignore-gpu-blocklist"]
+    : ["--enable-gpu", "--ignore-gpu-blocklist"];
+
 /** The five main screens in demo mode, in one browser context of the given shape. */
 async function demoTour(
   browser: Browser,
   baseURL: string,
   suffix: string,
-  options: Parameters<Browser["newContext"]>[0],
+  options: NonNullable<Parameters<Browser["newContext"]>[0]>,
+  insets: Insets,
 ): Promise<void> {
   const context = await browser.newContext({ ...options, baseURL, reducedMotion: "no-preference" });
   try {
     await context.addCookies([{ name: "sp-demo", value: "1", url: baseURL }]);
     const page = await context.newPage();
+    await applyInsets(page, insets);
     // The banner is true but not part of the app: these are pictures of the screens.
-    const hideBanner = () =>
-      page.addStyleTag({ content: '[data-testid="demo-banner"] { display: none !important; }' });
-    // The full universe rather than whatever Auto picks for a headless browser. Demo
-    // settings live in the page, so every screen is reached by client-side navigation.
-    await page.goto("/settings");
-    await page.getByRole("radio", { name: /^Cinematic/ }).click();
+    await page.addInitScript(() => {
+      const style = document.createElement("style");
+      style.textContent = '[data-testid="demo-banner"] { display: none !important; }';
+      document.addEventListener("DOMContentLoaded", () => document.head.append(style));
+    });
+    await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Main" }).filter({ visible: true });
-    for (const [name, , ready] of SCREENS) {
-      if (name === "universe") await nav.getByRole("link", { name: "Universe" }).click();
-      else await nav.getByRole("link", { name: new RegExp(`^${name}$`, "i") }).click();
+    for (const [name, ready] of SCREENS) {
+      // Client-side navigation, so the scene behind the pages is drawn once and stays.
+      await nav.getByRole("link", { name: new RegExp(`^${name}$`, "i") }).click();
       await ready(page);
-      await hideBanner();
       // The scene loads when the browser is idle and fades in once it has drawn a frame.
       await page
         .locator('.sp-universe[data-ready="true"]')
@@ -137,11 +145,23 @@ test.describe("screenshots", () => {
     await ensureConfigured(request);
   });
 
-  test("README: the app in demo mode, desktop and iPhone", async ({ browser, baseURL }) => {
+  test("README: the app in demo mode, desktop and iPhone", async ({ baseURL }) => {
     test.setTimeout(240_000);
-    await demoTour(browser, baseURL!, "desktop", { viewport: SIZE, deviceScaleFactor: 1 });
-    const { defaultBrowserType: _, ...iphone } = devices["iPhone 15 Pro"];
-    await demoTour(browser, baseURL!, "iphone", iphone);
+    const browser = await chromium.launch({ args: GPU_ARGS });
+    try {
+      await demoTour(browser, baseURL!, "desktop", { viewport: SIZE }, "none");
+      // The installed app on an iPhone 15 Pro: the full screen, with the Dynamic Island inset.
+      const { defaultBrowserType: _, ...iphone } = devices["iPhone 15 Pro"];
+      await demoTour(
+        browser,
+        baseURL!,
+        "iphone",
+        { ...iphone, viewport: { width: 393, height: 852 }, deviceScaleFactor: 2 },
+        "island",
+      );
+    } finally {
+      await browser.close();
+    }
   });
 
   test("store listing: the extension popup, block page, connect screen and block lists", async ({

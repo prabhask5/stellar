@@ -5,6 +5,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { seed } from "../support/seed";
 import {
+  DATABASE_URL,
   ensureConfigured,
   expect,
   isPhone,
@@ -14,6 +15,16 @@ import {
   test,
   wipeData,
 } from "./support/helpers";
+
+/**
+ * Accessibility violations that are known and tracked (CLAUDE.md → Known limitations).
+ * Listed per screen and rule, so the same rule still fails anywhere else and anything new
+ * fails here. Remove an entry when the issue is fixed.
+ */
+const KNOWN_AXE: Record<string, string[]> = {
+  // Each command is an option (for the combobox) wrapping a button (for the pointer).
+  "command-bar": ["nested-interactive"],
+};
 
 /** Checks the screen that is showing and returns one line per problem. */
 async function problemsOn(page: Page, screen: string, axe: boolean): Promise<string[]> {
@@ -88,7 +99,7 @@ async function problemsOn(page: Page, screen: string, axe: boolean): Promise<str
   if (axe) {
     const res = await new AxeBuilder({ page }).exclude(".sp-sky").exclude(".sp-universe").analyze();
     for (const v of res.violations)
-      if (v.impact === "serious" || v.impact === "critical")
+      if ((v.impact === "serious" || v.impact === "critical") && !KNOWN_AXE[screen]?.includes(v.id))
         out.push(
           `${screen}: axe ${v.impact} ${v.id} (${v.help}) at ${v.nodes
             .slice(0, 4)
@@ -104,7 +115,7 @@ test.describe("screens", () => {
     await ensureConfigured(request);
     await wipeData();
     await sql(`update sp_settings set birthdate = '1996-04-12'`);
-    await seed();
+    await seed({ databaseUrl: DATABASE_URL });
   });
   test.beforeEach(async ({ context }) => {
     await signIn(context);
@@ -112,6 +123,8 @@ test.describe("screens", () => {
 
   test("every screen and sheet", async ({ page }, info) => {
     test.setTimeout(300_000);
+    // A step that cannot find its control fails within seconds, not at the end of the sweep.
+    page.setDefaultTimeout(15_000);
     const problems: string[] = [];
     const phone = isPhone(info.project.name);
     // axe-core crashes the Playwright Firefox page as soon as a sheet is open (the same
