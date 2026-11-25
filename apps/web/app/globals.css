@@ -454,6 +454,12 @@ html[data-tier="minimal"] .sp-sky__stars--twinkle {
   min-height: 100dvh;
 }
 
+/* iOS installed app started with a viewport shorter than the screen: a document taller than
+   the screen makes WebKit measure the viewport again (see useSettledViewport). */
+html.sp-short-viewport {
+  min-height: calc(var(--screen-h, 100vh) + 1px);
+}
+
 /* Input-modality variants: keypads for touch, keyboard hints for precise pointers. */
 @custom-variant touch (@media (pointer: coarse));
 @custom-variant mouse (@media (hover: hover) and (pointer: fine));

@@ -46,7 +46,7 @@ Write anything that feels off into `docs/polish/FRICTION_LOG.md`. Each step says
 14. Scroll any long page. **Good:** the system's own momentum and bounce, no stutter, and the background universe does not hitch the scroll.
 15. On Tasks, scroll down. **Good:** the large "Tasks" title gives way to a small centred title in a glass bar at the top; scrolling back restores the large one.
 16. Tasks → All, scroll down, tap Goals, tap Tasks. **Good:** Tasks opens on Today at the top (tabs no longer remember where they were). Scroll down and tap Tasks again: it scrolls to the top.
-17. Cold-start the app from the Home Screen on the Universe tab. **Good:** no white flash, and the tab bar sits at the bottom from the first frame (in QA round 1 it floated too high until the first navigation; the fix could not be verified off-device).
+17. Cold-start the app from the Home Screen on the Universe tab. **Good:** no white flash, and the tab bar sits at the bottom from the first frame (in QA round 1 it floated too high until the first navigation; the second fix, which makes the document taller than the screen while the window is short, could not be verified off-device either). If it still floats, note whether the page can be scrolled a little at that moment.
 
 ## 5. Keyboard and forms (2 min)
 
