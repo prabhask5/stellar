@@ -8,6 +8,14 @@ const baseURL = `http://127.0.0.1:${PORT}`;
 const DATA_DIR = path.resolve(here, "e2e", process.env.E2E_DATA_DIR ?? ".tmp/data");
 
 /**
+ * WebKit on Linux paints in software. At the iPhones' 3× pixel density it manages about one
+ * frame a second on these pages (38 at 1×, measured in Playwright's image), which stalls
+ * clicks and, in landscape, the whole page. What the specs check is laid out in CSS pixels,
+ * so on Linux the WebKit projects render at 1×. On macOS they keep the real density.
+ */
+const webkitOnLinux = process.platform === "linux" ? { deviceScaleFactor: 1 } : {};
+
+/**
  * Every spec in tests/e2e runs in every project below, against the production standalone
  * build and the local stack (`pnpm stack:up`). WebKit with the iPhone descriptors is the
  * closest automated proxy for iOS Safari and the primary mobile target; the Chromium phone
@@ -55,7 +63,12 @@ export default defineConfig({
     },
     {
       name: "webkit-iphone-15-pro",
-      use: { ...devices["iPhone 15 Pro"], browserName: "webkit", defaultBrowserType: "webkit" },
+      use: {
+        ...devices["iPhone 15 Pro"],
+        browserName: "webkit",
+        defaultBrowserType: "webkit",
+        ...webkitOnLinux,
+      },
     },
     {
       name: "webkit-iphone-se",
@@ -64,6 +77,7 @@ export default defineConfig({
         viewport: { width: 375, height: 667 },
         browserName: "webkit",
         defaultBrowserType: "webkit",
+        ...webkitOnLinux,
       },
     },
     {
@@ -74,6 +88,7 @@ export default defineConfig({
         viewport: { width: 852, height: 393 },
         browserName: "webkit",
         defaultBrowserType: "webkit",
+        ...webkitOnLinux,
       },
     },
     {
