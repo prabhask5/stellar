@@ -219,6 +219,39 @@ test.describe("PWA", () => {
     await expect(page.getByText("New version available")).toBeVisible();
     await expect(page.getByRole("button", { name: "Reload" })).toBeVisible();
   });
+
+  test("a first install never announces a new version", async ({ page }) => {
+    await page.goto("/");
+    await waitForServiceWorker(page);
+    // A first install, in the order a browser can deliver it: the worker is found while
+    // nothing controls the page, and it has taken control by the time "installed" is heard.
+    await page.evaluate(async () => {
+      const reg = (await navigator.serviceWorker.getRegistration()) as ServiceWorkerRegistration;
+      let controlled = false;
+      let installed: () => void = () => undefined;
+      const real = navigator.serviceWorker.controller;
+      Object.defineProperty(navigator.serviceWorker, "controller", {
+        configurable: true,
+        get: () => (controlled ? real : null),
+      });
+      Object.defineProperty(reg, "installing", {
+        configurable: true,
+        get: () => ({
+          state: "installed",
+          addEventListener: (_: string, cb: () => void) => (installed = cb),
+        }),
+      });
+      reg.dispatchEvent(new Event("updatefound"));
+      Object.defineProperty(reg, "waiting", {
+        configurable: true,
+        get: () => ({ postMessage: () => undefined }),
+      });
+      controlled = true;
+      installed();
+    });
+    await page.waitForTimeout(500);
+    await expect(page.getByText("New version available")).toHaveCount(0);
+  });
 });
 
 interface Device {
