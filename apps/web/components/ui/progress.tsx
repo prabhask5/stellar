@@ -13,6 +13,8 @@ export interface ProgressBarProps {
   className?: string;
   /** Text read by screen readers instead of the percentage, e.g. "5 of 8 glasses". */
   valueText?: string;
+  /** A CSS colour for the fill, in place of `tone`. */
+  color?: string;
 }
 
 const TONE = { accent: "bg-accent", violet: "bg-violet", white: "bg-fg" } as const;
@@ -24,6 +26,7 @@ export function ProgressBar({
   tone = "accent",
   className,
   valueText,
+  color,
 }: ProgressBarProps) {
   const p = pct(value);
   return (
@@ -38,10 +41,10 @@ export function ProgressBar({
     >
       <div
         className={cx(
-          "h-full rounded-full transition-[width] duration-[350ms] ease-out",
-          TONE[tone],
+          "h-full rounded-full transition-[width,background-color] duration-[350ms] ease-out",
+          !color && TONE[tone],
         )}
-        style={{ width: `${p}%` }}
+        style={{ width: `${p}%`, backgroundColor: color }}
       />
     </div>
   );
@@ -56,6 +59,8 @@ export interface ProgressRingProps {
   glow?: boolean;
   className?: string;
   trackOpacity?: number;
+  /** A CSS colour for the arc; the accent by default. */
+  color?: string;
 }
 
 /** Circular progress drawn clockwise from 12 o'clock. */
@@ -68,6 +73,7 @@ export function ProgressRing({
   glow,
   className,
   trackOpacity = 0.1,
+  color = "var(--sp-accent)",
 }: ProgressRingProps) {
   const v = Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
   const r = (size - stroke) / 2;
@@ -103,12 +109,12 @@ export function ProgressRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="var(--sp-accent)"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - v)}
-          className="transition-[stroke-dashoffset] duration-[350ms] ease-out"
+          className="transition-[stroke-dashoffset,stroke] duration-[350ms] ease-out"
+          style={{ stroke: color }}
         />
       </svg>
       {children && <span className="relative">{children}</span>}

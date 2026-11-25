@@ -102,6 +102,27 @@ test.describe("routines", () => {
     const panel = page.getByTestId("day-panel").first();
     const ring = page.getByTestId("month-calendar").locator(`[data-date="${t}"]`);
     await expect(panel.getByTestId("day-percent")).toHaveText("0%");
+    // The summary: ring and number on a phone, number and bar on a desktop; the whole box
+    // takes the day's colour, red at nothing done to green at everything done.
+    const summary = panel.getByTestId("day-summary");
+    const wide = page.viewportSize()!.width >= 1024;
+    await expect(summary).toHaveAttribute("data-layout", wide ? "desktop" : "phone");
+    await expect(summary).toContainText("0 of 2 done");
+    const look = () =>
+      panel.evaluate((el) => {
+        const number = el.querySelector('[data-testid="day-percent"]')!;
+        const box = el.getBoundingClientRect();
+        const n = number.getBoundingClientRect();
+        return {
+          tint: getComputedStyle(el).backgroundImage,
+          number: getComputedStyle(number).color,
+          inside: n.left >= box.left && n.right <= box.right,
+          overflow: el.scrollWidth - el.clientWidth,
+        };
+      });
+    const empty = await look();
+    expect(empty.tint).toContain("gradient");
+    expect(empty.inside && empty.overflow <= 0, JSON.stringify(empty)).toBe(true);
 
     await panel.getByRole("checkbox", { name: "Complete “Meditate”" }).click();
     await expect(panel.getByTestId("day-percent")).toHaveText("50%");
@@ -121,6 +142,11 @@ test.describe("routines", () => {
     await panel.getByLabel("Water amount").press("Enter");
     await expect(panel.getByTestId("day-percent")).toHaveText("100%");
     await expect(ring).toHaveAttribute("data-percent", "100");
+    await expect(summary).toContainText("All done");
+    await page.waitForTimeout(400);
+    const full = await look();
+    expect(full.number, "the colour did not change with progress").not.toBe(empty.number);
+    expect(full.tint).not.toBe(empty.tint);
 
     // Un-checking drops the day below 100%.
     await panel.getByRole("checkbox", { name: /Meditate/ }).click();

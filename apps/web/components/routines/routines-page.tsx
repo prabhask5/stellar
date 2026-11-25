@@ -107,9 +107,7 @@ export function RoutinesPage() {
             />
           </GlassCard>
           <div className="flex min-w-0 flex-col gap-4">
-            <GlassCard radius="card" className="px-4 pb-2 pt-4">
-              <DayPanel date={inlineDate} today={today} routines={sorted} logs={logs} />
-            </GlassCard>
+            <DayPanel date={inlineDate} today={today} routines={sorted} logs={logs} />
             <ManageRoutines routines={sorted} logs={logs} today={today} weekStart={weekStart} />
           </div>
         </div>
