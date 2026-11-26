@@ -10,7 +10,7 @@ import {
   todayStats,
   zonedParts,
 } from "@stellar/shared";
-import { clearHover, orbitBy, pickAt, setDragging, zoomBy } from "@stellar/universe/store";
+import { sendStageInput } from "@stellar/universe/state";
 import Link from "next/link";
 import { type ComponentType, useEffect, useMemo, useRef, useState } from "react";
 import { TaskRow } from "@/components/tasks/task-row";
@@ -51,7 +51,7 @@ function StatTile({
 
 const small = "text-[13px] font-medium text-fg-2";
 
-/** Universe home: greeting and the glass Today card over the interactive sky. */
+/** Universe home: greeting and the glass Today card over the interactive galaxy. */
 export function Home() {
   // The "Add to Home Screen" hint only exists for iOS Safari, so only iOS fetches it, and
   // straight away rather than when idle (it is the largest text on a first visit).
@@ -113,13 +113,15 @@ export function Home() {
 
   return (
     <main
-      className="flex min-h-dvh flex-col px-safe"
+      className="relative flex min-h-dvh flex-col px-safe"
       style={{
         paddingTop: "calc(max(16px, var(--sat)) + 20px)",
         paddingBottom: "var(--bottom-clearance)",
       }}
     >
-      <header className="flex items-start justify-between gap-4">
+      {/* The sky is behind everything on this page, and interactive here only. */}
+      <UniverseStage />
+      <header className="pointer-events-none relative flex items-start justify-between gap-4 [&_a]:pointer-events-auto">
         <div className="min-w-0">
           <p className="eyebrow text-fg-2">{mounted ? formatLongDate(today) : " "}</p>
           <h1 className="mt-1 text-large-title">{mounted ? greetingFor(hour) : " "}</h1>
@@ -133,15 +135,15 @@ export function Home() {
         </Link>
       </header>
 
-      {/* The sky fills this space; it is interactive on this page only. */}
-      <UniverseStage />
+      {/* The galaxy shows through this gap. */}
+      <div className="pointer-events-none min-h-[120px] flex-1" data-universe-gap />
 
       {Hint && <Hint />}
       <GlassCard
         radius="hero"
         as="section"
         aria-labelledby="today-title"
-        className="w-full max-w-[460px] p-5 md:mb-2"
+        className="relative w-full max-w-[460px] p-5 md:mb-2"
         data-testid="today-card"
       >
         <div className="mb-3 flex items-center justify-between">
@@ -201,24 +203,17 @@ export function Home() {
 }
 
 /**
- * The open sky on the Universe home. Drag to orbit, pinch or scroll to zoom
- * (it eases back to the default framing), hover or tap a planet or a
- * constellation to see what it stands for.
+ * The open sky on the Universe home: the whole page behind the greeting and the Today card.
+ * Drag to orbit, pinch or scroll to zoom, double tap to return to the designed view. It is
+ * only there to be looked at: nothing in the galaxy is a control.
  */
 function UniverseStage() {
   const pointers = useRef(new Map<number, { x: number; y: number }>());
-  const moved = useRef(0);
   const pinch = useRef(0);
-  const labelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const moved = useRef(0);
+  const lastTap = useRef({ at: 0, x: 0, y: 0 });
 
-  useEffect(
-    () => () => {
-      setDragging(false);
-      clearHover();
-      if (labelTimer.current) clearTimeout(labelTimer.current);
-    },
-    [],
-  );
+  useEffect(() => () => sendStageInput({ type: "release" }), []);
 
   const spread = () => {
     const [a, b] = [...pointers.current.values()];
@@ -227,57 +222,51 @@ function UniverseStage() {
 
   return (
     <div
-      className="min-h-[120px] flex-1 cursor-grab touch-none select-none active:cursor-grabbing"
+      className="absolute inset-0 cursor-grab touch-none select-none active:cursor-grabbing"
       data-universe-stage
       role="img"
-      aria-label="Your universe. Drag to look around."
+      aria-label="A spiral galaxy. Drag to look around."
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
         pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        moved.current = 0;
         pinch.current = spread();
-        setDragging(true);
+        moved.current = 0;
+        if (pointers.current.size === 1) sendStageInput({ type: "grab" });
       }}
       onPointerMove={(e) => {
         const prev = pointers.current.get(e.pointerId);
-        if (!prev) {
-          // Hover with a mouse: show the label of whatever is under the pointer.
-          if (e.pointerType === "mouse") pickAt(e.clientX, e.clientY);
-          return;
-        }
+        if (!prev) return;
         pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pointers.current.size >= 2) {
           const d = spread();
-          if (pinch.current > 0 && d > 0) zoomBy(d / pinch.current);
+          if (pinch.current > 0 && d > 0)
+            sendStageInput({ type: "zoom", factor: d / pinch.current });
           pinch.current = d;
         } else {
           const dx = e.clientX - prev.x;
           const dy = e.clientY - prev.y;
           moved.current += Math.abs(dx) + Math.abs(dy);
-          orbitBy(dx, dy);
+          sendStageInput({ type: "drag", dx, dy });
         }
       }}
       onPointerUp={(e) => {
         pointers.current.delete(e.pointerId);
         pinch.current = spread();
-        if (pointers.current.size === 0) {
-          setDragging(false);
-          // A tap (not a drag) selects what is under it; the label fades after a moment on touch.
-          if (moved.current < 8) {
-            const hit = pickAt(e.clientX, e.clientY);
-            if (labelTimer.current) clearTimeout(labelTimer.current);
-            if (hit && e.pointerType !== "mouse") labelTimer.current = setTimeout(clearHover, 2600);
-          }
-        }
+        if (pointers.current.size > 0) return;
+        sendStageInput({ type: "release" });
+        if (moved.current >= 8) return;
+        // Two taps close together in time and place: back to the designed view.
+        const tap = lastTap.current;
+        const again =
+          e.timeStamp - tap.at < 350 && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 32;
+        lastTap.current = { at: again ? 0 : e.timeStamp, x: e.clientX, y: e.clientY };
+        if (again) sendStageInput({ type: "reset" });
       }}
       onPointerCancel={(e) => {
         pointers.current.delete(e.pointerId);
-        if (pointers.current.size === 0) setDragging(false);
+        if (pointers.current.size === 0) sendStageInput({ type: "release" });
       }}
-      onPointerLeave={(e) => {
-        if (e.pointerType === "mouse" && !pointers.current.has(e.pointerId)) clearHover();
-      }}
-      onWheel={(e) => zoomBy(e.deltaY < 0 ? 1.08 : 0.93)}
+      onWheel={(e) => sendStageInput({ type: "zoom", factor: Math.exp(-e.deltaY * 0.0012) })}
     />
   );
 }

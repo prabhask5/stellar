@@ -10,7 +10,6 @@ import {
   queryClient,
   removeRow,
   rowId,
-  touchUniverse,
   upsertRow,
 } from "../cache";
 import { isDemo } from "../demo";
@@ -18,13 +17,6 @@ import { configureOutbox, enqueue, hasPending, type QueuedOp } from "../outbox";
 import { readMeta, serverNow, setServerSkew } from "../session";
 import { describeError, getSupabase } from "../supabase";
 import { toastError } from "../toast";
-
-export const SCORING_TABLES: ReadonlySet<string> = new Set([
-  "sp_tasks",
-  "sp_goals",
-  "sp_routine_logs",
-  "sp_focus_sessions",
-]);
 
 const ZONE_KEY = "sp-timezone";
 
@@ -294,7 +286,6 @@ export function insertRow<T extends CollectionTable>(
 ): void {
   upsertRow(table, row);
   enqueue({ kind: "insert", table, row: send });
-  if (SCORING_TABLES.has(table)) touchUniverse();
 }
 
 /** Patches a row locally and queues the update. Returns the row as it was, for Undo. */
@@ -306,7 +297,6 @@ export function updateRow<T extends CollectionTable>(
   const before = patchRow(table, id, { ...patch, updated_at: nowIso() } as Partial<Collections[T]>);
   if (!before) return null;
   enqueue({ kind: "update", table, id, patch: patch as Record<string, unknown> });
-  if (SCORING_TABLES.has(table)) touchUniverse();
   return before;
 }
 
@@ -360,7 +350,6 @@ function applyTimerResult(result: unknown): void {
   if (result.ok === false) void queryClient.invalidateQueries({ queryKey: keys.focus });
   if (result.session) {
     void queryClient.invalidateQueries({ queryKey: keys.table("sp_focus_sessions") });
-    touchUniverse();
   }
 }
 
@@ -380,7 +369,6 @@ function onSuccess(item: QueuedOp, result: unknown): void {
       if (isRow(result) && !hasPending(`sp_routine_logs:${op.routine_id}:${op.date}`)) {
         upsertRow("sp_routine_logs", result as unknown as RoutineLog);
       }
-      touchUniverse();
       return;
     }
     case "update_singleton": {
@@ -400,7 +388,6 @@ function onSuccess(item: QueuedOp, result: unknown): void {
       // sp_goal_increment answers with the goal as the server now has it.
       if (op.fn === "sp_goal_increment" && isRow(result) && typeof result.id === "string") {
         if (!hasPending(`sp_goals:${result.id}`)) upsertRow("sp_goals", result as unknown as Goal);
-        touchUniverse();
       }
       return;
     }
@@ -436,7 +423,6 @@ function refreshAfter(op: QueuedOp["op"]): void {
     if (tables.size === 0) void queryClient.invalidateQueries();
     for (const t of tables) reloadFromServer(t);
   }
-  touchUniverse();
 }
 
 function onError(item: QueuedOp, error: unknown): void {

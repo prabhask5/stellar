@@ -63,8 +63,8 @@ export function ManageRoutines({ routines, logs, today, weekStart }: ManageRouti
           <div className="border-t border-separator">
             {sorted.length === 0 ? (
               <EmptyState
-                title="No constellations yet."
-                body="A routine repeats on the days you choose. Each completed day lights a star."
+                title="Nothing in orbit yet."
+                body="A routine repeats on the days you choose. Each one you check off sends a star into the galaxy."
                 className="py-7"
               />
             ) : (

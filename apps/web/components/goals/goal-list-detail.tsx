@@ -205,8 +205,8 @@ export function GoalListDetail({ list, index, goals, onBack }: GoalListDetailPro
       {sorted.length === 0 ? (
         <div className="glass rounded-list">
           <EmptyState
-            title="A system waiting to form."
-            body="Add the first goal. Each one becomes a planet that grows as you make progress."
+            title="A planet waiting to grow."
+            body="Add the first goal. This list's planet grows as you make progress."
             action={
               <Button variant="primary" onClick={() => setAdding(true)}>
                 New goal

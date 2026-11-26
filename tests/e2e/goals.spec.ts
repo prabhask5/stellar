@@ -84,7 +84,7 @@ test.describe("goals", () => {
     await page.getByRole("button", { name: "Add goal list" }).click();
     await page.getByRole("button", { name: "Open Reading" }).click();
     const detail = page.getByTestId("goal-list-detail");
-    await expect(detail.getByText("A system waiting to form.")).toBeVisible();
+    await expect(detail.getByText("A planet waiting to grow.")).toBeVisible();
 
     // A todo goal and a progress goal.
     await detail.getByRole("button", { name: "New goal" }).first().click();

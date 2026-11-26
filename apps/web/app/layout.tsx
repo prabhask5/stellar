@@ -21,7 +21,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: { default: "Stellar Planner", template: "%s · Stellar Planner" },
-  description: "Tasks, goals, routines and focus, in a universe that grows with you.",
+  description: "Tasks, goals, routines and focus, with a galaxy of your own behind them.",
   applicationName: "Stellar Planner",
   appleWebApp: {
     capable: true,

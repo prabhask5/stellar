@@ -1,10 +1,10 @@
 # Stellar Planner
 
-A self-hosted personal planner where finishing things builds a universe. Tasks, long-term goals, daily routines and a focus timer, in one calm, fast app that you run yourself on top of your own Supabase.
+A self-hosted personal planner with a galaxy behind it. Tasks, long-term goals, daily routines and a focus timer, in one calm, fast app that you run yourself on top of your own Supabase.
 
 **[Try the demo → planner.prabhas.io/demo](https://planner.prabhas.io/demo)**
 
-![The Universe home: your tasks, goals and routines drawn as a galaxy, with today's summary](.github/assets/screenshots/universe-desktop.jpg)
+![The Universe home: a spiral galaxy you can turn and zoom, with today's summary](.github/assets/screenshots/universe-desktop.jpg)
 
 ## Screenshots
 
@@ -28,7 +28,7 @@ A self-hosted personal planner where finishing things builds a universe. Tasks, 
 - **Goals.** Todo and progress goals in lists, upcoming events with a live countdown, and progress bars for your day, week, month, year and life.
 - **Routines.** Daily, weekday or every-N-days habits with a month calendar, per-day rings and streaks.
 - **Focus.** A Pomodoro timer that every device shares in real time, with stats and push notifications when a phase ends.
-- **Your universe.** Every completed task is a star, every goal a planet, every routine a constellation, in a 3D galaxy behind the app.
+- **Your universe.** A spiral galaxy of up to 190,000 stars turns behind the app, and answers what you do: a finished task is a shooting star into one of its arms, a completed focus session a flare from its core. It is live on every page and drawn off the main thread, so it never slows a tap or a scroll.
 - **Built iPhone-first.** Installable to the Home Screen, aware of the Dynamic Island and home indicator, instant and usable offline.
 - **One owner, one PIN.** No accounts. Your data lives in your own Postgres, protected by row-level security.
 
@@ -141,7 +141,7 @@ apps/extension       Stellar Focus, the Chrome and Firefox extension
 packages/shared      Logic shared by both apps: dates, recurrence, timer, schemas
 packages/db          SQL migrations, migration runner, table types
 packages/ui-tokens   Design tokens → CSS variables and Tailwind theme
-packages/universe    The 3D universe and cosmic events
+packages/universe    The galaxy (a WebGL2 renderer in a worker) and its cosmic events
 dev/                 Local Supabase stacks for development and tests
 tests/               Every test: unit, db, e2e, Firefox extension
 ```

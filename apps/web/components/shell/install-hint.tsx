@@ -25,7 +25,7 @@ export function InstallHint() {
   if (!eligible || dismissed === "1") return null;
   return (
     <aside
-      className="glass mb-3 flex w-full max-w-[460px] items-center gap-3 rounded-list py-2 pl-4 pr-1.5"
+      className="glass relative mb-3 flex w-full max-w-[460px] items-center gap-3 rounded-list py-2 pl-4 pr-1.5"
       aria-label="Install"
       data-testid="install-hint"
     >

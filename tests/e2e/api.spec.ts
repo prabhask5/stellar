@@ -68,7 +68,6 @@ test.describe("REST API v1", () => {
       "/routines",
       "/focus/state",
       "/block-lists",
-      "/universe/snapshot",
       "/quotes",
       "/settings",
       "/export",
@@ -306,12 +305,8 @@ test.describe("REST API v1", () => {
     expect((await api.del(`/goals/${todo.body.id}`)).status).toBe(200);
     expect((await api.get("/goals")).body.data).toHaveLength(1);
 
-    // Completing things shows up in the universe.
-    const universe = await api.get("/universe/snapshot");
-    expect(universe.status).toBe(200);
-    expect(universe.body.planets).toHaveLength(1);
-    expect(universe.body).not.toHaveProperty("era");
-    expect(universe.body).not.toHaveProperty("total");
+    // The universe is a backdrop drawn in the browser: it has no API.
+    expect((await api.get("/universe/snapshot")).status).toBe(404);
   });
 
   test("routines: schedule, per-day instances, logging", async ({ request }) => {

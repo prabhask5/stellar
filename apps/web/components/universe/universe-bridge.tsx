@@ -1,46 +1,37 @@
 "use client";
 
-import { universeStore } from "@stellar/universe/store";
+import { isBlockingActive } from "@stellar/shared";
+import { setUniverseState } from "@stellar/universe/state";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { useFocus, useSettings, useUniverse } from "@/lib/client/data/hooks";
+import { useFocus, useSettings } from "@/lib/client/data/hooks";
 
 /**
- * Feeds the universe from the signed-in app: the snapshot, the quality
- * setting, which page is showing, and whether a focus phase is running.
- * It renders nothing, and the canvas reads the store imperatively.
+ * Tells the universe about the signed-in app: which page is showing, the quality setting,
+ * and whether a focus phase is on. It renders nothing; the layer reads the state it writes.
  */
 export function UniverseBridge() {
   const pathname = usePathname();
-  const snapshot = useUniverse();
-  const settings = useSettings();
-  const focus = useFocus();
+  const quality = useSettings()?.quality_tier;
+  const focus = useFocus()?.state;
+  const focusing = Boolean(focus && isBlockingActive(focus));
 
   useEffect(() => {
-    universeStore.setState({ mode: pathname === "/" ? "home" : "page" });
+    setUniverseState({ active: true, pathname });
   }, [pathname]);
 
-  useEffect(
-    () => () => {
-      universeStore.setState({ mode: "off", hover: null });
-    },
-    [],
-  );
+  useEffect(() => () => setUniverseState({ active: false }), []);
 
   useEffect(() => {
-    if (snapshot) universeStore.setState({ snapshot });
-  }, [snapshot]);
+    if (!quality) return;
+    setUniverseState({ setting: quality });
+    // The lightest tier also drops the interface's blur, before the renderer has loaded.
+    if (quality === "minimal") document.documentElement.dataset.tier = "low";
+  }, [quality]);
 
   useEffect(() => {
-    if (settings) universeStore.setState({ setting: settings.quality_tier });
-  }, [settings?.quality_tier]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const ambient = Boolean(
-    focus && focus.state.phase === "focus" && focus.state.status === "running",
-  );
-  useEffect(() => {
-    universeStore.setState({ focusAmbient: ambient });
-  }, [ambient]);
+    setUniverseState({ focusing });
+  }, [focusing]);
 
   return null;
 }

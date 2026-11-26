@@ -27,6 +27,7 @@ const { count, size, warnings } = await injectManifest({
   globPatterns: [
     ".next/static/**/*.{js,css,woff2}",
     "public/icons/*.png",
+    "public/universe-worker.js",
     "public/emoji/en/*.json",
   ],
   globIgnores: ["**/*.map"],

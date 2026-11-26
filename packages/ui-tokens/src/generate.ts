@@ -25,6 +25,20 @@ export interface Tokens {
     pressScale: number;
   };
   layout: Record<string, number>;
+  universe: UniverseTokens;
+}
+
+/** Colours of the galaxy and its events. Read by `packages/universe`, never emitted as CSS. */
+export interface UniverseTokens {
+  bg: string;
+  young: string;
+  disk: string;
+  bulge: string;
+  hii: string;
+  core: string;
+  /** How strongly the dust lanes absorb, 0…1. */
+  dust: number;
+  fx: Record<"done" | "born" | "gone" | "focus" | "goal" | "routine" | "comet", string>;
 }
 
 const HEADER = "Generated from packages/ui-tokens/tokens.json. Do not edit by hand.";

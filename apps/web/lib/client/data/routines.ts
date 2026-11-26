@@ -1,15 +1,9 @@
 import type { Routine, RoutineLog } from "@stellar/db";
-import {
-  computeStreak,
-  dayCompletion,
-  isScheduled,
-  rankAtEnd,
-  type RoutineSchedule,
-} from "@stellar/shared";
+import { dayCompletion, isScheduled, rankAtEnd, type RoutineSchedule } from "@stellar/shared";
 import { emitCosmic, type ScreenPoint } from "@stellar/universe/bus";
-import { findRow, getRows, patchRow, removeRow, setRows, touchUniverse, upsertRow } from "../cache";
+import { findRow, getRows, patchRow, removeRow, setRows, upsertRow } from "../cache";
 import { enqueue } from "../outbox";
-import { currentToday, currentUserId, insertRow, newId, nowIso } from "./core";
+import { currentUserId, insertRow, newId, nowIso } from "./core";
 
 export interface RoutineInput {
   name: string;
@@ -59,7 +53,6 @@ export function createRoutine(input: RoutineInput): Routine {
     updated_at: now,
   };
   insertRow("sp_routines", row, { id: row.id, ...fields, sort_order: row.sort_order });
-  touchUniverse();
   return row;
 }
 
@@ -83,7 +76,6 @@ export function updateRoutine(id: string, input: RoutineInput): void {
       ),
   );
   enqueue({ kind: "update", table: "sp_routines", id, patch: fields });
-  touchUniverse();
 }
 
 /** Hard delete: removes the routine and all of its history. The UI confirms first. */
@@ -91,7 +83,6 @@ export function deleteRoutine(id: string): void {
   if (!removeRow("sp_routines", id)) return;
   setRows("sp_routine_logs", (logs) => logs.filter((l) => l.routine_id !== id));
   enqueue({ kind: "delete", table: "sp_routines", id });
-  touchUniverse();
 }
 
 function logsFor(date: string): RoutineLog[] {
@@ -115,15 +106,6 @@ export function dayFraction(date: string): number | null {
   return dayCompletion(instances);
 }
 
-function streakOf(routine: Routine, today: string): number {
-  const done = new Set(
-    getRows("sp_routine_logs")
-      .filter((l) => l.routine_id === routine.id && l.completed)
-      .map((l) => l.date),
-  );
-  return computeStreak(routine as RoutineSchedule, (d) => done.has(d), today);
-}
-
 /**
  * Records one day's result. Todo routines take `completed`; progress routines
  * take `amount` and complete when it reaches the total. Past days are editable.
@@ -138,12 +120,7 @@ export function setRoutineLog(
   if (!routine || !isScheduled(routine as RoutineSchedule, date)) return;
   const key = `${routineId}:${date}`;
   const existing = findRow("sp_routine_logs", key);
-  const today = currentToday();
   const wasDayComplete = (dayFraction(date) ?? 0) >= 1;
-  const wasBroken =
-    date === today &&
-    streakOf(routine, today) === 0 &&
-    getRows("sp_routine_logs").some((l) => l.routine_id === routineId && l.completed);
 
   let completed: boolean;
   let amount: number;
@@ -175,11 +152,9 @@ export function setRoutineLog(
     completed: routine.type === "todo" ? completed : null,
     amount: routine.type === "progress" ? amount : null,
   });
-  touchUniverse();
 
   if (completed && !(existing?.completed ?? false)) {
-    emitCosmic({ type: "routine_instance", routineId, origin });
-    if (wasBroken) emitCosmic({ type: "streak_rekindled", routineId });
+    emitCosmic({ type: "routine_checked", id: routineId, origin });
     if (!wasDayComplete && (dayFraction(date) ?? 0) >= 1)
       emitCosmic({ type: "routine_day_complete", date });
   }

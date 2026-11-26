@@ -1,6 +1,6 @@
 // Native-feel behaviour: instant press feedback,
 // chrome that cannot be selected, 44px hit areas, the large-title bar, sheet and row
-// gestures, the universe yielding to interaction, and coming
+// gestures, and coming
 // back where you left off.
 import type { Page } from "@playwright/test";
 import {
@@ -274,23 +274,5 @@ test.describe("native feel", () => {
     const viewport = page.viewportSize()!;
     await swipe(page, { x: viewport.width / 2, y: viewport.height * 0.7 }, 0, -160, 8);
     await expect(name).not.toBeFocused();
-  });
-
-  test("the universe holds its frame while the page is being scrolled", async ({ page }) => {
-    await seedTasks(40);
-    await page.goto("/tasks?tab=all");
-    await page.getByRole("radio", { name: "All", exact: true }).click();
-    await expect(page.getByTestId("all-tab")).toContainText("Task 40");
-    const yielding = () =>
-      page.evaluate(() =>
-        (
-          window as unknown as { __stellarUniverse: { yielding: () => number } }
-        ).__stellarUniverse.yielding(),
-      );
-    await page.waitForTimeout(700);
-    expect(await yielding()).toBe(0);
-    await page.evaluate(() => window.scrollBy(0, 300));
-    await expect.poll(yielding, { intervals: [10] }).toBeGreaterThan(0);
-    await expect.poll(yielding, { timeout: 3000 }).toBe(0);
   });
 });

@@ -536,86 +536,9 @@ describe.skipIf(!available)("database behaviour", () => {
   });
 
   describe("universe", () => {
-    it("builds a compact snapshot from the owner's rows", async () => {
-      const u = await newUser();
-      await asUser(db, u, async (q) => {
-        await q(
-          "insert into sp_tasks (name, completed) select 'task ' || g, true from generate_series(1, 12) g",
-        );
-        const [list] = await q<{ id: string }>(
-          "insert into sp_goal_lists (name, emoji) values ('Health', '💪') returning id",
-        );
-        await q(
-          "insert into sp_goals (list_id, name, type, total_amount, current_amount) values ($1, 'Run', 'progress', 100, 40)",
-          [list!.id],
-        );
-        const [r] = await q<{ id: string }>(
-          "insert into sp_routines (name, emoji, start_date) values ('Meditate', '🧘', sp_today() - 2) returning id",
-        );
-        await q("select sp_routine_log_set($1, sp_today() - 1, true)", [r!.id]);
-        await q("select sp_routine_log_set($1, sp_today(), true)", [r!.id]);
-      });
-      const snap = await asUser(
-        db,
-        u,
-        async (q) =>
-          (await q<{ s: Record<string, never> }>("select sp_universe_snapshot() as s"))[0]!
-            .s as unknown as {
-            stars: { count: number; recent: unknown[]; months: { month: string; count: number }[] };
-            lists: { name: string; total: number; all_complete: boolean }[];
-            planets: { name: string; progress: number; completed: boolean }[];
-            constellations: { name: string; streak: number; broken: boolean; stars: number }[];
-          },
-      );
-      expect(Object.keys(snap).sort()).toEqual([
-        "constellations",
-        "lists",
-        "planets",
-        "server_time",
-        "stars",
-      ]);
-      expect(snap.stars.count).toBe(12);
-      expect(snap.stars.recent).toHaveLength(12);
-      expect(snap.stars.months).toHaveLength(1);
-      expect(snap.stars.months[0]!.count).toBe(12);
-      expect(snap.lists).toMatchObject([{ name: "Health", total: 1, all_complete: false }]);
-      expect(snap.planets).toMatchObject([{ name: "Run", progress: 0.4, completed: false }]);
-      expect(snap.constellations).toMatchObject([
-        { name: "Meditate", streak: 2, broken: false, stars: 2 },
-      ]);
-      expect(JSON.stringify(snap).length).toBeLessThan(4000);
-    });
-
-    it("counts a star for each completed task that still exists", async () => {
-      const u = await newUser();
-      const count = () =>
-        asUser(
-          db,
-          u,
-          async (q) =>
-            (
-              await q<{ n: number }>(
-                "select (sp_universe_snapshot() -> 'stars' ->> 'count')::int as n",
-              )
-            )[0]!.n,
-        );
-      const ids = await asUser(db, u, (q) =>
-        q<{ id: string }>(
-          "insert into sp_tasks (name, completed) values ('a', true), ('b', true), ('c', false) returning id",
-        ),
-      );
-      expect(await count()).toBe(2);
-      await asUser(db, u, (q) =>
-        q("update sp_tasks set completed = false where id = $1", [ids[0]!.id]),
-      );
-      expect(await count()).toBe(1);
-      await asUser(db, u, (q) =>
-        q("update sp_tasks set deleted_at = now() where id = $1", [ids[1]!.id]),
-      );
-      expect(await count()).toBe(0);
-    });
-
-    it("has no ledger, scoring triggers or era functions left", async () => {
+    // The galaxy is generated in the browser and its events come from the app: the
+    // database holds nothing for it and writes nothing about it.
+    it("has no ledger, snapshot, scoring triggers or era functions left", async () => {
       const r = await db.query(
         `select to_regclass('public.sp_universe_events') as ledger,
                 (select count(*)::int from pg_trigger where not tgisinternal and tgname ~ '^sp_.*_score$') as triggers,
@@ -623,7 +546,8 @@ describe.skipIf(!available)("database behaviour", () => {
                   where n.nspname = 'public'
                     and (p.proname ~ '^sp_.*_score$'
                          or p.proname in ('sp__award', 'sp__goal_list_sync', 'sp__routine_day_sync',
-                                          'sp__day_fraction', 'sp_eras', 'sp_era_index', 'sp__era_json'))) as functions`,
+                                          'sp__day_fraction', 'sp_eras', 'sp_era_index', 'sp__era_json',
+                                          'sp_universe_snapshot'))) as functions`,
       );
       expect(r.rows[0]).toEqual({ ledger: null, triggers: 0, functions: 0 });
     });

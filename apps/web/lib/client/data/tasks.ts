@@ -1,7 +1,7 @@
 import type { Task, TaskList } from "@stellar/db";
 import { isOverdue, rankAtEnd, rankBetween } from "@stellar/shared";
 import { emitCosmic, type ScreenPoint } from "@stellar/universe/bus";
-import { findRow, getRows, patchRow, removeRow, setRows, touchUniverse, upsertRow } from "../cache";
+import { findRow, getRows, patchRow, removeRow, setRows, upsertRow } from "../cache";
 import { enqueue } from "../outbox";
 import { toast } from "../toast";
 import {
@@ -59,6 +59,7 @@ export function createTask(input: NewTask): Task {
     ...send
   } = row;
   insertRow("sp_tasks", row, send);
+  emitCosmic({ type: "task_created", id: row.id });
   return row;
 }
 
@@ -99,20 +100,29 @@ export function updateTask(id: string, patch: TaskPatch): void {
   updateRow("sp_tasks", id, next);
 }
 
-/** Completes or re-opens a task. Completing ignites a star from where the checkbox was. */
+/**
+ * Completes or re-opens a task. Completing sends a shooting star from where the checkbox
+ * was; re-opening (an uncheck, or Undo) plays it backwards.
+ */
 export function setTaskCompleted(id: string, completed: boolean, origin?: ScreenPoint): void {
   const before = updateRow("sp_tasks", id, {
     completed,
     completed_at: completed ? nowIso() : null,
   });
   if (!before || before.completed === completed) return;
-  if (completed) emitCosmic({ type: "task_completed", id, origin });
+  emitCosmic({ type: completed ? "task_completed" : "task_uncompleted", id, origin });
 }
 
 export function deleteTask(id: string): void {
   const removed = softDeleteRow("sp_tasks", id);
   if (!removed) return;
-  toast("Task deleted", { undo: () => restoreRow("sp_tasks", removed) });
+  emitCosmic({ type: "task_deleted", id });
+  toast("Task deleted", {
+    undo: () => {
+      restoreRow("sp_tasks", removed);
+      emitCosmic({ type: "task_created", id });
+    },
+  });
 }
 
 /** "Move all to today": every incomplete overdue non-list task, keeping its time. One round trip, with Undo. */
@@ -186,5 +196,4 @@ export function deleteTaskList(id: string): void {
 
 export function removeTaskLocally(id: string): void {
   removeRow("sp_tasks", id);
-  touchUniverse();
 }

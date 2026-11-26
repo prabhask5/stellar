@@ -1,13 +1,14 @@
 import type { BlockList, BlockListSite, FocusSettings, FocusState } from "@stellar/db";
 import {
   applyTimerAction,
+  isBlockingActive,
   parseSiteList,
   rankAtEnd,
   type TimerAction,
   type TimerSettings,
   type TimerState,
 } from "@stellar/shared";
-import { emitCosmic } from "@stellar/universe/bus";
+import { type CosmicEventType, emitCosmic } from "@stellar/universe/bus";
 import { type FocusCache, getRows, keys, queryClient, setRows } from "../cache";
 import { enqueue } from "../outbox";
 import { serverNow } from "../session";
@@ -94,13 +95,72 @@ export function timerAction(action: TimerAction): boolean {
     state: toRow(cache.state, result.state),
   });
   enqueue({ kind: "timer", action, expectedVersion: before.version });
-
-  const after = result.state;
-  const startedFocus =
-    after.phase === "focus" && after.status === "running" && before.status !== "running";
-  if (startedFocus && before.status !== "paused") emitCosmic({ type: "focus_start" });
-  if (action === "advance" && before.phase === "focus") emitCosmic({ type: "focus_complete" });
   return true;
+}
+
+/** A completion older than this was not seen happening: it is not celebrated. */
+const FRESH_MS = 20_000;
+
+export type FocusEventType = Extract<
+  CosmicEventType,
+  "focus_started" | "focus_break" | "focus_completed"
+>;
+
+type FocusMoment = Pick<
+  FocusState,
+  "phase" | "status" | "last_completed_phase" | "last_completed_at"
+>;
+
+/**
+ * The cosmic events a change of the shared timer stands for. The timer is one row for every
+ * device, so these play wherever the app is open, whoever pressed the button: a focus phase
+ * beginning (not a resume), a break beginning, a focus phase running to its end.
+ */
+export function focusEventsFor(
+  before: FocusMoment,
+  after: FocusMoment,
+  now: number,
+): FocusEventType[] {
+  const events: FocusEventType[] = [];
+  const onBreak = (s: FocusMoment) =>
+    s.phase !== "focus" && (s.status === "running" || s.status === "paused");
+  if (
+    after.last_completed_at !== before.last_completed_at &&
+    after.last_completed_phase === "focus" &&
+    after.last_completed_at &&
+    now - Date.parse(after.last_completed_at) < FRESH_MS
+  )
+    events.push("focus_completed");
+  if (isBlockingActive(after) && !isBlockingActive(before)) events.push("focus_started");
+  if (onBreak(after) && !onBreak(before)) events.push("focus_break");
+  return events;
+}
+
+let watching: (() => void) | null = null;
+
+/**
+ * Emits the focus events from every change of the timer in the cache: this device's own
+ * action the moment it is applied, and another device's when it arrives. The first state
+ * seen is only remembered, so opening the app mid-phase plays nothing.
+ */
+export function watchFocusEvents(): () => void {
+  if (watching) return watching;
+  let last = queryClient.getQueryData<FocusCache>(keys.focus)?.state;
+  const off = queryClient.getQueryCache().subscribe((event) => {
+    if (event.type !== "updated" || event.query.queryKey[0] !== keys.focus[0]) return;
+    const next = (event.query.state.data as FocusCache | undefined)?.state;
+    if (!next || next === last) return;
+    const previous = last;
+    last = next;
+    // An older version arriving late is not a change.
+    if (!previous || Number(next.version) < Number(previous.version)) return;
+    for (const type of focusEventsFor(previous, next, serverNow())) emitCosmic({ type });
+  });
+  watching = () => {
+    off();
+    watching = null;
+  };
+  return watching;
 }
 
 export type FocusSettingsPatch = Partial<

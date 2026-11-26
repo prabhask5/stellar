@@ -33,7 +33,7 @@ export function FieldShell({
         className="flex items-baseline justify-between text-footnote font-medium text-fg-2"
       >
         <span>{label}</span>
-        {optional && <span className="text-caption font-normal text-fg-2/70">Optional</span>}
+        {optional && <span className="text-caption font-normal text-fg-2">Optional</span>}
       </label>
       {children}
       {error ? (

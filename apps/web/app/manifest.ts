@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "Stellar Planner",
     short_name: "Stellar Planner",
-    description: "Tasks, goals, routines and focus, in a universe that grows with you.",
+    description: "Tasks, goals, routines and focus, with a galaxy of your own behind them.",
     start_url: "/",
     scope: "/",
     display: "standalone",

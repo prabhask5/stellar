@@ -15,10 +15,8 @@ import {
   queryClient,
   removeRow,
   rowId,
-  touchUniverse,
   upsertRow,
 } from "./cache";
-import { SCORING_TABLES } from "./data/core";
 import { recordRealtimeEvent, recordRealtimeStatus } from "./diagnostics";
 import { hasPending } from "./outbox";
 import { readMeta, type SessionMeta } from "./session";
@@ -48,7 +46,6 @@ function applyFocusState(row: Row): void {
   if (phaseEnded || Number(next.version) !== Number(prev.state.version)) {
     void queryClient.invalidateQueries({ queryKey: keys.table("sp_focus_sessions") });
     void queryClient.invalidateQueries({ queryKey: ["focus_stats"] });
-    touchUniverse();
   }
 }
 
@@ -98,8 +95,6 @@ function applyChange(table: RealtimeTable, payload: RealtimePostgresChangesPaylo
       return;
     upsertRow(collection, row as unknown as Collections[typeof collection]);
   }
-  if (SCORING_TABLES.has(table) || table === "sp_goal_lists" || table === "sp_routines")
-    touchUniverse();
 }
 
 let channel: RealtimeChannel | null = null;

@@ -105,7 +105,6 @@ export const SCHEMAS: Record<string, z.ZodType> = {
   BlockListPage: s.zListEnvelope(s.zBlockList),
   BlockListSites: zSites,
   SitesChange: s.zSitesAdd,
-  UniverseSnapshot: s.zUniverseSnapshot,
   Quote: s.zQuote,
   QuoteCreate: s.zQuoteCreate,
   QuotePage: zQuoteList,
@@ -435,13 +434,6 @@ export const OPERATIONS: Operation[] = [
     errors: [404],
   },
 
-  {
-    method: "get",
-    path: "/universe/snapshot",
-    tag: "Universe",
-    summary: "Universe snapshot",
-    response: "UniverseSnapshot",
-  },
   {
     method: "get",
     path: "/quotes/random",

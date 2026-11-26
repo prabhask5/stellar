@@ -22,7 +22,7 @@
     "@stellar/web#build": {
       "dependsOn": ["^build", "@stellar/extension#zip"],
       "inputs": ["$TURBO_DEFAULT$"],
-      "outputs": [".next/**", "!.next/cache/**", "public/sw.js"]
+      "outputs": [".next/**", "!.next/cache/**", "public/sw.js", "public/universe-worker.js"]
     }
   }
 }
