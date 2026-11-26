@@ -966,8 +966,8 @@ function Done({ state }: { state: SetupState }) {
         </span>
         <h1 className="text-title1">You&rsquo;re all set</h1>
         <p className="mx-auto mt-2 max-w-[340px] text-subhead text-fg-2">
-          Your galaxy is waiting. Every task you finish becomes a star, every goal a planet and
-          every routine a constellation.
+          Your galaxy is waiting. It turns behind everything you plan, and lights up when you finish
+          something.
         </p>
       </div>
       <div className="mt-6 flex flex-col gap-3">

@@ -14,6 +14,7 @@ apps/web/.data
 apps/web/public/sw.js
 apps/web/public/sw.js.map
 apps/web/public/swe-worker-*.js
+apps/web/public/universe-worker.js
 apps/web/public/extension/*.zip
 tests/test-results
 tests/playwright-report

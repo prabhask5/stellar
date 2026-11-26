@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./canvas": "./src/canvas.tsx",
-    "./event-overlay": "./src/event-overlay.tsx",
+    "./bus": "./src/bus.ts",
+    "./state": "./src/state.ts",
+    "./react": "./src/react.tsx",
     "./*": "./src/*.ts"
   },
   "scripts": {
@@ -14,20 +14,10 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.9",
-    "@react-three/fiber": "^9.8.2",
-    "@react-three/postprocessing": "^3.2.2",
-    "@stellar/shared": "workspace:*",
     "@stellar/ui-tokens": "workspace:*",
-    "postprocessing": "^6.39.6",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "three": "^0.187.0",
-    "zustand": "^5.1.0"
+    "react": "^19.3.1"
   },
   "devDependencies": {
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "@types/three": "^0.187.0"
+    "@types/react": "^19.3.0"
   }
 }

@@ -7,32 +7,33 @@ import { useSettings } from "@/lib/client/data/hooks";
 import { updateSettings } from "@/lib/client/data/settings";
 import { Section } from "./parts";
 
+/** The stored values are older than their labels: `cinematic` is High, `minimal` is Low. */
 type Tier = "auto" | "cinematic" | "balanced" | "minimal";
 
 const TIERS: { value: Tier; label: string; body: string }[] = [
   {
     value: "auto",
     label: "Auto",
-    body: "Picks the best quality for this device and steps down if it struggles or the battery is low.",
+    body: "Picks the best quality for this device, and a lighter one next time if it struggles.",
   },
   {
     value: "cinematic",
-    label: "Cinematic",
-    body: "The full universe with bloom, at 60 frames per second.",
+    label: "High",
+    body: "The full galaxy: the most stars, the sharpest picture, and glow.",
   },
   {
     value: "balanced",
     label: "Balanced",
-    body: "Fewer particles and no glow effects. Easier on older devices.",
+    body: "Fewer stars and pixels, glow kept. Easier on older devices.",
   },
   {
     value: "minimal",
-    label: "Minimal",
-    body: "A still starfield. No motion, the lightest on battery.",
+    label: "Low",
+    body: "The fewest stars and no glow. The lightest on battery.",
   },
 ];
 
-/** The universe behind this page is the live preview: it changes as soon as a tier is chosen. */
+/** The galaxy behind this page is the preview: it fades to the new quality as soon as one is chosen. */
 export function AppearanceSection() {
   // Rendered before the settings arrive too (nothing selected yet), so the sections below
   // do not jump down when they do.
@@ -41,7 +42,7 @@ export function AppearanceSection() {
     <Section
       id="appearance"
       title="Appearance"
-      description="How richly the universe is drawn. The sky behind this page updates as you choose."
+      description="How richly the galaxy is drawn. The sky behind this page updates as you choose."
     >
       <div role="radiogroup" aria-label="Universe quality" className="grid gap-2 sm:grid-cols-2">
         {TIERS.map((t) => {

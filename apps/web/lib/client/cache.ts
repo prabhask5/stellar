@@ -14,7 +14,6 @@ import type {
   Task,
   TaskList,
 } from "@stellar/db";
-import type { UniverseSnapshot } from "@stellar/shared";
 import { QueryClient, type QueryKey } from "@tanstack/react-query";
 import { isNetworkError } from "./supabase";
 
@@ -62,14 +61,12 @@ export type CollectionTable = keyof Collections;
 export const keys = {
   settings: ["settings"] as const,
   focus: ["focus"] as const,
-  universe: ["universe"] as const,
   devices: ["devices"] as const,
   focusStats: (days: number) => ["focus_stats", days] as const,
   table: (table: CollectionTable): QueryKey => [table],
 };
 
 export type SettingsCache = Settings;
-export type UniverseCache = UniverseSnapshot;
 
 const SOFT_DELETE: ReadonlySet<string> = new Set([
   "sp_task_lists",
@@ -146,15 +143,4 @@ export function removeRow<T extends CollectionTable>(table: T, id: string): Coll
 
 export function findRow<T extends CollectionTable>(table: T, id: string): Collections[T] | null {
   return getRows(table).find((r) => rowId(table, r as Record<string, unknown>) === id) ?? null;
-}
-
-let universeTimer: ReturnType<typeof setTimeout> | null = null;
-
-/** The snapshot is derived data: refetch it shortly after anything that scores. */
-export function touchUniverse(delayMs = 900): void {
-  if (universeTimer) clearTimeout(universeTimer);
-  universeTimer = setTimeout(() => {
-    universeTimer = null;
-    void queryClient.invalidateQueries({ queryKey: keys.universe });
-  }, delayMs);
 }

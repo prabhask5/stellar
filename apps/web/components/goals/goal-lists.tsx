@@ -50,7 +50,7 @@ export function GoalListsGrid({ onOpen }: { onOpen: (list: GoalList) => void }) 
         <div className="glass rounded-card">
           <EmptyState
             title="No planets yet."
-            body="Create a list, add goals to it, and watch a planetary system form as you make progress."
+            body="Create a list and add goals to it. Its planet grows as you make progress."
           />
         </div>
       ) : (

@@ -1,10 +1,9 @@
 "use client";
 
 import { isDue } from "@stellar/shared";
-import { emitCosmic } from "@stellar/universe/bus";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { type FocusCache, keys, queryClient } from "@/lib/client/cache";
-import { timerAction, toTimerState } from "@/lib/client/data/focus";
+import { timerAction, toTimerState, watchFocusEvents } from "@/lib/client/data/focus";
 import { useFocus } from "@/lib/client/data/hooks";
 import { serverNow } from "@/lib/client/session";
 
@@ -17,12 +16,11 @@ const STALE_MS = 8000;
  * Keeps the timer honest on every page. The server's scheduler loop is the
  * authoritative advancer; if it has not advanced a finished phase shortly
  * after its end, this client does (the versioned RPC makes that race safe).
- * Also celebrates a focus phase completed elsewhere.
+ * Also starts the watch that turns timer changes into the universe's focus events.
  */
 export function FocusTicker() {
   const focus = useFocus();
   const state = focus?.state;
-  const lastCompleted = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (!state || state.status !== "running" || !state.phase_ends_at) return;
@@ -58,20 +56,8 @@ export function FocusTicker() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
-  useEffect(() => {
-    if (!state) return;
-    const previous = lastCompleted.current;
-    lastCompleted.current = state.last_completed_at;
-    // Skip the first observation (page load) and local advances, which already emitted.
-    if (previous === undefined || previous === state.last_completed_at) return;
-    if (
-      state.last_completed_phase === "focus" &&
-      state.last_completed_at &&
-      serverNow() - Date.parse(state.last_completed_at) < 20_000
-    ) {
-      emitCosmic({ type: "focus_complete" });
-    }
-  }, [state]);
+  // The focus events of the universe follow the timer, on this device and every other.
+  useEffect(() => watchFocusEvents(), []);
 
   return null;
 }

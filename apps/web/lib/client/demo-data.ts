@@ -12,7 +12,7 @@ import type {
   Task,
   TaskList,
 } from "@stellar/db";
-import { addDays, type DateStr, todayIn, type UniverseSnapshot } from "@stellar/shared";
+import { addDays, type DateStr, todayIn } from "@stellar/shared";
 import { type FocusCache, keys, queryClient } from "./cache";
 
 /**
@@ -293,52 +293,9 @@ export function seedDemo(): void {
     quality_tier: "auto",
     show_completed: true,
   };
-  const completed = tasks.filter((t) => t.completed);
-  const universe: UniverseSnapshot = {
-    stars: {
-      count: 640 + completed.length,
-      recent: completed.map((t) => ({ id: t.id, at: t.completed_at })),
-      months: Array.from({ length: 8 }, (_, i) => ({
-        month: day(-30 * (i + 1)).slice(0, 7),
-        count: 60 + ((i * 37) % 50),
-      })),
-    },
-    lists: goalLists.map((l) => {
-      const mine = goals.filter((g) => g.list_id === l.id);
-      const complete = mine.filter((g) => g.completed).length;
-      return {
-        id: l.id,
-        name: l.name,
-        emoji: l.emoji,
-        total: mine.length,
-        complete,
-        fraction: mine.reduce((s, g) => s + (progressOf.get(g.id) ?? 0), 0) / mine.length,
-        all_complete: complete === mine.length,
-      };
-    }),
-    planets: goals.map((g) => ({
-      id: g.id,
-      list_id: g.list_id,
-      name: g.name,
-      type: g.type as "todo" | "progress",
-      progress: progressOf.get(g.id) ?? 0,
-      completed: g.completed,
-    })),
-    constellations: routines.map((r, i) => ({
-      id: r.id,
-      name: r.name,
-      emoji: r.emoji,
-      streak: [12, 5, 3, 8][i]!,
-      stars: [38, 30, 16, 33][i]!,
-      broken: false,
-    })),
-    server_time: now,
-  };
-
   const set = queryClient.setQueryData.bind(queryClient);
   set(keys.settings, settings);
   set(keys.focus, focus);
-  set(keys.universe, universe);
   set(keys.focusStats(30), {
     today,
     today_minutes: minutesByDay[0],

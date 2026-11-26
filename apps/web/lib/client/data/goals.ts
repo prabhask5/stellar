@@ -1,7 +1,7 @@
 import type { Goal, GoalList } from "@stellar/db";
-import { isGoalComplete, listProgress, rankAtEnd, rankBetween } from "@stellar/shared";
+import { isGoalComplete, rankAtEnd, rankBetween } from "@stellar/shared";
 import { emitCosmic, type ScreenPoint } from "@stellar/universe/bus";
-import { findRow, getRows, patchRow, setRows, touchUniverse, upsertRow } from "../cache";
+import { findRow, getRows, patchRow, setRows, upsertRow } from "../cache";
 import { enqueue } from "../outbox";
 import { toast } from "../toast";
 import {
@@ -32,7 +32,6 @@ export function createGoalList(name: string, emoji: string): GoalList {
     emoji: row.emoji,
     sort_order: row.sort_order,
   });
-  touchUniverse();
   return row;
 }
 
@@ -49,12 +48,10 @@ export function deleteGoalList(id: string): void {
   const removed = softDeleteRow("sp_goal_lists", id);
   if (!removed) return;
   setRows("sp_goals", (rows) => rows.filter((g) => g.list_id !== id));
-  touchUniverse();
   toast(`Deleted “${removed.name}”`, {
     undo: () => {
       restoreRow("sp_goal_lists", removed);
       for (const g of goals) upsertRow("sp_goals", g);
-      touchUniverse();
     },
   });
 }
@@ -105,38 +102,30 @@ export function createGoal(input: NewGoal): Goal {
   return row;
 }
 
-function listComplete(listId: string): boolean {
-  return listProgress(getRows("sp_goals").filter((g) => g.list_id === listId)).allComplete;
-}
-
-/** Emits the right events for a goal that just changed. */
-function celebrate(
-  before: Goal,
-  after: Goal,
-  wasListComplete: boolean,
-  origin?: ScreenPoint,
-): void {
-  const completedNow = isGoalComplete(after) && !isGoalComplete(before);
-  if (completedNow) {
-    emitCosmic({ type: "goal_completed", goalId: after.id, origin });
-    if (!wasListComplete && listComplete(after.list_id))
-      emitCosmic({ type: "goal_list_completed", listId: after.list_id });
+/**
+ * Emits the right event for a goal that just changed: reaching 100% (or being checked) is a
+ * completion; any other step forward is progress, as strong as the share of the goal it covered.
+ */
+function celebrate(before: Goal, after: Goal, origin?: ScreenPoint): void {
+  if (isGoalComplete(after) && !isGoalComplete(before)) {
+    emitCosmic({ type: "goal_completed", id: after.id, origin });
   } else if (after.type === "progress" && after.current_amount > before.current_amount) {
-    emitCosmic({ type: "goal_progress", goalId: after.id, origin });
+    const step = after.current_amount - before.current_amount;
+    const amount = after.total_amount ? step / after.total_amount : 0.1;
+    emitCosmic({ type: "goal_progress", id: after.id, amount, origin });
   }
 }
 
 export function setGoalCompleted(id: string, completed: boolean, origin?: ScreenPoint): void {
   const current = findRow("sp_goals", id);
   if (!current || current.type !== "todo") return;
-  const wasListComplete = listComplete(current.list_id);
   const before = updateRow("sp_goals", id, {
     completed,
     completed_at: completed ? nowIso() : null,
     current_amount: completed ? 1 : 0,
   });
   // The trigger derives current_amount for todo goals; only `completed` needs to be sent.
-  if (before) celebrate(before, { ...before, completed }, wasListComplete, origin);
+  if (before) celebrate(before, { ...before, completed }, origin);
 }
 
 function withAmount(goal: Goal, amount: number): Partial<Goal> {
@@ -154,7 +143,6 @@ function withAmount(goal: Goal, amount: number): Partial<Goal> {
 export function incrementGoal(id: string, delta: number, origin?: ScreenPoint): void {
   const current = findRow("sp_goals", id);
   if (!current || current.type !== "progress" || delta === 0) return;
-  const wasListComplete = listComplete(current.list_id);
   const patch = withAmount(current, current.current_amount + delta);
   patchRow("sp_goals", id, patch);
   enqueue({
@@ -165,15 +153,13 @@ export function incrementGoal(id: string, delta: number, origin?: ScreenPoint): 
     // Applied at most once, however often the request is replayed.
     opIdArg: "p_op_id",
   });
-  touchUniverse();
-  celebrate(current, { ...current, ...patch }, wasListComplete, origin);
+  celebrate(current, { ...current, ...patch }, origin);
 }
 
 /** Sets an exact amount (typed into the stepper). */
 export function setGoalAmount(id: string, amount: number, origin?: ScreenPoint): void {
   const current = findRow("sp_goals", id);
   if (!current || current.type !== "progress") return;
-  const wasListComplete = listComplete(current.list_id);
   const patch = withAmount(current, amount);
   patchRow("sp_goals", id, patch);
   enqueue({
@@ -182,8 +168,7 @@ export function setGoalAmount(id: string, amount: number, origin?: ScreenPoint):
     id,
     patch: { current_amount: patch.current_amount },
   });
-  touchUniverse();
-  celebrate(current, { ...current, ...patch }, wasListComplete, origin);
+  celebrate(current, { ...current, ...patch }, origin);
 }
 
 export type GoalPatch = Partial<
@@ -208,7 +193,6 @@ export function updateGoal(id: string, patch: GoalPatch): void {
   }
   patchRow("sp_goals", id, { ...local, updated_at: nowIso() });
   enqueue({ kind: "update", table: "sp_goals", id, patch: patch as Record<string, unknown> });
-  touchUniverse();
 }
 
 export function moveGoal(id: string, before: number | null, after: number | null): void {
@@ -218,11 +202,7 @@ export function moveGoal(id: string, before: number | null, after: number | null
 export function deleteGoal(id: string): void {
   const removed = softDeleteRow("sp_goals", id);
   if (!removed) return;
-  touchUniverse();
   toast("Goal deleted", {
-    undo: () => {
-      restoreRow("sp_goals", removed);
-      touchUniverse();
-    },
+    undo: () => restoreRow("sp_goals", removed),
   });
 }

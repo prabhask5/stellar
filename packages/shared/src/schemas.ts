@@ -533,48 +533,6 @@ export const zSitesRemove = z.object({
   patterns: z.array(z.string().min(1).max(300)).min(1).max(500),
 });
 
-// ── universe ────────────────────────────────────────────────────────────────
-export const zUniverseSnapshot = z.object({
-  stars: z.object({
-    count: z.number(),
-    recent: z.array(z.object({ id: zId, at: zTimestamp.nullable() })),
-    months: z.array(z.object({ month: z.string(), count: z.number() })),
-  }),
-  lists: z.array(
-    z.object({
-      id: zId,
-      name: z.string(),
-      emoji: z.string(),
-      total: z.number(),
-      complete: z.number(),
-      fraction: z.number(),
-      all_complete: z.boolean(),
-    }),
-  ),
-  planets: z.array(
-    z.object({
-      id: zId,
-      list_id: zId,
-      name: z.string(),
-      type: zGoalType,
-      progress: z.number(),
-      completed: z.boolean(),
-    }),
-  ),
-  constellations: z.array(
-    z.object({
-      id: zId,
-      name: z.string(),
-      emoji: z.string().nullable(),
-      streak: z.number(),
-      stars: z.number(),
-      broken: z.boolean(),
-    }),
-  ),
-  server_time: zTimestamp,
-});
-export type UniverseSnapshot = z.infer<typeof zUniverseSnapshot>;
-
 // ── quotes, push, data ──────────────────────────────────────────────────────
 export const zQuote = z.object({
   id: zId,
