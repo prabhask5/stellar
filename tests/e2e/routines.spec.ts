@@ -46,7 +46,7 @@ async function addRoutine(
   configure?: () => Promise<void>,
 ): Promise<void> {
   await openManage(page);
-  await page.getByRole("button", { name: "Add routine" }).click();
+  await page.getByRole("button", { name: "New routine" }).click();
   const sheet = page.getByTestId("routine-sheet");
   await sheet.getByRole("textbox", { name: "Name", exact: true }).fill(name);
   await configure?.();
@@ -287,7 +287,7 @@ test.describe("routines", () => {
     const sheet = page.getByTestId("routine-sheet");
     await expect(sheet.getByText("Changes apply to every day, past and future.")).toBeVisible();
     await sheet.getByRole("radio", { name: "Weekdays" }).click();
-    await sheet.getByRole("button", { name: "Save changes" }).click();
+    await sheet.getByRole("button", { name: "Save" }).click();
     await expect(item).toContainText("Mon, Wed, Fri");
     await expect
       .poll(
@@ -306,7 +306,7 @@ test.describe("routines", () => {
     await sheet.getByRole("radio", { name: "Progress" }).click();
     await sheet.getByRole("textbox", { name: "Daily total" }).fill("3");
     await sheet.getByRole("textbox", { name: "Unit" }).fill("pages");
-    await sheet.getByRole("button", { name: "Save changes" }).click();
+    await sheet.getByRole("button", { name: "Save" }).click();
     await expect(item.getByTestId("streak")).toHaveText("No streak");
     await expect
       .poll(

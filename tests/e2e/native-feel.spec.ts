@@ -227,7 +227,7 @@ test.describe("native feel", () => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/routines");
     await page.getByRole("button", { name: /Manage routines/ }).click();
-    await page.getByRole("button", { name: "Add routine" }).click();
+    await page.getByRole("button", { name: "New routine" }).click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
     await page.waitForTimeout(600);

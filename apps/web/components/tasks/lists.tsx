@@ -167,7 +167,7 @@ export function ListFormSheet({
               className="flex-1"
               disabled={!name.trim()}
             >
-              {list ? "Save" : "Create"}
+              {list ? "Save" : `Add ${noun}`}
             </Button>
           </div>
         </form>

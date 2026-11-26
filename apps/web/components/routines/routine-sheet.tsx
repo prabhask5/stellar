@@ -314,7 +314,7 @@ export function RoutineSheet({ open, onOpenChange, routine, today, weekStart }: 
               </Button>
             )}
             <Button type="submit" variant="primary" size="lg" className="flex-1">
-              {routine ? "Save changes" : "Add routine"}
+              {routine ? "Save" : "Add routine"}
             </Button>
           </div>
         </form>

@@ -103,11 +103,11 @@ test.describe("tasks", () => {
     await name.fill("Plan the weekend");
     await page.getByRole("button", { name: /Due date/ }).click();
     await page.getByRole("button", { name: "Tomorrow", exact: true }).click();
-    if (pickersInSheet(info.project.name)) await page.getByRole("button", { name: "Done" }).click();
+    if (pickersInSheet(info.project.name)) await page.getByRole("button", { name: "Save" }).click();
     else await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Description" }).click();
     await page.getByRole("textbox", { name: "Description" }).fill("Check the forecast");
-    await page.getByRole("button", { name: "Done" }).click();
+    await page.getByRole("button", { name: "Save" }).click();
     await page.getByRole("button", { name: "Add", exact: true }).click();
     await expect(page.getByTestId("today-tab")).not.toContainText("Plan the weekend");
 
@@ -220,7 +220,7 @@ test.describe("tasks", () => {
     await sheet.getByLabel("Description").fill("Ask about the trip");
     await sheet.getByLabel("List").selectOption({ label: "🛒 Groceries" });
     await expect(sheet.getByRole("button", { name: "Due date", exact: true })).toBeDisabled();
-    await sheet.getByRole("button", { name: "Done" }).click();
+    await sheet.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("today-tab")).not.toContainText("Call Mom");
     await expect
       .poll(
@@ -288,7 +288,7 @@ test.describe("tasks", () => {
         .first()
         .click();
       await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
-      await page.getByRole("button", { name: "Create" }).click();
+      await page.getByRole("button", { name: "Add list" }).click();
       await expect(panel.getByTestId("list-card").filter({ hasText: name })).toContainText(emoji);
     }
     await expect(panel.getByTestId("list-card")).toHaveText([
@@ -462,7 +462,7 @@ test.describe("tasks", () => {
     await swipe("Call Mom", -150);
     await page.getByRole("button", { name: "Reschedule “Call Mom”" }).click();
     await page.getByRole("button", { name: "Tomorrow", exact: true }).click();
-    await page.getByRole("button", { name: "Done" }).click();
+    await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("today-tab")).not.toContainText("Call Mom");
     // The reschedule sheet is still on screen while it animates out.
     await expect(page.getByRole("dialog")).toHaveCount(0);
