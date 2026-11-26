@@ -89,7 +89,7 @@ export async function wipeData(): Promise<void> {
         rounds_before_long = 4, auto_start_breaks = false, auto_start_focus = false, active_block_list_ids = '{}'
         where user_id = uid;
       update public.sp_settings set timezone = 'UTC', week_start = 1, birthdate = null, lifespan_years = 85,
-        quality_tier = 'minimal', show_completed = false, lock_after_minutes = null where user_id = uid;
+        quality_tier = 'auto', show_completed = false, lock_after_minutes = null where user_id = uid;
     end $$;`);
 }
 
@@ -229,6 +229,29 @@ export function realtimeReady(page: Page, timeout = 20_000): Promise<void> {
           resolve();
         }
       });
+    });
+  });
+}
+
+/**
+ * Resolves when the page next receives a database change for `table` over Realtime: the
+ * echo of something the test just did, or another device's change. Call it before the
+ * action (after `realtimeReady`), await it after.
+ */
+export function realtimeChange(page: Page, table: string, timeout = 20_000): Promise<void> {
+  const ws = realtimeSockets.get(page);
+  if (!ws) throw new Error("Call realtimeReady(page) before navigating.");
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`No Realtime change for ${table} arrived in time.`)),
+      timeout,
+    );
+    ws.on("framereceived", (frame) => {
+      const text = String(frame.payload);
+      if (text.includes("postgres_changes") && text.includes(`"${table}"`)) {
+        clearTimeout(timer);
+        resolve();
+      }
     });
   });
 }

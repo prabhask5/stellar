@@ -56,7 +56,7 @@ async function problemsOn(page: Page, screen: string, axe: boolean): Promise<str
         !el.closest('[aria-hidden="true"]'),
     );
     const overflow = [...document.querySelectorAll("body *")]
-      .filter((el) => visible(el) && !el.closest(".sp-sky, .sp-universe, .sp-events"))
+      .filter((el) => visible(el) && !el.closest(".sp-sky, .sp-universe"))
       .map((el) => ({ el, r: el.getBoundingClientRect() }))
       .filter(({ r }) => r.right > vw + 1 || r.left < -1)
       .filter(({ el }) => {

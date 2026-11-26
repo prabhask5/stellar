@@ -59,8 +59,8 @@ const SCREENS: [name: string, ready: (page: Page) => Promise<void>][] = [
   ],
 ];
 
-// Headless Chromium draws WebGL in software, for which the app's Auto quality picks the
-// still starfield. Asking for the real GPU gives the pictures the 3D universe.
+// Headless Chromium draws WebGL in software, for which the app's Auto quality picks its
+// lightest tier. Asking for the real GPU gives the pictures the galaxy as a device shows it.
 const GPU_ARGS =
   process.platform === "darwin"
     ? ["--use-angle=metal", "--enable-gpu", "--ignore-gpu-blocklist"]
