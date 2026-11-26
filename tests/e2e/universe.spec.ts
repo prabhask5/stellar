@@ -23,6 +23,7 @@ interface Probe {
   frames: number;
   state: "live" | "waking" | "still" | "hidden";
   framing: "home" | "focus" | "page";
+  judged: boolean;
   pending: boolean;
   software: boolean;
   tier: "high" | "balanced" | "low";
@@ -602,8 +603,9 @@ test.describe("universe", () => {
       "the performance run: desktop and the WebKit iPhone",
     );
     // Auto quality, so the galaxy is what this machine would really be given: live on a
-    // GPU, and Low and still where WebGL is drawn on the CPU (CI), where a live galaxy
-    // would be measuring the software rasteriser taking every core, not the app.
+    // GPU, and still where WebGL is drawn on the CPU (CI), where a live galaxy would be
+    // measuring the software rasteriser taking every core, not the app.
+    test.setTimeout(180_000);
     await sql(
       `insert into sp_tasks (user_id, name, due_date) select ${OWNER}, 'Task ' || lpad(g::text, 3, '0'), sp__today(${OWNER}) + (g % 9) from generate_series(1, 120) g`,
     );
@@ -611,8 +613,11 @@ test.describe("universe", () => {
     await page.getByRole("radio", { name: "All", exact: true }).click();
     await expect(page.getByTestId("all-tab")).toContainText("Task 120");
     await galaxyReady(page, null);
+    // Auto first checks its choice against real frames. A browser can hide that its GPU is
+    // software (WebKit does); there Auto finds a few frames a second and stops the motion.
+    await expect.poll(async () => (await probe(page)).judged, { timeout: 90_000 }).toBe(true);
     const before = await probe(page);
-    expect(before.state).toBe(before.software ? "still" : "live");
+    expect(before.state).toBe(before.still ? "still" : "live");
 
     const longest = await page.evaluate(async () => {
       // A task that takes the main thread shows up as a late heartbeat. Long Task timing is

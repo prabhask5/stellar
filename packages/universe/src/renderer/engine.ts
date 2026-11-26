@@ -342,9 +342,30 @@ export class Engine {
     this.player.clear();
   }
 
+  /** The probe has its verdict on Auto's choice. */
+  private judge(): void {
+    if (this.probe.verdict === "down") {
+      // Too heavy here. Nothing changes on screen now; the lower tier waits for a boundary.
+      const lower = stepDown(this.plan.current);
+      this.plan.request(lower);
+      this.post({ type: "suggest", tier: lower });
+    } else if (this.probe.verdict === "stop") {
+      // A few frames a second: this device cannot afford motion. The sky goes still now,
+      // under a cross-fade, because every further frame is taken from the interface.
+      this.beginFade();
+      this.plan.request("low");
+      this.still = true;
+      this.player.still = true;
+      this.settle();
+      this.post({ type: "suggest", tier: "low", still: true });
+      this.post({ type: "quality", tier: this.plan.current, still: true });
+      this.invalidate();
+    }
+  }
+
   private startProbe(): void {
     const judged = this.setting === "auto" && !this.still;
-    this.probe = new FrameProbe(judged ? TIERS[this.plan.current].frameBudgetMs : Infinity);
+    this.probe = new FrameProbe(TIERS[this.plan.current].frameBudgetMs, judged);
   }
 
   // ── resources ─────────────────────────────────────────────────────────────
@@ -606,12 +627,7 @@ export class Engine {
       this.frames++;
       if (live && dt > 0) {
         this.frameMs = this.frameMs === 0 ? gap : this.frameMs * 0.95 + gap * 0.05;
-        if (this.probe.frame(gap) && this.probe.verdict === "down") {
-          // Too heavy here. Nothing changes on screen now; the lower tier waits for a boundary.
-          const lower = stepDown(this.plan.current);
-          this.plan.request(lower);
-          this.post({ type: "suggest", tier: lower });
-        }
+        if (this.probe.frame(gap)) this.judge();
       }
       const work = performance.now() - began;
       this.workMs = this.workMs === 0 ? work : this.workMs * 0.95 + work * 0.05;
@@ -884,6 +900,7 @@ export class Engine {
         playing: !this.player.idle,
       }),
       framing: this.page.framing,
+      judged: this.probe.verdict !== "pending",
       pending: this.scheduled,
       software: this.gpuTier === 0,
       tier: this.plan.current,

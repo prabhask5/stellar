@@ -111,11 +111,12 @@ describe("event catalog", () => {
         const n = s.particles.count;
         drawn += n;
         expect(n).toBeLessThanOrEqual(PARTICLE_CAP);
-        for (let i = 0; i < n * 3; i++) expect(Number.isFinite(s.particles.position[i])).toBe(true);
-        for (let i = 0; i < n; i++) {
-          expect(s.particles.size[i]).toBeGreaterThan(0);
-          expect(s.particles.color[i * 4 + 3]).toBeGreaterThan(0);
-        }
+        // One verdict a frame, not one assertion a particle: there are tens of thousands.
+        let sound = true;
+        for (let i = 0; i < n * 3; i++) sound &&= Number.isFinite(s.particles.position[i]);
+        for (let i = 0; i < n; i++)
+          sound &&= s.particles.size[i]! > 0 && s.particles.color[i * 4 + 3]! > 0;
+        expect(sound, `${type} @${now}`).toBe(true);
         if (s.core !== 0 || s.push !== 0) moved = true;
       }
       expect(drawn, type).toBeGreaterThan(0);

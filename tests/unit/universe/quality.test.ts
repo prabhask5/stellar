@@ -76,6 +76,15 @@ describe("quality tiers", () => {
       still: true,
     });
     expect(chooseQuality("auto", { ...strong, gpuTier: 0 })).toEqual({ tier: "low", still: true });
+    // A GPU can hide that it is software. What Auto measured there is remembered.
+    expect(chooseQuality("auto", { ...strong, capStill: true })).toEqual({
+      tier: "low",
+      still: true,
+    });
+    expect(chooseQuality("cinematic", { ...strong, capStill: true })).toEqual({
+      tier: "high",
+      still: false,
+    });
   });
 
   it("classifies GPUs from the renderer string", () => {
@@ -135,16 +144,43 @@ describe("frame probe", () => {
     expect(probe.verdict).toBe("down");
   });
 
-  it("ignores the warm-up frames and gaps from a hidden tab", () => {
+  it("ignores the warm-up frames and impossible gaps", () => {
     const probe = new FrameProbe(TIERS.high.frameBudgetMs);
     feed(probe, 200, FrameProbe.WARMUP);
-    feed(probe, 5000, 30);
+    feed(probe, 60_000, 30);
     feed(probe, 16.7, FrameProbe.FRAMES);
     expect(probe.verdict).toBe("ok");
   });
 
-  it("has nothing to judge on the lowest tier", () => {
-    expect(new FrameProbe(TIERS.low.frameBudgetMs).verdict).toBe("ok");
+  it("stops the motion on a device that only manages a few frames a second", () => {
+    // Under 12 frames a second on average: a slideshow, whatever the tier.
+    const slow = new FrameProbe(TIERS.balanced.frameBudgetMs);
+    feed(slow, 90, FrameProbe.WARMUP + FrameProbe.FRAMES);
+    expect(slow.verdict).toBe("stop");
+    // Far slower than that is decided early, not after two minutes of it.
+    const crawling = new FrameProbe(TIERS.high.frameBudgetMs);
+    expect(feed(crawling, 300, FrameProbe.WARMUP + FrameProbe.EARLY - 1)).toBe(0);
+    expect(feed(crawling, 300, 1)).toBe(1);
+    expect(crawling.verdict).toBe("stop");
+    // Merely heavy is a step down, not a stop.
+    const heavy = new FrameProbe(TIERS.high.frameBudgetMs);
+    feed(heavy, 60, FrameProbe.WARMUP + FrameProbe.FRAMES);
+    expect(heavy.verdict).toBe("down");
+  });
+
+  it("judges the lowest tier too: it cannot step down, but it can stop", () => {
+    const fine = new FrameProbe(TIERS.low.frameBudgetMs);
+    feed(fine, 40, FrameProbe.WARMUP + FrameProbe.FRAMES);
+    expect(fine.verdict).toBe("ok");
+    const slow = new FrameProbe(TIERS.low.frameBudgetMs);
+    feed(slow, 200, FrameProbe.WARMUP + FrameProbe.FRAMES);
+    expect(slow.verdict).toBe("stop");
+  });
+
+  it("does not judge an explicit setting", () => {
+    const probe = new FrameProbe(TIERS.high.frameBudgetMs, false);
+    expect(probe.verdict).toBe("ok");
+    expect(feed(probe, 500, 400)).toBe(0);
   });
 });
 

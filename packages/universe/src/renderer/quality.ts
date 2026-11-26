@@ -74,6 +74,8 @@ export interface DeviceSignals {
   battery?: { level: number; charging: boolean };
   /** A tier Auto stepped down to on this device earlier. */
   cap?: QualityTier;
+  /** Auto found earlier that this device cannot afford motion. */
+  capStill?: boolean;
 }
 
 export interface QualityChoice {
@@ -96,11 +98,12 @@ export function lowerOf(a: QualityTier, b: QualityTier): QualityTier {
  * The tier to render. An explicit setting is respected as it is. Auto reads the device: GPU,
  * memory and cores decide, a battery at or below 20% that is not charging steps down once,
  * and a remembered step-down is kept. Software rendering and data saver get the lightest
- * tier and a still sky. Reduced motion always means a still sky, whatever the setting.
+ * tier and a still sky, and so does a device Auto found too slow to move (a GPU can hide
+ * that it is software). Reduced motion always means a still sky, whatever the setting.
  */
 export function chooseQuality(setting: QualitySetting, d: DeviceSignals): QualityChoice {
   if (setting !== "auto") return { tier: SETTING_TIER[setting], still: d.reducedMotion };
-  if (d.saveData || d.gpuTier === 0) return { tier: "low", still: true };
+  if (d.saveData || d.gpuTier === 0 || d.capStill) return { tier: "low", still: true };
   const memory = d.deviceMemory ?? 8;
   const cores = d.hardwareConcurrency ?? 8;
   let tier: QualityTier;
@@ -151,30 +154,45 @@ export function bufferSize(
 
 /**
  * Checks Auto's choice against the first live frames. Feed it frame times; once it has seen
- * enough it answers whether the tier holds. Gaps (a hidden tab, a breakpoint) are not frames.
+ * enough it answers whether the tier holds ("ok"), is too heavy ("down": a lower tier at the
+ * next boundary), or whether this device cannot afford motion at all ("stop": a few frames
+ * a second is a slideshow, and drawing it takes the CPU from everything else). Gaps (a
+ * hidden tab, a breakpoint) are not frames.
  */
 export class FrameProbe {
   static readonly FRAMES = 120;
   /** The first frames compile shaders and upload buffers; they say nothing about steady state. */
   static readonly WARMUP = 12;
+  /** Slower than this on average, about 12 frames a second, and the sky should be still. */
+  static readonly STOP_MS = 1000 / 12;
+  /** A device far past that is not kept waiting for the full count. */
+  static readonly EARLY = 24;
   private seen = 0;
   private sum = 0;
   private budgetMs: number;
-  verdict: "pending" | "ok" | "down" = "pending";
+  verdict: "pending" | "ok" | "down" | "stop" = "pending";
 
-  constructor(budgetMs: number) {
+  /** `judged` false: an explicit setting, which is taken as it is. */
+  constructor(budgetMs: number, judged = true) {
     this.budgetMs = budgetMs;
-    if (!Number.isFinite(budgetMs)) this.verdict = "ok";
+    if (!judged) this.verdict = "ok";
   }
 
   /** Returns true on the frame the verdict is reached. */
   frame(dtMs: number): boolean {
-    if (this.verdict !== "pending" || dtMs <= 0 || dtMs > 250) return false;
+    // The engine never reports the gap of a hidden tab; ten seconds can only be a debugger.
+    if (this.verdict !== "pending" || dtMs <= 0 || dtMs > 10_000) return false;
     this.seen++;
     if (this.seen <= FrameProbe.WARMUP) return false;
     this.sum += dtMs;
-    if (this.seen < FrameProbe.WARMUP + FrameProbe.FRAMES) return false;
-    this.verdict = this.sum / FrameProbe.FRAMES > this.budgetMs ? "down" : "ok";
+    const counted = this.seen - FrameProbe.WARMUP;
+    if (counted >= FrameProbe.EARLY && this.sum / counted > FrameProbe.STOP_MS * 1.5) {
+      this.verdict = "stop";
+      return true;
+    }
+    if (counted < FrameProbe.FRAMES) return false;
+    const average = this.sum / counted;
+    this.verdict = average > FrameProbe.STOP_MS ? "stop" : average > this.budgetMs ? "down" : "ok";
     return true;
   }
 

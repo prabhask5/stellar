@@ -52,25 +52,28 @@ const WORKER_FIRST_FRAME_MS = 6000;
 const CAP_KEY = "sp-tier-cap";
 const CAP_DAYS = 7;
 
-/** A tier Auto stepped down to on this device, remembered for a week. */
-function readCap(): QualityTier | undefined {
+/** What Auto learned on this device (a lower tier, or that it cannot move), kept for a week. */
+function readCap(): { cap?: QualityTier; capStill?: boolean } {
   try {
     const raw = localStorage.getItem(CAP_KEY);
-    if (!raw) return undefined;
-    const cap = JSON.parse(raw) as { tier: QualityTier; at: number };
+    if (!raw) return {};
+    const cap = JSON.parse(raw) as { tier: QualityTier; still?: boolean; at: number };
     if (Date.now() - cap.at > CAP_DAYS * 86_400_000) {
       localStorage.removeItem(CAP_KEY);
-      return undefined;
+      return {};
     }
-    return cap.tier === "balanced" || cap.tier === "low" ? cap.tier : undefined;
+    return {
+      cap: cap.tier === "balanced" || cap.tier === "low" ? cap.tier : undefined,
+      capStill: cap.still === true,
+    };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
-function saveCap(tier: QualityTier): void {
+function saveCap(tier: QualityTier, still: boolean): void {
   try {
-    localStorage.setItem(CAP_KEY, JSON.stringify({ tier, at: Date.now() }));
+    localStorage.setItem(CAP_KEY, JSON.stringify({ tier, still, at: Date.now() }));
   } catch {
     // ignored
   }
@@ -95,7 +98,7 @@ async function readSignals(): Promise<HostSignals> {
     deviceMemory: nav.deviceMemory,
     hardwareConcurrency: nav.hardwareConcurrency,
     battery,
-    cap: readCap(),
+    ...readCap(),
   };
 }
 
@@ -172,7 +175,7 @@ export function createUniverseHost(options: UniverseHostOptions): UniverseHost {
       drawn = true;
       options.onReady({ ...message, path });
     } else if (message.type === "quality") options.onQuality?.(message.tier, message.still);
-    else if (message.type === "suggest") saveCap(message.tier);
+    else if (message.type === "suggest") saveCap(message.tier, message.still === true);
     else if (message.type === "probe") {
       const { type: _type, id, ...result } = message;
       probes.get(id)?.(result);
