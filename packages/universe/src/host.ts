@@ -163,6 +163,9 @@ export function createUniverseHost(options: UniverseHostOptions): UniverseHost {
     dpr: window.devicePixelRatio || 1,
   });
 
+  // Asked for now, so the answer is there by the time the worker is.
+  const signalsRead = readSignals();
+
   const onMessage = (message: FromEngine) => {
     if (destroyed) return;
     if (message.type === "ready") {
@@ -202,7 +205,7 @@ export function createUniverseHost(options: UniverseHostOptions): UniverseHost {
     canvas: OffscreenCanvas | HTMLCanvasElement,
     deliver: (message: ToEngine, transfer?: Transferable[]) => void,
   ) => {
-    const signals = await readSignals();
+    const signals = await signalsRead;
     if (destroyed) return;
     deliver(
       {
@@ -288,6 +291,15 @@ export function createUniverseHost(options: UniverseHostOptions): UniverseHost {
   document.addEventListener("visibilitychange", onVisible);
   // A page restored from the back/forward cache comes back without a visibility change.
   window.addEventListener("pageshow", onVisible);
+  // Leaving for good: give the GL context and the worker back now, not whenever the
+  // browser gets round to collecting them. (A page kept for back/forward stays as it is.)
+  const onLeave = (e: PageTransitionEvent) => {
+    if (e.persisted) return;
+    send?.({ type: "dispose" });
+    stop();
+    send = null;
+  };
+  window.addEventListener("pagehide", onLeave);
 
   const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const sendQuality = () =>
@@ -358,6 +370,7 @@ export function createUniverseHost(options: UniverseHostOptions): UniverseHost {
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pageshow", onVisible);
+      window.removeEventListener("pagehide", onLeave);
       motion.removeEventListener("change", sendQuality);
       offCosmic();
       onStageInput(null);
