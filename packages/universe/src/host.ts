@@ -47,6 +47,8 @@ export interface UniverseHost {
   destroy: () => void;
 }
 
+/** How long a worker gets to present its first frame before the main thread takes over. */
+const WORKER_FIRST_FRAME_MS = 6000;
 const CAP_KEY = "sp-tier-cap";
 const CAP_DAYS = 7;
 
@@ -150,6 +152,8 @@ export function createUniverseHost(options: UniverseHostOptions): UniverseHost {
   let path: EnginePath = "worker";
   let send: ((message: ToEngine) => void) | null = null;
   let stop = () => {};
+  let drawn = false;
+  let watchdog: ReturnType<typeof setTimeout> | null = null;
   let nextProbe = 1;
   const probes = new Map<number, (result: ProbeResult | null) => void>();
 
@@ -161,8 +165,10 @@ export function createUniverseHost(options: UniverseHostOptions): UniverseHost {
 
   const onMessage = (message: FromEngine) => {
     if (destroyed) return;
-    if (message.type === "ready") options.onReady({ ...message, path });
-    else if (message.type === "quality") options.onQuality?.(message.tier, message.still);
+    if (message.type === "ready") {
+      drawn = true;
+      options.onReady({ ...message, path });
+    } else if (message.type === "quality") options.onQuality?.(message.tier, message.still);
     else if (message.type === "suggest") saveCap(message.tier);
     else if (message.type === "probe") {
       const { type: _type, id, ...result } = message;
@@ -171,13 +177,19 @@ export function createUniverseHost(options: UniverseHostOptions): UniverseHost {
     } else if (message.type === "failed") {
       // The worker had the canvas and could not use it after all: start over without one.
       if (path === "worker") {
+        console.warn(
+          "[universe] the worker could not draw; using the main thread:",
+          message.reason,
+        );
         stop();
         void startInline();
-      } else fail();
+      } else fail(message.reason);
     }
   };
 
-  const fail = () => {
+  const fail = (reason: unknown) => {
+    // The sky is optional, but why it is missing should not be a mystery.
+    console.warn("[universe] no galaxy here; the static sky stays:", String(reason));
     stop();
     send = null;
     container.replaceChildren();
@@ -219,12 +231,12 @@ export function createUniverseHost(options: UniverseHostOptions): UniverseHost {
       await init(canvas, (message) => {
         try {
           engine.handle(message);
-        } catch {
-          fail();
+        } catch (error) {
+          fail(error);
         }
       });
-    } catch {
-      fail();
+    } catch (error) {
+      fail(error);
     }
   };
 
@@ -251,6 +263,19 @@ export function createUniverseHost(options: UniverseHostOptions): UniverseHost {
       return;
     }
     await init(offscreen, (message, transfer) => worker.postMessage(message, transfer ?? []));
+    // A worker can say it is able to draw and then never present a frame (no animation
+    // frames reach it, a driver that stalls). The page is not left without a galaxy for that.
+    const watch = () => {
+      watchdog = setTimeout(() => {
+        if (destroyed || drawn || path !== "worker") return;
+        if (document.hidden) return watch();
+        console.warn("[universe] the worker drew nothing in time; using the main thread");
+        stop();
+        send = null;
+        void startInline();
+      }, WORKER_FIRST_FRAME_MS);
+    };
+    watch();
   };
 
   // ── forwarding ────────────────────────────────────────────────────────────
@@ -328,6 +353,7 @@ export function createUniverseHost(options: UniverseHostOptions): UniverseHost {
     },
     destroy() {
       destroyed = true;
+      if (watchdog) clearTimeout(watchdog);
       observer?.disconnect();
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisible);

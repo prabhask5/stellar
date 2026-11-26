@@ -124,9 +124,13 @@ test.describe("universe", () => {
   test.beforeAll(async ({ request }) => {
     await ensureConfigured(request);
   });
-  test.beforeEach(async ({ context }) => {
+  test.beforeEach(async ({ context, page }) => {
     await wipeData();
     await signIn(context);
+    // When the galaxy cannot start, the app says why; a failing run should show it.
+    page.on("console", (message) => {
+      if (message.text().startsWith("[universe]")) console.warn(message.text());
+    });
   });
 
   test("the galaxy appears after first paint, off the main thread, and outside the initial JavaScript", async ({

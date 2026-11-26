@@ -335,6 +335,6 @@ test.describe("routines", () => {
           )[0],
       )
       .toEqual({ r: 0, l: 0 });
-    await expect(page.getByText("No routines yet.")).toBeVisible();
+    await expect(page.getByText("Nothing in orbit yet.")).toBeVisible();
   });
 });
