@@ -78,7 +78,7 @@ export interface DeviceSignals {
 
 export interface QualityChoice {
   tier: QualityTier;
-  /** True when nothing may move by itself: every page is frozen and events are a glow. */
+  /** True when nothing may move by itself: the galaxy is drawn once and events are a glow. */
   still: boolean;
 }
 

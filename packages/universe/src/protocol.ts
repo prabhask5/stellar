@@ -60,7 +60,9 @@ export interface ProbeResult {
   state: RunState;
   tier: QualityTier;
   still: boolean;
-  /** A frame has been requested and not drawn yet. False on a frozen page that is at rest. */
+  /** The framing of the page the engine was last told about. */
+  framing: FramingName;
+  /** A frame has been requested and not drawn yet. False when the sky is still and at rest. */
   pending: boolean;
   /** WebGL is drawn on the CPU here: timings say nothing about a real device. */
   software: boolean;

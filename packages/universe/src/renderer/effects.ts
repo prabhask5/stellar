@@ -83,7 +83,7 @@ export interface EffectSpec {
   origin: "control" | "none";
   /** Where it lands: a real star on a major arm chosen by the item's id, or the whole disk. */
   target: "arm-star" | "disk";
-  /** Needs the galaxy or the camera to move, so a frozen page goes live while it plays. */
+  /** Moves the galaxy or the camera (the core, the push-in), not only particles. */
   motion: boolean;
   draw: (e: Effect, t: number, s: Stage) => void;
 }

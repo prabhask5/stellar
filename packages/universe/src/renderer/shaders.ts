@@ -74,7 +74,7 @@ void main(){ vec3 c = texture(uSrc,vUv).rgb*.2270;
 
 /**
  * Scene + bloom + the analytic core glow → ACES tone mapping, vignette, gamma, dither.
- * `uFx` and `uFxBloom` carry the event particles on a frozen page, where the galaxy itself
+ * `uFx` and `uFxBloom` carry the event particles over a still sky, where the galaxy itself
  * is a cached frame; they are black textures otherwise.
  */
 export const COMPOSITE_FS = `

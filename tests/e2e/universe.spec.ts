@@ -21,7 +21,8 @@ test.use({ reducedMotion: "no-preference" });
 
 interface Probe {
   frames: number;
-  state: "live" | "waking" | "frozen" | "hidden";
+  state: "live" | "waking" | "still" | "hidden";
+  framing: "home" | "focus" | "page";
   pending: boolean;
   software: boolean;
   tier: "high" | "balanced" | "low";
@@ -75,15 +76,14 @@ const nav = (page: Page, name: string) =>
     .getByRole("link", { name })
     .click();
 
-/** A frozen page draws nothing: the frame count does not move while it is left alone. */
+/** A still sky draws nothing: the frame count does not move while it is left alone. */
 async function expectNoFrames(page: Page): Promise<void> {
-  // At rest: frozen, and the last frame it asked for has been drawn. Software rendering
-  // (CI, headless browsers) can take seconds over a move a GPU does in one.
+  // At rest: still, and the last frame it asked for has been drawn.
   await expect
     .poll(
       async () => {
         const p = await probe(page);
-        return p.state === "frozen" && !p.pending;
+        return p.state === "still" && !p.pending;
       },
       { timeout: 45_000 },
     )
@@ -94,6 +94,15 @@ async function expectNoFrames(page: Page): Promise<void> {
   const after = await probe(page);
   expect(after.frames).toBe(frames);
   expect(after.pending).toBe(false);
+}
+
+/** The galaxy is moving: frames keep coming. Software rendering (CI) draws them slowly. */
+async function expectLive(page: Page): Promise<void> {
+  await expect.poll(() => state(page)).toBe("live");
+  const { frames } = await probe(page);
+  await expect
+    .poll(async () => (await probe(page)).frames, { timeout: 45_000 })
+    .toBeGreaterThan(frames + 3);
 }
 
 /** Can a worker in this browser draw WebGL2? Asked independently of the app. */
@@ -172,9 +181,7 @@ test.describe("universe", () => {
     await shot("universe-home");
   });
 
-  test("one canvas for every page: live on Home and Focus, frozen with no frames elsewhere", async ({
-    page,
-  }) => {
+  test("one canvas, live on every page", async ({ page }) => {
     await setQuality("balanced");
     await page.goto("/");
     await galaxyReady(page);
@@ -184,24 +191,19 @@ test.describe("universe", () => {
         document.querySelector(".sp-universe canvas") as HTMLCanvasElement & { __mark?: string }
       ).__mark = "same-canvas";
     });
-    // Home is live: frames keep coming.
-    const before = (await probe(page)).frames;
-    await expect.poll(async () => (await probe(page)).frames).toBeGreaterThan(before + 5);
-    expect(await state(page)).toBe("live");
+    await expectLive(page);
 
+    // Behind content the galaxy keeps turning, wide and dimmer.
     await nav(page, "Tasks");
     await expect(page.getByRole("heading", { name: "Tasks", level: 1 })).toBeVisible();
-    await expect(page.locator(".sp-universe")).toHaveAttribute("data-mode", "frozen");
-    await expectNoFrames(page);
-    // Still a galaxy, just not moving.
+    await expect(page.locator(".sp-universe")).toHaveAttribute("data-mode", "live");
+    await expectLive(page);
     expect((await probe(page)).lit).toBeGreaterThan(200);
 
     await nav(page, "Focus");
     await expect(page.getByRole("heading", { name: "Focus", level: 1 })).toBeVisible();
     await expect(page.locator(".sp-universe")).toHaveAttribute("data-mode", "live");
-    await expect.poll(() => state(page)).toBe("live");
-    const onFocus = (await probe(page)).frames;
-    await expect.poll(async () => (await probe(page)).frames).toBeGreaterThan(onFocus + 5);
+    await expectLive(page);
 
     await nav(page, "Universe");
     await expect(page.locator(".sp-universe")).toHaveAttribute("data-mode", "interactive");
@@ -365,20 +367,18 @@ test.describe("universe", () => {
       const other = await second.newPage();
       const ready = [realtimeReady(page), realtimeReady(other)];
       await page.goto("/focus");
-      // The other device is on a frozen page.
+      // The other device is on another page.
       await other.goto("/tasks");
       await Promise.all(ready);
       await galaxyReady(other, "low");
       const focus = page.getByTestId("focus");
       await expect(focus).toHaveAttribute("data-status", "idle");
-      await expectNoFrames(other);
 
-      // Starting here starts it there: the frozen page goes live for the wave, then freezes.
+      // Starting here starts it there.
       await page.getByRole("button", { name: "Start focus" }).click();
       await expect(focus).toHaveAttribute("data-status", "running");
       expect(await events(page)).toEqual(["focus_started"]);
       await expect.poll(() => events(other)).toEqual(["focus_started"]);
-      await expectNoFrames(other);
 
       // Pausing and resuming are not events.
       await page.getByRole("button", { name: "Pause" }).click();
@@ -411,41 +411,34 @@ test.describe("universe", () => {
       ];
       await expect.poll(() => events(page), { timeout: 30_000 }).toEqual(full);
       await expect.poll(() => events(other), { timeout: 30_000 }).toEqual(full);
-      await expectNoFrames(other);
+      // Once everything has played out, nothing more was emitted.
+      await expect.poll(async () => (await probe(other)).effects, { timeout: 45_000 }).toBe(0);
       expect(await events(other)).toEqual(full);
+      expect(await events(page)).toEqual(full);
     } finally {
       await second.close();
     }
   });
 
-  test("a frozen page wakes for an event and freezes again", async ({ page }) => {
+  test("an event plays in the galaxy behind a list, and leaves nothing behind", async ({
+    page,
+  }) => {
     await setQuality("balanced");
     await sql(
-      `insert into sp_tasks (user_id, name, due_date) values (${OWNER}, 'Wake the sky', sp__today(${OWNER}))`,
+      `insert into sp_tasks (user_id, name, due_date) values (${OWNER}, 'Light the sky', sp__today(${OWNER}))`,
     );
     await page.goto("/tasks");
     await galaxyReady(page);
-    await expectNoFrames(page);
-    const idle = (await probe(page)).frames;
-
-    // Completing a task plays in the galaxy behind the list, without making it live.
+    expect((await probe(page)).effects).toBe(0);
     await page
       .getByTestId("today-tab")
-      .getByRole("checkbox", { name: "Complete “Wake the sky”" })
+      .getByRole("checkbox", { name: "Complete “Light the sky”" })
       .click();
-    await expect.poll(() => state(page), { intervals: [30] }).toBe("waking");
-    const playing = await probe(page);
-    expect(playing.effects).toBe(1);
-    await expect.poll(async () => (await probe(page)).frames).toBeGreaterThan(idle + 5);
-    await expectNoFrames(page);
-    expect((await probe(page)).effects).toBe(0);
-
-    // A focus event moves the galaxy and the camera: live for as long as it lasts.
-    await page.evaluate(() =>
-      (window as unknown as W).__stellarUniverse.emit({ type: "focus_completed" }),
-    );
-    await expect.poll(() => state(page), { intervals: [30] }).toBe("live");
-    await expectNoFrames(page);
+    await expect.poll(async () => (await probe(page)).effects, { intervals: [30] }).toBe(1);
+    expect(await state(page)).toBe("live");
+    // A shooting star lasts 2.6 s; then its slot is free again.
+    await expect.poll(async () => (await probe(page)).effects, { timeout: 45_000 }).toBe(0);
+    await expectLive(page);
   });
 
   test("a burst of completions never queues up: six play, then one meteor shower", async ({
@@ -454,7 +447,6 @@ test.describe("universe", () => {
     await setQuality("balanced");
     await page.goto("/tasks");
     await galaxyReady(page);
-    await expectNoFrames(page);
     const peak = await page.evaluate(async () => {
       for (let i = 0; i < 12; i++) {
         (window as unknown as W).__stellarUniverse.emit({
@@ -468,10 +460,10 @@ test.describe("universe", () => {
     });
     // Six shooting stars and the shower that stands in for the rest.
     expect(peak).toBe(7);
-    await expectNoFrames(page);
+    await expect.poll(async () => (await probe(page)).effects, { timeout: 45_000 }).toBe(0);
   });
 
-  test("reduced motion: every page is frozen and events are a brief glow", async ({
+  test("reduced motion: the sky is still on every page and events are a brief glow", async ({
     browser,
     baseURL,
   }, info) => {
@@ -489,11 +481,19 @@ test.describe("universe", () => {
       const home = await probe(page);
       expect(home.still).toBe(true);
       expect(home.lit).toBeGreaterThan(500);
-      // Home does not orbit by itself, and Focus is not live either.
+      // Home does not orbit by itself, and no other page moves either.
       await expectNoFrames(page);
-      await nav(page, "Focus");
-      await expect(page.getByRole("heading", { name: "Focus", level: 1 })).toBeVisible();
-      await expectNoFrames(page);
+      for (const [name, framing] of [
+        ["Tasks", "page"],
+        ["Focus", "focus"],
+      ] as const) {
+        await nav(page, name);
+        await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
+        // The new page fades in over the old one; then nothing moves again.
+        await expect.poll(async () => (await probe(page)).framing).toBe(framing);
+        await expectNoFrames(page);
+        expect((await probe(page)).lit).toBeGreaterThan(200);
+      }
 
       // An event is a glow of at most 400 ms where it started, and nothing else moves.
       const during = await page.evaluate(async () => {
@@ -536,7 +536,7 @@ test.describe("universe", () => {
     expect((await probe(page)).lit).toBeGreaterThan(200);
     await quality.getByRole("radio", { name: /^High/ }).click();
     await expect(page.locator("html")).toHaveAttribute("data-tier", "high");
-    await expectNoFrames(page);
+    await expect.poll(async () => (await probe(page)).tier).toBe("high");
     expect(
       (await sql<{ quality_tier: string }>(`select quality_tier from sp_settings`))[0]
         ?.quality_tier,
@@ -580,7 +580,8 @@ test.describe("universe", () => {
     await page.getByRole("radio", { name: "All", exact: true }).click();
     await expect(page.getByTestId("all-tab")).toContainText("Task 120");
     await galaxyReady(page);
-    await expectNoFrames(page);
+    // The galaxy is live behind the list the whole time.
+    expect(await state(page)).toBe("live");
 
     const longest = await page.evaluate(async () => {
       // A task that takes the main thread shows up as a late heartbeat. Long Task timing is

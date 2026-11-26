@@ -5,8 +5,8 @@
  *
  * Three states, decided afresh every frame:
  *   live    the galaxy is redrawn: Home and Focus, any camera move, a focus event
- *   waking  a frozen page while an event plays: the cached galaxy plus the particles
- *   frozen  nothing is drawn and no frame is requested
+ *   still   reduced motion: the galaxy is drawn once and no frame is requested
+ *   waking  a still sky while an event plays: the cached galaxy plus the particles
  *
  * The frame loop allocates nothing: every array it touches exists before the first frame.
  */
@@ -78,9 +78,9 @@ interface Targets {
   half: Target;
   q1: Target;
   q2: Target;
-  /** The galaxy's bloom as it was when a frozen page was captured. */
+  /** The galaxy's bloom as it was when a still sky was captured. */
   cache: Target;
-  /** Event particles on a frozen page. */
+  /** Event particles over a still sky. */
   fx: Target;
 }
 
@@ -123,16 +123,16 @@ export class Engine {
   private height = 1;
   private scale = 1;
 
-  private page: PageView = { mode: "frozen", framing: "page", shiftX: 0, shiftY: 0 };
+  private page: PageView = { mode: "live", framing: "page", shiftX: 0, shiftY: 0 };
   private visible = true;
   private focusTarget = 0;
   private focusLevel = 0;
   private time = 0;
   private coreBoost = 1;
 
-  /** A frozen page's galaxy is in `scene` and `cache`, ready to be composited. */
+  /** A still sky's galaxy is in `scene` and `cache`, ready to be composited. */
   private captured = false;
-  /** The frame on screen is out of date and one more must be drawn, even on a frozen page. */
+  /** The frame on screen is out of date and one more must be drawn, even when the sky is still. */
   private dirty = true;
   /** The last composite read the event particles too. */
   private lastHadFx = false;
@@ -306,15 +306,16 @@ export class Engine {
       // Only the layout moved (a resize, a different stage): slide the centre across.
       if (from.shiftX !== next.shiftX || from.shiftY !== next.shiftY) {
         // Not a move to animate, and on Home it must not undo the owner's own view.
-        if (this.still || next.mode === "frozen") this.beginFade();
+        if (this.still) this.beginFade();
         this.camera.shiftX = next.shiftX;
         this.camera.shiftY = next.shiftY;
         this.invalidate();
       }
       return;
     }
-    if (next.mode === "frozen" || this.still || tierWaiting) {
-      // Behind content the galaxy does not travel: the new view fades in over the old one.
+    if (this.still || tierWaiting) {
+      // A still sky does not travel, and a new tier cannot appear mid-flight: the new view
+      // fades in over the old one.
       this.beginFade();
       this.atBoundary();
       this.camera.snap(framing, next.shiftX, next.shiftY);
@@ -512,24 +513,8 @@ export class Engine {
     this.requestFrame(this.tickBound);
   }
 
-  private get moving(): boolean {
-    return (
-      this.camera.busy ||
-      this.player.needsMotion ||
-      Math.abs(this.focusLevel - this.focusTarget) > 0.002
-    );
-  }
-
   private get live(): boolean {
-    return (
-      runState({
-        visible: true,
-        still: this.still,
-        mode: this.page.mode,
-        moving: this.moving,
-        playing: false,
-      }) === "live"
-    );
+    return !this.still;
   }
 
   private tick(now: number): void {
@@ -596,7 +581,7 @@ export class Engine {
         this.bloom(this.targets.scene, this.targets.cache);
         this.captured = true;
       }
-      // An idle frozen page is only redrawn when something changed under it.
+      // A still sky is only redrawn when something changed under it.
       if (needsCapture || hasFx || this.lastHadFx || this.dirty || this.fadeStart >= 0 || playing) {
         if (hasFx) this.renderParticles();
         this.lastHadFx = hasFx;
@@ -741,7 +726,7 @@ export class Engine {
     gl.drawArrays(gl.POINTS, 0, n);
   }
 
-  /** The particles alone, for a frozen page, with their own bloom. */
+  /** The particles alone, over a still sky, with their own bloom. */
   private renderParticles(): void {
     const gl = this.gl;
     const t = this.targets;
@@ -896,10 +881,9 @@ export class Engine {
       state: runState({
         visible: this.visible,
         still: this.still,
-        mode: this.page.mode,
-        moving: this.moving,
         playing: !this.player.idle,
       }),
+      framing: this.page.framing,
       pending: this.scheduled,
       software: this.gpuTier === 0,
       tier: this.plan.current,
