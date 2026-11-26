@@ -1026,7 +1026,6 @@ export type Database = {
         Returns: Json
       }
       sp_today: { Args: Record<PropertyKey, never>; Returns: string }
-      sp_universe_snapshot: { Args: Record<PropertyKey, never>; Returns: Json }
     }
     Enums: {
       [_ in never]: never
