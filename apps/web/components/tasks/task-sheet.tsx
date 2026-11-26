@@ -197,7 +197,7 @@ export function TaskSheet({ task: current, onClose, lists, today, weekStart }: T
             {task.completed ? "Mark as not done" : "Complete"}
           </Button>
           <Button variant="primary" size="lg" className="flex-1" onClick={close}>
-            Done
+            Save
           </Button>
         </div>
       </div>

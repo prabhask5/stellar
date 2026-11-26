@@ -198,7 +198,7 @@ export function GoalListDetail({ list, index, goals, onBack }: GoalListDetailPro
           icon={<PlusIcon size={16} />}
           onClick={() => setAdding(true)}
         >
-          Add goal
+          New goal
         </Button>
       </div>
 
@@ -209,7 +209,7 @@ export function GoalListDetail({ list, index, goals, onBack }: GoalListDetailPro
             body="Add the first goal. This list's planet grows as you make progress."
             action={
               <Button variant="primary" onClick={() => setAdding(true)}>
-                Add goal
+                New goal
               </Button>
             }
           />

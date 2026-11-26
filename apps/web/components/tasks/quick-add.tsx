@@ -129,7 +129,7 @@ export function QuickAddBar({
         className={cx(inputClass, "h-auto resize-none py-2.5 leading-snug")}
       />
       <Button variant="primary" block className="mt-3" onClick={() => setDescOpen(false)}>
-        Done
+        Save
       </Button>
     </div>
   );

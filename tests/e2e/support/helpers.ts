@@ -337,7 +337,7 @@ export const isPhone = (projectName: string) =>
   isTouch(projectName) && !projectName.includes("landscape");
 /** Below 1024px the task lists are a segment of the Tasks page; from there up they are a column. */
 export const listsInTab = (projectName: string) => isTouch(projectName);
-/** Date and emoji pickers open in a sheet (with Done) on every iPhone project, sideways included. */
+/** Date and emoji pickers open in a sheet (with Save) on every iPhone project, sideways included. */
 export const pickersInSheet = (projectName: string) => isTouch(projectName);
 export const isWebKit = (projectName: string) => projectName.startsWith("webkit");
 

@@ -121,7 +121,7 @@ export interface DateSheetProps {
   withTime?: boolean;
 }
 
-/** The date picker in a sheet with a Done button. Also used for "Reschedule". */
+/** The date picker in a sheet with a Save button. Also used for "Reschedule". */
 export function DateSheet({
   open,
   onOpenChange,
@@ -148,7 +148,7 @@ export function DateSheet({
         className="mt-4"
         onClick={() => onOpenChange(false)}
       >
-        Done
+        Save
       </Button>
     </Sheet>
   );

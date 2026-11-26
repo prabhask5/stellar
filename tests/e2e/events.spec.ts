@@ -34,7 +34,7 @@ test.describe("upcoming events", () => {
     await expect(add).toBeDisabled();
     await sheet.getByRole("button", { name: "Date" }).click();
     await page.getByRole("button", { name: "Tomorrow" }).click();
-    const done = page.getByRole("button", { name: "Done" });
+    const done = page.getByRole("button", { name: "Save" });
     if (await done.isVisible().catch(() => false)) await done.click();
     else await page.keyboard.press("Escape");
     await expect(add).toBeEnabled();
